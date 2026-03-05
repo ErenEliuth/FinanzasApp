@@ -1,112 +1,425 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useAuth } from '@/utils/auth';
+import { supabase } from '@/utils/supabase';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+} from 'react-native';
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+// ─── Categorías fijas por defecto ───────────────────────────────────────────
+const DEFAULT_CATEGORIES = ['Sueldo', 'Transporte', 'Comida'];
 
-export default function TabTwoScreen() {
+// Sugeridas para cuando el usuario quiere crear nuevas
+const SUGGESTED_EXTRAS = [
+  { label: 'Recibos', icon: 'receipt' },
+  { label: 'Gimnasio', icon: 'fitness-center' },
+  { label: 'Salud', icon: 'local-hospital' },
+  { label: 'Entretenimiento', icon: 'movie' },
+  { label: 'Ropa', icon: 'checkroom' },
+  { label: 'Educación', icon: 'school' },
+];
+
+const STORAGE_KEY = 'user_custom_categories_v2';
+type TxType = 'income' | 'expense' | 'ahorro';
+
+export default function AddTransactionScreen() {
+  const [type, setType] = useState<TxType>('income');
+  const [amount, setAmount] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('');
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+
+  const router = useRouter();
+  const { user, theme } = useAuth();
+  const isDark = theme === 'dark';
+  const colors = {
+    bg: isDark ? '#0F172A' : '#F4F6FF',
+    card: isDark ? '#1E293B' : '#FFFFFF',
+    text: isDark ? '#F1F5F9' : '#1E293B',
+    sub: isDark ? '#94A3B8' : '#64748B',
+    border: isDark ? '#334155' : '#E2E8F0',
+    input: isDark ? '#334155' : '#F1F5F9',
+  };
+
+  const typeColor =
+    type === 'income' ? '#10B981' :
+      type === 'ahorro' ? '#6366F1' : '#EF4444';
+
+  // Cargar categorías personalizadas guardadas
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEY).then(raw => {
+      if (raw) setCustomCategories(JSON.parse(raw));
+    });
+  }, []);
+
+  const persistCustomCategories = async (cats: string[]) => {
+    setCustomCategories(cats);
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(cats));
+  };
+
+  const handleAddCustomCategory = async () => {
+    const trimmed = newCategoryName.trim();
+    if (!trimmed) return;
+    const all = [...DEFAULT_CATEGORIES, ...customCategories];
+    if (all.includes(trimmed)) {
+      Alert.alert('Ya existe', 'Esa categoría ya está en tu lista.');
+      return;
+    }
+    const updated = [...customCategories, trimmed];
+    await persistCustomCategories(updated);
+    setCategory(trimmed);
+    setNewCategoryName('');
+    setModalVisible(false);
+  };
+
+  const handleDeleteCustomCategory = (cat: string) => {
+    Alert.alert('Eliminar', `¿Quitar la categoría "${cat}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar', style: 'destructive', onPress: async () => {
+          const updated = customCategories.filter(c => c !== cat);
+          await persistCustomCategories(updated);
+          if (category === cat) setCategory('');
+        }
+      }
+    ]);
+  };
+
+  const handleAmountChange = (text: string) => {
+    const numeric = text.replace(/\D/g, '');
+    if (!numeric) { setAmount(''); return; }
+    setAmount(numeric.replace(/\B(?=(\d{3})+(?!\d))/g, '.'));
+  };
+
+  const handleSave = async () => {
+    const parsed = parseFloat(amount.replace(/\./g, '').replace(',', '.'));
+    if (isNaN(parsed) || parsed <= 0) return;
+    const desc = description.trim() || (type === 'ahorro' ? 'Ahorro' : '');
+    if (!desc) return;
+
+    const dbType = type === 'income' ? 'income' : 'expense';
+    const dbCategory = type === 'ahorro' ? 'Ahorro' : (category || 'General');
+
+    try {
+      const { error } = await supabase.from('transactions').insert([{
+        user_id: user?.id,
+        type: dbType,
+        amount: parsed,
+        description: desc,
+        category: dbCategory,
+        date: new Date().toISOString(),
+      }]);
+      if (error) throw error;
+      setAmount('');
+      setDescription('');
+      setCategory('');
+      router.push('/(tabs)');
+    } catch (e) {
+      console.error('Error guardando transacción:', e);
+    }
+  };
+
+  const allCategories = type === 'ahorro'
+    ? []
+    : [...DEFAULT_CATEGORIES, ...customCategories];
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+
+            <Text style={[styles.title, { color: colors.text }]}>Nueva Transacción</Text>
+
+            {/* ── Selector de Tipo: Ingreso / Gasto / Ahorro ─────────────── */}
+            <View style={[styles.typeSelector, { backgroundColor: colors.card }]}>
+              {/* Ingreso */}
+              <TouchableOpacity
+                style={[styles.typeBtn, type === 'income' && { backgroundColor: '#10B981' }]}
+                onPress={() => { setType('income'); setDescription(''); }}
+              >
+                <MaterialIcons name="arrow-downward" size={15} color={type === 'income' ? '#FFF' : '#94A3B8'} />
+                <Text style={[styles.typeBtnText, type === 'income' && styles.typeBtnActive]}>Ingreso</Text>
+              </TouchableOpacity>
+
+              {/* Gasto */}
+              <TouchableOpacity
+                style={[styles.typeBtn, type === 'expense' && { backgroundColor: '#EF4444' }]}
+                onPress={() => { setType('expense'); setDescription(''); }}
+              >
+                <MaterialIcons name="arrow-upward" size={15} color={type === 'expense' ? '#FFF' : '#94A3B8'} />
+                <Text style={[styles.typeBtnText, type === 'expense' && styles.typeBtnActive]}>Gasto</Text>
+              </TouchableOpacity>
+
+              {/* Ahorro */}
+              <TouchableOpacity
+                style={[styles.typeBtn, type === 'ahorro' && { backgroundColor: '#6366F1' }]}
+                onPress={() => { setType('ahorro'); setDescription('Ahorro'); }}
+              >
+                <Ionicons name="wallet" size={15} color={type === 'ahorro' ? '#FFF' : '#94A3B8'} />
+                <Text style={[styles.typeBtnText, type === 'ahorro' && styles.typeBtnActive]}>Ahorro</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* ── Monto ─────────────────────────────────────────────────── */}
+            <View style={[styles.amountCard, { backgroundColor: typeColor }]}>
+              <Text style={styles.currSign}>$</Text>
+              <TextInput
+                style={styles.amountInput}
+                value={amount}
+                onChangeText={handleAmountChange}
+                placeholder="0"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+                keyboardType="decimal-pad"
+                returnKeyType="done"
+                onSubmitEditing={Keyboard.dismiss}
+              />
+            </View>
+
+            {/* ── Formulario ────────────────────────────────────────────── */}
+            <View style={[styles.form, { backgroundColor: colors.card }]}>
+              {/* Descripción */}
+              <View style={styles.inputRow}>
+                <View style={[styles.inputIcon, { backgroundColor: typeColor + '18' }]}>
+                  <MaterialIcons name="edit" size={20} color={typeColor} />
+                </View>
+                <TextInput
+                  style={[styles.textInput, { color: colors.text }]}
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder={
+                    type === 'ahorro' ? 'Nombre del ahorro (ej. Viaje)' :
+                      type === 'income' ? 'Descripción (ej. Sueldo)' :
+                        'Descripción (ej. Supermercado)'
+                  }
+                  placeholderTextColor="#94A3B8"
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                />
+              </View>
+
+              {/* Categorías (no aplica para Ahorro) */}
+              {type !== 'ahorro' && (
+                <>
+                  <View style={[styles.separator, { backgroundColor: colors.border }]} />
+                  <Text style={[styles.sectionLabel, { color: colors.sub }]}>Categoría</Text>
+
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
+                    {allCategories.map(cat => (
+                      <TouchableOpacity
+                        key={cat}
+                        style={[
+                          styles.catChip,
+                          { backgroundColor: isDark ? '#334155' : '#F1F5F9' },
+                          category === cat && { backgroundColor: typeColor },
+                        ]}
+                        onPress={() => setCategory(cat)}
+                        onLongPress={() => customCategories.includes(cat) && handleDeleteCustomCategory(cat)}
+                      >
+                        <Text style={[
+                          styles.catText,
+                          { color: isDark ? '#94A3B8' : '#64748B' },
+                          category === cat && { color: '#FFF' },
+                        ]}>
+                          {cat}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+
+                    {/* Botón + Nueva */}
+                    <TouchableOpacity style={styles.catAddBtn} onPress={() => setModalVisible(true)}>
+                      <MaterialIcons name="add" size={15} color="#6366F1" />
+                      <Text style={styles.catAddText}>Nueva</Text>
+                    </TouchableOpacity>
+                  </ScrollView>
+
+                  {customCategories.length > 0 && (
+                    <Text style={styles.hintText}>💡 Mantén presionada una categoría tuya para eliminarla</Text>
+                  )}
+                </>
+              )}
+
+              {/* Info box de Ahorro */}
+              {type === 'ahorro' && (
+                <View style={[styles.ahorroBox, { backgroundColor: '#6366F1' + '12' }]}>
+                  <Ionicons name="information-circle" size={18} color="#6366F1" />
+                  <Text style={styles.ahorroText}>
+                    Este monto se restará de tu Dinero Activo y se sumará a tu Ahorro.
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* ── Botón Guardar ──────────────────────────────────────── */}
+            <TouchableOpacity
+              style={[styles.saveBtn, { backgroundColor: typeColor }, (!amount) && styles.saveBtnDisabled]}
+              onPress={handleSave}
+              disabled={!amount}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="checkmark-circle" size={22} color="#FFF" />
+              <Text style={styles.saveBtnText}>
+                {type === 'income' ? 'Guardar Ingreso' :
+                  type === 'ahorro' ? 'Guardar Ahorro' : 'Guardar Gasto'}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={{ height: 100 }} />
+          </ScrollView>
+        </KeyboardAvoidingView>
+
+        {/* ── Modal de nueva categoría ─────────────────────────────── */}
+        <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Nueva categoría</Text>
+              <Text style={[styles.modalSub, { color: colors.sub }]}>Elige una sugerencia o escribe la tuya</Text>
+
+              {/* Sugeridas */}
+              <Text style={[styles.modalSectionLabel, { color: colors.sub }]}>Sugeridas</Text>
+              <View style={styles.suggestionsWrap}>
+                {SUGGESTED_EXTRAS
+                  .filter(s => !customCategories.includes(s.label) && !DEFAULT_CATEGORIES.includes(s.label))
+                  .map(s => (
+                    <TouchableOpacity
+                      key={s.label}
+                      style={styles.suggestionChip}
+                      onPress={() => { setCategory(s.label); setModalVisible(false); }}
+                    >
+                      <MaterialIcons name={s.icon as any} size={15} color="#6366F1" />
+                      <Text style={styles.suggestionText}>{s.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+              </View>
+
+              {/* Crear nueva */}
+              <Text style={[styles.modalSectionLabel, { color: colors.sub, marginTop: 18 }]}>Crear y guardar</Text>
+              <View style={[styles.modalInputWrap, { borderColor: colors.border, backgroundColor: colors.input }]}>
+                <TextInput
+                  style={[styles.modalInput, { color: colors.text }]}
+                  value={newCategoryName}
+                  onChangeText={setNewCategoryName}
+                  placeholder="Ej: Netflix, Mascota, Ropa..."
+                  placeholderTextColor="#94A3B8"
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={handleAddCustomCategory}
+                />
+              </View>
+
+              <View style={styles.modalBtns}>
+                <TouchableOpacity
+                  style={[styles.modalBtn, { backgroundColor: colors.border }]}
+                  onPress={() => { setModalVisible(false); setNewCategoryName(''); }}
+                >
+                  <Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalBtn, { backgroundColor: '#6366F1' }]}
+                  onPress={handleAddCustomCategory}
+                >
+                  <Text style={{ color: '#FFF', fontWeight: '700' }}>Guardar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: { flex: 1 },
+  scroll: { padding: 20, paddingTop: Platform.OS === 'android' ? 50 : 20 },
+  title: { fontSize: 26, fontWeight: '800', marginBottom: 20 },
+
+  typeSelector: {
+    flexDirection: 'row', borderRadius: 16, padding: 5, marginBottom: 20, gap: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
-  titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
+  typeBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', paddingVertical: 12, borderRadius: 13, gap: 5,
   },
+  typeBtnText: { color: '#94A3B8', fontSize: 13, fontWeight: '700' },
+  typeBtnActive: { color: '#FFF' },
+
+  amountCard: {
+    borderRadius: 24, padding: 28, alignItems: 'center',
+    flexDirection: 'row', justifyContent: 'center', marginBottom: 20,
+  },
+  currSign: { color: '#FFF', fontSize: 40, fontWeight: '800', marginRight: 8 },
+  amountInput: { color: '#FFF', fontSize: 56, fontWeight: '800', minWidth: 120, textAlign: 'center' },
+
+  form: {
+    borderRadius: 20, padding: 16, marginBottom: 20,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+  },
+  inputRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
+  inputIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  textInput: { flex: 1, fontSize: 16 },
+  separator: { height: 1, marginVertical: 12 },
+  sectionLabel: { fontSize: 13, fontWeight: '600', marginBottom: 10 },
+
+  catRow: { gap: 8, paddingBottom: 6 },
+  catChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
+  catText: { fontSize: 13, fontWeight: '600' },
+  catAddBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(99,102,241,0.1)', paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 20, borderWidth: 1, borderColor: '#6366F1',
+  },
+  catAddText: { fontSize: 13, fontWeight: '700', color: '#6366F1' },
+  hintText: { fontSize: 11, color: '#94A3B8', marginTop: 8 },
+
+  ahorroBox: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    borderRadius: 12, padding: 12, gap: 8, marginTop: 8,
+  },
+  ahorroText: { flex: 1, fontSize: 13, color: '#64748B', lineHeight: 18 },
+
+  saveBtn: {
+    borderRadius: 16, height: 56,
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8,
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6,
+  },
+  saveBtnDisabled: { opacity: 0.5 },
+  saveBtnText: { color: '#FFF', fontSize: 17, fontWeight: '700' },
+
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 44 },
+  modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: 4 },
+  modalSub: { fontSize: 14, marginBottom: 18 },
+  modalSectionLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
+  suggestionsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  suggestionChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(99,102,241,0.1)', paddingVertical: 8,
+    paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(99,102,241,0.2)',
+  },
+  suggestionText: { fontSize: 13, fontWeight: '600', color: '#6366F1' },
+  modalInputWrap: { borderWidth: 1.5, borderRadius: 14, paddingHorizontal: 14, height: 50, justifyContent: 'center', marginBottom: 20 },
+  modalInput: { fontSize: 16 },
+  modalBtns: { flexDirection: 'row', gap: 12 },
+  modalBtn: { flex: 1, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
 });

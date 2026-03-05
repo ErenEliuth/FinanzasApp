@@ -1,24 +1,54 @@
+import { AuthProvider, useAuth } from '@/utils/auth';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+// ─── Guard de autenticación ───────────────────────────────────────────────────
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+function RootStack() {
+  const { user, loading, theme } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  useEffect(() => {
+    if (loading) return;
+
+    const inAuthGroup = segments[0] === '(tabs)';
+
+    // Solo proteger el dashboard: si no hay sesión y están adentro → login
+    if (!user && inAuthGroup) {
+      router.replace('/login');
+    }
+    // No redirigimos automáticamente al dashboard cuando hay sesión:
+    // la pantalla de bienvenida (index) siempre se muestra primero.
+  }, [user, loading]);
+
+  if (loading) return null;
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+    <ThemeProvider value={theme === 'dark' ? DarkTheme : DefaultTheme}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="login" options={{ gestureEnabled: false }} />
+        <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
+        <Stack.Screen name="goals" options={{ presentation: 'modal' }} />
       </Stack>
-      <StatusBar style="auto" />
+      <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>
   );
 }
+
+export const unstable_settings = {
+  initialRouteName: 'index',
+};
+
+export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <RootStack />
+    </AuthProvider>
+  );
+}
+
