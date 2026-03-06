@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
+    Dimensions,
     Modal,
     Platform,
     SafeAreaView,
@@ -16,6 +17,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { BarChart, LineChart, PieChart } from 'react-native-chart-kit';
 
 const MONTH_NAMES_FULL = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -29,10 +31,10 @@ const toKey = (d: Date) =>
 const fmtCOP = (n: number) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
 
-// ─── Heatmap del mes actual ────────────────────────────────────────────────────
-function MonthHeatmap({ activeDays, isDark, colors }: {
+function MonthHeatmap({ activeDays, isDark, theme, colors }: {
     activeDays: Map<string, number>;
     isDark: boolean;
+    theme: string;
     colors: any;
 }) {
     const today = new Date();
@@ -114,7 +116,7 @@ function MonthHeatmap({ activeDays, isDark, colors }: {
                             ? 'transparent'
                             : count > 0
                                 ? '#22C55E'
-                                : isDark ? '#1E293B' : '#EEF2F7';
+                                : ['dark', 'purple', 'blue', 'pink'].includes(theme) ? colors.bg : '#EEF2F7';
 
                         return (
                             <View key={col} style={mSt.cell}>
@@ -129,10 +131,10 @@ function MonthHeatmap({ activeDays, isDark, colors }: {
                                 ]}>
                                     <Text style={[
                                         mSt.dayNum,
-                                        isFuture && { color: isDark ? '#334155' : '#D1D5DB' },
-                                        !isFuture && count === 0 && { color: colors.sub },
+                                        isFuture && { color: ['dark', 'purple', 'blue', 'pink'].includes(theme) ? colors.sub : '#D1D5DB' },
+                                        !isFuture && count === 0 && { color: colors.text },
                                         !isFuture && count > 0 && { color: '#FFF' },
-                                        isToday && { color: '#7C3AED', fontWeight: '800' },
+                                        isToday && { color: colors.sub, fontWeight: '800' },
                                         isToday && count > 0 && { color: '#FFF' },
                                     ]}>
                                         {day}
@@ -146,7 +148,7 @@ function MonthHeatmap({ activeDays, isDark, colors }: {
 
             {/* Leyenda */}
             <View style={mSt.legend}>
-                <View style={[mSt.legendDot, { backgroundColor: isDark ? '#1E293B' : '#EEF2F7' }]} />
+                <View style={[mSt.legendDot, { backgroundColor: ['dark', 'purple', 'blue', 'pink'].includes(theme) ? colors.bg : '#EEF2F7' }]} />
                 <Text style={[mSt.legendTxt, { color: colors.sub }]}>Sin actividad</Text>
                 <View style={[mSt.legendDot, { backgroundColor: '#22C55E' }]} />
                 <Text style={[mSt.legendTxt, { color: colors.sub }]}>Con actividad</Text>
@@ -181,6 +183,98 @@ const mSt = StyleSheet.create({
     legendTxt: { fontSize: 11 },
 });
 
+// ─── Estadísticas de Categorías ────────────────────────────────────────────────
+function CategoryStatistics({ transactions, isDark, colors }: { transactions: any[]; isDark: boolean; colors: any }) {
+    const expenses = transactions.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Ahorros');
+
+    const categoryTotals: Record<string, number> = {};
+    expenses.forEach(t => {
+        const cat = t.category || 'Otros';
+        categoryTotals[cat] = (categoryTotals[cat] || 0) + Number(Math.abs(t.amount));
+    });
+
+    const labels = Object.keys(categoryTotals);
+    const data = Object.values(categoryTotals);
+
+    if (labels.length === 0) {
+        return (
+            <View style={[mSt.card, { backgroundColor: colors.card, marginTop: 16 }]}>
+                <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text, marginBottom: 8 }}>Estadísticas</Text>
+                <Text style={{ color: colors.sub }}>Aún no hay gastos registrados para mostrar gráficos.</Text>
+            </View>
+        );
+    }
+
+    const screenWidth = Dimensions.get('window').width - 68;
+
+    // Omitimos o reducimos textos muy largos de las etiquetas (max 6 caracteres)
+    const shortLabels = labels.map(l => l.length > 6 ? l.substring(0, 6) + '..' : l);
+
+    const chartConfig = {
+        backgroundGradientFrom: colors.card,
+        backgroundGradientTo: colors.card,
+        color: (opacity = 1) => isDark ? `rgba(99, 102, 241, ${opacity})` : `rgba(79, 70, 229, ${opacity})`,
+        labelColor: (opacity = 1) => isDark ? `rgba(241, 245, 249, ${opacity})` : `rgba(30, 41, 59, ${opacity})`,
+        strokeWidth: 2,
+        barPercentage: 0.6,
+        useShadowColorFromDataset: false,
+        propsForLabels: { fontSize: 10 },
+        decimalPlaces: 0,
+    };
+
+    const pieColors = ['#F87171', '#60A5FA', '#34D399', '#FBBF24', '#A78BFA', '#F472B6', '#38BDF8'];
+    const pieData = labels.map((label, index) => ({
+        name: label,
+        population: data[index],
+        color: pieColors[index % pieColors.length],
+        legendFontColor: colors.text,
+        legendFontSize: 11
+    }));
+
+    return (
+        <View style={[mSt.card, { backgroundColor: colors.card, marginTop: 16 }]}>
+            <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text, marginBottom: 16, letterSpacing: -0.5 }}>Estadísticas de Gastos</Text>
+
+            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.sub, marginBottom: 10 }}>1. Gráfico de Barras</Text>
+            <BarChart
+                data={{ labels: shortLabels, datasets: [{ data }] }}
+                width={screenWidth}
+                height={220}
+                yAxisLabel="$"
+                yAxisSuffix=""
+                chartConfig={chartConfig}
+                verticalLabelRotation={0}
+                style={{ borderRadius: 16, marginBottom: 24, marginLeft: -10 }}
+            />
+
+            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.sub, marginBottom: 10 }}>2. Gráfico Circular (Pie)</Text>
+            <PieChart
+                data={pieData}
+                width={screenWidth}
+                height={200}
+                chartConfig={chartConfig}
+                accessor={"population"}
+                backgroundColor={"transparent"}
+                paddingLeft={"0"}
+                center={[0, 0]}
+                style={{ borderRadius: 16, marginBottom: 24 }}
+            />
+
+            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.sub, marginBottom: 10 }}>3. Gráfico de Líneas</Text>
+            <LineChart
+                data={{ labels: shortLabels, datasets: [{ data }] }}
+                width={screenWidth}
+                height={220}
+                yAxisLabel="$"
+                yAxisSuffix=""
+                chartConfig={chartConfig}
+                bezier
+                style={{ borderRadius: 16, marginBottom: 6, marginLeft: -10 }}
+            />
+        </View>
+    );
+}
+
 // ─── Pantalla principal ────────────────────────────────────────────────────────
 export default function ProfileScreen() {
     const { user, logout, theme, toggleTheme } = useAuth();
@@ -188,17 +282,22 @@ export default function ProfileScreen() {
     const isFocused = useIsFocused();
     const isDark = theme === 'dark';
 
-    const colors = {
-        bg: isDark ? '#0F172A' : '#F4F6FF',
-        card: isDark ? '#1E293B' : '#FFFFFF',
-        text: isDark ? '#F1F5F9' : '#1E293B',
-        sub: isDark ? '#94A3B8' : '#64748B',
-        border: isDark ? '#334155' : '#E2E8F0',
+    const getColors = (t: string) => {
+        switch (t) {
+            case 'pink': return { bg: '#FDF2F8', card: '#FBCFE8', text: '#831843', sub: '#DB2777', border: '#F9A8D4' };
+            case 'purple': return { bg: '#F5F3FF', card: '#ddd6fe', text: '#4C1D95', sub: '#7C3AED', border: '#C4B5FD' };
+            case 'blue': return { bg: '#EFF6FF', card: '#bfdbfe', text: '#1E3A8A', sub: '#3B82F6', border: '#93C5FD' };
+            case 'dark': return { bg: '#0F172A', card: '#1E293B', text: '#F1F5F9', sub: '#94A3B8', border: '#334155' };
+            default: return { bg: '#F4F6FF', card: '#FFFFFF', text: '#1E293B', sub: '#64748B', border: '#E2E8F0' };
+        }
     };
+    const colors = getColors(theme);
+    const whiteColors = { bg: '#FFFFFF', card: '#FFFFFF', text: '#1E293B', sub: '#64748B', border: '#E2E8F0' };
 
     const [transactions, setTransactions] = useState<any[]>([]);
     const [activeDays, setActiveDays] = useState<Map<string, number>>(new Map());
     const [editModalVisible, setEditModalVisible] = useState(false);
+    const [statsModalVisible, setStatsModalVisible] = useState(false);
     const [newName, setNewName] = useState(user?.user_metadata?.name || '');
 
     useEffect(() => { if (isFocused) loadData(); }, [isFocused]);
@@ -263,10 +362,10 @@ export default function ProfileScreen() {
                             <Text style={[styles.email, { color: colors.sub }]}>{email}</Text>
                         </View>
                         <TouchableOpacity
-                            style={[styles.themeBtn, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}
+                            style={[styles.themeBtn, { backgroundColor: isDark ? '#334155' : theme === 'purple' ? '#C4B5FD' : theme === 'blue' ? '#93C5FD' : theme === 'pink' ? '#F9A8D4' : '#F1F5F9' }]}
                             onPress={toggleTheme}
                         >
-                            <Ionicons name={isDark ? 'sunny' : 'moon'} size={18} color="#6366F1" />
+                            <Ionicons name={theme === 'dark' ? 'moon' : theme === 'purple' ? 'color-palette' : theme === 'blue' ? 'water' : theme === 'pink' ? 'flower' : 'sunny'} size={18} color={theme === 'purple' ? '#4C1D95' : theme === 'blue' ? '#1E3A8A' : theme === 'pink' ? '#831843' : '#6366F1'} />
                         </TouchableOpacity>
                     </View>
 
@@ -291,7 +390,16 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* ── Heatmap del mes actual ── */}
-                <MonthHeatmap activeDays={activeDays} isDark={isDark} colors={colors} />
+                <MonthHeatmap activeDays={activeDays} isDark={isDark} theme={theme} colors={colors} />
+
+                {/* ── Botón de Estadísticas ── */}
+                <TouchableOpacity
+                    style={[styles.statsBtn, { backgroundColor: isDark ? '#334155' : '#E0E7FF' }]}
+                    onPress={() => setStatsModalVisible(true)}
+                >
+                    <Ionicons name="pie-chart" size={20} color="#6366F1" />
+                    <Text style={styles.statsBtnText}>Ver Estadísticas de Gastos</Text>
+                </TouchableOpacity>
 
                 <View style={{ height: 110 }} />
             </ScrollView>
@@ -319,6 +427,23 @@ export default function ProfileScreen() {
                         </View>
                     </View>
                 </View>
+            </Modal>
+
+            {/* Modal de Estadísticas */}
+            <Modal visible={statsModalVisible} animationType="slide" onRequestClose={() => setStatsModalVisible(false)}>
+                <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+                    <View style={styles.modalHeader}>
+                        <TouchableOpacity style={styles.closeBtn} onPress={() => setStatsModalVisible(false)}>
+                            <Ionicons name="close" size={28} color="#1E293B" />
+                        </TouchableOpacity>
+                        <Text style={[styles.modalTitleCentral, { color: '#1E293B' }]}>Mis Estadísticas</Text>
+                        <View style={{ width: 28 }} />
+                    </View>
+                    <ScrollView contentContainerStyle={{ padding: 16 }}>
+                        <CategoryStatistics transactions={transactions} isDark={false} colors={whiteColors} />
+                        <View style={{ height: 40 }} />
+                    </ScrollView>
+                </SafeAreaView>
             </Modal>
         </SafeAreaView>
     );
@@ -354,9 +479,19 @@ const styles = StyleSheet.create({
     },
     logoutText: { color: '#EF4444', fontWeight: '700', fontSize: 13 },
 
+    statsBtn: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+        marginTop: 8, paddingVertical: 14, borderRadius: 16,
+    },
+    statsBtnText: { color: '#6366F1', fontWeight: '800', fontSize: 15 },
+
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
     modalBox: { width: '100%', borderRadius: 24, padding: 24 },
     modalTitle: { fontSize: 18, fontWeight: '800', marginBottom: 16 },
     modalInput: { borderWidth: 1.5, borderRadius: 12, padding: 12, fontSize: 16, marginBottom: 20 },
     modalBtn: { flex: 1, height: 46, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+
+    modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: Platform.OS === 'android' ? 40 : 16, paddingBottom: 16 },
+    closeBtn: { padding: 4 },
+    modalTitleCentral: { fontSize: 18, fontWeight: '800' },
 });

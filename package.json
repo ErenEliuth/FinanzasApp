@@ -10,7 +10,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "predeploy": "npx expo export -p web",
-    "deploy": "gh-pages -d dist"
+    "deploy": "node -e \"require('fs').writeFileSync('dist/.nojekyll', '')\" && gh-pages -t -d dist"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

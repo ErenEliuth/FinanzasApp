@@ -12,23 +12,24 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { PieChart } from 'react-native-chart-kit';
 
 const screenWidth = Dimensions.get('window').width;
 
-const getColors = (isDark: boolean) => ({
-  bg: isDark ? '#0F172A' : '#F4F6FF',
-  card: isDark ? '#1E293B' : '#FFFFFF',
-  text: isDark ? '#F1F5F9' : '#1E293B',
-  sub: isDark ? '#94A3B8' : '#64748B',
-  border: isDark ? '#334155' : '#E2E8F0',
-});
+const getColors = (t: string) => {
+  switch (t) {
+    case 'pink': return { bg: '#FDF2F8', card: '#FBCFE8', text: '#831843', sub: '#DB2777', border: '#F9A8D4' };
+    case 'purple': return { bg: '#F5F3FF', card: '#ddd6fe', text: '#4C1D95', sub: '#7C3AED', border: '#C4B5FD' };
+    case 'blue': return { bg: '#EFF6FF', card: '#bfdbfe', text: '#1E3A8A', sub: '#3B82F6', border: '#93C5FD' };
+    case 'dark': return { bg: '#0F172A', card: '#1E293B', text: '#F1F5F9', sub: '#94A3B8', border: '#334155' };
+    default: return { bg: '#F4F6FF', card: '#FFFFFF', text: '#1E293B', sub: '#64748B', border: '#E2E8F0' };
+  }
+};
 
 export default function HomeScreen() {
   const isFocused = useIsFocused();
   const router = useRouter();
   const { user, logout, theme, toggleTheme } = useAuth();
-  const colorsNav = getColors(theme === 'dark');
+  const colorsNav = getColors(theme);
 
   const [ingresos, setIngresos] = useState(0);
   const [gastos, setGastos] = useState(0);
@@ -150,8 +151,8 @@ export default function HomeScreen() {
             <Text style={styles.subtitle}>Resumen del mes</Text>
           </View>
           <View style={{ flexDirection: 'row', gap: 12 }}>
-            <TouchableOpacity style={[styles.avatar, { backgroundColor: theme === 'dark' ? '#334155' : '#6366F1' }]} onPress={toggleTheme}>
-              <Ionicons name={theme === 'dark' ? 'sunny' : 'moon'} size={20} color="#FFF" />
+            <TouchableOpacity style={[styles.avatar, { backgroundColor: theme === 'dark' ? '#334155' : theme === 'purple' ? '#C4B5FD' : theme === 'blue' ? '#93C5FD' : theme === 'pink' ? '#F9A8D4' : '#6366F1' }]} onPress={toggleTheme}>
+              <Ionicons name={theme === 'dark' ? 'moon' : theme === 'purple' ? 'color-palette' : theme === 'blue' ? 'water' : theme === 'pink' ? 'flower' : 'sunny'} size={20} color={theme === 'purple' ? '#4C1D95' : theme === 'blue' ? '#1E3A8A' : theme === 'pink' ? '#831843' : '#FFF'} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.avatar} onPress={handleLogout} activeOpacity={0.8}>
               <Text style={styles.avatarText}>{initials}</Text>
@@ -214,27 +215,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Visual Insights Section */}
-        {categoryData.length > 0 && (
-          <View style={[styles.chartContainer, theme === 'dark' && { backgroundColor: '#1E293B', borderColor: '#334155', borderWidth: 1 }]}>
-            <Text style={[styles.sectionTitle, { color: colorsNav.text }]}>Distribución de Gastos</Text>
-            <View style={styles.chartWrapper}>
-              <PieChart
-                data={categoryData}
-                width={screenWidth - 40}
-                height={200}
-                chartConfig={{
-                  color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                }}
-                accessor={"population"}
-                backgroundColor={"transparent"}
-                paddingLeft={"15"}
-                center={[10, 0]}
-                absolute
-              />
-            </View>
-          </View>
-        )}
+
 
         {/* Upcoming Payments / Reminders */}
         {upcomingDebts.length > 0 && (

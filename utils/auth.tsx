@@ -13,8 +13,9 @@ interface AuthContextType {
     user: User | null;
     session: Session | null;
     loading: boolean;
-    theme: 'light' | 'dark';
+    theme: 'light' | 'dark' | 'purple' | 'blue' | 'pink';
     toggleTheme: () => Promise<void>;
+    setThemeConfig: (theme: 'light' | 'dark' | 'purple' | 'blue' | 'pink') => Promise<void>;
     login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
     register: (name: string, email: string, password: string) => Promise<{ success: boolean; message: string }>;
     signInWithGoogle: () => Promise<void>;
@@ -29,7 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
-    const [theme, setTheme] = useState<'light' | 'dark'>('light');
+    const [theme, setTheme] = useState<'light' | 'dark' | 'purple' | 'blue' | 'pink'>('light');
 
     useEffect(() => {
         // Cargar sesión inicial de Supabase
@@ -49,8 +50,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Cargar tema
         const loadTheme = async () => {
             const storedTheme = await AsyncStorage.getItem('user_theme');
-            if (storedTheme === 'dark' || storedTheme === 'light') {
-                setTheme(storedTheme);
+            if (['light', 'dark', 'purple', 'blue', 'pink'].includes(storedTheme || '')) {
+                setTheme(storedTheme as any);
             }
         };
         loadTheme();
@@ -59,7 +60,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const toggleTheme = async () => {
-        const newTheme = theme === 'light' ? 'dark' : 'light';
+        const nextTheme = theme === 'light' ? 'dark' : theme === 'dark' ? 'purple' : theme === 'purple' ? 'blue' : theme === 'blue' ? 'pink' : 'light';
+        setTheme(nextTheme);
+        await AsyncStorage.setItem('user_theme', nextTheme);
+    };
+
+    const setThemeConfig = async (newTheme: 'light' | 'dark' | 'purple' | 'blue' | 'pink') => {
         setTheme(newTheme);
         await AsyncStorage.setItem('user_theme', newTheme);
     };
@@ -182,7 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, session, loading, theme, toggleTheme, login, register, signInWithGoogle, logout }}>
+        <AuthContext.Provider value={{ user, session, loading, theme, toggleTheme, setThemeConfig, login, register, signInWithGoogle, logout }}>
             {children}
         </AuthContext.Provider>
     );

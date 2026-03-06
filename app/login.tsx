@@ -154,6 +154,21 @@ export default function LoginScreen() {
                                     />
                                 </View>
 
+                                {/* Sugerencias de Dominio */}
+                                {email.length > 0 && !email.includes('@') && (
+                                    <View style={styles.suggestionsRow}>
+                                        {['@gmail.com', '@hotmail.com', '@outlook.com'].map((domain) => (
+                                            <TouchableOpacity
+                                                key={domain}
+                                                style={[styles.suggestionChip, isDark && { backgroundColor: '#334155', borderColor: '#475569' }]}
+                                                onPress={() => setEmail(email + domain)}
+                                            >
+                                                <Text style={[styles.suggestionText, isDark && { color: '#94A3B8' }]}>{domain}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                )}
+
                                 {/* Contraseña */}
                                 <View style={[styles.inputWrap, isDark && { backgroundColor: '#334155', borderColor: '#475569' }]}>
                                     <View style={styles.inputIcon}>
@@ -449,5 +464,25 @@ const styles = StyleSheet.create({
     googleBtnText: {
         fontSize: 15,
         fontWeight: '700',
+    },
+    // Sugerencias de Email
+    suggestionsRow: {
+        flexDirection: 'row',
+        gap: 8,
+        marginBottom: 14,
+        flexWrap: 'wrap',
+    },
+    suggestionChip: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        backgroundColor: '#F1F5F9',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    suggestionText: {
+        fontSize: 12,
+        color: '#64748B',
+        fontWeight: '600',
     },
 });
