@@ -18,7 +18,7 @@ import {
 export default function HistoryScreen() {
     const isFocused = useIsFocused();
     const { user, theme } = useAuth();
-    const isDark = theme === 'dark';
+    const isDark = theme === 'dark' || ['purple', 'blue', 'pink'].includes(theme);
 
     const colors = {
         bg: isDark ? '#0F172A' : '#F4F6FF',
@@ -42,7 +42,8 @@ export default function HistoryScreen() {
                 .from('transactions')
                 .select('*')
                 .eq('user_id', user.id)
-                .order('date', { ascending: false });
+                .order('date', { ascending: false })
+                .order('id', { ascending: false });
 
             if (error) throw error;
             setTransactions(data || []);
@@ -86,17 +87,20 @@ export default function HistoryScreen() {
     const fmtDate = (iso: string) => {
         if (!iso) return '';
         const d = new Date(iso);
-        return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+        const day = d.getDate().toString().padStart(2, '0');
+        const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+        const month = months[d.getMonth()];
+        return `${day} ${month}`;
     };
 
     const getIcon = (tx: any) => {
         if (tx.category === 'Ahorro') return 'wallet';
-        if (tx.type === 'income') return 'arrow-downward';
-        return 'arrow-upward';
+        if (tx.type === 'income') return 'trending-up';
+        return 'trending-down';
     };
 
     const getIconColor = (tx: any) =>
-        tx.category === 'Ahorro' ? '#6366F1' :
+        tx.category === 'Ahorro' ? (isDark ? '#A5B4FC' : '#6366F1') :
             tx.type === 'income' ? '#10B981' : '#EF4444';
 
     const getIconBg = (tx: any) =>
@@ -124,12 +128,12 @@ export default function HistoryScreen() {
             {/* Summary cards */}
             <View style={styles.summaryRow}>
                 <View style={[styles.summaryCard, { backgroundColor: 'rgba(16,185,129,0.1)' }]}>
-                    <MaterialIcons name="arrow-downward" size={15} color="#10B981" />
+                    <MaterialIcons name="trending-up" size={15} color="#10B981" />
                     <Text style={styles.summaryLabel}>Ingresos</Text>
                     <Text style={[styles.summaryValue, { color: '#10B981' }]}>{fmt(totalIngresos)}</Text>
                 </View>
                 <View style={[styles.summaryCard, { backgroundColor: 'rgba(239,68,68,0.1)' }]}>
-                    <MaterialIcons name="arrow-upward" size={15} color="#EF4444" />
+                    <MaterialIcons name="trending-down" size={15} color="#EF4444" />
                     <Text style={styles.summaryLabel}>Gastos</Text>
                     <Text style={[styles.summaryValue, { color: '#EF4444' }]}>{fmt(totalGastos)}</Text>
                 </View>
@@ -171,19 +175,27 @@ export default function HistoryScreen() {
                             {/* Info */}
                             <View style={styles.txInfo}>
                                 <Text style={[styles.txDesc, { color: colors.text }]} numberOfLines={1}>
-                                    {tx.description}
+                                    {tx.description === 'Sin descripción' || !tx.description ? tx.category : tx.description}
                                 </Text>
                                 <View style={styles.txMeta}>
                                     <View style={[styles.catBadge, { backgroundColor: colors.border }]}>
-                                        <Text style={[styles.catText, { color: colors.sub }]}>{tx.category}</Text>
+                                        <Text style={[styles.catText, { color: colors.sub }]} numberOfLines={1}>{tx.category}</Text>
                                     </View>
+                                    {tx.account && tx.account !== 'Ahorro' && (
+                                        <View style={[styles.accBadge, { borderColor: colors.border, borderWidth: 1 }]}>
+                                            <Text style={[styles.accDate, { color: colors.sub }]} numberOfLines={1}>{tx.account}</Text>
+                                        </View>
+                                    )}
                                     <Text style={[styles.txDate, { color: colors.sub }]}>{fmtDate(tx.date)}</Text>
                                 </View>
                             </View>
 
                             {/* Monto y tipo */}
                             <View style={styles.txRight}>
-                                <Text style={[styles.txAmount, { color: getIconColor(tx) }]}>
+                                <Text style={[
+                                    styles.txAmount,
+                                    { color: getIconColor(tx) }
+                                ]}>
                                     {tx.type === 'income' && tx.category !== 'Ahorro' ? '+' : '-'}{fmt(tx.amount)}
                                 </Text>
                                 <View style={[styles.typePill, { backgroundColor: getBadgeBg(tx) }]}>
@@ -248,7 +260,9 @@ const styles = StyleSheet.create({
     txRight: { alignItems: 'flex-end', gap: 5 },
     txAmount: { fontSize: 15, fontWeight: '800' },
     typePill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
-    typeLabel: { fontSize: 10, fontWeight: '700' },
+    typeLabel: { fontSize: 9, fontWeight: '800', textTransform: 'uppercase' },
 
     swipeHint: { textAlign: 'center', fontSize: 11, color: '#CBD5E1', marginTop: 12 },
+    accBadge: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6 },
+    accDate: { fontSize: 9, fontWeight: '700', textTransform: 'uppercase' },
 });

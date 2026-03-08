@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Dimensions,
+  Modal,
   Platform, SafeAreaView, ScrollView, StyleSheet,
   Text,
   TouchableOpacity,
@@ -29,6 +30,7 @@ export default function HomeScreen() {
   const isFocused = useIsFocused();
   const router = useRouter();
   const { user, logout, theme, toggleTheme } = useAuth();
+  const isDark = theme === 'dark' || ['purple', 'blue', 'pink'].includes(theme);
   const colorsNav = getColors(theme);
 
   const [ingresos, setIngresos] = useState(0);
@@ -36,8 +38,12 @@ export default function HomeScreen() {
   const [ahorro, setAhorro] = useState(0);
   const [debtTotal, setDebtTotal] = useState(0);
   const [recentTx, setRecentTx] = useState<any[]>([]);
-  const [categoryData, setCategoryData] = useState<any[]>([]);
   const [upcomingDebts, setUpcomingDebts] = useState<any[]>([]);
+  const [accountTotals, setAccountTotals] = useState<any>({});
+  const [breakdownVisible, setBreakdownVisible] = useState(false);
+  const [notificationsVisible, setNotificationsVisible] = useState(false);
+  const [ahorroMes, setAhorroMes] = useState(0);
+  const [pendingItems, setPendingItems] = useState<any[]>([]);
 
   useEffect(() => {
     if (isFocused) loadData();
@@ -51,45 +57,52 @@ export default function HomeScreen() {
         .from('transactions')
         .select('*')
         .eq('user_id', user.id)
+        .order('date', { ascending: false })
         .order('id', { ascending: false });
 
       if (txError) throw txError;
 
-      let inc = 0, expGastos = 0, sav = 0;
+      const today = new Date();
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+
+      let inc = 0, expGastos = 0, savTotal = 0, savMes = 0;
+      let accs: any = {};
+
       allTx?.forEach(tx => {
+        const txDate = new Date(tx.date);
+        const isThisMonth = txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
+
         if (tx.type === 'income') {
-          inc += tx.amount;
+          const acc = tx.account || 'Efectivo';
+          if (!accs[acc]) accs[acc] = 0;
+          if (isThisMonth) inc += tx.amount;
+          accs[acc] += tx.amount;
         } else {
+          // Es un gasto o un ahorro
           if (tx.category === 'Ahorro') {
-            sav += tx.amount;
+            savTotal += tx.amount;
+            if (isThisMonth) savMes += tx.amount;
           } else {
-            expGastos += tx.amount;
+            if (isThisMonth) expGastos += tx.amount;
           }
+
+          // El dinero sale de la cuenta activa (Efectivo/Nequi/etc)
+          // Si por error el "account" dice "Ahorro", lo tratamos como Efectivo para el saldo
+          const acc = (tx.account === 'Ahorro' || !tx.account) ? 'Efectivo' : tx.account;
+          if (!accs[acc]) accs[acc] = 0;
+          accs[acc] -= tx.amount;
         }
       });
 
       setIngresos(inc);
       setGastos(expGastos);
-      setAhorro(sav);
+      setAhorro(savTotal);
+      setAhorroMes(savMes);
+      setAccountTotals(accs);
       setRecentTx(allTx?.slice(0, 4) || []);
 
-      // 2. Gráfica de categorías
-      const catTotals: { [key: string]: number } = {};
-      allTx?.filter(tx => tx.type === 'expense' && tx.category !== 'Ahorro').forEach(tx => {
-        catTotals[tx.category] = (catTotals[tx.category] || 0) + tx.amount;
-      });
-
-      const colors = ['#6366F1', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#8B5CF6'];
-      const chartData = Object.entries(catTotals).map(([name, population], idx) => ({
-        name: name.substring(0, 10),
-        population,
-        color: colors[idx % colors.length],
-        legendFontColor: theme === 'dark' ? '#94A3B8' : '#64748B',
-        legendFontSize: 12
-      }));
-      setCategoryData(chartData);
-
-      // 3. Cargar Deudas
+      // 2. Cargar Deudas
       const { data: allDebts, error: debtError } = await supabase
         .from('debts')
         .select('*')
@@ -97,21 +110,79 @@ export default function HomeScreen() {
 
       if (debtError) throw debtError;
 
-      const activeDebts = allDebts?.filter(d => d.paid < d.value) || [];
-      const totalDue = activeDebts.reduce((sum, d) => sum + (d.value - d.paid), 0);
+      const onlyDebts = allDebts?.filter(d => d.debt_type === 'debt' && d.paid < d.value) || [];
+      const totalDue = onlyDebts.reduce((sum, d) => sum + (Number(d.value) - Number(d.paid || 0)), 0);
       setDebtTotal(totalDue);
+      setUpcomingDebts([]); // No longer used in main screen but keep state for now
 
-      // Deudas próximas
-      const sortedDebts = activeDebts.sort((a, b) => {
-        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-      }).slice(0, 3);
-      setUpcomingDebts(sortedDebts);
+      const parseDateStr = (dateStr: string) => {
+        if (!dateStr) return new Date();
+        const cleanStr = dateStr.trim();
+
+        // Formato DD/MM/YYYY
+        if (cleanStr.includes('/')) {
+          const parts = cleanStr.split('/');
+          if (parts.length >= 3) {
+            const d = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            const y = parseInt(parts[2], 10);
+            return new Date(y, m - 1, d);
+          }
+        }
+
+        // Formato YYYY-MM-DD o similar del sistema con guiones
+        if (cleanStr.includes('-')) {
+          const parts = cleanStr.split('-');
+          if (parts.length >= 3) {
+            const p1 = parseInt(parts[0], 10);
+            const p2 = parseInt(parts[1], 10);
+            const p3 = parseInt(parts[2], 10);
+
+            // Si parece YYYY-MM-DD (primer parte es el año)
+            if (p1 > 1000) {
+              // Manejo inteligente: si el segundo número > 12, es el día (YYYY-DD-MM)
+              if (p2 > 12) return new Date(p1, p3 - 1, p2);
+              return new Date(p1, p2 - 1, p3);
+            }
+            // Si parece DD-MM-YYYY (primer parte es día o mes, y el tercero es año)
+            if (p3 > 1000) return new Date(p3, p2 - 1, p1);
+          }
+        }
+
+        const date = new Date(cleanStr);
+        return isNaN(date.getTime()) ? new Date() : date;
+      };
+
+      // 3. Identificar notificaciones (Deudas urgentes o Gastos Fijos pendientes)
+      const urgent = allDebts?.filter((d: any) => {
+        if (d.paid >= d.value) return false;
+        try {
+          const targetDate = parseDateStr(d.due_date);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          let checkDate = new Date(targetDate);
+          if (d.debt_type === 'fixed') {
+            // Para gastos fijos, evaluamos el día del mes actual
+            checkDate = new Date(today.getFullYear(), today.getMonth(), targetDate.getDate());
+          }
+          checkDate.setHours(0, 0, 0, 0);
+
+          const diffTime = checkDate.getTime() - today.getTime();
+          const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+          // REQUERIMIENTO: Notificar solo cuando falten 3 días o menos.
+          // También incluimos las vencidas recientemente (últimos 7 días) para que no se pierdan,
+          // pero ignoramos deudas viejas o muy lejanas en el futuro.
+          return diffDays <= 3 && diffDays >= -7;
+        } catch (e) { return false; }
+      }) || [];
+      setPendingItems(urgent);
 
     } catch (e) { console.error('Error cargando datos de Supabase:', e); }
   };
 
-  const dineroActivo = ingresos - gastos - ahorro;
-
+  const dineroActivo = ingresos - gastos - ahorroMes;
 
   const fmt = (n: number) =>
     new Intl.NumberFormat('es-CO', {
@@ -150,40 +221,57 @@ export default function HomeScreen() {
             <Text style={[styles.greeting, { color: colorsNav.text }]}>¡Hola, {displayName.split(' ')[0]} 👋</Text>
             <Text style={styles.subtitle}>Resumen del mes</Text>
           </View>
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <TouchableOpacity style={[styles.avatar, { backgroundColor: theme === 'dark' ? '#334155' : theme === 'purple' ? '#C4B5FD' : theme === 'blue' ? '#93C5FD' : theme === 'pink' ? '#F9A8D4' : '#6366F1' }]} onPress={toggleTheme}>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity
+              style={[styles.headerIcon, { backgroundColor: colorsNav.card, borderColor: colorsNav.border, borderWidth: 1 }]}
+              onPress={() => setNotificationsVisible(true)}
+            >
+              <Ionicons name="notifications-outline" size={20} color={colorsNav.text} />
+              {pendingItems.length > 0 && <View style={styles.notifBadge} />}
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.headerIcon, { backgroundColor: theme === 'dark' ? '#334155' : theme === 'purple' ? '#C4B5FD' : theme === 'blue' ? '#93C5FD' : theme === 'pink' ? '#F9A8D4' : '#6366F1' }]} onPress={toggleTheme}>
               <Ionicons name={theme === 'dark' ? 'moon' : theme === 'purple' ? 'color-palette' : theme === 'blue' ? 'water' : theme === 'pink' ? 'flower' : 'sunny'} size={20} color={theme === 'purple' ? '#4C1D95' : theme === 'blue' ? '#1E3A8A' : theme === 'pink' ? '#831843' : '#FFF'} />
             </TouchableOpacity>
+
             <TouchableOpacity style={styles.avatar} onPress={handleLogout} activeOpacity={0.8}>
               <Text style={styles.avatarText}>{initials}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Main Balance Card */}
-        <View style={[styles.balanceCard, theme === 'dark' && { backgroundColor: '#1E293B', borderColor: '#334155', borderWidth: 1 }]}>
+        {/* Balance Card */}
+        <TouchableOpacity
+          style={[styles.balanceCard, theme === 'purple' && { backgroundColor: '#7C3AED' }, theme === 'blue' && { backgroundColor: '#2563EB' }, theme === 'pink' && { backgroundColor: '#DB2777' }]}
+          activeOpacity={0.9}
+          onPress={() => setBreakdownVisible(true)}
+        >
           <View style={styles.balanceCardInner}>
             <Text style={styles.balanceLabel}>Dinero Activo</Text>
             <Text style={styles.balanceAmount}>{fmt(dineroActivo)}</Text>
-            <Text style={styles.balanceSubLabel}>Ingresos − Gastos − Ahorro</Text>
+            <Text style={styles.balanceSubLabel}>Ingresos − Gastos − Ahorros</Text>
+            <View style={styles.breakdownHint}>
+              <Ionicons name="stats-chart" size={10} color="rgba(255,255,255,0.4)" />
+              <Text style={styles.breakdownHintText}>Ver desglose</Text>
+            </View>
           </View>
           <View style={styles.statsRow}>
             <View style={styles.statPill}>
-              <View style={styles.dotGreen} />
+              <MaterialIcons name="trending-up" size={16} color="#10B981" />
               <View>
                 <Text style={styles.pillLabel}>Ingresos</Text>
                 <Text style={styles.pillValue}>{fmt(ingresos)}</Text>
               </View>
             </View>
             <View style={styles.statPill}>
-              <View style={styles.dotRed} />
+              <MaterialIcons name="trending-down" size={16} color="#EF4444" />
               <View>
                 <Text style={styles.pillLabel}>Gastos</Text>
                 <Text style={styles.pillValue}>{fmt(gastos)}</Text>
               </View>
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
 
         {/* Ahorro & Deudas */}
         <View style={styles.widgetsRow}>
@@ -194,13 +282,10 @@ export default function HomeScreen() {
           >
             <View style={styles.widgetTopRow}>
               <Ionicons name="flag-outline" size={22} color="#6366F1" />
-              <View style={styles.widgetAddBtn}>
-                <MaterialIcons name="add" size={16} color="#6366F1" />
-              </View>
             </View>
-            <Text style={styles.widgetLabel}>Metas / Ahorros</Text>
-            <Text style={styles.widgetValue}>{fmt(ahorro)}</Text>
-            <Text style={styles.widgetSubLabelPurple}>Crear o ver metas →</Text>
+            <Text style={styles.widgetLabel}>Ahorro Total</Text>
+            <Text style={[styles.widgetValue, { color: colorsNav.text }]}>{fmt(ahorro)}</Text>
+            <Text style={styles.widgetSubLabelPurple}>Ver mis metas →</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -208,104 +293,148 @@ export default function HomeScreen() {
             activeOpacity={0.8}
             onPress={() => router.push('/(tabs)/debts')}
           >
-            <MaterialIcons name="credit-card" size={22} color="#EF4444" />
+            <View style={styles.widgetTopRow}>
+              <MaterialIcons name="credit-card" size={22} color="#EF4444" />
+            </View>
             <Text style={styles.widgetLabel}>Deudas</Text>
             <Text style={styles.widgetValueAlert}>{fmt(debtTotal)}</Text>
             <Text style={styles.widgetSubLabel}>Ver deudas →</Text>
           </TouchableOpacity>
         </View>
 
-
-
-        {/* Upcoming Payments / Reminders */}
-        {upcomingDebts.length > 0 && (
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colorsNav.text }]}>Próximos Vencimientos</Text>
-            </View>
-            <View style={styles.remindersList}>
-              {upcomingDebts.map(debt => {
-                const [d, m, y] = debt.due_date.split('/').map(Number);
-                const diff = (new Date(y, m - 1, d).getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000;
-                const color = diff < 0 ? '#EF4444' : diff < 3 ? '#F59E0B' : '#10B981';
-                return (
-                  <TouchableOpacity
-                    key={debt.id}
-                    style={[styles.reminderItem, theme === 'dark' && { backgroundColor: '#1E293B', borderColor: '#334155', borderWidth: 1 }]}
-                    onPress={() => router.push('/(tabs)/debts')}
-                  >
-                    <View style={[styles.reminderDot, { backgroundColor: color }]} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.reminderTitle, { color: colorsNav.text }]}>{debt.client}</Text>
-                      <Text style={styles.reminderSub}>{debt.due_date} · {diff < 0 ? 'Vencido' : diff === 0 ? 'Hoy' : `En ${Math.ceil(diff)}d`}</Text>
-                    </View>
-                    <Text style={[styles.reminderAmount, { color: colorsNav.text }]}>{fmt(debt.value - debt.paid)}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+        {/* Últimas Transacciones */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colorsNav.text }]}>Últimas Transacciones</Text>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
+              <Text style={styles.seeAll}>Ver todas →</Text>
+            </TouchableOpacity>
           </View>
-        )}
 
-        {/* Recent transactions preview */}
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colorsNav.text }]}>Recientes</Text>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
-            <Text style={styles.seeAll}>Ver todos →</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.transactionList}>
-          {recentTx.length === 0 && (
-            <Text style={styles.emptyText}>Sin transacciones aún</Text>
-          )}
-          {recentTx.map((tx) => (
-            <View key={tx.id} style={[styles.txItem, theme === 'dark' && { backgroundColor: '#1E293B', borderColor: '#334155', borderWidth: 1 }]}>
-              <View style={[styles.txIcon,
-              tx.category === 'Ahorro'
-                ? styles.txIconSave
-                : tx.type === 'income'
-                  ? styles.txIconIn
-                  : styles.txIconOut
-              ]}>
-                <MaterialIcons
-                  name={
-                    tx.category === 'Ahorro'
-                      ? 'savings'
-                      : tx.type === 'income'
-                        ? 'arrow-downward'
-                        : 'arrow-upward'
-                  }
-                  size={18}
-                  color={
-                    tx.category === 'Ahorro'
-                      ? '#6366F1'
-                      : tx.type === 'income'
-                        ? '#10B981'
-                        : '#EF4444'
-                  }
-                />
-              </View>
-              <View style={styles.txMeta}>
-                <Text style={[styles.txTitle, { color: colorsNav.text }]}>{tx.description}</Text>
-                <Text style={styles.txSub}>{tx.category} · {tx.date}</Text>
-              </View>
-              <Text style={[
-                styles.txAmount,
-                tx.category === 'Ahorro'
-                  ? styles.txSave
-                  : tx.type === 'income'
-                    ? styles.txIn
-                    : styles.txOut
-              ]}>
-                {tx.type === 'income' ? '+' : '-'}{fmt(tx.amount)}
-              </Text>
-            </View>
-          ))}
+          <View style={styles.transactionList}>
+            {recentTx.length === 0 ? (
+              <Text style={styles.emptyText}>No hay transacciones recientes</Text>
+            ) : (
+              recentTx.map((tx) => (
+                <View key={tx.id} style={[styles.txItem, theme === 'dark' && { backgroundColor: '#1E293B', borderColor: '#334155', borderWidth: 1 }]}>
+                  <View style={[
+                    styles.txIcon,
+                    tx.type === 'income' ? styles.txIconIn : tx.category === 'Ahorro' ? styles.txIconSave : styles.txIconOut
+                  ]}>
+                    <MaterialIcons
+                      name={tx.type === 'income' ? 'trending-up' : tx.category === 'Ahorro' ? 'savings' : 'trending-down'}
+                      size={20}
+                      color={tx.type === 'income' ? '#10B981' : tx.category === 'Ahorro' ? (isDark ? '#A5B4FC' : '#6366F1') : '#EF4444'}
+                    />
+                  </View>
+                  <View style={styles.txMeta}>
+                    <Text style={[styles.txTitle, { color: colorsNav.text }]}>
+                      {tx.description === 'Sin descripción' || !tx.description ? tx.category : tx.description}
+                    </Text>
+                    <Text style={styles.txSub}>{tx.category} • {new Date(tx.date).toLocaleDateString('es-CO')}</Text>
+                  </View>
+                  <Text style={[
+                    styles.txAmount,
+                    tx.type === 'income' ? styles.txIn : tx.category === 'Ahorro' ? styles.txSave : styles.txOut,
+                    isDark && tx.category === 'Ahorro' && { color: '#818CF8' }
+                  ]}>
+                    {tx.type === 'income' ? '+' : '-'}{fmt(tx.amount)}
+                  </Text>
+                </View>
+              ))
+            )}
+          </View>
         </View>
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* ── Modal de Notificaciones ─────────────────────────────── */}
+      <Modal visible={notificationsVisible} transparent animationType="fade" onRequestClose={() => setNotificationsVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.breakdownCard, { backgroundColor: colorsNav.card, maxHeight: '70%' }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <Text style={[styles.breakdownTitle, { color: colorsNav.text, marginBottom: 0 }]}>Notificaciones</Text>
+              <TouchableOpacity onPress={() => setNotificationsVisible(false)}>
+                <Ionicons name="close" size={24} color={colorsNav.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {pendingItems.length === 0 ? (
+                <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                  <Ionicons name="notifications-off-outline" size={40} color={colorsNav.sub} />
+                  <Text style={{ color: colorsNav.sub, marginTop: 12, textAlign: 'center' }}>No tienes pagos próximos o vencidos.</Text>
+                </View>
+              ) : (
+                pendingItems.map(item => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[styles.txItem, { backgroundColor: theme === 'dark' ? '#2A3447' : '#F8FAFF', marginBottom: 10, padding: 12 }]}
+                    onPress={() => {
+                      setNotificationsVisible(false);
+                      router.push('/(tabs)/debts');
+                    }}
+                  >
+                    <View style={[styles.txIcon, { backgroundColor: item.debt_type === 'fixed' ? '#F59E0B20' : '#EF444420' }]}>
+                      <MaterialIcons
+                        name={item.debt_type === 'fixed' ? 'repeat' : 'credit-card'}
+                        size={20}
+                        color={item.debt_type === 'fixed' ? '#F59E0B' : '#EF4444'}
+                      />
+                    </View>
+                    <View style={styles.txMeta}>
+                      <Text style={[styles.txTitle, { color: colorsNav.text }]}>{item.client}</Text>
+                      <Text style={styles.txSub}>Vence: {item.due_date}</Text>
+                    </View>
+                    <Text style={[styles.txAmount, { color: item.debt_type === 'fixed' ? '#F59E0B' : '#EF4444' }]}>
+                      {fmt(item.value - item.paid)}
+                    </Text>
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.closeBtn, { backgroundColor: colorsNav.border, marginTop: 20 }]}
+              onPress={() => setNotificationsVisible(false)}
+            >
+              <Text style={[styles.closeBtnText, { color: colorsNav.text }]}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Breakdown Modal */}
+      <Modal visible={breakdownVisible} transparent animationType="fade" onRequestClose={() => setBreakdownVisible(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setBreakdownVisible(false)}>
+          <View style={[styles.breakdownCard, { backgroundColor: colorsNav.card }]}>
+            <Text style={[styles.breakdownTitle, { color: colorsNav.text }]}>Distribución de Dinero</Text>
+            <View style={styles.breakdownList}>
+              {Object.entries(accountTotals)
+                .filter(([name]) => name !== 'Ahorro')
+                .map(([name, total]) => (
+                  <View key={name} style={[styles.breakdownItem, { borderBottomColor: colorsNav.border }]}>
+                    <View style={styles.breakdownLeft}>
+                      <View style={[styles.accIcon, { backgroundColor: name === 'Efectivo' ? '#10B98120' : '#6366F120' }]}>
+                        <MaterialIcons
+                          name={name === 'Efectivo' ? 'money' : name === 'Transferencia' ? 'account-balance' : 'wallet'}
+                          size={20}
+                          color={name === 'Efectivo' ? '#10B981' : '#6366F1'}
+                        />
+                      </View>
+                      <Text style={[styles.accName, { color: colorsNav.text }]}>{name}</Text>
+                    </View>
+                    <Text style={[styles.accValue, { color: colorsNav.text }]}>{fmt(total as number)}</Text>
+                  </View>
+                ))}
+            </View>
+            <TouchableOpacity style={[styles.closeBtn, { backgroundColor: colorsNav.sub + '20' }]} onPress={() => setBreakdownVisible(false)}>
+              <Text style={[styles.closeBtnText, { color: colorsNav.text }]}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -318,22 +447,6 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
 
-  chartContainer: {
-    marginTop: 24,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  chartWrapper: {
-    alignItems: 'center',
-    marginTop: 10,
-  },
-
   header: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', marginBottom: 24,
@@ -341,11 +454,14 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 26, fontWeight: '800', color: '#1E293B' },
   subtitle: { fontSize: 14, color: '#64748B', marginTop: 2 },
   avatar: {
-    width: 46, height: 46, borderRadius: 23,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: '#6366F1',
-    justifyContent: 'center', alignItems: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  avatarText: { color: '#FFF', fontWeight: '800', fontSize: 16 },
+  avatarText: { color: '#FFF', fontWeight: '800', fontSize: 13 },
 
   // Balance Card
   balanceCard: {
@@ -379,7 +495,6 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 4,
   },
   widgetTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  widgetAddBtn: { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(99,102,241,0.1)', justifyContent: 'center', alignItems: 'center' },
   widgetLabel: { color: '#64748B', fontSize: 13, fontWeight: '600', marginBottom: 4 },
   widgetValue: { fontSize: 18, fontWeight: '800', color: '#1E293B' },
   widgetValueAlert: { fontSize: 18, fontWeight: '800', color: '#EF4444' },
@@ -406,19 +521,102 @@ const styles = StyleSheet.create({
   txSub: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
   txAmount: { fontSize: 15, fontWeight: '800' },
   txIn: { color: '#10B981' },
-  txOut: { color: '#1E293B' },
+  txOut: { color: '#EF4444' },
   txSave: { color: '#6366F1' },
   emptyText: { fontSize: 14, color: '#94A3B8', textAlign: 'center', marginTop: 20 },
 
   sectionContainer: { marginTop: 24 },
-  remindersList: { gap: 10 },
-  reminderItem: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FFF', borderRadius: 16, padding: 12, gap: 12,
-    shadowColor: '#000', shadowOpacity: 0.02, shadowRadius: 6, elevation: 2,
+  breakdownCard: {
+    width: '100%',
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 5,
   },
-  reminderDot: { width: 8, height: 8, borderRadius: 4 },
-  reminderTitle: { fontSize: 14, fontWeight: '700', color: '#1E293B' },
-  reminderSub: { fontSize: 11, color: '#94A3B8', marginTop: 1 },
-  reminderAmount: { fontSize: 14, fontWeight: '800', color: '#1E293B' },
+  breakdownTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  breakdownList: {
+    marginBottom: 20,
+  },
+  breakdownItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+  },
+  breakdownLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  accIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#EF4444',
+    borderWidth: 2,
+    borderColor: '#FFF',
+  },
+  accName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  accValue: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  closeBtn: {
+    height: 50,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  breakdownHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 8,
+    opacity: 0.8,
+  },
+  breakdownHintText: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
 });

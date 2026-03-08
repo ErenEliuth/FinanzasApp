@@ -76,189 +76,197 @@ export default function LoginScreen() {
             ? email.trim().length > 0 && password.length >= 6
             : name.trim().length > 0 && email.trim().length > 0 && password.length >= 6;
 
+    const content = (
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            >
+                <ScrollView
+                    contentContainerStyle={styles.scroll}
+                    showsVerticalScrollIndicator={false}
+                >
+                    {/* Logo / Header */}
+                    <View style={styles.logoArea}>
+                        <View style={styles.logoCircle}>
+                            <Ionicons name="wallet" size={40} color="#FFFFFF" />
+                        </View>
+                        <Text style={styles.appName}>FinanzasApp</Text>
+                        <Text style={styles.appTagline}>Tu dinero, bajo control</Text>
+                    </View>
+
+                    {/* Card */}
+                    <View style={[styles.card, { backgroundColor: colors.card }]}>
+                        {/* Tabs */}
+                        <View style={styles.tabRow}>
+                            <TouchableOpacity
+                                style={[styles.tab, mode === 'login' && styles.tabActive]}
+                                onPress={() => switchMode('login')}
+                            >
+                                <Text style={[styles.tabText, mode === 'login' && styles.tabTextActive]}>
+                                    Iniciar Sesión
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.tab, mode === 'register' && styles.tabActive]}
+                                onPress={() => switchMode('register')}
+                            >
+                                <Text style={[styles.tabText, mode === 'register' && styles.tabTextActive]}>
+                                    Crear Cuenta
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Nombre (solo en registro) */}
+                        {mode === 'register' && (
+                            <View style={[styles.inputWrap, isDark && { backgroundColor: '#334155', borderColor: '#475569' }]}>
+                                <View style={styles.inputIcon}>
+                                    <MaterialIcons name="person" size={20} color="#6366F1" />
+                                </View>
+                                <TextInput
+                                    style={[styles.input, isDark && { color: '#F1F5F9' }]}
+                                    placeholder="Tu nombre"
+                                    placeholderTextColor="#94A3B8"
+                                    value={name}
+                                    onChangeText={setName}
+                                    autoCapitalize="words"
+                                    returnKeyType="next"
+                                />
+                            </View>
+                        )}
+                        {/* Inputs de Correo y Contraseña */}
+                        <View style={{ gap: 14 }}>
+                            {/* Email */}
+                            <View style={[styles.inputWrap, isDark && { backgroundColor: '#334155', borderColor: '#475569' }]}>
+                                <View style={styles.inputIcon}>
+                                    <MaterialIcons name="email" size={20} color="#6366F1" />
+                                </View>
+                                <TextInput
+                                    style={[styles.input, isDark && { color: '#F1F5F9' }]}
+                                    placeholder="Correo electrónico"
+                                    placeholderTextColor="#94A3B8"
+                                    value={email}
+                                    onChangeText={setEmail}
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                    returnKeyType="next"
+                                />
+                            </View>
+
+                            {/* Sugerencias de Dominio */}
+                            {email.length > 0 && !email.includes('@') && (
+                                <View style={styles.suggestionsRow}>
+                                    {['@gmail.com', '@hotmail.com', '@outlook.com'].map((domain) => (
+                                        <TouchableOpacity
+                                            key={domain}
+                                            style={[styles.suggestionChip, isDark && { backgroundColor: '#334155', borderColor: '#475569' }]}
+                                            onPress={() => setEmail(email + domain)}
+                                        >
+                                            <Text style={[styles.suggestionText, isDark && { color: '#94A3B8' }]}>{domain}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            )}
+
+                            {/* Contraseña */}
+                            <View style={[styles.inputWrap, isDark && { backgroundColor: '#334155', borderColor: '#475569' }]}>
+                                <View style={styles.inputIcon}>
+                                    <MaterialIcons name="lock" size={20} color="#6366F1" />
+                                </View>
+                                <TextInput
+                                    style={[styles.input, { flex: 1 }, isDark && { color: '#F1F5F9' }]}
+                                    placeholder="Contraseña (mín. 6 caracteres)"
+                                    placeholderTextColor="#94A3B8"
+                                    value={password}
+                                    onChangeText={setPassword}
+                                    secureTextEntry={!showPass}
+                                    returnKeyType="done"
+                                    onSubmitEditing={handleSubmit}
+                                />
+                                <TouchableOpacity onPress={() => setShowPass(!showPass)} style={styles.showPassBtn}>
+                                    <Ionicons name={showPass ? 'eye-off' : 'eye'} size={20} color={isDark ? '#94A3B8' : '#94A3B8'} />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        {/* Mensaje de éxito */}
+                        {successMsg.length > 0 && (
+                            <View style={[styles.errorBox, { backgroundColor: 'rgba(16,185,129,0.08)' }]}>
+                                <MaterialIcons name="check-circle" size={16} color="#10B981" />
+                                <Text style={[styles.errorText, { color: '#10B981' }]}>{successMsg}</Text>
+                            </View>
+                        )}
+
+                        {/* Error */}
+                        {error.length > 0 && (
+                            <View style={styles.errorBox}>
+                                <MaterialIcons name="error-outline" size={16} color="#EF4444" />
+                                <Text style={styles.errorText}>{error}</Text>
+                            </View>
+                        )}
+
+                        {/* Botón Principal (Entrar / Crear) */}
+                        <TouchableOpacity
+                            style={[styles.submitBtn, (!isValid || loading) && styles.submitBtnDisabled]}
+                            onPress={handleSubmit}
+                            disabled={!isValid || loading}
+                            activeOpacity={0.85}
+                        >
+                            {loading ? (
+                                <ActivityIndicator color="#FFF" />
+                            ) : (
+                                <>
+                                    <Ionicons
+                                        name={mode === 'login' ? 'log-in' : 'person-add'}
+                                        size={20}
+                                        color="#FFF"
+                                    />
+                                    <Text style={styles.submitBtnText}>
+                                        {mode === 'login' ? 'Entrar' : 'Crear mi cuenta'}
+                                    </Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+
+                        {/* Divider y Redes Sociales */}
+                        <View style={styles.dividerRow}>
+                            <View style={[styles.dividerLine, isDark && { backgroundColor: '#334155' }]} />
+                            <Text style={styles.dividerText}>o entra con</Text>
+                            <View style={[styles.dividerLine, isDark && { backgroundColor: '#334155' }]} />
+                        </View>
+
+                        {/* Botón de Google */}
+                        <TouchableOpacity
+                            style={[styles.googleBtn, isDark && { backgroundColor: '#334155', borderColor: '#475569' }]}
+                            onPress={signInWithGoogle}
+                            activeOpacity={0.8}
+                        >
+                            <Ionicons name="logo-google" size={20} color={isDark ? '#F1F5F9' : '#1E293B'} />
+                            <Text style={[styles.googleBtnText, { color: colors.text }]}>Google</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Info de seguridad */}
+                    <View style={styles.infoRow}>
+                        <Ionicons name="shield-checkmark" size={14} color="#94A3B8" />
+                        <Text style={styles.infoText}>
+                            Tus datos se guardan localmente en tu dispositivo
+                        </Text>
+                    </View>
+
+                    <View style={{ height: 40 }} />
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
+    );
+
+    if (Platform.OS === 'web') {
+        return content;
+    }
+
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-                <KeyboardAvoidingView
-                    style={{ flex: 1 }}
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                >
-                    <ScrollView
-                        contentContainerStyle={styles.scroll}
-                        showsVerticalScrollIndicator={false}
-                    >
-                        {/* Logo / Header */}
-                        <View style={styles.logoArea}>
-                            <View style={styles.logoCircle}>
-                                <Ionicons name="wallet" size={40} color="#FFFFFF" />
-                            </View>
-                            <Text style={styles.appName}>FinanzasApp</Text>
-                            <Text style={styles.appTagline}>Tu dinero, bajo control</Text>
-                        </View>
-
-                        {/* Card */}
-                        <View style={[styles.card, { backgroundColor: colors.card }]}>
-                            {/* Tabs */}
-                            <View style={styles.tabRow}>
-                                <TouchableOpacity
-                                    style={[styles.tab, mode === 'login' && styles.tabActive]}
-                                    onPress={() => switchMode('login')}
-                                >
-                                    <Text style={[styles.tabText, mode === 'login' && styles.tabTextActive]}>
-                                        Iniciar Sesión
-                                    </Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[styles.tab, mode === 'register' && styles.tabActive]}
-                                    onPress={() => switchMode('register')}
-                                >
-                                    <Text style={[styles.tabText, mode === 'register' && styles.tabTextActive]}>
-                                        Crear Cuenta
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
-
-                            {/* Nombre (solo en registro) */}
-                            {mode === 'register' && (
-                                <View style={[styles.inputWrap, isDark && { backgroundColor: '#334155', borderColor: '#475569' }]}>
-                                    <View style={styles.inputIcon}>
-                                        <MaterialIcons name="person" size={20} color="#6366F1" />
-                                    </View>
-                                    <TextInput
-                                        style={[styles.input, isDark && { color: '#F1F5F9' }]}
-                                        placeholder="Tu nombre"
-                                        placeholderTextColor="#94A3B8"
-                                        value={name}
-                                        onChangeText={setName}
-                                        autoCapitalize="words"
-                                        returnKeyType="next"
-                                    />
-                                </View>
-                            )}
-                            {/* Inputs de Correo y Contraseña */}
-                            <View style={{ gap: 14 }}>
-                                {/* Email */}
-                                <View style={[styles.inputWrap, isDark && { backgroundColor: '#334155', borderColor: '#475569' }]}>
-                                    <View style={styles.inputIcon}>
-                                        <MaterialIcons name="email" size={20} color="#6366F1" />
-                                    </View>
-                                    <TextInput
-                                        style={[styles.input, isDark && { color: '#F1F5F9' }]}
-                                        placeholder="Correo electrónico"
-                                        placeholderTextColor="#94A3B8"
-                                        value={email}
-                                        onChangeText={setEmail}
-                                        keyboardType="email-address"
-                                        autoCapitalize="none"
-                                        returnKeyType="next"
-                                    />
-                                </View>
-
-                                {/* Sugerencias de Dominio */}
-                                {email.length > 0 && !email.includes('@') && (
-                                    <View style={styles.suggestionsRow}>
-                                        {['@gmail.com', '@hotmail.com', '@outlook.com'].map((domain) => (
-                                            <TouchableOpacity
-                                                key={domain}
-                                                style={[styles.suggestionChip, isDark && { backgroundColor: '#334155', borderColor: '#475569' }]}
-                                                onPress={() => setEmail(email + domain)}
-                                            >
-                                                <Text style={[styles.suggestionText, isDark && { color: '#94A3B8' }]}>{domain}</Text>
-                                            </TouchableOpacity>
-                                        ))}
-                                    </View>
-                                )}
-
-                                {/* Contraseña */}
-                                <View style={[styles.inputWrap, isDark && { backgroundColor: '#334155', borderColor: '#475569' }]}>
-                                    <View style={styles.inputIcon}>
-                                        <MaterialIcons name="lock" size={20} color="#6366F1" />
-                                    </View>
-                                    <TextInput
-                                        style={[styles.input, { flex: 1 }, isDark && { color: '#F1F5F9' }]}
-                                        placeholder="Contraseña (mín. 6 caracteres)"
-                                        placeholderTextColor="#94A3B8"
-                                        value={password}
-                                        onChangeText={setPassword}
-                                        secureTextEntry={!showPass}
-                                        returnKeyType="done"
-                                        onSubmitEditing={handleSubmit}
-                                    />
-                                    <TouchableOpacity onPress={() => setShowPass(!showPass)} style={styles.showPassBtn}>
-                                        <Ionicons name={showPass ? 'eye-off' : 'eye'} size={20} color={isDark ? '#94A3B8' : '#94A3B8'} />
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-
-                            {/* Mensaje de éxito */}
-                            {successMsg.length > 0 && (
-                                <View style={[styles.errorBox, { backgroundColor: 'rgba(16,185,129,0.08)' }]}>
-                                    <MaterialIcons name="check-circle" size={16} color="#10B981" />
-                                    <Text style={[styles.errorText, { color: '#10B981' }]}>{successMsg}</Text>
-                                </View>
-                            )}
-
-                            {/* Error */}
-                            {error.length > 0 && (
-                                <View style={styles.errorBox}>
-                                    <MaterialIcons name="error-outline" size={16} color="#EF4444" />
-                                    <Text style={styles.errorText}>{error}</Text>
-                                </View>
-                            )}
-
-                            {/* Botón Principal (Entrar / Crear) */}
-                            <TouchableOpacity
-                                style={[styles.submitBtn, (!isValid || loading) && styles.submitBtnDisabled]}
-                                onPress={handleSubmit}
-                                disabled={!isValid || loading}
-                                activeOpacity={0.85}
-                            >
-                                {loading ? (
-                                    <ActivityIndicator color="#FFF" />
-                                ) : (
-                                    <>
-                                        <Ionicons
-                                            name={mode === 'login' ? 'log-in' : 'person-add'}
-                                            size={20}
-                                            color="#FFF"
-                                        />
-                                        <Text style={styles.submitBtnText}>
-                                            {mode === 'login' ? 'Entrar' : 'Crear mi cuenta'}
-                                        </Text>
-                                    </>
-                                )}
-                            </TouchableOpacity>
-
-                            {/* Divider y Redes Sociales */}
-                            <View style={styles.dividerRow}>
-                                <View style={[styles.dividerLine, isDark && { backgroundColor: '#334155' }]} />
-                                <Text style={styles.dividerText}>o entra con</Text>
-                                <View style={[styles.dividerLine, isDark && { backgroundColor: '#334155' }]} />
-                            </View>
-
-                            {/* Botón de Google */}
-                            <TouchableOpacity
-                                style={[styles.googleBtn, isDark && { backgroundColor: '#334155', borderColor: '#475569' }]}
-                                onPress={signInWithGoogle}
-                                activeOpacity={0.8}
-                            >
-                                <Ionicons name="logo-google" size={20} color={isDark ? '#F1F5F9' : '#1E293B'} />
-                                <Text style={[styles.googleBtnText, { color: colors.text }]}>Google</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Info de seguridad */}
-                        <View style={styles.infoRow}>
-                            <Ionicons name="shield-checkmark" size={14} color="#94A3B8" />
-                            <Text style={styles.infoText}>
-                                Tus datos se guardan localmente en tu dispositivo
-                            </Text>
-                        </View>
-
-                        <View style={{ height: 40 }} />
-                    </ScrollView>
-                </KeyboardAvoidingView>
-            </SafeAreaView>
+            {content}
         </TouchableWithoutFeedback>
     );
 }

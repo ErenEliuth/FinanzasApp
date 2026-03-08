@@ -1,5 +1,4 @@
 import { useAuth } from '@/utils/auth';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import {
@@ -9,7 +8,6 @@ import {
     StatusBar,
     StyleSheet,
     Text,
-    TouchableOpacity,
     View
 } from 'react-native';
 
@@ -36,48 +34,35 @@ export default function WelcomeScreen() {
             Animated.timing(fade, { toValue: 1, duration: 800, useNativeDriver: true }),
             Animated.timing(slideUp, { toValue: 0, duration: 800, useNativeDriver: true }),
         ]).start();
-    }, [loading]);
 
-    const handleStart = () => {
-        router.push(user ? '/(tabs)' : '/login');
-    };
+        // Redirección automática después de 4 segundos
+        const timer = setTimeout(() => {
+            router.replace(user ? '/(tabs)' : '/login');
+        }, 4000);
 
-    const bgColor = isDark ? '#0F172A' : '#FFFFFF';
-    const textColor = isDark ? '#F8FAFC' : '#1E293B';
-    const subColor = isDark ? '#94A3B8' : '#64748B';
-    const cardBg = isDark ? '#1E293B' : '#F5F3FF';
+        return () => clearTimeout(timer);
+    }, [loading, user]);
+
+    const bgColor = '#0F172A';
+    const textColor = '#FFFFFF';
+    const subColor = 'rgba(255,255,255,0.6)';
 
     return (
         <View style={[styles.root, { backgroundColor: bgColor }]}>
             <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={bgColor} />
 
-            {/* ── Visual Section ─────────────────────────────── */}
-            <View style={styles.visual}>
-                <Animated.View style={[styles.iconContainer, { opacity: fade }]}>
-                    <View style={[styles.iconBackground, { backgroundColor: cardBg }]}>
-                        <Ionicons name="wallet-outline" size={60} color="#7C3AED" />
-                    </View>
-                </Animated.View>
-            </View>
-
-            {/* ── Content Section ────────────────────────────── */}
+            {/* ── Center Content ─────────────────────────────── */}
             <SafeAreaView style={styles.content}>
-                <Animated.View style={{ opacity: fade, transform: [{ translateY: slideUp }] }}>
-
-                    <Text style={[styles.headline, { color: textColor }]}>
-                        Gestiona tu dinero{'\n'}
-                        <Text style={styles.headlineAccent}>fácilmente.</Text>
-                    </Text>
-
-                    <Text style={[styles.sub, { color: subColor }]}>
-                        Toma el control de tus finanzas personales con una herramienta simple y segura.
-                    </Text>
-
-                    {/* Action Button */}
-                    <TouchableOpacity style={styles.btn} onPress={handleStart} activeOpacity={0.8}>
-                        <Text style={styles.btnText}>Continuar</Text>
-                        <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
-                    </TouchableOpacity>
+                <Animated.View style={[styles.brandContainer, { opacity: fade, transform: [{ translateY: slideUp }] }]}>
+                    <View style={styles.logoRow}>
+                        <Text style={styles.logoText}>Zenly</Text>
+                        <View style={styles.accentDot} />
+                    </View>
+                    <View style={styles.taglineWrapper}>
+                        <View style={styles.line} />
+                        <Text style={styles.taglineText}>Tu Paz Financiera</Text>
+                        <View style={styles.line} />
+                    </View>
                 </Animated.View>
             </SafeAreaView>
         </View>
@@ -88,70 +73,54 @@ const styles = StyleSheet.create({
     root: {
         flex: 1,
     },
-
-    // Visual Area: Centered and clean
-    visual: {
-        height: height * 0.45,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    iconContainer: {
-        shadowColor: '#7C3AED',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.15,
-        shadowRadius: 20,
-        elevation: 10,
-    },
-    iconBackground: {
-        width: 140,
-        height: 140,
-        borderRadius: 70,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-
-    // Content Area
     content: {
         flex: 1,
-        paddingHorizontal: 32,
-        justifyContent: 'flex-start',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 20,
     },
-    headline: {
-        fontSize: 34,
-        fontWeight: '800',
-        lineHeight: 42,
-        letterSpacing: -0.5,
-        marginBottom: 16,
+    brandContainer: {
+        alignItems: 'center',
     },
-    headlineAccent: {
-        color: '#7C3AED'
+    logoRow: {
+        position: 'relative',
+        marginBottom: -10, // Overlap para integrar mejor
     },
-    sub: {
-        fontSize: 16,
-        lineHeight: 24,
-        marginBottom: 44,
-        maxWidth: '92%',
+    logoText: {
+        fontSize: 84,
+        fontWeight: '900',
+        color: '#FFFFFF',
+        letterSpacing: -4,
     },
-
-    // Refined Button: Solid Primary Color
-    btn: {
-        backgroundColor: '#7C3AED',
-        borderRadius: 18,
-        height: 62,
+    accentDot: {
+        position: 'absolute',
+        top: 22,
+        right: -12,
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        backgroundColor: '#FDBA74',
+        shadowColor: '#FDBA74',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 15,
+        elevation: 10,
+    },
+    taglineWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 20,
-        gap: 8,
-        shadowColor: '#7C3AED',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.35,
-        shadowRadius: 12,
-        elevation: 8,
+        gap: 12,
     },
-    btnText: {
-        fontSize: 18,
+    taglineText: {
+        fontSize: 14,
+        color: '#FDBA74', // Mismo color del punto para balancear
         fontWeight: '700',
-        color: '#FFFFFF'
+        letterSpacing: 4,
+        textTransform: 'uppercase',
     },
+    line: {
+        width: 20,
+        height: 1,
+        backgroundColor: 'rgba(253,186,116,0.3)',
+    }
 });

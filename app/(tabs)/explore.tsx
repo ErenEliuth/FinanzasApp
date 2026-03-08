@@ -17,23 +17,27 @@ import {
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  View,
+  View
 } from 'react-native';
 
 // ─── Categorías fijas por defecto ───────────────────────────────────────────
-const DEFAULT_CATEGORIES = ['Sueldo', 'Transporte', 'Comida'];
+const DEFAULT_INCOME_CATS = ['Sueldo', 'Pago', 'Nómina'];
+const DEFAULT_EXPENSE_CATS = ['Comida', 'Transporte', 'Salud', 'Hogar'];
 
 // Sugeridas para cuando el usuario quiere crear nuevas
 const SUGGESTED_EXTRAS = [
-  { label: 'Recibos', icon: 'receipt' },
-  { label: 'Gimnasio', icon: 'fitness-center' },
-  { label: 'Salud', icon: 'local-hospital' },
-  { label: 'Entretenimiento', icon: 'movie' },
-  { label: 'Ropa', icon: 'checkroom' },
-  { label: 'Educación', icon: 'school' },
+  { label: 'Recibos', icon: 'receipt', type: 'expense' },
+  { label: 'Gimnasio', icon: 'fitness-center', type: 'expense' },
+  { label: 'Entretenimiento', icon: 'movie', type: 'expense' },
+  { label: 'Ropa', icon: 'checkroom', type: 'expense' },
+  { label: 'Educación', icon: 'school', type: 'expense' },
+  { label: 'Venta', icon: 'attach-money', type: 'income' },
+  { label: 'Regalo', icon: 'card-giftcard', type: 'income' },
+  { label: 'Inversión', icon: 'trending-up', type: 'income' },
 ];
 
 const STORAGE_KEY = 'user_custom_categories_v2';
+const ACCOUNT_STORAGE_KEY = 'user_custom_accounts_v1';
 type TxType = 'income' | 'expense' | 'ahorro';
 
 export default function AddTransactionScreen() {
@@ -41,9 +45,13 @@ export default function AddTransactionScreen() {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
+  const [account, setAccount] = useState('Efectivo');
   const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [customAccounts, setCustomAccounts] = useState<string[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [accountModalVisible, setAccountModalVisible] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newAccountName, setNewAccountName] = useState('');
 
   const router = useRouter();
   const { user, theme } = useAuth();
@@ -73,10 +81,16 @@ export default function AddTransactionScreen() {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(cats));
   };
 
+  const persistCustomAccounts = async (accs: string[]) => {
+    setAccount(accs[accs.length - 1] || 'Efectivo');
+    setCustomAccounts(accs);
+    await AsyncStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(accs));
+  };
+
   const handleAddCustomCategory = async () => {
     const trimmed = newCategoryName.trim();
     if (!trimmed) return;
-    const all = [...DEFAULT_CATEGORIES, ...customCategories];
+    const all = [...DEFAULT_INCOME_CATS, ...DEFAULT_EXPENSE_CATS, ...customCategories];
     if (all.includes(trimmed)) {
       Alert.alert('Ya existe', 'Esa categoría ya está en tu lista.');
       return;
@@ -101,6 +115,34 @@ export default function AddTransactionScreen() {
     ]);
   };
 
+  const handleAddCustomAccount = async () => {
+    const trimmed = newAccountName.trim();
+    if (!trimmed) return;
+    const all = ['Efectivo', ...customAccounts];
+    if (all.includes(trimmed)) {
+      Alert.alert('Ya existe', 'Esa cuenta ya está en tu lista.');
+      return;
+    }
+    const updated = [...customAccounts, trimmed];
+    await persistCustomAccounts(updated);
+    setAccount(trimmed);
+    setNewAccountName('');
+    setAccountModalVisible(false);
+  };
+
+  const handleDeleteCustomAccount = (acc: string) => {
+    Alert.alert('Eliminar', `¿Quitar la cuenta "${acc}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar', style: 'destructive', onPress: async () => {
+          const updated = customAccounts.filter(a => a !== acc);
+          await persistCustomAccounts(updated);
+          if (account === acc) setAccount('Efectivo');
+        }
+      }
+    ]);
+  };
+
   const handleAmountChange = (text: string) => {
     const numeric = text.replace(/\D/g, '');
     if (!numeric) { setAmount(''); return; }
@@ -110,11 +152,9 @@ export default function AddTransactionScreen() {
   const handleSave = async () => {
     const parsed = parseFloat(amount.replace(/\./g, '').replace(',', '.'));
     if (isNaN(parsed) || parsed <= 0) return;
-    const desc = description.trim() || (type === 'ahorro' ? 'Ahorro' : '');
-    if (!desc) return;
-
     const dbType = type === 'income' ? 'income' : 'expense';
     const dbCategory = type === 'ahorro' ? 'Ahorro' : (category || 'General');
+    const desc = description.trim() || dbCategory;
 
     try {
       const { error } = await supabase.from('transactions').insert([{
@@ -123,6 +163,7 @@ export default function AddTransactionScreen() {
         amount: parsed,
         description: desc,
         category: dbCategory,
+        account: type === 'ahorro' ? 'Ahorro' : account,
         date: new Date().toISOString(),
       }]);
       if (error) throw error;
@@ -135,9 +176,11 @@ export default function AddTransactionScreen() {
     }
   };
 
-  const allCategories = type === 'ahorro'
-    ? []
-    : [...DEFAULT_CATEGORIES, ...customCategories];
+  const allCategories = type === 'income'
+    ? [...DEFAULT_INCOME_CATS, ...customCategories]
+    : type === 'expense'
+      ? [...DEFAULT_EXPENSE_CATS, ...customCategories]
+      : [];
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -154,7 +197,7 @@ export default function AddTransactionScreen() {
                 style={[styles.typeBtn, type === 'income' && { backgroundColor: '#10B981' }]}
                 onPress={() => { setType('income'); setDescription(''); }}
               >
-                <MaterialIcons name="arrow-downward" size={15} color={type === 'income' ? '#FFF' : '#94A3B8'} />
+                <MaterialIcons name="trending-up" size={15} color={type === 'income' ? '#FFF' : '#94A3B8'} />
                 <Text style={[styles.typeBtnText, type === 'income' && styles.typeBtnActive]}>Ingreso</Text>
               </TouchableOpacity>
 
@@ -163,7 +206,7 @@ export default function AddTransactionScreen() {
                 style={[styles.typeBtn, type === 'expense' && { backgroundColor: '#EF4444' }]}
                 onPress={() => { setType('expense'); setDescription(''); }}
               >
-                <MaterialIcons name="arrow-upward" size={15} color={type === 'expense' ? '#FFF' : '#94A3B8'} />
+                <MaterialIcons name="trending-down" size={15} color={type === 'expense' ? '#FFF' : '#94A3B8'} />
                 <Text style={[styles.typeBtnText, type === 'expense' && styles.typeBtnActive]}>Gasto</Text>
               </TouchableOpacity>
 
@@ -213,6 +256,36 @@ export default function AddTransactionScreen() {
                   onSubmitEditing={Keyboard.dismiss}
                 />
               </View>
+
+              <View style={[styles.separator, { backgroundColor: colors.border }]} />
+              <Text style={[styles.sectionLabel, { color: colors.sub }]}>¿De dónde sale/entra el dinero?</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
+                {['Efectivo', ...customAccounts].map(acc => (
+                  <TouchableOpacity
+                    key={acc}
+                    style={[
+                      styles.catChip,
+                      { backgroundColor: isDark ? '#334155' : '#F1F5F9' },
+                      account === acc && { backgroundColor: typeColor },
+                    ]}
+                    onPress={() => setAccount(acc)}
+                    onLongPress={() => customAccounts.includes(acc) && handleDeleteCustomAccount(acc)}
+                  >
+                    <Text style={[
+                      styles.catText,
+                      { color: isDark ? '#94A3B8' : '#64748B' },
+                      account === acc && { color: '#FFF' },
+                    ]}>
+                      {acc}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+                {/* Botón + Nueva Cuenta */}
+                <TouchableOpacity style={styles.catAddBtn} onPress={() => setAccountModalVisible(true)}>
+                  <MaterialIcons name="add" size={15} color="#6366F1" />
+                  <Text style={styles.catAddText}>Banco</Text>
+                </TouchableOpacity>
+              </ScrollView>
 
               {/* Categorías (no aplica para Ahorro) */}
               {type !== 'ahorro' && (
@@ -287,57 +360,112 @@ export default function AddTransactionScreen() {
         {/* ── Modal de nueva categoría ─────────────────────────────── */}
         <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Nueva categoría</Text>
-              <Text style={[styles.modalSub, { color: colors.sub }]}>Elige una sugerencia o escribe la tuya</Text>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={{ width: '100%' }}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 20}
+            >
+              <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Nueva categoría</Text>
+                <Text style={[styles.modalSub, { color: colors.sub }]}>Elige una sugerencia o escribe la tuya</Text>
 
-              {/* Sugeridas */}
-              <Text style={[styles.modalSectionLabel, { color: colors.sub }]}>Sugeridas</Text>
-              <View style={styles.suggestionsWrap}>
-                {SUGGESTED_EXTRAS
-                  .filter(s => !customCategories.includes(s.label) && !DEFAULT_CATEGORIES.includes(s.label))
-                  .map(s => (
-                    <TouchableOpacity
-                      key={s.label}
-                      style={styles.suggestionChip}
-                      onPress={() => { setCategory(s.label); setModalVisible(false); }}
-                    >
-                      <MaterialIcons name={s.icon as any} size={15} color="#6366F1" />
-                      <Text style={styles.suggestionText}>{s.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-              </View>
+                {/* Sugeridas */}
+                <Text style={[styles.modalSectionLabel, { color: colors.sub }]}>Sugeridas</Text>
+                <View style={styles.suggestionsWrap}>
+                  {SUGGESTED_EXTRAS
+                    .filter(s =>
+                      s.type === type &&
+                      !customCategories.includes(s.label) &&
+                      !DEFAULT_INCOME_CATS.includes(s.label) &&
+                      !DEFAULT_EXPENSE_CATS.includes(s.label)
+                    )
+                    .map(s => (
+                      <TouchableOpacity
+                        key={s.label}
+                        style={styles.suggestionChip}
+                        onPress={() => { setCategory(s.label); setModalVisible(false); }}
+                      >
+                        <MaterialIcons name={s.icon as any} size={15} color="#6366F1" />
+                        <Text style={styles.suggestionText}>{s.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                </View>
 
-              {/* Crear nueva */}
-              <Text style={[styles.modalSectionLabel, { color: colors.sub, marginTop: 18 }]}>Crear y guardar</Text>
-              <View style={[styles.modalInputWrap, { borderColor: colors.border, backgroundColor: colors.input }]}>
-                <TextInput
-                  style={[styles.modalInput, { color: colors.text }]}
-                  value={newCategoryName}
-                  onChangeText={setNewCategoryName}
-                  placeholder="Ej: Netflix, Mascota, Ropa..."
-                  placeholderTextColor="#94A3B8"
-                  autoFocus
-                  returnKeyType="done"
-                  onSubmitEditing={handleAddCustomCategory}
-                />
-              </View>
+                {/* Crear nueva */}
+                <Text style={[styles.modalSectionLabel, { color: colors.sub, marginTop: 18 }]}>Crear y guardar</Text>
+                <View style={[styles.modalInputWrap, { borderColor: colors.border, backgroundColor: colors.input }]}>
+                  <TextInput
+                    style={[styles.modalInput, { color: colors.text }]}
+                    value={newCategoryName}
+                    onChangeText={setNewCategoryName}
+                    placeholder="Ej: Netflix, Mascota, Ropa..."
+                    placeholderTextColor="#94A3B8"
+                    autoFocus
+                    returnKeyType="done"
+                    onSubmitEditing={handleAddCustomCategory}
+                  />
+                </View>
 
-              <View style={styles.modalBtns}>
-                <TouchableOpacity
-                  style={[styles.modalBtn, { backgroundColor: colors.border }]}
-                  onPress={() => { setModalVisible(false); setNewCategoryName(''); }}
-                >
-                  <Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalBtn, { backgroundColor: '#6366F1' }]}
-                  onPress={handleAddCustomCategory}
-                >
-                  <Text style={{ color: '#FFF', fontWeight: '700' }}>Guardar</Text>
-                </TouchableOpacity>
+                <View style={styles.modalBtns}>
+                  <TouchableOpacity
+                    style={[styles.modalBtn, { backgroundColor: colors.border }]}
+                    onPress={() => { setModalVisible(false); setNewCategoryName(''); }}
+                  >
+                    <Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalBtn, { backgroundColor: '#6366F1' }]}
+                    onPress={handleAddCustomCategory}
+                  >
+                    <Text style={{ color: '#FFF', fontWeight: '700' }}>Guardar</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
+            </KeyboardAvoidingView>
+          </View>
+        </Modal>
+
+        {/* ── Modal de nueva cuenta (banco) ─────────────────────────── */}
+        <Modal visible={accountModalVisible} transparent animationType="slide" onRequestClose={() => setAccountModalVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={{ width: '100%' }}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 20}
+            >
+              <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Nuevo Banco / Cuenta</Text>
+                <Text style={[styles.modalSub, { color: colors.sub }]}>Escribe el nombre del banco o cuenta</Text>
+
+                <View style={[styles.modalInputWrap, { borderColor: colors.border, backgroundColor: colors.input }]}>
+                  <TextInput
+                    style={[styles.modalInput, { color: colors.text }]}
+                    value={newAccountName}
+                    onChangeText={setNewAccountName}
+                    placeholder="Ej: Bancolombia, Nequi, Daviplata..."
+                    placeholderTextColor="#94A3B8"
+                    autoFocus
+                    returnKeyType="done"
+                    onSubmitEditing={handleAddCustomAccount}
+                  />
+                </View>
+
+                <View style={styles.modalBtns}>
+                  <TouchableOpacity
+                    style={[styles.modalBtn, { backgroundColor: colors.border }]}
+                    onPress={() => { setAccountModalVisible(false); setNewAccountName(''); }}
+                  >
+                    <Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalBtn, { backgroundColor: '#6366F1' }]}
+                    onPress={handleAddCustomAccount}
+                  >
+                    <Text style={{ color: '#FFF', fontWeight: '700' }}>Guardar</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
           </View>
         </Modal>
       </SafeAreaView>
@@ -363,11 +491,11 @@ const styles = StyleSheet.create({
   typeBtnActive: { color: '#FFF' },
 
   amountCard: {
-    borderRadius: 24, padding: 28, alignItems: 'center',
-    flexDirection: 'row', justifyContent: 'center', marginBottom: 20,
+    borderRadius: 20, padding: 20, alignItems: 'center',
+    flexDirection: 'row', justifyContent: 'center', marginBottom: 16,
   },
-  currSign: { color: '#FFF', fontSize: 40, fontWeight: '800', marginRight: 8 },
-  amountInput: { color: '#FFF', fontSize: 56, fontWeight: '800', minWidth: 120, textAlign: 'center' },
+  currSign: { color: '#FFF', fontSize: 24, fontWeight: '800', marginRight: 4 },
+  amountInput: { color: '#FFF', fontSize: 36, fontWeight: '800', minWidth: 100, textAlign: 'center' },
 
   form: {
     borderRadius: 20, padding: 16, marginBottom: 20,
@@ -423,3 +551,4 @@ const styles = StyleSheet.create({
   modalBtns: { flexDirection: 'row', gap: 12 },
   modalBtn: { flex: 1, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
 });
+

@@ -6,7 +6,6 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
-    Dimensions,
     Modal,
     Platform,
     SafeAreaView,
@@ -15,9 +14,8 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
-import { BarChart, LineChart, PieChart } from 'react-native-chart-kit';
 
 const MONTH_NAMES_FULL = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -184,96 +182,175 @@ const mSt = StyleSheet.create({
 });
 
 // ─── Estadísticas de Categorías ────────────────────────────────────────────────
-function CategoryStatistics({ transactions, isDark, colors }: { transactions: any[]; isDark: boolean; colors: any }) {
-    const expenses = transactions.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Ahorros');
+const CAT_ICONS: Record<string, any> = {
+    'Hogar': { icon: 'home', color: '#F97316' },
+    'Transporte': { icon: 'directions-car', color: '#6366F1' },
+    'Comida': { icon: 'restaurant', color: '#F43F5E' },
+    'Servicios': { icon: 'build', color: '#8B5CF6' },
+    'Salud': { icon: 'medical-services', color: '#10B981' },
+    'Educación': { icon: 'school', color: '#3B82F6' },
+    'Entretenimiento': { icon: 'sports-esports', color: '#EC4899' },
+    'Otros': { icon: 'more-horiz', color: '#94A3B8' },
+};
 
-    const categoryTotals: Record<string, number> = {};
-    expenses.forEach(t => {
-        const cat = t.category || 'Otros';
-        categoryTotals[cat] = (categoryTotals[cat] || 0) + Number(Math.abs(t.amount));
+function CategoryStatistics({ transactions, isDark, colors }: { transactions: any[]; isDark: boolean; colors: any }) {
+    const today = new Date();
+    const currMonth = today.getMonth();
+    const currYear = today.getFullYear();
+
+    const lastMonthDate = new Date(currYear, currMonth - 1, 1);
+    const lastMonth = lastMonthDate.getMonth();
+    const lastYear = lastMonthDate.getFullYear();
+
+    // Gastos de este mes
+    const thisMonthExpenses = transactions.filter(t => {
+        const d = new Date(t.date);
+        return t.type === 'expense' && t.category !== 'Ahorro' && d.getMonth() === currMonth && d.getFullYear() === currYear;
     });
 
-    const labels = Object.keys(categoryTotals);
-    const data = Object.values(categoryTotals);
+    // Gastos del mes pasado
+    const lastMonthExpenses = transactions.filter(t => {
+        const d = new Date(t.date);
+        return t.type === 'expense' && t.category !== 'Ahorro' && d.getMonth() === lastMonth && d.getFullYear() === lastYear;
+    });
 
-    if (labels.length === 0) {
+    const thisMonthTotal = thisMonthExpenses.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+    const lastMonthTotal = lastMonthExpenses.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+
+    // Desglose por categoría (mes actual)
+    const categoryTotals: Record<string, number> = {};
+    thisMonthExpenses.forEach(t => {
+        const cat = t.category || 'Otros';
+        categoryTotals[cat] = (categoryTotals[cat] || 0) + Math.abs(t.amount || 0);
+    });
+
+    const sortedCats = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
+
+    if (thisMonthExpenses.length === 0 && lastMonthExpenses.length === 0) {
         return (
-            <View style={[mSt.card, { backgroundColor: colors.card, marginTop: 16 }]}>
-                <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text, marginBottom: 8 }}>Estadísticas</Text>
-                <Text style={{ color: colors.sub }}>Aún no hay gastos registrados para mostrar gráficos.</Text>
+            <View style={[statStyle.card, { backgroundColor: colors.card, marginTop: 16 }]}>
+                <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text, marginBottom: 8 }}>Análisis Mensual</Text>
+                <Text style={{ color: colors.sub }}>Aún no hay suficientes datos para generar un análisis comparativo.</Text>
             </View>
         );
     }
 
-    const screenWidth = Dimensions.get('window').width - 68;
+    const highestCat = sortedCats[0] ? sortedCats[0][0] : null;
+    const highestVal = sortedCats[0] ? sortedCats[0][1] : 0;
+    const maxVal = Math.max(...sortedCats.map(c => c[1]), 1);
 
-    // Omitimos o reducimos textos muy largos de las etiquetas (max 6 caracteres)
-    const shortLabels = labels.map(l => l.length > 6 ? l.substring(0, 6) + '..' : l);
-
-    const chartConfig = {
-        backgroundGradientFrom: colors.card,
-        backgroundGradientTo: colors.card,
-        color: (opacity = 1) => isDark ? `rgba(99, 102, 241, ${opacity})` : `rgba(79, 70, 229, ${opacity})`,
-        labelColor: (opacity = 1) => isDark ? `rgba(241, 245, 249, ${opacity})` : `rgba(30, 41, 59, ${opacity})`,
-        strokeWidth: 2,
-        barPercentage: 0.6,
-        useShadowColorFromDataset: false,
-        propsForLabels: { fontSize: 10 },
-        decimalPlaces: 0,
-    };
-
-    const pieColors = ['#F87171', '#60A5FA', '#34D399', '#FBBF24', '#A78BFA', '#F472B6', '#38BDF8'];
-    const pieData = labels.map((label, index) => ({
-        name: label,
-        population: data[index],
-        color: pieColors[index % pieColors.length],
-        legendFontColor: colors.text,
-        legendFontSize: 11
-    }));
+    // Comparación porcentual
+    const diff = lastMonthTotal > 0 ? ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100 : 0;
+    const isHigher = thisMonthTotal > lastMonthTotal;
 
     return (
-        <View style={[mSt.card, { backgroundColor: colors.card, marginTop: 16 }]}>
-            <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text, marginBottom: 16, letterSpacing: -0.5 }}>Estadísticas de Gastos</Text>
+        <View style={{ gap: 24, paddingBottom: 40 }}>
+            {/* ── Comparativa Mensual ── */}
+            <View>
+                <Text style={[statStyle.sectionLabel, { color: colors.text }]}>RESUMEN COMPARATIVO</Text>
+                <View style={statStyle.dividerSmall} />
 
-            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.sub, marginBottom: 10 }}>1. Gráfico de Barras</Text>
-            <BarChart
-                data={{ labels: shortLabels, datasets: [{ data }] }}
-                width={screenWidth}
-                height={220}
-                yAxisLabel="$"
-                yAxisSuffix=""
-                chartConfig={chartConfig}
-                verticalLabelRotation={0}
-                style={{ borderRadius: 16, marginBottom: 24, marginLeft: -10 }}
-            />
+                <View style={[statStyle.compareCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <View style={statStyle.compareRow}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[statStyle.compareLabel, { color: colors.sub }]}>Mes Anterior</Text>
+                            <Text style={[statStyle.compareVal, { color: colors.text }]}>{fmtCOP(lastMonthTotal)}</Text>
+                        </View>
+                        <View style={statStyle.compareDivider} />
+                        <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                            <Text style={[statStyle.compareLabel, { color: colors.sub }]}>Mes Actual</Text>
+                            <Text style={[statStyle.compareVal, { color: '#6366F1' }]}>{fmtCOP(thisMonthTotal)}</Text>
+                        </View>
+                    </View>
 
-            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.sub, marginBottom: 10 }}>2. Gráfico Circular (Pie)</Text>
-            <PieChart
-                data={pieData}
-                width={screenWidth}
-                height={200}
-                chartConfig={chartConfig}
-                accessor={"population"}
-                backgroundColor={"transparent"}
-                paddingLeft={"0"}
-                center={[0, 0]}
-                style={{ borderRadius: 16, marginBottom: 24 }}
-            />
+                    {lastMonthTotal > 0 && (
+                        <View style={[statStyle.diffBadge, { backgroundColor: isHigher ? '#FEF2F2' : '#F0FDF4' }]}>
+                            <MaterialIcons
+                                name={isHigher ? 'trending-up' : 'trending-down'}
+                                size={16}
+                                color={isHigher ? '#EF4444' : '#10B981'}
+                            />
+                            <Text style={[statStyle.diffText, { color: isHigher ? '#EF4444' : '#10B981' }]}>
+                                {isHigher ? 'Gastaste un' : 'Ahorraste un'} {Math.abs(diff).toFixed(1)}% comparado al mes pasado
+                            </Text>
+                        </View>
+                    )}
+                </View>
+            </View>
 
-            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.sub, marginBottom: 10 }}>3. Gráfico de Líneas</Text>
-            <LineChart
-                data={{ labels: shortLabels, datasets: [{ data }] }}
-                width={screenWidth}
-                height={220}
-                yAxisLabel="$"
-                yAxisSuffix=""
-                chartConfig={chartConfig}
-                bezier
-                style={{ borderRadius: 16, marginBottom: 6, marginLeft: -10 }}
-            />
+            {/* ── Categoría Más Costosa ── */}
+            {highestCat && (
+                <View style={[statStyle.insightCard, { backgroundColor: (CAT_ICONS[highestCat]?.color || '#94A3B8') + '15' }]}>
+                    <View style={[statStyle.insightIcon, { backgroundColor: CAT_ICONS[highestCat]?.color || '#94A3B8' }]}>
+                        <MaterialIcons name={CAT_ICONS[highestCat]?.icon || 'stars'} size={24} color="#FFF" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={[statStyle.insightTitle, { color: colors.text }]}>Mayor Gasto</Text>
+                        <Text style={[statStyle.insightDesc, { color: colors.sub }]}>
+                            Tu mayor gasto este mes es en <Text style={{ fontWeight: '800', color: colors.text }}>{highestCat}</Text> con {fmtCOP(highestVal)}.
+                        </Text>
+                    </View>
+                </View>
+            )}
+
+            {/* ── Desglose por Categoría ── */}
+            <View>
+                <Text style={[statStyle.sectionLabel, { color: colors.text }]}>GASTO POR CATEGORÍA</Text>
+                <View style={statStyle.dividerSmall} />
+
+                <View style={{ marginTop: 10, gap: 16 }}>
+                    {sortedCats.map(([cat, val]) => {
+                        const info = CAT_ICONS[cat] || CAT_ICONS['Otros'];
+                        const widthPct = (val / maxVal) * 100;
+                        return (
+                            <View key={cat} style={statStyle.hBarRow}>
+                                <View style={[statStyle.hBarIcon, { backgroundColor: info.color }]}>
+                                    <MaterialIcons name={info.icon} size={18} color="#FFF" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                                        <Text style={[statStyle.hBarLabel, { color: colors.text }]}>{cat}</Text>
+                                        <Text style={[statStyle.hBarVal, { color: colors.text }]}>{fmtCOP(val)}</Text>
+                                    </View>
+                                    <View style={[statStyle.barBg, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
+                                        <View style={[statStyle.barFill, { width: `${widthPct}%`, backgroundColor: info.color }]} />
+                                    </View>
+                                </View>
+                            </View>
+                        );
+                    })}
+                </View>
+            </View>
         </View>
     );
 }
+
+const statStyle = StyleSheet.create({
+    sectionLabel: { fontSize: 16, fontWeight: '900', letterSpacing: -0.5, marginBottom: 4 },
+    dividerSmall: { width: 30, height: 3, backgroundColor: '#6366F1', borderRadius: 2, marginBottom: 12 },
+
+    compareCard: { borderRadius: 20, padding: 20, borderWidth: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+    compareRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
+    compareLabel: { fontSize: 12, fontWeight: '600', marginBottom: 4 },
+    compareVal: { fontSize: 20, fontWeight: '800' },
+    compareDivider: { width: 1, height: 40, backgroundColor: '#E2E8F0', marginHorizontal: 15 },
+    diffBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, borderRadius: 12 },
+    diffText: { fontSize: 12, fontWeight: '700' },
+
+    insightCard: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 20, borderRadius: 24 },
+    insightIcon: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+    insightTitle: { fontSize: 14, fontWeight: '800', marginBottom: 2 },
+    insightDesc: { fontSize: 13, lineHeight: 18 },
+
+    hBarRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    hBarIcon: { width: 40, height: 40, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+    hBarLabel: { fontSize: 14, fontWeight: '700' },
+    hBarVal: { fontSize: 14, fontWeight: '800' },
+    barBg: { height: 10, borderRadius: 5, overflow: 'hidden' },
+    barFill: { height: '100%', borderRadius: 5 },
+
+    card: { borderRadius: 22, padding: 18, marginBottom: 16 },
+});
 
 // ─── Pantalla principal ────────────────────────────────────────────────────────
 export default function ProfileScreen() {
@@ -292,7 +369,6 @@ export default function ProfileScreen() {
         }
     };
     const colors = getColors(theme);
-    const whiteColors = { bg: '#FFFFFF', card: '#FFFFFF', text: '#1E293B', sub: '#64748B', border: '#E2E8F0' };
 
     const [transactions, setTransactions] = useState<any[]>([]);
     const [activeDays, setActiveDays] = useState<Map<string, number>>(new Map());
@@ -431,16 +507,16 @@ export default function ProfileScreen() {
 
             {/* Modal de Estadísticas */}
             <Modal visible={statsModalVisible} animationType="slide" onRequestClose={() => setStatsModalVisible(false)}>
-                <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-                    <View style={styles.modalHeader}>
+                <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+                    <View style={[styles.modalHeader, { backgroundColor: colors.bg }]}>
                         <TouchableOpacity style={styles.closeBtn} onPress={() => setStatsModalVisible(false)}>
-                            <Ionicons name="close" size={28} color="#1E293B" />
+                            <Ionicons name="close" size={28} color={colors.text} />
                         </TouchableOpacity>
-                        <Text style={[styles.modalTitleCentral, { color: '#1E293B' }]}>Mis Estadísticas</Text>
+                        <Text style={[styles.modalTitleCentral, { color: colors.text }]}>Mis Estadísticas</Text>
                         <View style={{ width: 28 }} />
                     </View>
-                    <ScrollView contentContainerStyle={{ padding: 16 }}>
-                        <CategoryStatistics transactions={transactions} isDark={false} colors={whiteColors} />
+                    <ScrollView contentContainerStyle={{ padding: 16, backgroundColor: colors.bg }}>
+                        <CategoryStatistics transactions={transactions} isDark={isDark} colors={colors} />
                         <View style={{ height: 40 }} />
                     </ScrollView>
                 </SafeAreaView>

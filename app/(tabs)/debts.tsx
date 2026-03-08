@@ -1,10 +1,12 @@
 import { useAuth } from '@/utils/auth';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useIsFocused } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
+    Dimensions,
     Keyboard,
     KeyboardAvoidingView,
     Modal,
@@ -15,6 +17,8 @@ import {
     TouchableWithoutFeedback,
     View
 } from 'react-native';
+
+const { height } = Dimensions.get('window');
 
 type Tab = 'debt' | 'fixed';
 
@@ -38,7 +42,8 @@ export default function DebtsScreen() {
     const [addModalVisible, setAddModalVisible] = useState(false);
     const [newClient, setNewClient] = useState('');
     const [newValue, setNewValue] = useState('');
-    const [newDueDate, setNewDueDate] = useState('');
+    const [newDueDate, setNewDueDate] = useState(new Date());
+    const [showDatePicker, setShowDatePicker] = useState(false);
 
     // Payment Modal (only for debts)
     const [payModalVisible, setPayModalVisible] = useState(false);
@@ -51,8 +56,21 @@ export default function DebtsScreen() {
         return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     };
 
+    const handleTabChange = (tab: Tab) => {
+        setActiveTab(tab);
+        setNewClient('');
+        setNewValue('');
+        setNewDueDate(new Date());
+    };
+
     useEffect(() => {
-        if (isFocused) loadData();
+        if (isFocused) {
+            loadData();
+            // Reset form when focusing the screen too
+            setNewClient('');
+            setNewValue('');
+            setNewDueDate(new Date());
+        }
     }, [isFocused]);
 
     const loadData = async () => {
@@ -73,7 +91,13 @@ export default function DebtsScreen() {
 
     const handleAdd = async () => {
         const val = parseFloat(newValue.replace(/\./g, '').replace(',', '.'));
-        if (!newClient.trim() || isNaN(val) || val <= 0 || !newDueDate.trim()) return;
+        if (!newClient.trim() || isNaN(val) || val <= 0) return;
+
+        // Format: YYYY-MM-DD (ISO standard for DB)
+        const d = newDueDate.getDate().toString().padStart(2, '0');
+        const m = (newDueDate.getMonth() + 1).toString().padStart(2, '0');
+        const y = newDueDate.getFullYear();
+        const dateStr = `${y}-${m}-${d}`;
 
         try {
             const { error } = await supabase
@@ -84,14 +108,14 @@ export default function DebtsScreen() {
                         client: newClient.trim(),
                         value: val,
                         paid: 0,
-                        due_date: newDueDate.trim(),
+                        due_date: dateStr,
                         debt_type: activeTab
                     }
                 ]);
 
             if (error) throw error;
 
-            setNewClient(''); setNewValue(''); setNewDueDate('');
+            setNewClient(''); setNewValue(''); setNewDueDate(new Date());
             setAddModalVisible(false);
             Keyboard.dismiss();
             loadData();
@@ -106,12 +130,28 @@ export default function DebtsScreen() {
         const actualPay = Math.min(pay, remaining);
 
         try {
-            const { error } = await supabase
+            // Update debt payment
+            const { error: debtError } = await supabase
                 .from('debts')
                 .update({ paid: selectedDebt.paid + actualPay })
                 .eq('id', selectedDebt.id);
 
-            if (error) throw error;
+            if (debtError) throw debtError;
+
+            // Create transaction entry
+            const { error: txError } = await supabase
+                .from('transactions')
+                .insert([{
+                    user_id: user?.id,
+                    amount: actualPay,
+                    type: 'expense',
+                    category: 'Deudas',
+                    description: `Abono a deuda: ${selectedDebt.client}`,
+                    account: 'Efectivo',
+                    date: new Date().toISOString()
+                }]);
+
+            if (txError) console.error('Error creando transacción de deuda:', txError);
 
             setPayAmount(''); setPayModalVisible(false); setSelectedDebt(null);
             Keyboard.dismiss();
@@ -120,14 +160,51 @@ export default function DebtsScreen() {
     };
 
     const handleMarkFixedPaid = async (debt: any) => {
-        const newPaid = debt.paid >= debt.value ? 0 : debt.value;
+        const isPaidNow = debt.paid >= debt.value;
+        let newPaid = isPaidNow ? 0 : debt.value;
+        let newDueDate = debt.due_date;
+
+        // Si estamos restableciendo (estaba pagado y ahora no), avanzamos el mes
+        if (isPaidNow) {
+            const date = parseDateStr(debt.due_date);
+            if (date) { // Ensure date is valid before manipulating
+                date.setMonth(date.getMonth() + 1);
+
+                const nextD = date.getDate().toString().padStart(2, '0');
+                const nextM = (date.getMonth() + 1).toString().padStart(2, '0');
+                const nextY = date.getFullYear();
+                newDueDate = `${nextY}-${nextM}-${nextD}`;
+            }
+        }
+
         try {
-            const { error } = await supabase
+            const { error: debtError } = await supabase
                 .from('debts')
-                .update({ paid: newPaid })
+                .update({
+                    paid: newPaid,
+                    due_date: newDueDate
+                })
                 .eq('id', debt.id);
 
-            if (error) throw error;
+            if (debtError) throw debtError;
+
+            // Si marcamos como pagado (y no estaba pagado antes), creamos transacción
+            if (!isPaidNow) {
+                const { error: txError } = await supabase
+                    .from('transactions')
+                    .insert([{
+                        user_id: user?.id,
+                        amount: debt.value,
+                        type: 'expense',
+                        category: 'Gasto Fijo',
+                        description: `Pago: ${debt.client}`,
+                        account: 'Efectivo', // Default account
+                        date: new Date().toISOString()
+                    }]);
+
+                if (txError) console.error('Error creando transacción de gasto fijo:', txError);
+            }
+
             loadData();
         } catch (e) { console.error('Error actualizando gasto fijo en Supabase:', e); }
     };
@@ -161,22 +238,74 @@ export default function DebtsScreen() {
         new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
 
     // Helper para calcular días restantes y estado
-    const getStatusInfo = (dueDate: string) => {
+    const parseDateStr = (dateStr: string) => {
+        if (!dateStr) return new Date();
+        const cleanStr = dateStr.trim();
+
+        // Format YYYY-MM-DD (Standard)
+        if (cleanStr.includes('-')) {
+            const parts = cleanStr.split('-');
+            if (parts.length >= 3) {
+                const y = parseInt(parts[0], 10);
+                const m = parseInt(parts[1], 10);
+                const d = parseInt(parts[2], 10);
+                return new Date(y, m - 1, d);
+            }
+        }
+
+        // Formato DD/MM/YYYY
+        if (cleanStr.includes('/')) {
+            const parts = cleanStr.split('/');
+            if (parts.length >= 3) {
+                const d = parseInt(parts[0], 10);
+                const m = parseInt(parts[1], 10);
+                const y = parseInt(parts[2], 10);
+                return new Date(y, m - 1, d);
+            }
+        }
+
+        const date = new Date(cleanStr);
+        return isNaN(date.getTime()) ? new Date() : date;
+    };
+
+    const getStatusInfo = (dueDate: string, type: string = 'debt') => {
         try {
-            const [d, m, y] = dueDate.split('/').map(Number);
-            const target = new Date(y, m - 1, d);
+            const targetDate = parseDateStr(dueDate);
+            const d = targetDate.getDate().toString().padStart(2, '0');
+            const m = (targetDate.getMonth() + 1).toString().padStart(2, '0');
+            const y = targetDate.getFullYear();
+
+            // Referencia para urgencia (color de la campanilla/punto)
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
-            const diffTime = target.getTime() - today.getTime();
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            let checkDate = new Date(targetDate);
+            if (type === 'fixed') {
+                checkDate = new Date(today.getFullYear(), today.getMonth(), targetDate.getDate());
+            }
+            checkDate.setHours(0, 0, 0, 0);
 
-            if (diffDays < 0) return { label: `Venció hace ${Math.abs(diffDays)}d`, color: '#EF4444', isUrgent: true };
-            if (diffDays === 0) return { label: 'Vence hoy', color: '#F59E0B', isUrgent: true };
-            if (diffDays <= 3) return { label: `Vence en ${diffDays}d`, color: '#F59E0B', isUrgent: true };
-            return { label: `En ${diffDays}d`, color: '#10B981', isUrgent: false };
+            const diffTime = checkDate.getTime() - today.getTime();
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+            const isUrgent = diffDays <= 3;
+            const color = diffDays < 0 ? '#EF4444' : (diffDays <= 3 ? '#F59E0B' : '#10B981');
+
+            if (type === 'fixed') {
+                return {
+                    label: `Cobra todos los ${d}`,
+                    color: color,
+                    isUrgent: isUrgent
+                };
+            }
+
+            return {
+                label: `Vence el ${d}/${m}/${y}`,
+                color: color,
+                isUrgent: isUrgent
+            };
         } catch (e) {
-            return { label: dueDate, color: '#94A3B8', isUrgent: false };
+            return { label: `Vence: ${dueDate}`, color: '#94A3B8', isUrgent: false };
         }
     };
 
@@ -199,7 +328,7 @@ export default function DebtsScreen() {
             <View style={[styles.tabRow, isDark && { backgroundColor: '#1E293B', borderColor: '#334155' }]}>
                 <TouchableOpacity
                     style={[styles.tab, activeTab === 'debt' && styles.tabActive]}
-                    onPress={() => setActiveTab('debt')}
+                    onPress={() => handleTabChange('debt')}
                 >
                     <MaterialIcons name="credit-card" size={16}
                         color={activeTab === 'debt' ? '#6366F1' : isDark ? '#64748B' : '#94A3B8'} />
@@ -209,7 +338,7 @@ export default function DebtsScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={[styles.tab, activeTab === 'fixed' && styles.tabActive]}
-                    onPress={() => setActiveTab('fixed')}
+                    onPress={() => handleTabChange('fixed')}
                 >
                     <MaterialIcons name="repeat" size={16}
                         color={activeTab === 'fixed' ? '#6366F1' : isDark ? '#64748B' : '#94A3B8'} />
@@ -283,9 +412,9 @@ export default function DebtsScreen() {
                                     <Text style={[styles.cardTitle, isDark && { color: '#F1F5F9' }]}>{debt.client}</Text>
                                     {!isPaid && (
                                         <View style={styles.countdownRow}>
-                                            <View style={[styles.statusDot, { backgroundColor: getStatusInfo(debt.due_date).color }]} />
-                                            <Text style={[styles.cardSub, { color: getStatusInfo(debt.due_date).color, fontWeight: '700' }]}>
-                                                {getStatusInfo(debt.due_date).label}
+                                            <View style={[styles.statusDot, { backgroundColor: getStatusInfo(debt.due_date, 'debt').color }]} />
+                                            <Text style={[styles.cardSub, { color: getStatusInfo(debt.due_date, 'debt').color, fontWeight: '700' }]}>
+                                                {getStatusInfo(debt.due_date, 'debt').label}
                                             </Text>
                                         </View>
                                     )}
@@ -361,9 +490,9 @@ export default function DebtsScreen() {
                                     <Text style={styles.cardTitle}>{fe.client}</Text>
                                     {!isPaid && (
                                         <View style={styles.countdownRow}>
-                                            <View style={[styles.statusDot, { backgroundColor: getStatusInfo(fe.due_date).color }]} />
-                                            <Text style={[styles.cardSub, { color: getStatusInfo(fe.due_date).color, fontWeight: '700' }]}>
-                                                {getStatusInfo(fe.due_date).label}
+                                            <View style={[styles.statusDot, { backgroundColor: getStatusInfo(fe.due_date, 'fixed').color }]} />
+                                            <Text style={[styles.cardSub, { color: getStatusInfo(fe.due_date, 'fixed').color, fontWeight: '700' }]}>
+                                                {getStatusInfo(fe.due_date, 'fixed').label}
                                             </Text>
                                         </View>
                                     )}
@@ -418,11 +547,15 @@ export default function DebtsScreen() {
 
             {/* ── Add Modal ── */}
             <Modal visible={addModalVisible} transparent animationType="slide">
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                    <View style={styles.modalOverlay}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                            <TouchableWithoutFeedback>
-                                <View style={styles.modalSheet}>
+                <View style={styles.modalOverlay}>
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+                        style={{ flex: 1, justifyContent: 'flex-end' }}
+                    >
+                        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                            <View style={[styles.modalSheet, { maxHeight: height * 0.9 }]}>
+                                <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
                                     <View style={styles.modalHeader}>
                                         <View style={[styles.modalIcon,
                                         { backgroundColor: activeTab === 'debt' ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)' }]}>
@@ -450,11 +583,42 @@ export default function DebtsScreen() {
                                         placeholder={activeTab === 'debt' ? 'Valor total de la deuda' : 'Valor mensual'}
                                         placeholderTextColor="#94A3B8" keyboardType="decimal-pad"
                                         value={newValue} onChangeText={(text) => setNewValue(formatInput(text))} returnKeyType="next" />
-                                    <TextInput style={styles.modalInput}
-                                        placeholder={activeTab === 'debt' ? 'Fecha de vencimiento (ej. 15/04/2026)' : 'Día de pago (ej. 10/03/2026)'}
-                                        placeholderTextColor="#94A3B8" value={newDueDate}
-                                        onChangeText={setNewDueDate} returnKeyType="done"
-                                        onSubmitEditing={Keyboard.dismiss} />
+                                    <TouchableOpacity
+                                        style={styles.datePickerBtn}
+                                        onPress={() => {
+                                            Keyboard.dismiss();
+                                            setShowDatePicker(true);
+                                        }}
+                                    >
+                                        <MaterialIcons name="event" size={20} color="#6366F1" />
+                                        <Text style={[styles.datePickerBtnText, { color: colors.text }]}>
+                                            {activeTab === 'debt'
+                                                ? `Vence: ${newDueDate.toLocaleDateString()}`
+                                                : `Día de pago: ${newDueDate.getDate()}`
+                                            }
+                                        </Text>
+                                    </TouchableOpacity>
+
+                                    {showDatePicker && (
+                                        <DateTimePicker
+                                            value={newDueDate}
+                                            mode="date"
+                                            display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                                            themeVariant={isDark ? 'dark' : 'light'}
+                                            onChange={(event, selectedDate) => {
+                                                if (Platform.OS === 'android') setShowDatePicker(false);
+                                                if (selectedDate) setNewDueDate(selectedDate);
+                                            }}
+                                        />
+                                    )}
+                                    {Platform.OS === 'ios' && showDatePicker && (
+                                        <TouchableOpacity
+                                            style={[styles.modalBtnConfirm, { marginTop: 10, backgroundColor: '#64748B' }]}
+                                            onPress={() => setShowDatePicker(false)}
+                                        >
+                                            <Text style={styles.modalBtnConfirmText}>Aceptar Fecha</Text>
+                                        </TouchableOpacity>
+                                    )}
 
                                     <View style={styles.modalBtns}>
                                         <TouchableOpacity style={styles.modalBtnCancel}
@@ -468,18 +632,21 @@ export default function DebtsScreen() {
                                             <Text style={styles.modalBtnConfirmText}>Agregar</Text>
                                         </TouchableOpacity>
                                     </View>
-                                </View>
-                            </TouchableWithoutFeedback>
-                        </KeyboardAvoidingView>
-                    </View>
-                </TouchableWithoutFeedback>
+                                </ScrollView>
+                            </View>
+                        </TouchableWithoutFeedback>
+                    </KeyboardAvoidingView>
+                </View>
             </Modal>
 
             {/* ── Payment Modal ── */}
             <Modal visible={payModalVisible} transparent animationType="slide">
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                     <View style={styles.modalOverlay}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+                        <KeyboardAvoidingView
+                            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                            keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 20}
+                        >
                             <TouchableWithoutFeedback>
                                 <View style={styles.modalSheet}>
                                     <Text style={styles.modalTitle}>Abono a {selectedDebt?.client}</Text>
@@ -650,6 +817,12 @@ const styles = StyleSheet.create({
         fontSize: 16, color: '#1E293B', marginBottom: 10,
         borderWidth: 1, borderColor: '#E2E8F0',
     },
+    datePickerBtn: {
+        flexDirection: 'row', alignItems: 'center', gap: 10,
+        backgroundColor: '#F4F6FF', borderRadius: 14, padding: 16,
+        marginBottom: 10, borderWidth: 1, borderColor: '#E2E8F0',
+    },
+    datePickerBtnText: { fontSize: 16, fontWeight: '600' },
     modalBtns: { flexDirection: 'row', gap: 12, marginTop: 8 },
     modalBtnCancel: {
         flex: 1, borderWidth: 1, borderColor: '#E2E8F0',
