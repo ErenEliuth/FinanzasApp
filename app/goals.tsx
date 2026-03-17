@@ -25,7 +25,7 @@ import {
 export default function GoalsScreen() {
     const isFocused = useIsFocused();
     const router = useRouter();
-    const { user, theme } = useAuth();
+    const { user, theme, isHidden } = useAuth();
     const isDark = theme === 'dark';
     const colors = {
         bg: isDark ? '#0F172A' : '#F4F6FF',
@@ -37,7 +37,6 @@ export default function GoalsScreen() {
 
     const [goals, setGoals] = useState<any[]>([]);
     const [totalAhorro, setTotalAhorro] = useState(0);
-    const [progressWidths, setProgressWidths] = useState<Record<number, number>>({});
 
     // Modal para nueva meta
     const [addModalVisible, setAddModalVisible] = useState(false);
@@ -45,7 +44,7 @@ export default function GoalsScreen() {
     const [newGoalTarget, setNewGoalTarget] = useState('');
     const [newGoalImage, setNewGoalImage] = useState<string | null>(null);
 
-    // Modal para abonar a la meta
+    // Modal para abonar / retirar
     const [payModalVisible, setPayModalVisible] = useState(false);
     const [withdrawModalVisible, setWithdrawModalVisible] = useState(false);
     const [selectedGoal, setSelectedGoal] = useState<any | null>(null);
@@ -53,6 +52,7 @@ export default function GoalsScreen() {
     const [withdrawAmount, setWithdrawAmount] = useState('');
 
     const formatInput = (text: string) => {
+        if (Platform.OS === 'web') return text.replace(/[^0-9]/g, '');
         const numericValue = text.replace(/\D/g, '');
         if (!numericValue) return '';
         return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
@@ -65,7 +65,6 @@ export default function GoalsScreen() {
     const loadData = async () => {
         if (!user) return;
         try {
-            // Cargar metas de Supabase
             const { data: goalsData, error: goalsError } = await supabase
                 .from('goals')
                 .select('*')
@@ -75,7 +74,6 @@ export default function GoalsScreen() {
             if (goalsError) throw goalsError;
             setGoals(goalsData || []);
 
-            // Cargar ahorro total acumulado (transacciones de tipo ahorro)
             const { data: txData, error: txError } = await supabase
                 .from('transactions')
                 .select('amount')
@@ -120,7 +118,7 @@ export default function GoalsScreen() {
                         name: newGoalName.trim(),
                         target_amount: val,
                         current_amount: 0,
-                        image_uri: newGoalImage
+                        image_uri: newGoalImage,
                     }
                 ]);
 
@@ -143,7 +141,11 @@ export default function GoalsScreen() {
         if (isNaN(val) || val <= 0) return;
 
         if (val > availableAhorro) {
-            Alert.alert('Saldo insuficiente', 'No tienes suficiente Ahorro Disponible para asignar esta cantidad.');
+            if (Platform.OS === 'web') {
+                window.alert('No tienes suficiente Ahorro Disponible para asignar esta cantidad.');
+            } else {
+                Alert.alert('Saldo insuficiente', 'No tienes suficiente Ahorro Disponible para asignar esta cantidad.');
+            }
             return;
         }
 
@@ -174,7 +176,11 @@ export default function GoalsScreen() {
         if (isNaN(val) || val <= 0) return;
 
         if (val > selectedGoal.current_amount) {
-            Alert.alert('Saldo insuficiente', 'No puedes retirar más de lo que has acumulado en esta meta.');
+            if (Platform.OS === 'web') {
+                window.alert('No puedes retirar más de lo que has acumulado en esta meta.');
+            } else {
+                Alert.alert('Saldo insuficiente', 'No puedes retirar más de lo que has acumulado en esta meta.');
+            }
             return;
         }
 
@@ -197,6 +203,20 @@ export default function GoalsScreen() {
     };
 
     const handleDelete = (goal: any) => {
+        if (Platform.OS === 'web') {
+            if (window.confirm(`¿Estás seguro de que quieres eliminar la meta "${goal.name}"? Los fondos volverán a tu Ahorro Disponible.`)) {
+                (async () => {
+                    try {
+                        const { error } = await supabase.from('goals').delete().eq('id', goal.id);
+                        if (error) throw error;
+                        loadData();
+                    } catch (e) {
+                        console.error('Error eliminando meta en Supabase:', e);
+                    }
+                })();
+            }
+            return;
+        }
         Alert.alert(
             'Eliminar meta',
             `¿Estás seguro de que quieres eliminar la meta "${goal.name}"? Los fondos volverán a tu Ahorro Disponible.`,
@@ -223,13 +243,12 @@ export default function GoalsScreen() {
         );
     };
 
-
     const fmt = (n: number) =>
-        new Intl.NumberFormat('es-CO', {
-            style: 'currency',
-            currency: 'COP',
-            minimumFractionDigits: 0,
-        }).format(n);
+        isHidden
+            ? '****'
+            : new Intl.NumberFormat('es-CO', {
+                style: 'currency', currency: 'COP', minimumFractionDigits: 0
+              }).format(n);
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -245,27 +264,42 @@ export default function GoalsScreen() {
             </View>
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                {/* Info Card */}
+
+                {/* ── Tarjeta de Resumen de Ahorro ── */}
                 <View style={[styles.summaryCard, isDark && { backgroundColor: '#1E293B', shadowColor: '#000' }]}>
-                    <View style={styles.summaryRow}>
-                        <View style={styles.summaryCol}>
-                            <Text style={styles.summaryLabel}>Ahorro Disponible</Text>
-                            <Text style={[styles.summaryAmount, { color: '#10B981' }]}>{fmt(availableAhorro)}</Text>
-                        </View>
-                        <View style={styles.summaryColRight}>
-                            <Text style={styles.summaryLabel}>Total en Metas</Text>
-                            <Text style={[styles.summaryAmountSmall, { color: colors.text }]}>{fmt(assignedAhorro)}</Text>
+                    {/* Fila 1: Total */}
+                    <View style={styles.summaryTopRow}>
+                        <Ionicons name="wallet-outline" size={20} color="#6366F1" />
+                        <View style={{ flex: 1, marginLeft: 10 }}>
+                            <Text style={[styles.summaryTopLabel, { color: colors.sub }]}>Bolsa Total de Ahorro</Text>
+                            <Text style={[styles.summaryTotalAmount, { color: '#6366F1' }]}>{fmt(totalAhorro)}</Text>
                         </View>
                     </View>
-                    <Text style={styles.summaryHint}>
-                        Usa tu Ahorro Disponible para fondear tus metas. Si no tienes suficiente, ve a "Inicio" y añade una transacción de tipo Ahorro.
+
+                    <View style={[styles.separator, { backgroundColor: colors.border }]} />
+
+                    {/* Fila 2: Asignado vs Disponible */}
+                    <View style={styles.summaryRow}>
+                        <View style={styles.summaryCol}>
+                            <Text style={[styles.summaryLabel, { color: colors.sub }]}>Asignado a Metas</Text>
+                            <Text style={[styles.summaryAmountSmall, { color: colors.text }]}>{fmt(assignedAhorro)}</Text>
+                        </View>
+                        <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
+                        <View style={[styles.summaryCol, { alignItems: 'flex-end' }]}>
+                            <Text style={[styles.summaryLabel, { color: colors.sub }]}>Disponible para asignar</Text>
+                            <Text style={[styles.summaryAmountSmall, { color: '#10B981' }]}>{fmt(availableAhorro)}</Text>
+                        </View>
+                    </View>
+
+                    <Text style={[styles.summaryHint, { color: colors.sub }]}>
+                        💡 El ahorro disponible es lo que aún no has repartido entre tus metas.
                     </Text>
                 </View>
 
                 {goals.length === 0 ? (
                     <View style={styles.emptyState}>
                         <Ionicons name="flag-outline" size={60} color="#6366F1" />
-                        <Text style={styles.emptyTitle}>¿Qué quieres lograr?</Text>
+                        <Text style={[styles.emptyTitle, { color: colors.text }]}>¿Qué quieres lograr?</Text>
                         <Text style={styles.emptyText}>Un auto, un viaje, una casa... Crea una meta y usa tus ahorros para alcanzarla.</Text>
                     </View>
                 ) : (
@@ -279,7 +313,7 @@ export default function GoalsScreen() {
                                 {/* Imagen Header */}
                                 <View style={styles.cardImageContainer}>
                                     {goal.image_uri ? (
-                                        <Image source={{ uri: goal.image_uri }} style={styles.cardImage} />
+                                        <Image source={{ uri: goal.image_uri as string }} style={styles.cardImage} />
                                     ) : (
                                         <View style={[styles.cardImagePlaceholder, isDark && { backgroundColor: '#334155' }]}>
                                             <Ionicons name="image-outline" size={32} color={isDark ? '#64748B' : '#94A3B8'} />
@@ -365,7 +399,7 @@ export default function GoalsScreen() {
 
             {/* Modal para CREAR META */}
             <Modal visible={addModalVisible} transparent animationType="slide">
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                <TouchableWithoutFeedback onPress={Platform.OS === 'web' ? undefined : Keyboard.dismiss}>
                     <View style={styles.modalOverlay}>
                         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                             <TouchableWithoutFeedback>
@@ -380,7 +414,7 @@ export default function GoalsScreen() {
                                     {/* Image Picker */}
                                     <TouchableOpacity style={styles.imagePickerBtn} onPress={pickImage}>
                                         {newGoalImage ? (
-                                            <Image source={{ uri: newGoalImage }} style={styles.imagePreview} />
+                                            <Image source={{ uri: newGoalImage as string }} style={styles.imagePreview} />
                                         ) : (
                                             <>
                                                 <Ionicons name="camera-outline" size={24} color="#64748B" />
@@ -430,7 +464,7 @@ export default function GoalsScreen() {
 
             {/* Modal para ASIGNAR AHORRO */}
             <Modal visible={payModalVisible} transparent animationType="slide">
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                <TouchableWithoutFeedback onPress={Platform.OS === 'web' ? undefined : Keyboard.dismiss}>
                     <View style={styles.modalOverlay}>
                         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                             <TouchableWithoutFeedback>
@@ -473,7 +507,7 @@ export default function GoalsScreen() {
 
             {/* Modal para RETIRAR AHORRO */}
             <Modal visible={withdrawModalVisible} transparent animationType="slide">
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                <TouchableWithoutFeedback onPress={Platform.OS === 'web' ? undefined : Keyboard.dismiss}>
                     <View style={styles.modalOverlay}>
                         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                             <TouchableWithoutFeedback>
@@ -544,7 +578,7 @@ const styles = StyleSheet.create({
     },
     scrollContent: { padding: 20 },
 
-    // Summary Card
+    // ── Summary Card ──
     summaryCard: {
         backgroundColor: '#FFFFFF',
         borderRadius: 20,
@@ -558,20 +592,27 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#E2E8F0',
     },
-    summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+    summaryTopRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 14,
+    },
+    summaryTopLabel: { fontSize: 12, fontWeight: '600', color: '#64748B' },
+    summaryTotalAmount: { fontSize: 28, fontWeight: '900', color: '#6366F1', marginTop: 2 },
+    separator: { height: 1, backgroundColor: '#E2E8F0', marginBottom: 14 },
+    summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
     summaryCol: { flex: 1 },
-    summaryColRight: { flex: 1, alignItems: 'flex-end' },
-    summaryLabel: { fontSize: 13, color: '#64748B', fontWeight: '600', marginBottom: 4 },
-    summaryAmount: { fontSize: 28, color: '#6366F1', fontWeight: '800' },
-    summaryAmountSmall: { fontSize: 18, color: '#1E293B', fontWeight: '700' },
-    summaryHint: { fontSize: 12, color: '#94A3B8', lineHeight: 18 },
+    summaryDivider: { width: 1, backgroundColor: '#E2E8F0', marginHorizontal: 12 },
+    summaryLabel: { fontSize: 12, color: '#64748B', fontWeight: '600', marginBottom: 4 },
+    summaryAmountSmall: { fontSize: 16, fontWeight: '800', color: '#1E293B' },
+    summaryHint: { fontSize: 11, color: '#94A3B8', lineHeight: 18 },
 
-    // Empty state
+    // ── Empty state ──
     emptyState: { alignItems: 'center', paddingVertical: 40, marginHorizontal: 20 },
     emptyTitle: { fontSize: 20, fontWeight: '700', color: '#1E293B', marginTop: 16 },
     emptyText: { fontSize: 14, color: '#64748B', textAlign: 'center', marginTop: 8, lineHeight: 22 },
 
-    // Card
+    // ── Card ──
     card: {
         backgroundColor: '#FFFFFF',
         borderRadius: 24,

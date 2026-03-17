@@ -2,22 +2,42 @@ import { useAuth } from '@/utils/auth';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     Alert,
+    Dimensions,
     Platform,
     RefreshControl,
     SafeAreaView,
     ScrollView,
+    SectionList,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
+import { PieChart } from 'react-native-chart-kit';
+
+const screenWidth = Dimensions.get('window').width;
+
+const CAT_COLORS: Record<string, string> = {
+    'Comida':          '#F43F5E',
+    'Transporte':      '#6366F1',
+    'Hogar':           '#F97316',
+    'Salud':           '#10B981',
+    'Educación':       '#3B82F6',
+    'Entretenimiento': '#EC4899',
+    'Deudas':          '#EF4444',
+    'Gasto Fijo':      '#F59E0B',
+    'Ropa':            '#8B5CF6',
+    'Recibos':         '#64748B',
+    'Gimnasio':        '#14B8A6',
+};
+const FALLBACK_COLORS = ['#6366F1','#10B981','#F59E0B','#EC4899','#3B82F6','#F97316','#8B5CF6','#14B8A6'];
 
 export default function HistoryScreen() {
     const isFocused = useIsFocused();
-    const { user, theme } = useAuth();
+    const { user, theme, isHidden } = useAuth();
     const isDark = theme === 'dark' || ['purple', 'blue', 'pink'].includes(theme);
 
     const colors = {
@@ -30,6 +50,7 @@ export default function HistoryScreen() {
 
     const [transactions, setTransactions] = useState<any[]>([]);
     const [refreshing, setRefreshing] = useState(false);
+    const [showChart, setShowChart] = useState(false);
 
     useEffect(() => {
         if (isFocused) loadData();
@@ -59,6 +80,15 @@ export default function HistoryScreen() {
     };
 
     const handleDelete = (tx: any) => {
+        if (Platform.OS === 'web') {
+            if (window.confirm(`¿Quieres eliminar "${tx.description}"?`)) {
+                (async () => {
+                    const { error } = await supabase.from('transactions').delete().eq('id', tx.id);
+                    if (!error) setTransactions(prev => prev.filter(t => t.id !== tx.id));
+                })();
+            }
+            return;
+        }
         Alert.alert(
             'Eliminar transacción',
             `¿Quieres eliminar "${tx.description}"?`,
@@ -77,12 +107,40 @@ export default function HistoryScreen() {
     };
 
     // Totales
-    const totalIngresos = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-    const totalGastos = transactions.filter(t => t.type === 'expense' && t.category !== 'Ahorro').reduce((s, t) => s + t.amount, 0);
+    const today = new Date();
+    const currMonth = today.getMonth();
+    const currYear = today.getFullYear();
+
+    const totalIngresos = transactions.filter(t => t.type === 'income' && t.category !== 'Transferencia').reduce((s, t) => s + t.amount, 0);
+    const totalGastos = transactions.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia').reduce((s, t) => s + t.amount, 0);
     const totalAhorro = transactions.filter(t => t.category === 'Ahorro').reduce((s, t) => s + t.amount, 0);
 
+    // Datos para el gráfico de torta (gastos del mes actual por categoría)
+    const monthExpenses = transactions.filter(t => {
+        const d = new Date(t.date);
+        return t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && d.getMonth() === currMonth && d.getFullYear() === currYear;
+    });
+    const catTotals: Record<string, number> = {};
+    monthExpenses.forEach(t => {
+        const c = t.category || 'Otros';
+        catTotals[c] = (catTotals[c] || 0) + t.amount;
+    });
+    const pieData = Object.entries(catTotals)
+        .sort((a, b) => b[1] - a[1])
+        .map(([name, amount], i) => ({
+            name,
+            amount,
+            color: CAT_COLORS[name] || FALLBACK_COLORS[i % FALLBACK_COLORS.length],
+            legendFontColor: isDark ? '#94A3B8' : '#64748B',
+            legendFontSize: 12,
+        }));
+
     const fmt = (n: number) =>
-        new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
+        isHidden
+            ? '****'
+            : new Intl.NumberFormat('es-CO', {
+                style: 'currency', currency: 'COP', minimumFractionDigits: 0
+              }).format(n);
 
     const fmtDate = (iso: string) => {
         if (!iso) return '';
@@ -115,14 +173,27 @@ export default function HistoryScreen() {
         tx.category === 'Ahorro' ? 'rgba(99,102,241,0.12)' :
             tx.type === 'income' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)';
 
+
+
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
             {/* Header */}
             <View style={[styles.header, { backgroundColor: colors.bg }]}>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>Historial</Text>
-                <Text style={[styles.headerSub, { color: colors.sub }]}>
-                    {transactions.length} transacciones
-                </Text>
+                <View>
+                    <Text style={[styles.headerTitle, { color: colors.text }]}>Historial</Text>
+                    <Text style={[styles.headerSub, { color: colors.sub }]}>{transactions.length} transacciones</Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TouchableOpacity
+                        style={[styles.chartToggleBtn, { backgroundColor: showChart ? '#6366F1' : (isDark ? '#334155' : '#E0E7FF') }]}
+                        onPress={() => setShowChart(!showChart)}
+                    >
+                        <Ionicons name="pie-chart" size={16} color={showChart ? '#FFF' : '#6366F1'} />
+                        <Text style={[styles.chartToggleText, { color: showChart ? '#FFF' : '#6366F1' }]}>
+                            {showChart ? 'Ocultar' : 'Gráfico'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
             </View>
 
             {/* Summary cards */}
@@ -143,6 +214,34 @@ export default function HistoryScreen() {
                     <Text style={[styles.summaryValue, { color: '#6366F1' }]}>{fmt(totalAhorro)}</Text>
                 </View>
             </View>
+
+            {/* Gráfico de torta */}
+            {showChart && pieData.length > 0 && (
+                <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
+                    <Text style={[styles.chartTitle, { color: colors.text }]}>Gastos este mes por categoría</Text>
+                    <PieChart
+                        data={pieData}
+                        width={screenWidth - 32}
+                        height={180}
+                        chartConfig={{
+                            color: (opacity = 1) => `rgba(99, 102, 241, ${opacity})`,
+                            backgroundColor: 'transparent',
+                            backgroundGradientFrom: 'transparent',
+                            backgroundGradientTo: 'transparent',
+                        }}
+                        accessor="amount"
+                        backgroundColor="transparent"
+                        paddingLeft="10"
+                        absolute={false}
+                    />
+                </View>
+            )}
+            {showChart && pieData.length === 0 && (
+                <View style={[styles.chartCard, { backgroundColor: colors.card, alignItems: 'center', paddingVertical: 24 }]}>
+                    <Ionicons name="pie-chart-outline" size={36} color={colors.sub} />
+                    <Text style={[styles.chartEmptyText, { color: colors.sub }]}>Sin gastos registrados este mes</Text>
+                </View>
+            )}
 
             {/* Lista de transacciones */}
             <ScrollView
@@ -196,7 +295,7 @@ export default function HistoryScreen() {
                                     styles.txAmount,
                                     { color: getIconColor(tx) }
                                 ]}>
-                                    {tx.type === 'income' && tx.category !== 'Ahorro' ? '+' : '-'}{fmt(tx.amount)}
+                                    {tx.category === 'Ahorro' ? '' : (tx.type === 'income' ? '+' : '-')}{fmt(tx.amount)}
                                 </Text>
                                 <View style={[styles.typePill, { backgroundColor: getBadgeBg(tx) }]}>
                                     <Text style={[styles.typeLabel, { color: getIconColor(tx) }]}>
@@ -217,12 +316,28 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         paddingHorizontal: 20,
         paddingTop: Platform.OS === 'android' ? 50 : 20,
         paddingBottom: 12,
     },
     headerTitle: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
     headerSub: { fontSize: 13, fontWeight: '500', marginTop: 2 },
+    chartToggleBtn: {
+        flexDirection: 'row', alignItems: 'center', gap: 5,
+        paddingHorizontal: 12, paddingVertical: 8,
+        borderRadius: 12,
+    },
+    chartToggleText: { fontSize: 12, fontWeight: '700' },
+    chartCard: {
+        marginHorizontal: 16, marginBottom: 12,
+        borderRadius: 20, padding: 16,
+        shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
+    },
+    chartTitle: { fontSize: 14, fontWeight: '800', marginBottom: 10, textAlign: 'center' },
+    chartEmptyText: { fontSize: 13, marginTop: 8, fontWeight: '500' },
 
     summaryRow: {
         flexDirection: 'row', gap: 10,

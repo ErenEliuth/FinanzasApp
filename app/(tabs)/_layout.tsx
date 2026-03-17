@@ -42,6 +42,7 @@ export default function TabLayout() {
           shadowOffset: { width: 0, height: -4 },
           shadowOpacity: 0.08,
           shadowRadius: 16,
+          zIndex: 100,
         },
         tabBarLabelStyle: {
           fontSize: 11,
@@ -54,6 +55,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Inicio',
+          href: '/',
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? styles.activeIconWrap : styles.iconWrap}>
               <Ionicons name="home" size={22} color={color} />
@@ -66,6 +68,7 @@ export default function TabLayout() {
         name="history"
         options={{
           title: 'Historial',
+          href: '/history',
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? styles.activeIconWrap : styles.iconWrap}>
               <MaterialIcons name="receipt-long" size={22} color={color} />
@@ -78,8 +81,9 @@ export default function TabLayout() {
         name="explore"
         options={{
           title: 'Añadir',
+          href: '/explore',
           tabBarIcon: ({ focused }) => {
-            const isDisabled = pathname === '/debts' || pathname === '/goals';
+            const isDisabled = pathname === '/debts' || pathname === '/goals' || pathname === '/cards';
             return (
               <View style={[styles.fabButton, isDisabled && styles.fabButtonDisabled, isDark && !isDisabled && { backgroundColor: '#4F46E5' }]}>
                 <MaterialIcons name="add" size={28} color="#FFFFFF" />
@@ -90,10 +94,36 @@ export default function TabLayout() {
         }}
         listeners={{
           tabPress: (e) => {
-            if (pathname === '/debts' || pathname === '/goals') {
+            if (pathname === '/debts' || pathname === '/goals' || pathname === '/cards') {
               e.preventDefault();
             }
           },
+        }}
+      />
+
+      <Tabs.Screen
+        name="cards"
+        options={{
+          title: 'Tarjetas',
+          href: '/cards',
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? styles.activeIconWrap : styles.iconWrap}>
+              <MaterialIcons name="credit-card" size={22} color={color} />
+            </View>
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Perfil',
+          href: '/profile',
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? styles.activeIconWrap : styles.iconWrap}>
+              <Ionicons name="person" size={22} color={color} />
+            </View>
+          ),
         }}
       />
 
@@ -106,14 +136,10 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="profile"
+        name="budgets"
         options={{
-          title: 'Perfil',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={focused ? styles.activeIconWrap : styles.iconWrap}>
-              <Ionicons name="person" size={22} color={color} />
-            </View>
-          ),
+          title: 'Presupuestos',
+          href: null, // Ocultar del tab bar — se accede desde el perfil
         }}
       />
     </Tabs>
@@ -143,7 +169,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#6366F1',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: Platform.OS === 'web' ? 0 : 20,
+    top: Platform.OS === 'web' ? -10 : 0,
     shadowColor: '#6366F1',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,

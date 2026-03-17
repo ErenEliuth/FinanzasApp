@@ -37,8 +37,8 @@ const SUGGESTED_EXTRAS = [
 ];
 
 const STORAGE_KEY = 'user_custom_categories_v2';
-const ACCOUNT_STORAGE_KEY = 'user_custom_accounts_v1';
-type TxType = 'income' | 'expense' | 'ahorro';
+const ACCOUNT_STORAGE_KEY = '@custom_accounts';
+type TxType = 'income' | 'expense' | 'ahorro' | 'transfer';
 
 export default function AddTransactionScreen() {
   const [type, setType] = useState<TxType>('income');
@@ -46,6 +46,7 @@ export default function AddTransactionScreen() {
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [account, setAccount] = useState('Efectivo');
+  const [destAccount, setDestAccount] = useState('');
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [customAccounts, setCustomAccounts] = useState<string[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -67,13 +68,24 @@ export default function AddTransactionScreen() {
 
   const typeColor =
     type === 'income' ? '#10B981' :
-      type === 'ahorro' ? '#6366F1' : '#EF4444';
+      type === 'ahorro' ? '#6366F1' :
+        type === 'transfer' ? '#F59E0B' : '#EF4444';
 
-  // Cargar categorías personalizadas guardadas
+  // Cargar datos guardados
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then(raw => {
-      if (raw) setCustomCategories(JSON.parse(raw));
-    });
+    const loadData = async () => {
+      try {
+        const [rawCats, rawAccs] = await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEY),
+          AsyncStorage.getItem(ACCOUNT_STORAGE_KEY)
+        ]);
+        if (rawCats) setCustomCategories(JSON.parse(rawCats));
+        if (rawAccs) setCustomAccounts(JSON.parse(rawAccs));
+      } catch (e) {
+        console.error('Error al cargar datos persistidos:', e);
+      }
+    };
+    loadData();
   }, []);
 
   const persistCustomCategories = async (cats: string[]) => {
@@ -103,6 +115,16 @@ export default function AddTransactionScreen() {
   };
 
   const handleDeleteCustomCategory = (cat: string) => {
+    if (Platform.OS === 'web') {
+      if (window.confirm(`¿Quitar la categoría "${cat}"?`)) {
+        (async () => {
+          const updated = customCategories.filter(c => c !== cat);
+          await persistCustomCategories(updated);
+          if (category === cat) setCategory('');
+        })();
+      }
+      return;
+    }
     Alert.alert('Eliminar', `¿Quitar la categoría "${cat}"?`, [
       { text: 'Cancelar', style: 'cancel' },
       {
@@ -131,6 +153,16 @@ export default function AddTransactionScreen() {
   };
 
   const handleDeleteCustomAccount = (acc: string) => {
+    if (Platform.OS === 'web') {
+      if (window.confirm(`¿Quitar la cuenta "${acc}"?`)) {
+        (async () => {
+          const updated = customAccounts.filter(a => a !== acc);
+          await persistCustomAccounts(updated);
+          if (account === acc) setAccount('Efectivo');
+        })();
+      }
+      return;
+    }
     Alert.alert('Eliminar', `¿Quitar la cuenta "${acc}"?`, [
       { text: 'Cancelar', style: 'cancel' },
       {
@@ -144,6 +176,11 @@ export default function AddTransactionScreen() {
   };
 
   const handleAmountChange = (text: string) => {
+    if (Platform.OS === 'web') {
+      const numeric = text.replace(/[^0-9]/g, '');
+      setAmount(numeric);
+      return;
+    }
     const numeric = text.replace(/\D/g, '');
     if (!numeric) { setAmount(''); return; }
     setAmount(numeric.replace(/\B(?=(\d{3})+(?!\d))/g, '.'));
@@ -152,6 +189,42 @@ export default function AddTransactionScreen() {
   const handleSave = async () => {
     const parsed = parseFloat(amount.replace(/\./g, '').replace(',', '.'));
     if (isNaN(parsed) || parsed <= 0) return;
+
+    // ── TRANSFER ──
+    if (type === 'transfer') {
+      if (!destAccount || destAccount === account) {
+        Alert.alert('Error', 'Selecciona una cuenta de destino diferente.');
+        return;
+      }
+      const desc = description.trim() || `Transferencia ${account} → ${destAccount}`;
+      try {
+        // Salida de la cuenta origen
+        await supabase.from('transactions').insert([{
+          user_id: user?.id,
+          type: 'expense',
+          amount: parsed,
+          description: desc,
+          category: 'Transferencia',
+          account: account,
+          date: new Date().toISOString(),
+        }]);
+        // Entrada a la cuenta destino
+        await supabase.from('transactions').insert([{
+          user_id: user?.id,
+          type: 'income',
+          amount: parsed,
+          description: desc,
+          category: 'Transferencia',
+          account: destAccount,
+          date: new Date().toISOString(),
+        }]);
+        setAmount(''); setDescription(''); setDestAccount('');
+        router.push('/(tabs)');
+      } catch (e) { console.error('Error transfiriendo:', e); }
+      return;
+    }
+
+    // ── NORMAL ──
     const dbType = type === 'income' ? 'income' : 'expense';
     const dbCategory = type === 'ahorro' ? 'Ahorro' : (category || 'General');
     const desc = description.trim() || dbCategory;
@@ -183,7 +256,7 @@ export default function AddTransactionScreen() {
       : [];
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <TouchableWithoutFeedback onPress={Platform.OS === 'web' ? undefined : Keyboard.dismiss}>
       <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -217,6 +290,15 @@ export default function AddTransactionScreen() {
               >
                 <Ionicons name="wallet" size={15} color={type === 'ahorro' ? '#FFF' : '#94A3B8'} />
                 <Text style={[styles.typeBtnText, type === 'ahorro' && styles.typeBtnActive]}>Ahorro</Text>
+              </TouchableOpacity>
+
+              {/* Transferencia */}
+              <TouchableOpacity
+                style={[styles.typeBtn, type === 'transfer' && { backgroundColor: '#F59E0B' }]}
+                onPress={() => { setType('transfer'); setDescription(''); }}
+              >
+                <MaterialIcons name="swap-horiz" size={15} color={type === 'transfer' ? '#FFF' : '#94A3B8'} />
+                <Text style={[styles.typeBtnText, type === 'transfer' && styles.typeBtnActive]}>Mover</Text>
               </TouchableOpacity>
             </View>
 
@@ -287,8 +369,37 @@ export default function AddTransactionScreen() {
                 </TouchableOpacity>
               </ScrollView>
 
-              {/* Categorías (no aplica para Ahorro) */}
-              {type !== 'ahorro' && (
+              {/* Cuenta destino (solo aplica para Transferencias) */}
+              {type === 'transfer' && (
+                <>
+                  <View style={[styles.separator, { backgroundColor: colors.border }]} />
+                  <Text style={[styles.sectionLabel, { color: colors.sub }]}>¿A dónde va el dinero?</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
+                    {['Efectivo', ...customAccounts].filter(a => a !== account).map(acc => (
+                      <TouchableOpacity
+                        key={acc}
+                        style={[
+                          styles.catChip,
+                          { backgroundColor: isDark ? '#334155' : '#F1F5F9' },
+                          destAccount === acc && { backgroundColor: '#F59E0B' },
+                        ]}
+                        onPress={() => setDestAccount(acc)}
+                      >
+                        <Text style={[
+                          styles.catText,
+                          { color: isDark ? '#94A3B8' : '#64748B' },
+                          destAccount === acc && { color: '#FFF' },
+                        ]}>
+                          {acc}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </>
+              )}
+
+              {/* Categorías (no aplica para Ahorro ni Transfer) */}
+              {type !== 'ahorro' && type !== 'transfer' && (
                 <>
                   <View style={[styles.separator, { backgroundColor: colors.border }]} />
                   <Text style={[styles.sectionLabel, { color: colors.sub }]}>Categoría</Text>

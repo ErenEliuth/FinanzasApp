@@ -6,6 +6,9 @@ Notifications.setNotificationHandler({
         shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+        priority: Notifications.AndroidNotificationPriority.HIGH,
     }),
 });
 
@@ -39,9 +42,9 @@ export async function scheduleDailyReminder(hour: number, minute: number) {
             data: { screen: 'explore' },
         },
         trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DAILY,
             hour,
             minute,
-            repeats: true,
         },
     });
 }

@@ -16,10 +16,12 @@ interface AuthContextType {
     theme: 'light' | 'dark' | 'purple' | 'blue' | 'pink';
     toggleTheme: () => Promise<void>;
     setThemeConfig: (theme: 'light' | 'dark' | 'purple' | 'blue' | 'pink') => Promise<void>;
+    isHidden: boolean;
+    toggleHiddenMode: () => Promise<void>;
     login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
     register: (name: string, email: string, password: string) => Promise<{ success: boolean; message: string }>;
     signInWithGoogle: () => Promise<void>;
-    logout: () => void;
+    logout: () => Promise<void>;
 }
 
 // ─── Contexto ─────────────────────────────────────────────────────────────────
@@ -31,6 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
     const [theme, setTheme] = useState<'light' | 'dark' | 'purple' | 'blue' | 'pink'>('light');
+    const [isHidden, setIsHidden] = useState(false);
 
     useEffect(() => {
         // Cargar sesión inicial de Supabase
@@ -53,6 +56,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (['light', 'dark', 'purple', 'blue', 'pink'].includes(storedTheme || '')) {
                 setTheme(storedTheme as any);
             }
+            const storedHidden = await AsyncStorage.getItem('user_hidden_mode');
+            if (storedHidden === 'true') {
+                setIsHidden(true);
+            }
         };
         loadTheme();
 
@@ -68,6 +75,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const setThemeConfig = async (newTheme: 'light' | 'dark' | 'purple' | 'blue' | 'pink') => {
         setTheme(newTheme);
         await AsyncStorage.setItem('user_theme', newTheme);
+    };
+
+    const toggleHiddenMode = async () => {
+        const nextState = !isHidden;
+        setIsHidden(nextState);
+        await AsyncStorage.setItem('user_hidden_mode', nextState ? 'true' : 'false');
     };
 
     // ── Login ──────────────────────────────────────────────────────────────────
@@ -188,7 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, session, loading, theme, toggleTheme, setThemeConfig, login, register, signInWithGoogle, logout }}>
+        <AuthContext.Provider value={{ user, session, loading, theme, toggleTheme, setThemeConfig, isHidden, toggleHiddenMode, login, register, signInWithGoogle, logout }}>
             {children}
         </AuthContext.Provider>
     );

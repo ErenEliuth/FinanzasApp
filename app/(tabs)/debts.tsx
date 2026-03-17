@@ -1,6 +1,7 @@
 import { useAuth } from '@/utils/auth';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useIsFocused } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
@@ -22,9 +23,31 @@ const { height } = Dimensions.get('window');
 
 type Tab = 'debt' | 'fixed';
 
+const SUBSCRIPTIONS_PRESETS = [
+    { name: 'Netflix', color: '#E50914' },
+    { name: 'Spotify', color: '#1DB954' },
+    { name: 'Apple', color: '#000000' },
+    { name: 'YouTube', color: '#FF0000' },
+    { name: 'Gym', color: '#6366F1' },
+    { name: 'Internet', color: '#0EA5E9' },
+    { name: 'Arriendo', color: '#F59E0B' },
+];
+
+const getBrandColor = (name: string) => {
+    const n = name.toLowerCase();
+    if (n.includes('netflix')) return '#E50914';
+    if (n.includes('spotify')) return '#1DB954';
+    if (n.includes('apple') || n.includes('icloud')) return '#000000';
+    if (n.includes('youtube')) return '#FF0000';
+    if (n.includes('amazon') || n.includes('prime')) return '#00A8E1';
+    if (n.includes('disney')) return '#113CCF';
+    if (n.includes('gym') || n.includes('smartfit')) return '#F5A623';
+    return null; // fallback
+};
+
 export default function DebtsScreen() {
     const isFocused = useIsFocused();
-    const { user, theme } = useAuth();
+    const { user, theme, isHidden } = useAuth();
     const isDark = theme === 'dark';
     const colors = {
         bg: isDark ? '#0F172A' : '#F4F6FF',
@@ -45,12 +68,14 @@ export default function DebtsScreen() {
     const [newDueDate, setNewDueDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
 
-    // Payment Modal (only for debts)
     const [payModalVisible, setPayModalVisible] = useState(false);
     const [selectedDebt, setSelectedDebt] = useState<any | null>(null);
     const [payAmount, setPayAmount] = useState('');
+    const [accounts, setAccounts] = useState<string[]>(['Efectivo']);
+    const [selectedAccount, setSelectedAccount] = useState('Efectivo');
 
     const formatInput = (text: string) => {
+        if (Platform.OS === 'web') return text.replace(/[^0-9]/g, '');
         const numericValue = text.replace(/\D/g, '');
         if (!numericValue) return '';
         return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
@@ -63,10 +88,18 @@ export default function DebtsScreen() {
         setNewDueDate(new Date());
     };
 
+    const loadAccounts = async () => {
+        try {
+            const stored = await AsyncStorage.getItem('@custom_accounts');
+            if (stored) setAccounts(['Efectivo', ...JSON.parse(stored)]);
+            else setAccounts(['Efectivo']);
+        } catch (e) { }
+    };
+
     useEffect(() => {
         if (isFocused) {
             loadData();
-            // Reset form when focusing the screen too
+            loadAccounts();
             setNewClient('');
             setNewValue('');
             setNewDueDate(new Date());
@@ -124,13 +157,43 @@ export default function DebtsScreen() {
 
     const handlePayment = async () => {
         if (!selectedDebt) return;
+        Keyboard.dismiss();
+
+        const isFixed = selectedDebt.debt_type === 'fixed';
+
+        if (isFixed) {
+            try {
+                const { error: debtError } = await supabase
+                    .from('debts')
+                    .update({ paid: selectedDebt.value })
+                    .eq('id', selectedDebt.id);
+
+                if (debtError) throw debtError;
+
+                const { error: txError } = await supabase
+                    .from('transactions')
+                    .insert([{
+                        user_id: user?.id,
+                        amount: selectedDebt.value,
+                        type: 'expense',
+                        category: 'Gasto Fijo',
+                        description: `Suscripción/Fijo: ${selectedDebt.client}`,
+                        account: selectedAccount,
+                        date: new Date().toISOString()
+                    }]);
+
+                setPayModalVisible(false); setSelectedDebt(null);
+                loadData();
+            } catch (e) { console.error(e); }
+            return;
+        }
+
         const pay = parseFloat(payAmount.replace(/\./g, '').replace(',', '.'));
         if (isNaN(pay) || pay <= 0) return;
         const remaining = selectedDebt.value - selectedDebt.paid;
         const actualPay = Math.min(pay, remaining);
 
         try {
-            // Update debt payment
             const { error: debtError } = await supabase
                 .from('debts')
                 .update({ paid: selectedDebt.paid + actualPay })
@@ -138,7 +201,6 @@ export default function DebtsScreen() {
 
             if (debtError) throw debtError;
 
-            // Create transaction entry
             const { error: txError } = await supabase
                 .from('transactions')
                 .insert([{
@@ -147,95 +209,16 @@ export default function DebtsScreen() {
                     type: 'expense',
                     category: 'Deudas',
                     description: `Abono a deuda: ${selectedDebt.client}`,
-                    account: 'Efectivo',
+                    account: selectedAccount,
                     date: new Date().toISOString()
                 }]);
 
             if (txError) console.error('Error creando transacción de deuda:', txError);
 
             setPayAmount(''); setPayModalVisible(false); setSelectedDebt(null);
-            Keyboard.dismiss();
             loadData();
         } catch (e) { console.error('Error actualizando pago en Supabase:', e); }
     };
-
-    const handleMarkFixedPaid = async (debt: any) => {
-        const isPaidNow = debt.paid >= debt.value;
-        let newPaid = isPaidNow ? 0 : debt.value;
-        let newDueDate = debt.due_date;
-
-        // Si estamos restableciendo (estaba pagado y ahora no), avanzamos el mes
-        if (isPaidNow) {
-            const date = parseDateStr(debt.due_date);
-            if (date) { // Ensure date is valid before manipulating
-                date.setMonth(date.getMonth() + 1);
-
-                const nextD = date.getDate().toString().padStart(2, '0');
-                const nextM = (date.getMonth() + 1).toString().padStart(2, '0');
-                const nextY = date.getFullYear();
-                newDueDate = `${nextY}-${nextM}-${nextD}`;
-            }
-        }
-
-        try {
-            const { error: debtError } = await supabase
-                .from('debts')
-                .update({
-                    paid: newPaid,
-                    due_date: newDueDate
-                })
-                .eq('id', debt.id);
-
-            if (debtError) throw debtError;
-
-            // Si marcamos como pagado (y no estaba pagado antes), creamos transacción
-            if (!isPaidNow) {
-                const { error: txError } = await supabase
-                    .from('transactions')
-                    .insert([{
-                        user_id: user?.id,
-                        amount: debt.value,
-                        type: 'expense',
-                        category: 'Gasto Fijo',
-                        description: `Pago: ${debt.client}`,
-                        account: 'Efectivo', // Default account
-                        date: new Date().toISOString()
-                    }]);
-
-                if (txError) console.error('Error creando transacción de gasto fijo:', txError);
-            }
-
-            loadData();
-        } catch (e) { console.error('Error actualizando gasto fijo en Supabase:', e); }
-    };
-
-    const handleDelete = (debt: any) => {
-        Alert.alert(
-            'Eliminar',
-            `¿Eliminar "${debt.client}"?`,
-            [
-                { text: 'Cancelar', style: 'cancel' },
-                {
-                    text: 'Eliminar', style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            const { error } = await supabase
-                                .from('debts')
-                                .delete()
-                                .eq('id', debt.id);
-
-                            if (error) throw error;
-                            loadData();
-                        } catch (e) { console.error('Error eliminando deuda en Supabase:', e); }
-                    }
-                }
-            ]
-        );
-    };
-
-
-    const fmt = (n: number) =>
-        new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
 
     // Helper para calcular días restantes y estado
     const parseDateStr = (dateStr: string) => {
@@ -309,6 +292,84 @@ export default function DebtsScreen() {
         }
     };
 
+    const handleFixedAction = async (debt: any) => {
+        const isPaidNow = debt.paid >= debt.value;
+        
+        if (!isPaidNow) {
+            // En vez de pagar directo, abrimos el modal para pedir la cuenta bancaria
+            setSelectedDebt(debt);
+            setSelectedAccount('Efectivo'); // Default
+            setPayModalVisible(true);
+        } else {
+            // Lógica de "Restablecer" (Reset mensual)
+            let newDueDate = debt.due_date;
+            const date = parseDateStr(debt.due_date);
+            if (date) {
+                date.setMonth(date.getMonth() + 1);
+                const nextD = date.getDate().toString().padStart(2, '0');
+                const nextM = (date.getMonth() + 1).toString().padStart(2, '0');
+                const nextY = date.getFullYear();
+                newDueDate = `${nextY}-${nextM}-${nextD}`;
+            }
+
+            try {
+                await supabase
+                    .from('debts')
+                    .update({
+                        paid: 0,
+                        due_date: newDueDate
+                    })
+                    .eq('id', debt.id);
+                loadData();
+            } catch (e) { console.error(e); }
+        }
+    };
+
+    const handleDelete = (debt: any) => {
+        if (Platform.OS === 'web') {
+            if (window.confirm(`¿Eliminar "${debt.client}"?`)) {
+                (async () => {
+                    try {
+                        const { error } = await supabase.from('debts').delete().eq('id', debt.id);
+                        if (error) throw error;
+                        loadData();
+                    } catch (e) {
+                        console.error('Error eliminando deuda en Supabase:', e);
+                    }
+                })();
+            }
+            return;
+        }
+        Alert.alert(
+            'Eliminar',
+            `¿Eliminar "${debt.client}"?`,
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Eliminar', style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            const { error } = await supabase
+                                .from('debts')
+                                .delete()
+                                .eq('id', debt.id);
+
+                            if (error) throw error;
+                            loadData();
+                        } catch (e) { console.error('Error eliminando deuda en Supabase:', e); }
+                    }
+                }
+            ]
+        );
+    };
+
+    const fmt = (n: number) =>
+        isHidden
+            ? '****'
+            : new Intl.NumberFormat('es-CO', {
+                style: 'currency', currency: 'COP', minimumFractionDigits: 0
+              }).format(n);
+
     const totalDebtsPending = debts.reduce((s, d) => s + Math.max(0, d.value - d.paid), 0);
     const totalFixedPending = fixedExpenses.filter(d => d.paid < d.value).reduce((s, d) => s + d.value, 0);
     const currentList = activeTab === 'debt' ? debts : fixedExpenses;
@@ -318,7 +379,7 @@ export default function DebtsScreen() {
 
             {/* Header */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Control de Cartera</Text>
+                <Text style={styles.headerTitle}>{activeTab === 'debt' ? 'Deudas' : 'Fijos'}</Text>
                 <TouchableOpacity style={styles.addBtn} onPress={() => setAddModalVisible(true)}>
                     <MaterialIcons name="add" size={22} color="#FFF" />
                 </TouchableOpacity>
@@ -343,7 +404,7 @@ export default function DebtsScreen() {
                     <MaterialIcons name="repeat" size={16}
                         color={activeTab === 'fixed' ? '#6366F1' : isDark ? '#64748B' : '#94A3B8'} />
                     <Text style={[styles.tabText, activeTab === 'fixed' && styles.tabTextActive, activeTab !== 'fixed' && isDark && { color: '#64748B' }]}>
-                        Gastos Fijos
+                        Fijos
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -359,24 +420,29 @@ export default function DebtsScreen() {
                         </View>
                     </>
                 ) : (
-                    <>
-                        <MaterialIcons name="repeat" size={22} color="#F59E0B" />
-                        <View style={{ marginLeft: 12 }}>
-                            <Text style={styles.summaryLabel}>Gastos fijos por pagar este mes</Text>
-                            <Text style={styles.summaryAmountOrange}>{fmt(totalFixedPending)}</Text>
+                    <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                             <MaterialIcons name="star-border" size={18} color="#F59E0B" />
+                             <Text style={styles.summaryLabel}> Tu carga mensual fija</Text>
                         </View>
-                    </>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                            <Text style={styles.summaryAmountOrange}>{fmt(fixedExpenses.reduce((s, d) => s + d.value, 0))}</Text>
+                            <Text style={{ fontSize: 13, color: '#94A3B8', fontWeight: 'bold' }}>
+                                Pendiente: {fmt(totalFixedPending)}
+                            </Text>
+                        </View>
+                    </View>
                 )}
             </View>
 
             {/* Info Banner */}
             <View style={[styles.infoBanner, isDark && { backgroundColor: `${activeTab === 'debt' ? '#6366F1' : '#F59E0B'}15` }]}>
-                <Ionicons name="information-circle-outline" size={14}
-                    color={activeTab === 'debt' ? '#6366F1' : '#F59E0B'} />
+                <Ionicons name="information-circle-outline" size={16}
+                    color={activeTab === 'debt' ? '#6366F1' : '#F59E0B'} style={{ marginTop: 2, marginRight: 4 }} />
                 <Text style={[styles.infoText, isDark && { color: colors.sub }]}>
                     {activeTab === 'debt'
                         ? 'Las deudas se abonan hasta quedar en $0 y quedan marcadas como Pagadas ✅'
-                        : 'Los gastos fijos se repiten cada mes. Márcalos como pagados y restablece para el próximo mes 🔄'}
+                        : 'Suscripciones y recibos. Al marcarlos como pagados, se genera el gasto en tu historial y puedes pasarlo al próximo mes 🔄'}
                 </Text>
             </View>
 
@@ -459,7 +525,7 @@ export default function DebtsScreen() {
                                 {!isPaid && (
                                     <TouchableOpacity
                                         style={styles.primaryBtn}
-                                        onPress={() => { setSelectedDebt(debt); setPayModalVisible(true); }}
+                                        onPress={() => { setSelectedDebt(debt); setSelectedAccount('Efectivo'); setPayModalVisible(true); }}
                                     >
                                         <MaterialIcons name="payment" size={16} color="#FFF" />
                                         <Text style={styles.primaryBtnText}>Hacer Abono</Text>
@@ -473,17 +539,19 @@ export default function DebtsScreen() {
                     );
                 })}
 
-                {/* ── FIXED EXPENSES ── */}
+                {/* ── FIXED EXPENSES OR SUBSCRIPTIONS ── */}
                 {activeTab === 'fixed' && fixedExpenses.map((fe) => {
                     const isPaid = fe.paid >= fe.value;
+                    const brandColor = getBrandColor(fe.client) || '#F59E0B';
+                    
                     return (
                         <View key={fe.id} style={[styles.card, isPaid && styles.cardFixedPaid]}>
                             <View style={styles.cardTop}>
                                 <View style={[styles.cardAvatar,
-                                { backgroundColor: isPaid ? '#10B981' : '#F59E0B' }]}>
+                                { backgroundColor: isPaid ? '#10B981' : brandColor }]}>
                                     {isPaid
                                         ? <MaterialIcons name="check" size={20} color="#FFF" />
-                                        : <MaterialIcons name="repeat" size={20} color="#FFF" />
+                                        : <Text style={styles.cardAvatarText}>{fe.client.substring(0, 1).toUpperCase()}</Text>
                                     }
                                 </View>
                                 <View style={styles.cardInfo}>
@@ -527,7 +595,7 @@ export default function DebtsScreen() {
                                     style={[styles.primaryBtn, isPaid
                                         ? { backgroundColor: '#64748B' }
                                         : { backgroundColor: '#F59E0B' }]}
-                                    onPress={() => handleMarkFixedPaid(fe)}
+                                    onPress={() => handleFixedAction(fe)}
                                 >
                                     <MaterialIcons name={isPaid ? 'refresh' : 'check'} size={16} color="#FFF" />
                                     <Text style={styles.primaryBtnText}>
@@ -553,7 +621,7 @@ export default function DebtsScreen() {
                         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
                         style={{ flex: 1, justifyContent: 'flex-end' }}
                     >
-                        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                        <TouchableWithoutFeedback onPress={Platform.OS === 'web' ? undefined : Keyboard.dismiss}>
                             <View style={[styles.modalSheet, { maxHeight: height * 0.9 }]}>
                                 <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
                                     <View style={styles.modalHeader}>
@@ -566,21 +634,44 @@ export default function DebtsScreen() {
                                             />
                                         </View>
                                         <Text style={styles.modalTitle}>
-                                            {activeTab === 'debt' ? 'Nueva Deuda' : 'Nuevo Gasto Fijo'}
+                                            {activeTab === 'debt' ? 'Nueva Deuda' : 'Suscripción / Gasto Fijo'}
                                         </Text>
                                     </View>
                                     <Text style={styles.modalHint}>
                                         {activeTab === 'debt'
                                             ? 'Una deuda que pagarás hasta saldarla completamente'
-                                            : 'Un pago recurrente que se repite cada mes (ej: plan celular, internet)'}
+                                            : 'Controla Netflix, Spotify, Arriendo, Internet o cualquier gasto recurrente'}
                                     </Text>
+                                    
+                                    {/* Sugerencias Rápidas para Suscripciones */}
+                                    {activeTab === 'fixed' && (
+                                        <View style={{ marginBottom: 14 }}>
+                                            <Text style={{ fontSize: 12, color: '#64748B', fontWeight: 'bold', marginBottom: 8 }}>SUGERENCIAS RÁPIDAS</Text>
+                                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                                                {SUBSCRIPTIONS_PRESETS.map(sub => (
+                                                    <TouchableOpacity
+                                                        key={sub.name}
+                                                        style={{ 
+                                                            paddingHorizontal: 12, paddingVertical: 6, 
+                                                            borderRadius: 16, borderWidth: 1, 
+                                                            borderColor: sub.color + '40',
+                                                            backgroundColor: sub.color + '10'
+                                                        }}
+                                                        onPress={() => setNewClient(sub.name)}
+                                                    >
+                                                        <Text style={{ color: sub.color, fontSize: 13, fontWeight: '700' }}>{sub.name}</Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+                                        </View>
+                                    )}
 
                                     <TextInput style={styles.modalInput}
-                                        placeholder={activeTab === 'debt' ? 'Nombre (ej. MAMA)' : 'Nombre (ej. Plan Celular)'}
+                                        placeholder={activeTab === 'debt' ? 'Nombre (ej. Juan, Banco)' : 'Nombre del servicio'}
                                         placeholderTextColor="#94A3B8" value={newClient}
                                         onChangeText={setNewClient} returnKeyType="next" />
                                     <TextInput style={styles.modalInput}
-                                        placeholder={activeTab === 'debt' ? 'Valor total de la deuda' : 'Valor mensual'}
+                                        placeholder={activeTab === 'debt' ? 'Valor total de la deuda' : 'Costo mensual'}
                                         placeholderTextColor="#94A3B8" keyboardType="decimal-pad"
                                         value={newValue} onChangeText={(text) => setNewValue(formatInput(text))} returnKeyType="next" />
                                     <TouchableOpacity
@@ -599,7 +690,21 @@ export default function DebtsScreen() {
                                         </Text>
                                     </TouchableOpacity>
 
-                                    {showDatePicker && (
+                                    {Platform.OS === 'web' && showDatePicker && (
+                                        <TextInput
+                                            // @ts-ignore
+                                            type="date"
+                                            style={[styles.modalInput, { marginTop: 10 }]}
+                                            value={newDueDate.toISOString().split('T')[0]}
+                                            onChangeText={(text) => {
+                                                const d = new Date(text);
+                                                if (!isNaN(d.getTime())) setNewDueDate(d);
+                                            }}
+                                            onBlur={() => setShowDatePicker(false)}
+                                        />
+                                    )}
+
+                                    {Platform.OS !== 'web' && showDatePicker && (
                                         <DateTimePicker
                                             value={newDueDate}
                                             mode="date"
@@ -641,7 +746,7 @@ export default function DebtsScreen() {
 
             {/* ── Payment Modal ── */}
             <Modal visible={payModalVisible} transparent animationType="slide">
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                <TouchableWithoutFeedback onPress={Platform.OS === 'web' ? undefined : Keyboard.dismiss}>
                     <View style={styles.modalOverlay}>
                         <KeyboardAvoidingView
                             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -649,16 +754,49 @@ export default function DebtsScreen() {
                         >
                             <TouchableWithoutFeedback>
                                 <View style={styles.modalSheet}>
-                                    <Text style={styles.modalTitle}>Abono a {selectedDebt?.client}</Text>
-                                    {selectedDebt && (
+                                    <Text style={styles.modalTitle}>
+                                        {selectedDebt?.debt_type === 'fixed' ? `Pagar ${selectedDebt.client}` : `Abono a ${selectedDebt?.client}`}
+                                    </Text>
+                                    {selectedDebt && selectedDebt.debt_type !== 'fixed' && (
                                         <Text style={styles.modalHint}>
                                             Saldo pendiente: {fmt(selectedDebt.value - selectedDebt.paid)}
                                         </Text>
                                     )}
-                                    <TextInput style={styles.modalInput}
-                                        placeholder="Monto del abono" placeholderTextColor="#94A3B8"
-                                        keyboardType="decimal-pad" value={payAmount} onChangeText={(text) => setPayAmount(formatInput(text))}
-                                        returnKeyType="done" onSubmitEditing={Keyboard.dismiss} autoFocus />
+                                    {selectedDebt?.debt_type === 'fixed' && (
+                                        <Text style={styles.modalHint}>
+                                            Valor: {fmt(selectedDebt.value)}
+                                        </Text>
+                                    )}
+
+                                    {selectedDebt?.debt_type !== 'fixed' && (
+                                        <TextInput style={styles.modalInput}
+                                            placeholder="Monto del abono" placeholderTextColor="#94A3B8"
+                                            keyboardType="decimal-pad" value={payAmount} onChangeText={(text) => setPayAmount(formatInput(text))}
+                                            returnKeyType="done" onSubmitEditing={Keyboard.dismiss} autoFocus />
+                                    )}
+
+                                    <Text style={{ fontSize: 12, color: '#64748B', fontWeight: 'bold', marginTop: 12, marginBottom: 8, marginLeft: 4 }}>
+                                        MÉTODO DE PAGO
+                                    </Text>
+                                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
+                                        {accounts.map(acc => (
+                                            <TouchableOpacity 
+                                                key={acc} 
+                                                style={{
+                                                    paddingHorizontal: 16, paddingVertical: 10,
+                                                    borderRadius: 12, borderWidth: 1.5,
+                                                    borderColor: selectedAccount === acc ? '#6366F1' : '#E2E8F0',
+                                                    backgroundColor: selectedAccount === acc ? '#6366F110' : '#FFFFFF'
+                                                }}
+                                                onPress={() => setSelectedAccount(acc)}
+                                            >
+                                                <Text style={{ fontWeight: '600', color: selectedAccount === acc ? '#6366F1' : '#64748B' }}>
+                                                    {acc}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+
                                     <View style={styles.modalBtns}>
                                         <TouchableOpacity style={styles.modalBtnCancel}
                                             onPress={() => { setPayModalVisible(false); setPayAmount(''); Keyboard.dismiss(); }}>

@@ -4,6 +4,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Alert,
   Dimensions,
@@ -29,7 +30,7 @@ const getColors = (t: string) => {
 export default function HomeScreen() {
   const isFocused = useIsFocused();
   const router = useRouter();
-  const { user, logout, theme, toggleTheme } = useAuth();
+  const { user, logout, theme, toggleTheme, isHidden, toggleHiddenMode } = useAuth();
   const isDark = theme === 'dark' || ['purple', 'blue', 'pink'].includes(theme);
   const colorsNav = getColors(theme);
 
@@ -44,6 +45,7 @@ export default function HomeScreen() {
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [ahorroMes, setAhorroMes] = useState(0);
   const [pendingItems, setPendingItems] = useState<any[]>([]);
+  const [userCards, setUserCards] = useState<string[]>([]);
 
   useEffect(() => {
     if (isFocused) loadData();
@@ -57,10 +59,18 @@ export default function HomeScreen() {
         .from('transactions')
         .select('*')
         .eq('user_id', user.id)
-        .order('date', { ascending: false })
-        .order('id', { ascending: false });
-
       if (txError) throw txError;
+
+      // Cargar nombres de tarjetas para identificar qué cuentas son de crédito
+      let cardNames: string[] = [];
+      try {
+        const storedCards = await AsyncStorage.getItem(`@cards_${user.id}`);
+        if (storedCards) {
+          const parsed = JSON.parse(storedCards);
+          cardNames = parsed.map((c: any) => c.name);
+          setUserCards(cardNames);
+        }
+      } catch (e) { }
 
       const today = new Date();
       const currentMonth = today.getMonth();
@@ -92,6 +102,12 @@ export default function HomeScreen() {
           const acc = (tx.account === 'Ahorro' || !tx.account) ? 'Efectivo' : tx.account;
           if (!accs[acc]) accs[acc] = 0;
           accs[acc] -= tx.amount;
+
+          // Si el gasto es de tarjeta de crédito, no debería restar del flujo de caja "líquido" del mes
+          // porque el dinero físico todavía está en tu poder.
+          // Pero depende de cómo el usuario quiera ver su balance.
+          // Actualmente, el balance del mes es: ingresos - gastos - ahorroMes.
+          // Dejaremos el balance del mes igual, pero en el breakdown mostraremos cuáles son tarjetas.
         }
       });
 
@@ -101,6 +117,7 @@ export default function HomeScreen() {
       setAhorroMes(savMes);
       setAccountTotals(accs);
       setRecentTx(allTx?.slice(0, 4) || []);
+
 
       // 2. Cargar Deudas
       const { data: allDebts, error: debtError } = await supabase
@@ -185,11 +202,20 @@ export default function HomeScreen() {
   const dineroActivo = ingresos - gastos - ahorroMes;
 
   const fmt = (n: number) =>
-    new Intl.NumberFormat('es-CO', {
-      style: 'currency', currency: 'COP', minimumFractionDigits: 0
-    }).format(n);
+    isHidden
+      ? '****'
+      : new Intl.NumberFormat('es-CO', {
+          style: 'currency', currency: 'COP', minimumFractionDigits: 0
+        }).format(n);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+        await logout();
+        router.replace('/login');
+      }
+      return;
+    }
     Alert.alert(
       'Cerrar sesión',
       '¿Estás seguro de que quieres cerrar sesión?',
@@ -247,7 +273,12 @@ export default function HomeScreen() {
           onPress={() => setBreakdownVisible(true)}
         >
           <View style={styles.balanceCardInner}>
-            <Text style={styles.balanceLabel}>Dinero Activo</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <Text style={styles.balanceLabelNoMargin}>Dinero Activo</Text>
+              <TouchableOpacity onPress={toggleHiddenMode} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name={isHidden ? 'eye-off' : 'eye'} size={14} color="rgba(255,255,255,0.6)" />
+              </TouchableOpacity>
+            </View>
             <Text style={styles.balanceAmount}>{fmt(dineroActivo)}</Text>
             <Text style={styles.balanceSubLabel}>Ingresos − Gastos − Ahorros</Text>
             <View style={styles.breakdownHint}>
@@ -257,14 +288,14 @@ export default function HomeScreen() {
           </View>
           <View style={styles.statsRow}>
             <View style={styles.statPill}>
-              <MaterialIcons name="trending-up" size={16} color="#10B981" />
+              <Ionicons name="trending-up-outline" size={16} color="#10B981" />
               <View>
                 <Text style={styles.pillLabel}>Ingresos</Text>
                 <Text style={styles.pillValue}>{fmt(ingresos)}</Text>
               </View>
             </View>
             <View style={styles.statPill}>
-              <MaterialIcons name="trending-down" size={16} color="#EF4444" />
+              <Ionicons name="trending-down-outline" size={16} color="#EF4444" />
               <View>
                 <Text style={styles.pillLabel}>Gastos</Text>
                 <Text style={styles.pillValue}>{fmt(gastos)}</Text>
@@ -302,6 +333,8 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
+
+
         {/* Últimas Transacciones */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
@@ -321,8 +354,8 @@ export default function HomeScreen() {
                     styles.txIcon,
                     tx.type === 'income' ? styles.txIconIn : tx.category === 'Ahorro' ? styles.txIconSave : styles.txIconOut
                   ]}>
-                    <MaterialIcons
-                      name={tx.type === 'income' ? 'trending-up' : tx.category === 'Ahorro' ? 'savings' : 'trending-down'}
+                    <Ionicons
+                      name={tx.type === 'income' ? 'trending-up-outline' : tx.category === 'Ahorro' ? 'leaf-outline' : 'trending-down-outline'}
                       size={20}
                       color={tx.type === 'income' ? '#10B981' : tx.category === 'Ahorro' ? (isDark ? '#A5B4FC' : '#6366F1') : '#EF4444'}
                     />
@@ -335,10 +368,10 @@ export default function HomeScreen() {
                   </View>
                   <Text style={[
                     styles.txAmount,
-                    tx.type === 'income' ? styles.txIn : tx.category === 'Ahorro' ? styles.txSave : styles.txOut,
+                    tx.category === 'Ahorro' ? styles.txSave : (tx.type === 'income' ? styles.txIn : styles.txOut),
                     isDark && tx.category === 'Ahorro' && { color: '#818CF8' }
                   ]}>
-                    {tx.type === 'income' ? '+' : '-'}{fmt(tx.amount)}
+                    {tx.category === 'Ahorro' ? '☕ ' : (tx.type === 'income' ? '+' : '-')}{fmt(tx.amount)}
                   </Text>
                 </View>
               ))
@@ -416,14 +449,17 @@ export default function HomeScreen() {
                 .map(([name, total]) => (
                   <View key={name} style={[styles.breakdownItem, { borderBottomColor: colorsNav.border }]}>
                     <View style={styles.breakdownLeft}>
-                      <View style={[styles.accIcon, { backgroundColor: name === 'Efectivo' ? '#10B98120' : '#6366F120' }]}>
+                      <View style={[styles.accIcon, { backgroundColor: name === 'Efectivo' ? '#10B98120' : userCards.includes(name) ? '#EF444420' : '#6366F120' }]}>
                         <MaterialIcons
-                          name={name === 'Efectivo' ? 'money' : name === 'Transferencia' ? 'account-balance' : 'wallet'}
+                          name={name === 'Efectivo' ? 'money' : userCards.includes(name) ? 'credit-card' : name === 'Transferencia' ? 'account-balance' : 'wallet'}
                           size={20}
-                          color={name === 'Efectivo' ? '#10B981' : '#6366F1'}
+                          color={name === 'Efectivo' ? '#10B981' : userCards.includes(name) ? '#EF4444' : '#6366F1'}
                         />
                       </View>
-                      <Text style={[styles.accName, { color: colorsNav.text }]}>{name}</Text>
+                      <View>
+                        <Text style={[styles.accName, { color: colorsNav.text }]}>{name}</Text>
+                        {userCards.includes(name) && <Text style={{ fontSize: 10, color: '#EF4444', fontWeight: 'bold' }}>TARJETA</Text>}
+                      </View>
                     </View>
                     <Text style={[styles.accValue, { color: colorsNav.text }]}>{fmt(total as number)}</Text>
                   </View>
@@ -475,6 +511,7 @@ const styles = StyleSheet.create({
   },
   balanceCardInner: { alignItems: 'center', marginBottom: 24 },
   balanceLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600', marginBottom: 8 },
+  balanceLabelNoMargin: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600' },
   balanceAmount: { color: '#FFF', fontSize: 36, fontWeight: '900' },
   balanceSubLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 8 },
 
@@ -500,6 +537,8 @@ const styles = StyleSheet.create({
   widgetValueAlert: { fontSize: 18, fontWeight: '800', color: '#EF4444' },
   widgetSubLabel: { fontSize: 11, color: '#94A3B8', marginTop: 8 },
   widgetSubLabelPurple: { fontSize: 11, color: '#6366F1', marginTop: 8, fontWeight: '600' },
+
+
 
   // Sections
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },

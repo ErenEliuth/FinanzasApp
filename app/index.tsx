@@ -1,4 +1,5 @@
 import { useAuth } from '@/utils/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import {
@@ -13,12 +14,6 @@ import {
 
 const { width, height } = Dimensions.get('window');
 
-/**
- * Simplest possible WelcomeScreen:
- * - Minimalist visual (clean icon)
- * - Clear headline
- * - Single direct action button
- */
 export default function WelcomeScreen() {
     const router = useRouter();
     const { user, loading, theme } = useAuth();
@@ -35,23 +30,29 @@ export default function WelcomeScreen() {
             Animated.timing(slideUp, { toValue: 0, duration: 800, useNativeDriver: true }),
         ]).start();
 
-        // Redirección automática después de 4 segundos
-        const timer = setTimeout(() => {
-            router.replace(user ? '/(tabs)' : '/login');
-        }, 4000);
+        const timer = setTimeout(async () => {
+            if (user) {
+                router.replace('/(tabs)');
+            } else {
+                // Verificar si ya completó el onboarding
+                const onboardingDone = await AsyncStorage.getItem('@onboarding_done');
+                if (onboardingDone === 'true') {
+                    router.replace('/login');
+                } else {
+                    router.replace('/onboarding');
+                }
+            }
+        }, 3000);
 
         return () => clearTimeout(timer);
     }, [loading, user]);
 
     const bgColor = '#0F172A';
-    const textColor = '#FFFFFF';
-    const subColor = 'rgba(255,255,255,0.6)';
 
     return (
         <View style={[styles.root, { backgroundColor: bgColor }]}>
             <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={bgColor} />
 
-            {/* ── Center Content ─────────────────────────────── */}
             <SafeAreaView style={styles.content}>
                 <Animated.View style={[styles.brandContainer, { opacity: fade, transform: [{ translateY: slideUp }] }]}>
                     <View style={styles.logoRow}>
@@ -84,7 +85,7 @@ const styles = StyleSheet.create({
     },
     logoRow: {
         position: 'relative',
-        marginBottom: -10, // Overlap para integrar mejor
+        marginBottom: -10,
     },
     logoText: {
         fontSize: 84,
@@ -113,7 +114,7 @@ const styles = StyleSheet.create({
     },
     taglineText: {
         fontSize: 14,
-        color: '#FDBA74', // Mismo color del punto para balancear
+        color: '#FDBA74',
         fontWeight: '700',
         letterSpacing: 4,
         textTransform: 'uppercase',

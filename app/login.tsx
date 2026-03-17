@@ -1,8 +1,9 @@
 import { useAuth } from '@/utils/auth';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
+    Image,
     Keyboard,
     KeyboardAvoidingView,
     Platform,
@@ -19,16 +20,7 @@ import {
 type Mode = 'login' | 'register';
 
 export default function LoginScreen() {
-    const { login, register, signInWithGoogle, theme } = useAuth();
-    const isDark = theme === 'dark';
-    const colors = {
-        bg: isDark ? '#0F172A' : '#F4F6FF',
-        card: isDark ? '#1E293B' : '#FFFFFF',
-        text: isDark ? '#F1F5F9' : '#1E293B',
-        sub: isDark ? '#94A3B8' : '#64748B',
-        input: isDark ? '#334155' : '#F1F5F9',
-        border: isDark ? '#475569' : '#E2E8F0',
-    };
+    const { login, register } = useAuth();
 
     const [mode, setMode] = useState<Mode>('login');
     const [name, setName] = useState('');
@@ -37,16 +29,16 @@ export default function LoginScreen() {
     const [showPass, setShowPass] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [successMsg, setSuccessMsg] = useState('');
 
     const switchMode = (m: Mode) => {
         setMode(m);
         setError('');
+        setSuccessMsg('');
         setName('');
         setEmail('');
         setPassword('');
     };
-
-    const [successMsg, setSuccessMsg] = useState('');
 
     const handleSubmit = async () => {
         setError('');
@@ -54,21 +46,16 @@ export default function LoginScreen() {
         setLoading(true);
         Keyboard.dismiss();
 
-        let result;
-        if (mode === 'login') {
-            result = await login(email, password);
-        } else {
-            result = await register(name, email, password);
-        }
+        const result = mode === 'login'
+            ? await login(email, password)
+            : await register(name, email, password);
 
         setLoading(false);
         if (!result.success) {
             setError(result.message);
         } else if (mode === 'register') {
-            // Si el registro va bien pero requiere confirmación de email
-            setSuccessMsg('¡Cuenta creada! Revisa tu correo para confirmar tu cuenta y luego inicia sesión.');
+            setSuccessMsg('¡Revisa tu correo para confirmar la cuenta y entra!');
         }
-        // Si es login exitoso, el guard en _layout.tsx redirige automáticamente
     };
 
     const isValid =
@@ -77,55 +64,56 @@ export default function LoginScreen() {
             : name.trim().length > 0 && email.trim().length > 0 && password.length >= 6;
 
     const content = (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-            <KeyboardAvoidingView
-                style={{ flex: 1 }}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            >
+        <SafeAreaView style={styles.container}>
+            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                 <ScrollView
                     contentContainerStyle={styles.scroll}
                     showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
                 >
-                    {/* Logo / Header */}
+                    {/* ── Logo con estilo de App Icon ── */}
                     <View style={styles.logoArea}>
-                        <View style={styles.logoCircle}>
-                            <Ionicons name="wallet" size={40} color="#FFFFFF" />
+                        <View style={styles.logoShadowWrap}>
+                            <Image
+                                source={require('@/assets/images/zenly-logo.png')}
+                                style={styles.logoImg}
+                                resizeMode="cover"
+                            />
                         </View>
-                        <Text style={styles.appName}>FinanzasApp</Text>
-                        <Text style={styles.appTagline}>Tu dinero, bajo control</Text>
                     </View>
 
-                    {/* Card */}
-                    <View style={[styles.card, { backgroundColor: colors.card }]}>
-                        {/* Tabs */}
-                        <View style={styles.tabRow}>
-                            <TouchableOpacity
-                                style={[styles.tab, mode === 'login' && styles.tabActive]}
-                                onPress={() => switchMode('login')}
-                            >
-                                <Text style={[styles.tabText, mode === 'login' && styles.tabTextActive]}>
-                                    Iniciar Sesión
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.tab, mode === 'register' && styles.tabActive]}
-                                onPress={() => switchMode('register')}
-                            >
-                                <Text style={[styles.tabText, mode === 'register' && styles.tabTextActive]}>
-                                    Crear Cuenta
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
+                    {/* ── Tabs elegantes ── */}
+                    <View style={styles.tabContainer}>
+                        <TouchableOpacity
+                            style={[styles.tab, mode === 'login' && styles.tabActive]}
+                            onPress={() => switchMode('login')}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={[styles.tabText, mode === 'login' && styles.tabTextActive]}>
+                                Entrar
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.tab, mode === 'register' && styles.tabActive]}
+                            onPress={() => switchMode('register')}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={[styles.tabText, mode === 'register' && styles.tabTextActive]}>
+                                Registrarse
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
 
-                        {/* Nombre (solo en registro) */}
+                    {/* ── Formulario minimalista ── */}
+                    <View style={styles.formContainer}>
+                        
+                        {/* Nombre */}
                         {mode === 'register' && (
-                            <View style={[styles.inputWrap, isDark && { backgroundColor: '#334155', borderColor: '#475569' }]}>
-                                <View style={styles.inputIcon}>
-                                    <MaterialIcons name="person" size={20} color="#6366F1" />
-                                </View>
+                            <View style={styles.inputWrap}>
+                                <Feather name="user" size={18} color="#94A3B8" style={styles.inputIcon} />
                                 <TextInput
-                                    style={[styles.input, isDark && { color: '#F1F5F9' }]}
-                                    placeholder="Tu nombre"
+                                    style={styles.input}
+                                    placeholder="Nombre completo"
                                     placeholderTextColor="#94A3B8"
                                     value={name}
                                     onChangeText={setName}
@@ -134,363 +122,276 @@ export default function LoginScreen() {
                                 />
                             </View>
                         )}
-                        {/* Inputs de Correo y Contraseña */}
-                        <View style={{ gap: 14 }}>
-                            {/* Email */}
-                            <View style={[styles.inputWrap, isDark && { backgroundColor: '#334155', borderColor: '#475569' }]}>
-                                <View style={styles.inputIcon}>
-                                    <MaterialIcons name="email" size={20} color="#6366F1" />
-                                </View>
-                                <TextInput
-                                    style={[styles.input, isDark && { color: '#F1F5F9' }]}
-                                    placeholder="Correo electrónico"
-                                    placeholderTextColor="#94A3B8"
-                                    value={email}
-                                    onChangeText={setEmail}
-                                    keyboardType="email-address"
-                                    autoCapitalize="none"
-                                    returnKeyType="next"
-                                />
-                            </View>
 
-                            {/* Sugerencias de Dominio */}
-                            {email.length > 0 && !email.includes('@') && (
-                                <View style={styles.suggestionsRow}>
-                                    {['@gmail.com', '@hotmail.com', '@outlook.com'].map((domain) => (
-                                        <TouchableOpacity
-                                            key={domain}
-                                            style={[styles.suggestionChip, isDark && { backgroundColor: '#334155', borderColor: '#475569' }]}
-                                            onPress={() => setEmail(email + domain)}
-                                        >
-                                            <Text style={[styles.suggestionText, isDark && { color: '#94A3B8' }]}>{domain}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                            )}
-
-                            {/* Contraseña */}
-                            <View style={[styles.inputWrap, isDark && { backgroundColor: '#334155', borderColor: '#475569' }]}>
-                                <View style={styles.inputIcon}>
-                                    <MaterialIcons name="lock" size={20} color="#6366F1" />
-                                </View>
-                                <TextInput
-                                    style={[styles.input, { flex: 1 }, isDark && { color: '#F1F5F9' }]}
-                                    placeholder="Contraseña (mín. 6 caracteres)"
-                                    placeholderTextColor="#94A3B8"
-                                    value={password}
-                                    onChangeText={setPassword}
-                                    secureTextEntry={!showPass}
-                                    returnKeyType="done"
-                                    onSubmitEditing={handleSubmit}
-                                />
-                                <TouchableOpacity onPress={() => setShowPass(!showPass)} style={styles.showPassBtn}>
-                                    <Ionicons name={showPass ? 'eye-off' : 'eye'} size={20} color={isDark ? '#94A3B8' : '#94A3B8'} />
-                                </TouchableOpacity>
-                            </View>
+                        {/* Email */}
+                        <View style={styles.inputWrap}>
+                            <Feather name="mail" size={18} color="#94A3B8" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Correo electrónico"
+                                placeholderTextColor="#94A3B8"
+                                value={email}
+                                onChangeText={setEmail}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                                returnKeyType="next"
+                            />
                         </View>
 
-                        {/* Mensaje de éxito */}
+                        {/* Sugerencias de correo rápidas */}
+                        {email.length > 0 && !email.includes('@') && (
+                            <View style={styles.suggestionsRow}>
+                                {['@gmail.com', '@hotmail.com', '@outlook.com'].map(domain => (
+                                    <TouchableOpacity
+                                        key={domain}
+                                        style={styles.chip}
+                                        onPress={() => setEmail(email + domain)}
+                                    >
+                                        <Text style={styles.chipText}>{domain}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
+
+                        {/* Contraseña */}
+                        <View style={styles.inputWrap}>
+                            <Feather name="lock" size={18} color="#94A3B8" style={styles.inputIcon} />
+                            <TextInput
+                                style={[styles.input, { flex: 1 }]}
+                                placeholder="Contraseña (mín. 6)"
+                                placeholderTextColor="#94A3B8"
+                                value={password}
+                                onChangeText={setPassword}
+                                secureTextEntry={!showPass}
+                                returnKeyType="done"
+                                onSubmitEditing={handleSubmit}
+                            />
+                            <TouchableOpacity onPress={() => setShowPass(!showPass)} style={{ padding: 4 }}>
+                                <Feather name={showPass ? 'eye-off' : 'eye'} size={18} color="#94A3B8" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Mensajes */}
                         {successMsg.length > 0 && (
-                            <View style={[styles.errorBox, { backgroundColor: 'rgba(16,185,129,0.08)' }]}>
-                                <MaterialIcons name="check-circle" size={16} color="#10B981" />
-                                <Text style={[styles.errorText, { color: '#10B981' }]}>{successMsg}</Text>
+                            <View style={[styles.msgBox, styles.msgSuccess]}>
+                                <Feather name="check-circle" size={16} color="#059669" />
+                                <Text style={[styles.msgText, { color: '#059669' }]}>{successMsg}</Text>
                             </View>
                         )}
 
-                        {/* Error */}
                         {error.length > 0 && (
-                            <View style={styles.errorBox}>
-                                <MaterialIcons name="error-outline" size={16} color="#EF4444" />
-                                <Text style={styles.errorText}>{error}</Text>
+                            <View style={[styles.msgBox, styles.msgError]}>
+                                <Feather name="alert-circle" size={16} color="#DC2626" />
+                                <Text style={[styles.msgText, { color: '#DC2626' }]}>{error}</Text>
                             </View>
                         )}
 
-                        {/* Botón Principal (Entrar / Crear) */}
+                        {/* Botón Principal */}
                         <TouchableOpacity
                             style={[styles.submitBtn, (!isValid || loading) && styles.submitBtnDisabled]}
                             onPress={handleSubmit}
                             disabled={!isValid || loading}
-                            activeOpacity={0.85}
+                            activeOpacity={0.8}
                         >
                             {loading ? (
                                 <ActivityIndicator color="#FFF" />
                             ) : (
-                                <>
-                                    <Ionicons
-                                        name={mode === 'login' ? 'log-in' : 'person-add'}
-                                        size={20}
-                                        color="#FFF"
-                                    />
-                                    <Text style={styles.submitBtnText}>
-                                        {mode === 'login' ? 'Entrar' : 'Crear mi cuenta'}
-                                    </Text>
-                                </>
+                                <Text style={styles.submitBtnText}>
+                                    {mode === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'}
+                                </Text>
                             )}
                         </TouchableOpacity>
 
-                        {/* Divider y Redes Sociales */}
-                        <View style={styles.dividerRow}>
-                            <View style={[styles.dividerLine, isDark && { backgroundColor: '#334155' }]} />
-                            <Text style={styles.dividerText}>o entra con</Text>
-                            <View style={[styles.dividerLine, isDark && { backgroundColor: '#334155' }]} />
+                        {/* Pie / Seguridad */}
+                        <View style={styles.footerRow}>
+                            <Feather name="shield" size={14} color="#94A3B8" />
+                            <Text style={styles.footerText}>Conexión segura y encriptada</Text>
                         </View>
 
-                        {/* Botón de Google */}
-                        <TouchableOpacity
-                            style={[styles.googleBtn, isDark && { backgroundColor: '#334155', borderColor: '#475569' }]}
-                            onPress={signInWithGoogle}
-                            activeOpacity={0.8}
-                        >
-                            <Ionicons name="logo-google" size={20} color={isDark ? '#F1F5F9' : '#1E293B'} />
-                            <Text style={[styles.googleBtnText, { color: colors.text }]}>Google</Text>
-                        </TouchableOpacity>
                     </View>
-
-                    {/* Info de seguridad */}
-                    <View style={styles.infoRow}>
-                        <Ionicons name="shield-checkmark" size={14} color="#94A3B8" />
-                        <Text style={styles.infoText}>
-                            Tus datos se guardan localmente en tu dispositivo
-                        </Text>
-                    </View>
-
-                    <View style={{ height: 40 }} />
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
 
-    if (Platform.OS === 'web') {
-        return content;
-    }
-
-    return (
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            {content}
-        </TouchableWithoutFeedback>
-    );
+    if (Platform.OS === 'web') return content;
+    return <TouchableWithoutFeedback onPress={Platform.OS === 'web' ? undefined : Keyboard.dismiss}>{content}</TouchableWithoutFeedback>;
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F4F6FF',
+        backgroundColor: '#FFFFFF', // Fondo blanco puro
     },
     scroll: {
         flexGrow: 1,
-        padding: 24,
+        paddingHorizontal: 28,
         paddingTop: Platform.OS === 'android' ? 60 : 40,
+        paddingBottom: 40,
         justifyContent: 'center',
     },
 
-    // Logo
+    // ── Logo como App Icon ──
     logoArea: {
         alignItems: 'center',
-        marginBottom: 32,
+        marginBottom: 44,
     },
-    logoCircle: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: '#6366F1',
+    logoShadowWrap: {
+        width: 110,
+        height: 110,
+        borderRadius: 26,
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.1,
+        shadowRadius: 24,
+        elevation: 10, // Sombra suave para darle volumen
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 14,
-        shadowColor: '#6366F1',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.35,
-        shadowRadius: 16,
-        elevation: 10,
     },
-    appName: {
-        fontSize: 30,
-        fontWeight: '800',
-        color: '#1E293B',
-        letterSpacing: -0.5,
-    },
-    appTagline: {
-        fontSize: 14,
-        color: '#94A3B8',
-        marginTop: 4,
+    logoImg: {
+        width: 110,
+        height: 110,
+        borderRadius: 26,
+        overflow: 'hidden',
     },
 
-    // Card
-    card: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 24,
-        padding: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 16,
-        elevation: 6,
-        marginBottom: 16,
-    },
-
-    // Tabs
-    tabRow: {
+    // ── Tabs Modernos ──
+    tabContainer: {
         flexDirection: 'row',
-        backgroundColor: '#F1F5F9',
-        borderRadius: 14,
-        padding: 4,
-        marginBottom: 24,
+        backgroundColor: '#F8FAFC', // Gris súper sutil
+        borderRadius: 16,
+        padding: 6,
+        marginBottom: 32,
     },
     tab: {
         flex: 1,
-        paddingVertical: 10,
-        borderRadius: 11,
+        paddingVertical: 12,
+        borderRadius: 12,
         alignItems: 'center',
     },
     tabActive: {
-        backgroundColor: '#6366F1',
-        shadowColor: '#6366F1',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.25,
-        shadowRadius: 6,
-        elevation: 4,
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
     },
     tabText: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#94A3B8',
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#64748B',
     },
     tabTextActive: {
-        color: '#FFFFFF',
+        color: '#0F172A',
+        fontWeight: '700',
     },
 
-    // Inputs
+    // ── Formulario Minimalista ──
+    formContainer: {
+        gap: 16,
+    },
     inputWrap: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F8FAFC',
-        borderRadius: 14,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
         borderWidth: 1.5,
         borderColor: '#E2E8F0',
-        marginBottom: 14,
-        paddingHorizontal: 12,
-        height: 54,
+        paddingHorizontal: 16,
+        height: 60,
     },
     inputIcon: {
-        width: 32,
-        height: 32,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 8,
+        marginRight: 12,
     },
     input: {
         flex: 1,
-        fontSize: 15,
-        color: '#1E293B',
-    },
-    showPassBtn: {
-        padding: 4,
-    },
-
-    // Error
-    errorBox: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'rgba(239,68,68,0.08)',
-        borderRadius: 10,
-        padding: 12,
-        gap: 8,
-        marginBottom: 14,
-    },
-    errorText: {
-        flex: 1,
-        fontSize: 13,
-        color: '#EF4444',
+        fontSize: 16,
+        color: '#0F172A',
         fontWeight: '500',
     },
 
-    // Submit
-    submitBtn: {
-        height: 54,
-        backgroundColor: '#6366F1',
-        borderRadius: 14,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: 10,
-        shadowColor: '#6366F1',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.35,
-        shadowRadius: 8,
-        elevation: 6,
-        marginTop: 4,
-    },
-    submitBtnDisabled: {
-        opacity: 0.5,
-    },
-    submitBtnText: {
-        color: '#FFF',
-        fontSize: 16,
-        fontWeight: '700',
-    },
-
-    // Info
-    infoRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-    },
-    infoText: {
-        fontSize: 12,
-        color: '#94A3B8',
-    },
-
-    // Google Button & Divider
-    dividerRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginVertical: 20,
-    },
-    dividerLine: {
-        flex: 1,
-        height: 1,
-        backgroundColor: '#E2E8F0',
-    },
-    dividerText: {
-        marginHorizontal: 12,
-        fontSize: 12,
-        color: '#94A3B8',
-        fontWeight: '600',
-    },
-    googleBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#F8FAFC',
-        borderRadius: 14,
-        borderWidth: 1.5,
-        borderColor: '#E2E8F0',
-        paddingVertical: 12,
-        gap: 10,
-        marginBottom: 10,
-    },
-    googleBtnText: {
-        fontSize: 15,
-        fontWeight: '700',
-    },
-    // Sugerencias de Email
+    // ── Sugerencias ──
     suggestionsRow: {
         flexDirection: 'row',
         gap: 8,
-        marginBottom: 14,
         flexWrap: 'wrap',
+        marginTop: -6,
+        marginBottom: 2,
     },
-    suggestionChip: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
+    chip: {
+        paddingHorizontal: 14,
+        paddingVertical: 8,
         backgroundColor: '#F1F5F9',
         borderRadius: 20,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
     },
-    suggestionText: {
-        fontSize: 12,
-        color: '#64748B',
+    chipText: {
+        fontSize: 13,
+        color: '#475569',
         fontWeight: '600',
+    },
+
+    // ── Mensajes ──
+    msgBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: 12,
+        padding: 14,
+        gap: 10,
+        borderWidth: 1,
+    },
+    msgSuccess: {
+        backgroundColor: '#ECFDF5',
+        borderColor: '#A7F3D0',
+    },
+    msgError: {
+        backgroundColor: '#FEF2F2',
+        borderColor: '#FECACA',
+    },
+    msgText: {
+        flex: 1,
+        fontSize: 14,
+        fontWeight: '500',
+    },
+
+    // ── Botón ──
+    submitBtn: {
+        height: 60,
+        backgroundColor: '#0F172A', // Dark casi negro
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.2,
+        shadowRadius: 16,
+        elevation: 8,
+        marginTop: 8,
+    },
+    submitBtnDisabled: {
+        backgroundColor: '#94A3B8',
+        shadowOpacity: 0,
+        elevation: 0,
+    },
+    submitBtnText: {
+        color: '#FFFFFF',
+        fontSize: 17,
+        fontWeight: '700',
+        letterSpacing: 0.3,
+    },
+
+    // ── Pie ──
+    footerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        marginTop: 16,
+    },
+    footerText: {
+        fontSize: 13,
+        color: '#94A3B8',
+        fontWeight: '500',
     },
 });

@@ -1,11 +1,14 @@
 import { useAuth } from '@/utils/auth';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
+    Image,
     Modal,
     Platform,
     SafeAreaView,
@@ -26,8 +29,12 @@ const DAY_HEADERS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const toKey = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-const fmtCOP = (n: number) =>
-    new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
+const fmtCOP = (n: number, isHidden: boolean) =>
+    isHidden
+        ? '****'
+        : new Intl.NumberFormat('es-CO', {
+            style: 'currency', currency: 'COP', minimumFractionDigits: 0
+          }).format(n);
 
 function MonthHeatmap({ activeDays, isDark, theme, colors }: {
     activeDays: Map<string, number>;
@@ -193,7 +200,7 @@ const CAT_ICONS: Record<string, any> = {
     'Otros': { icon: 'more-horiz', color: '#94A3B8' },
 };
 
-function CategoryStatistics({ transactions, isDark, colors }: { transactions: any[]; isDark: boolean; colors: any }) {
+function CategoryStatistics({ transactions, isDark, colors, isHidden }: { transactions: any[]; isDark: boolean; colors: any; isHidden: boolean }) {
     const today = new Date();
     const currMonth = today.getMonth();
     const currYear = today.getFullYear();
@@ -254,12 +261,12 @@ function CategoryStatistics({ transactions, isDark, colors }: { transactions: an
                     <View style={statStyle.compareRow}>
                         <View style={{ flex: 1 }}>
                             <Text style={[statStyle.compareLabel, { color: colors.sub }]}>Mes Anterior</Text>
-                            <Text style={[statStyle.compareVal, { color: colors.text }]}>{fmtCOP(lastMonthTotal)}</Text>
+                            <Text style={[statStyle.compareVal, { color: colors.text }]}>{fmtCOP(lastMonthTotal, isHidden)}</Text>
                         </View>
                         <View style={statStyle.compareDivider} />
                         <View style={{ flex: 1, alignItems: 'flex-end' }}>
                             <Text style={[statStyle.compareLabel, { color: colors.sub }]}>Mes Actual</Text>
-                            <Text style={[statStyle.compareVal, { color: '#6366F1' }]}>{fmtCOP(thisMonthTotal)}</Text>
+                            <Text style={[statStyle.compareVal, { color: '#6366F1' }]}>{fmtCOP(thisMonthTotal, isHidden)}</Text>
                         </View>
                     </View>
 
@@ -287,7 +294,7 @@ function CategoryStatistics({ transactions, isDark, colors }: { transactions: an
                     <View style={{ flex: 1 }}>
                         <Text style={[statStyle.insightTitle, { color: colors.text }]}>Mayor Gasto</Text>
                         <Text style={[statStyle.insightDesc, { color: colors.sub }]}>
-                            Tu mayor gasto este mes es en <Text style={{ fontWeight: '800', color: colors.text }}>{highestCat}</Text> con {fmtCOP(highestVal)}.
+                            Tu mayor gasto este mes es en <Text style={{ fontWeight: '800', color: colors.text }}>{highestCat}</Text> con {fmtCOP(highestVal, isHidden)}.
                         </Text>
                     </View>
                 </View>
@@ -310,7 +317,7 @@ function CategoryStatistics({ transactions, isDark, colors }: { transactions: an
                                 <View style={{ flex: 1 }}>
                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                                         <Text style={[statStyle.hBarLabel, { color: colors.text }]}>{cat}</Text>
-                                        <Text style={[statStyle.hBarVal, { color: colors.text }]}>{fmtCOP(val)}</Text>
+                                        <Text style={[statStyle.hBarVal, { color: colors.text }]}>{fmtCOP(val, isHidden)}</Text>
                                     </View>
                                     <View style={[statStyle.barBg, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
                                         <View style={[statStyle.barFill, { width: `${widthPct}%`, backgroundColor: info.color }]} />
@@ -354,8 +361,8 @@ const statStyle = StyleSheet.create({
 
 // ─── Pantalla principal ────────────────────────────────────────────────────────
 export default function ProfileScreen() {
-    const { user, logout, theme, toggleTheme } = useAuth();
     const router = useRouter();
+    const { user, logout, theme, isHidden, toggleTheme } = useAuth();
     const isFocused = useIsFocused();
     const isDark = theme === 'dark';
 
@@ -375,8 +382,19 @@ export default function ProfileScreen() {
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [statsModalVisible, setStatsModalVisible] = useState(false);
     const [newName, setNewName] = useState(user?.user_metadata?.name || '');
+    const [avatarUri, setAvatarUri] = useState<string | null>(null);
+    const [weeklyInsight, setWeeklyInsight] = useState<{
+        totalGasto: number; topCat: string; topCatAmount: number; message: string;
+    } | null>(null);
 
     useEffect(() => { if (isFocused) loadData(); }, [isFocused]);
+
+    useEffect(() => {
+        // Cargar foto de perfil guardada
+        AsyncStorage.getItem(`@avatar_${user?.id}`).then(uri => {
+            if (uri) setAvatarUri(uri);
+        });
+    }, [user]);
 
     const loadData = async () => {
         if (!user) return;
@@ -392,6 +410,31 @@ export default function ProfileScreen() {
                 map.set(k, (map.get(k) ?? 0) + 1);
             });
             setActiveDays(map);
+
+            // Resumen Semanal: gastos de los últimos 7 días
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            const weekExpenses = txs.filter(tx => {
+                const d = new Date(tx.date);
+                return tx.type === 'expense' && tx.category !== 'Ahorro' && tx.category !== 'Transferencia' && d >= weekAgo;
+            });
+            const weekTotal = weekExpenses.reduce((s, t) => s + t.amount, 0);
+            const weekCats: Record<string, number> = {};
+            weekExpenses.forEach(t => { weekCats[t.category || 'Otros'] = (weekCats[t.category || 'Otros'] || 0) + t.amount; });
+            const sorted = Object.entries(weekCats).sort((a, b) => b[1] - a[1]);
+            const messages = [
+                '¡Sigue así! 💪 Cada peso que controlas te acerca a tu meta.',
+                '🌟 Tip: Intenta reducir tu gasto más alto esta semana.',
+                '☕ Pequeños ahorros diarios hacen grandes diferencias.',
+                '🚀 ¡Vas bien! Mantén el hábito de registrar todo.',
+            ];
+            setWeeklyInsight({
+                totalGasto: weekTotal,
+                topCat: sorted[0]?.[0] || '',
+                topCatAmount: sorted[0]?.[1] || 0,
+                message: messages[Math.floor(Math.random() * messages.length)],
+            });
+
         } catch (e) { console.error(e); }
     };
 
@@ -400,15 +443,47 @@ export default function ProfileScreen() {
         try {
             await supabase.auth.updateUser({ data: { name: newName.trim() } });
             setEditModalVisible(false);
-            Alert.alert('¡Éxito!', 'Nombre actualizado.');
-        } catch (e: any) { Alert.alert('Error', e.message); }
+            if (Platform.OS === 'web') {
+                window.alert('¡Éxito! Nombre actualizado.');
+            } else {
+                Alert.alert('¡Éxito!', 'Nombre actualizado.');
+            }
+        } catch (e: any) {
+            if (Platform.OS === 'web') {
+                window.alert('Error: ' + e.message);
+            } else {
+                Alert.alert('Error', e.message);
+            }
+        }
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        if (Platform.OS === 'web') {
+            if (window.confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                await logout();
+                router.replace('/login');
+            }
+            return;
+        }
         Alert.alert('Cerrar Sesión', '¿Estás seguro?', [
             { text: 'Cancelar', style: 'cancel' },
             { text: 'Salir', style: 'destructive', onPress: async () => { await logout(); router.replace('/login'); } },
         ]);
+    };
+
+    const handlePickAvatar = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.7,
+        });
+
+        if (!result.canceled && result.assets[0]) {
+            const uri = result.assets[0].uri;
+            setAvatarUri(uri);
+            await AsyncStorage.setItem(`@avatar_${user?.id}`, uri);
+        }
     };
 
     const displayName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuario';
@@ -416,8 +491,8 @@ export default function ProfileScreen() {
     const initials = displayName.slice(0, 2).toUpperCase();
 
     // Resumen rápido
-    const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-    const expense = transactions.filter(t => t.type === 'expense' && t.category !== 'Ahorro').reduce((s, t) => s + t.amount, 0);
+    const income = transactions.filter(t => t.type === 'income' && t.category !== 'Transferencia').reduce((s, t) => s + t.amount, 0);
+    const expense = transactions.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia').reduce((s, t) => s + t.amount, 0);
     const savings = transactions.filter(t => t.category === 'Ahorro').reduce((s, t) => s + t.amount, 0);
 
     return (
@@ -427,8 +502,15 @@ export default function ProfileScreen() {
                 {/* ── Perfil ── */}
                 <View style={[styles.profileCard, { backgroundColor: colors.card }]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                        <TouchableOpacity style={styles.avatar} onPress={() => setEditModalVisible(true)}>
-                            <Text style={styles.avatarText}>{initials}</Text>
+                        <TouchableOpacity style={styles.avatar} onPress={handlePickAvatar}>
+                            {avatarUri ? (
+                                <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+                            ) : (
+                                <Text style={styles.avatarText}>{initials}</Text>
+                            )}
+                            <View style={styles.avatarBadge}>
+                                <MaterialIcons name="camera-alt" size={12} color="#FFF" />
+                            </View>
                         </TouchableOpacity>
                         <View style={{ flex: 1 }}>
                             <TouchableOpacity onPress={() => setEditModalVisible(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -448,9 +530,9 @@ export default function ProfileScreen() {
                     {/* Stats rápidos */}
                     <View style={styles.statsRow}>
                         {[
-                            { label: 'Ingresos', value: fmtCOP(income), color: '#10B981' },
-                            { label: 'Gastos', value: fmtCOP(expense), color: '#EF4444' },
-                            { label: 'Ahorro', value: fmtCOP(savings), color: '#6366F1' },
+                            { label: 'Ingresos', value: fmtCOP(income, isHidden), color: '#10B981' },
+                            { label: 'Gastos', value: fmtCOP(expense, isHidden), color: '#EF4444' },
+                            { label: 'Ahorro', value: fmtCOP(savings, isHidden), color: '#6366F1' },
                         ].map(s => (
                             <View key={s.label} style={[styles.statBox, { backgroundColor: isDark ? '#334155' : '#F8FAFF' }]}>
                                 <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
@@ -465,17 +547,55 @@ export default function ProfileScreen() {
                     </TouchableOpacity>
                 </View>
 
+
+
+                {/* ── Accesos Rápidos ── */}
+                <View style={styles.quickRow}>
+                    <TouchableOpacity
+                        style={[styles.quickBtn, { backgroundColor: isDark ? '#1E3A5C' : '#EFF6FF' }]}
+                        onPress={() => router.push('/budgets' as any)}
+                    >
+                        <View style={[styles.quickIcon, { backgroundColor: '#6366F115' }]}>
+                            <MaterialIcons name="account-balance-wallet" size={22} color="#6366F1" />
+                        </View>
+                        <Text style={[styles.quickLabel, { color: colors.text }]}>Presupuestos</Text>
+                        <Text style={[styles.quickSub, { color: colors.sub }]}>Límites mensuales</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.quickBtn, { backgroundColor: isDark ? '#1C3A2C' : '#F0FDF4' }]}
+                        onPress={() => setStatsModalVisible(true)}
+                    >
+                        <View style={[styles.quickIcon, { backgroundColor: '#10B98115' }]}>
+                            <Ionicons name="pie-chart" size={22} color="#10B981" />
+                        </View>
+                        <Text style={[styles.quickLabel, { color: colors.text }]}>Estadísticas</Text>
+                        <Text style={[styles.quickSub, { color: colors.sub }]}>Análisis de gastos</Text>
+                    </TouchableOpacity>
+                </View>
+
                 {/* ── Heatmap del mes actual ── */}
                 <MonthHeatmap activeDays={activeDays} isDark={isDark} theme={theme} colors={colors} />
 
-                {/* ── Botón de Estadísticas ── */}
-                <TouchableOpacity
-                    style={[styles.statsBtn, { backgroundColor: isDark ? '#334155' : '#E0E7FF' }]}
-                    onPress={() => setStatsModalVisible(true)}
-                >
-                    <Ionicons name="pie-chart" size={20} color="#6366F1" />
-                    <Text style={styles.statsBtnText}>Ver Estadísticas de Gastos</Text>
-                </TouchableOpacity>
+                {/* ── Resumen Semanal ── */}
+                {weeklyInsight && (
+                    <View style={[styles.weeklyCard, { backgroundColor: colors.card }]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                            <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(99,102,241,0.12)', justifyContent: 'center', alignItems: 'center' }}>
+                                <Ionicons name="sparkles" size={18} color="#6366F1" />
+                            </View>
+                            <Text style={[styles.weeklyTitle, { color: colors.text }]}>Resumen Semanal</Text>
+                        </View>
+                        <Text style={[styles.weeklyText, { color: colors.sub }]}>
+                            {weeklyInsight.totalGasto > 0 ? (
+                                <>La semana pasada gastaste <Text style={{ fontWeight: '800', color: colors.text }}>{fmtCOP(weeklyInsight.totalGasto, isHidden)}</Text>.{weeklyInsight.topCat ? ` Tu mayor gasto fue en ${weeklyInsight.topCat} (${fmtCOP(weeklyInsight.topCatAmount, isHidden)}).` : ''}</>
+                            ) : (
+                                <>No registraste gastos la semana pasada. ¡Qué buen control!</>
+                            )}
+                        </Text>
+                        <Text style={styles.weeklyMotivation}>{weeklyInsight.message}</Text>
+                    </View>
+                )}
 
                 <View style={{ height: 110 }} />
             </ScrollView>
@@ -516,7 +636,7 @@ export default function ProfileScreen() {
                         <View style={{ width: 28 }} />
                     </View>
                     <ScrollView contentContainerStyle={{ padding: 16, backgroundColor: colors.bg }}>
-                        <CategoryStatistics transactions={transactions} isDark={isDark} colors={colors} />
+                        <CategoryStatistics transactions={transactions} isDark={isDark} colors={colors} isHidden={isHidden} />
                         <View style={{ height: 40 }} />
                     </ScrollView>
                 </SafeAreaView>
@@ -535,17 +655,38 @@ const styles = StyleSheet.create({
     },
     avatar: {
         width: 54, height: 54, borderRadius: 27, backgroundColor: '#6366F1',
-        justifyContent: 'center', alignItems: 'center',
+        justifyContent: 'center', alignItems: 'center', overflow: 'hidden',
+    },
+    avatarImage: { width: 54, height: 54, borderRadius: 27 },
+    avatarBadge: {
+        position: 'absolute', bottom: -2, right: -2, width: 22, height: 22, borderRadius: 11,
+        backgroundColor: '#6366F1', justifyContent: 'center', alignItems: 'center',
+        borderWidth: 2, borderColor: '#FFF',
     },
     avatarText: { color: '#FFF', fontSize: 20, fontWeight: '800' },
     name: { fontSize: 18, fontWeight: '800' },
     email: { fontSize: 13, marginTop: 2 },
     themeBtn: { width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
 
+    // Weekly Insight
+    weeklyCard: {
+        borderRadius: 22, padding: 20, marginBottom: 16,
+        shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
+    },
+    weeklyTitle: { fontSize: 16, fontWeight: '800' },
+    weeklyText: { fontSize: 14, lineHeight: 22 },
+    weeklyMotivation: { fontSize: 13, color: '#6366F1', fontWeight: '700', marginTop: 10 },
+
     statsRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
     statBox: { flex: 1, borderRadius: 12, padding: 10, alignItems: 'center', gap: 3 },
     statVal: { fontSize: 12, fontWeight: '800' },
     statLabel: { fontSize: 10, fontWeight: '600' },
+
+    quickRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+    quickBtn: { flex: 1, borderRadius: 20, padding: 16, alignItems: 'center', gap: 6 },
+    quickIcon: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
+    quickLabel: { fontSize: 14, fontWeight: '800', textAlign: 'center' },
+    quickSub: { fontSize: 11, textAlign: 'center' },
 
     logoutBtn: {
         flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -554,12 +695,6 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(239,68,68,0.08)',
     },
     logoutText: { color: '#EF4444', fontWeight: '700', fontSize: 13 },
-
-    statsBtn: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-        marginTop: 8, paddingVertical: 14, borderRadius: 16,
-    },
-    statsBtnText: { color: '#6366F1', fontWeight: '800', fontSize: 15 },
 
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
     modalBox: { width: '100%', borderRadius: 24, padding: 24 },
