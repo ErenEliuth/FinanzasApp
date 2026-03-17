@@ -1,4 +1,4 @@
-// VERSION: 1.0.3 - GITHUB_PAGES_CDN_FIX
+// VERSION: 1.0.4 - GITHUB_PAGES_UNPKG_FIX
 import { AuthProvider, useAuth } from '@/utils/auth';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
@@ -19,23 +19,23 @@ SplashScreen.preventAutoHideAsync();
 const INJECT_FONTS_WEB = `
   @font-face {
     font-family: 'Ionicons';
-    src: url('https://raw.githubusercontent.com/oblador/react-native-vector-icons/master/Fonts/Ionicons.ttf') format('truetype');
+    src: url('https://unpkg.com/react-native-vector-icons@latest/Fonts/Ionicons.ttf') format('truetype');
   }
   @font-face {
     font-family: 'MaterialIcons';
-    src: url('https://raw.githubusercontent.com/oblador/react-native-vector-icons/master/Fonts/MaterialIcons.ttf') format('truetype');
+    src: url('https://unpkg.com/react-native-vector-icons@latest/Fonts/MaterialIcons.ttf') format('truetype');
   }
   @font-face {
     font-family: 'Material Icons';
-    src: url('https://raw.githubusercontent.com/oblador/react-native-vector-icons/master/Fonts/MaterialIcons.ttf') format('truetype');
+    src: url('https://unpkg.com/react-native-vector-icons@latest/Fonts/MaterialIcons.ttf') format('truetype');
   }
   @font-face {
     font-family: 'Feather';
-    src: url('https://raw.githubusercontent.com/oblador/react-native-vector-icons/master/Fonts/Feather.ttf') format('truetype');
+    src: url('https://unpkg.com/react-native-vector-icons@latest/Fonts/Feather.ttf') format('truetype');
   }
   @font-face {
     font-family: 'MaterialCommunityIcons';
-    src: url('https://raw.githubusercontent.com/oblador/react-native-vector-icons/master/Fonts/MaterialCommunityIcons.ttf') format('truetype');
+    src: url('https://unpkg.com/react-native-vector-icons@latest/Fonts/MaterialCommunityIcons.ttf') format('truetype');
   }
 `;
 
@@ -52,9 +52,13 @@ function RootStack() {
 
   useEffect(() => {
     if (Platform.OS === 'web') {
-      const style = document.createElement('style');
-      style.textContent = INJECT_FONTS_WEB;
-      document.head.appendChild(style);
+      const id = 'expo-vector-icons-cdn';
+      if (!document.getElementById(id)) {
+        const style = document.createElement('style');
+        style.id = id;
+        style.textContent = INJECT_FONTS_WEB;
+        document.head.appendChild(style);
+      }
     }
   }, []);
 
