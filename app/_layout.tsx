@@ -1,4 +1,4 @@
-// VERSION: 1.0.4 - GITHUB_PAGES_UNPKG_FIX
+// VERSION: 1.0.5 - GITHUB_PAGES_EXHAUSTIVE_FONTS_FIX
 import { AuthProvider, useAuth } from '@/utils/auth';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
@@ -22,6 +22,10 @@ const INJECT_FONTS_WEB = `
     src: url('https://unpkg.com/react-native-vector-icons@latest/Fonts/Ionicons.ttf') format('truetype');
   }
   @font-face {
+    font-family: 'ionicons';
+    src: url('https://unpkg.com/react-native-vector-icons@latest/Fonts/Ionicons.ttf') format('truetype');
+  }
+  @font-face {
     font-family: 'MaterialIcons';
     src: url('https://unpkg.com/react-native-vector-icons@latest/Fonts/MaterialIcons.ttf') format('truetype');
   }
@@ -34,7 +38,15 @@ const INJECT_FONTS_WEB = `
     src: url('https://unpkg.com/react-native-vector-icons@latest/Fonts/Feather.ttf') format('truetype');
   }
   @font-face {
+    font-family: 'feather';
+    src: url('https://unpkg.com/react-native-vector-icons@latest/Fonts/Feather.ttf') format('truetype');
+  }
+  @font-face {
     font-family: 'MaterialCommunityIcons';
+    src: url('https://unpkg.com/react-native-vector-icons@latest/Fonts/MaterialCommunityIcons.ttf') format('truetype');
+  }
+  @font-face {
+    font-family: 'Material Community Icons';
     src: url('https://unpkg.com/react-native-vector-icons@latest/Fonts/MaterialCommunityIcons.ttf') format('truetype');
   }
 `;
