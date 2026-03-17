@@ -7,10 +7,22 @@ import 'react-native-reanimated';
 
 // ─── Guard de autenticación ───────────────────────────────────────────────────
 
+import { useFonts } from 'expo-font';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import * as SplashScreen from 'expo-splash-screen';
+
+// Prevent the splash screen from auto-hiding before asset loading is complete.
+SplashScreen.preventAutoHideAsync();
+
 function RootStack() {
   const { user, loading, theme } = useAuth();
   const router = useRouter();
   const segments = useSegments();
+
+  const [fontsLoaded, fontError] = useFonts({
+    ...Ionicons.font,
+    ...MaterialIcons.font,
+  });
 
   useEffect(() => {
     if (loading) return;
@@ -18,20 +30,22 @@ function RootStack() {
     const inAuthGroup = segments[0] === '(tabs)';
     const onLoginPage = segments[0] === 'login';
 
-    // 1. Proteger el dashboard: si no hay sesión y están adentro → login
     if (!user && inAuthGroup) {
       router.replace('/login');
     }
 
-    // 2. Si ya hay sesión y el usuario está en el login → mandarlo al dashboard automáticamente
     if (user && onLoginPage) {
       router.replace('/(tabs)');
     }
-
-    // Nota: la pantalla de bienvenida (index) siempre se muestra primero por diseño.
   }, [user, loading, segments, router]);
 
-  if (loading) return null;
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  if (loading || (!fontsLoaded && !fontError)) return null;
 
   return (
     <ThemeProvider value={theme === 'dark' ? DarkTheme : DefaultTheme}>
