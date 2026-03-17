@@ -8,7 +8,7 @@ import 'react-native-reanimated';
 // ─── Guard de autenticación ───────────────────────────────────────────────────
 
 import { useFonts } from 'expo-font';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as SplashScreen from 'expo-splash-screen';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -22,7 +22,13 @@ function RootStack() {
   const [fontsLoaded, fontError] = useFonts({
     ...Ionicons.font,
     ...MaterialIcons.font,
+    ...Feather.font,
   });
+
+  useEffect(() => {
+    if (fontError) console.error('Error loading fonts:', fontError);
+    if (fontsLoaded) console.log('Fonts loaded successfully');
+  }, [fontsLoaded, fontError]);
 
   useEffect(() => {
     if (loading) return;
