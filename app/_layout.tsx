@@ -1,3 +1,4 @@
+// VERSION: 1.0.3 - GITHUB_PAGES_CDN_FIX
 import { AuthProvider, useAuth } from '@/utils/auth';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
