@@ -3,6 +3,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import 'react-native-reanimated';
 
 // ─── Guard de autenticación ───────────────────────────────────────────────────
@@ -13,6 +14,21 @@ import * as SplashScreen from 'expo-splash-screen';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+
+const INJECT_FONTS_WEB = `
+  @font-face {
+    font-family: 'Ionicons';
+    src: url('https://cdn.jsdelivr.net/npm/ionicons@latest/dist/fonts/ionicons.ttf') format('truetype');
+  }
+  @font-face {
+    font-family: 'MaterialIcons';
+    src: url('https://cdn.jsdelivr.net/npm/@material-design-icons/font@latest/font/MaterialIcons-Regular.ttf') format('truetype');
+  }
+  @font-face {
+    font-family: 'Feather';
+    src: url('https://cdn.jsdelivr.net/npm/feather-font@latest/src/fonts/feather.ttf') format('truetype');
+  }
+`;
 
 function RootStack() {
   const { user, loading, theme } = useAuth();
@@ -26,9 +42,12 @@ function RootStack() {
   });
 
   useEffect(() => {
-    if (fontError) console.error('Error loading fonts:', fontError);
-    if (fontsLoaded) console.log('Fonts loaded successfully');
-  }, [fontsLoaded, fontError]);
+    if (Platform.OS === 'web') {
+      const style = document.createElement('style');
+      style.textContent = INJECT_FONTS_WEB;
+      document.head.appendChild(style);
+    }
+  }, []);
 
   useEffect(() => {
     if (loading) return;
