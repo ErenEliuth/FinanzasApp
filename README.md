@@ -1,82 +1,82 @@
-# 💰 FinanzasApp - Gestión Financiera Inteligente
+# 💰 FinanzasApp - Gestión Financiera Inteligente y Premium
 
-¡Bienvenido a **FinanzasApp**! Una aplicación móvil moderna diseñada para ayudarte a tomar el control total de tus finanzas personales. Construida con **React Native**, **Expo** y **Supabase**, esta app ofrece una experiencia fluida, segura y visualmente atractiva en Android, iOS y la Web.
+<p align="center">
+  <img src="https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20Web-blue?style=for-the-badge&logo=react" />
+  <img src="https://img.shields.io/badge/Made%20with-React%20Native-61DAFB?style=for-the-badge&logo=react" />
+  <img src="https://img.shields.io/badge/Backend-Supabase-3ECF8E?style=for-the-badge&logo=supabase" />
+</p>
 
----
-
-## 🚀 Pruébala Ahora (Web)
-
-Puedes acceder a la versión web de la aplicación directamente desde GitHub Pages:
-
-👉 **[Abrir FinanzasApp en la Web](https://ereneliuth.github.io/FinanzasApp/)**
+¡Bienvenido a **FinanzasApp**! La solución definitiva para tomar el control total de tu dinero con una interfaz de usuario **Premium**, minimalista y extremadamente fluida. Diseñada para quienes buscan no solo gestionar números, sino disfrutar de una experiencia visual de primer nivel.
 
 ---
 
-## ✨ Características Principales
+## 🚀 Pruébala Ahora (Versión Web Optimizada)
 
-- **📊 Dashboard Interactivo**: Visualiza tus ingresos, gastos y ahorros de un vistazo con gráficos dinámicos.
-- **💸 Control de Transacciones**: Registra todos tus movimientos financieros de manera fácil y rápida.
-- **🎯 Metas de Ahorro**: Define objetivos financieros y haz un seguimiento de tu progreso hasta alcanzarlos.
-- **📅 Gestión de Deudas**: No olvides ningún pago. Administra tus deudas y visualiza los próximos vencimientos.
-- **🎨 Personalización Premium**: Elige entre múltiples temas visuales (Rosa, Púrpura, Azul, Oscuro) para que la app se adapte a tu estilo.
-- **🔒 Seguridad con Supabase**: Autenticación segura y almacenamiento de datos en tiempo real.
-- **📱 Experiencia Multiplataforma**: Totalmente compatible con dispositivos móviles y navegadores web.
+Hemos trabajado para que la experiencia en el navegador sea igual de potente que en el móvil. Disfruta de la gestión de deudas, tarjetas, ahorros y más desde cualquier lugar.
+
+👉 **[ABRIR FINANZASAPP EN TU NAVEGADOR](https://ereneliuth.github.io/FinanzasApp/)**
 
 ---
 
-## 🛠️ Tecnologías Utilizadas
+## ✨ Características Elevadas
 
-- [**React Native**](https://reactnative.dev/): Framework para aplicaciones nativas.
-- [**Expo**](https://expo.dev/): Plataforma para facilitar el desarrollo de React Native.
-- [**Supabase**](https://supabase.com/): Backend como servicio (BaaS) para base de datos y autenticación.
-- [**Expo Router**](https://docs.expo.dev/router/introduction/): Enrutamiento basado en archivos.
-- [**Lucide Icons & Ionicons**](https://icons.expo.fyi/): Iconografía moderna.
+### 📊 Dashboard Inteligente
+Visualización instantánea de tus **Ingresos, Gastos y Ahorros**. Un balance detallado de tu dinero líquido versus deudas para que nunca te lleves sorpresas.
+
+### 💳 Gestión de Tarjetas de Crédito
+Añade tus tarjetas con su cupo total, días de corte y fechas de pago. La app calcula automáticamente tu **Deuda Actual** y **Cupo Disponible** en tiempo real.
+
+### 🎯 Metas de Ahorro con Estilo
+Crea objetivos financieros, añade fotos inspiradoras y sigue tu progreso. Los ahorros se gestionan de forma inteligente, regresando a tu cuenta si decides eliminar una meta.
+
+### 📅 Control de Deudas y Gastos Fijos
+Sistema de notificaciones inteligente que te avisa cuando falten **3 días o menos** para un vencimiento. Visualiza tus deudas urgentes directamente en el inicio.
+
+### 🎨 Personalización Premium
+Cambia el alma de tu app con un solo toque:
+- **Modo Oculto**: Para mayor privacidad en lugares públicos.
+- **Temas Dinámicos**: Rosa (Flor), Púrpura, Azul y el elegante Dark Mode.
 
 ---
 
-## 📦 Instalación Local
+## 🛠️ Stack Tecnológico de Vanguardia
 
-Si deseas ejecutar el proyecto en tu entorno local, sigue estos pasos:
+- **Frontend**: React Native con Expo (Arquitectura basada en archivos).
+- **Backend**: Supabase (PostgreSQL + Auth seguro).
+- **Almacenamiento**: AsyncStorage para una persistencia híbrida eficiente.
+- **Gráficos**: React Native Chart Kit para análisis visuales.
 
-1. **Clona el repositorio:**
+---
+
+## 📦 Guía de Inicio Rápido
+
+### Requisitos Previos
+- Node.js & npm
+- Expo Go en tu móvil (opcional para pruebas nativas)
+
+### Instalación
+1. **Clona el proyecto:**
    ```bash
    git clone https://github.com/ErenEliuth/FinanzasApp.git
-   cd FinanzasApp
    ```
-
 2. **Instala las dependencias:**
    ```bash
    npm install
    ```
-
-3. **Inicia el servidor de desarrollo:**
+3. **Lanzar la magia:**
    ```bash
    npx expo start
    ```
 
-4. **Elige tu plataforma:**
-   - Presiona `a` para Android.
-   - Presiona `i` para iOS.
-   - Presiona `w` para la versión Web.
+---
+
+## 🚀 Actualizaciones Recientes (Web Fixes)
+- [x] Sincronización completa de fuentes e iconos para GitHub Pages.
+- [x] Selector de fechas nativo para navegadores.
+- [x] Lógica de tarjetas integrada al flujo de gastos diario.
+- [x] Confirmaciones nativas optimizadas para evitar bloqueos de navegador.
 
 ---
 
-## 🤝 Contribuciones
-
-Las contribuciones son lo que hacen a la comunidad de código abierto un lugar increíble para aprender, inspirar y crear. Cualquier contribución que hagas será **muy apreciada**.
-
-1. Haz un Fork del proyecto.
-2. Crea una rama para tu característica (`git checkout -b feature/AmazingFeature`).
-3. Haz un commit de tus cambios (`git commit -m 'Add some AmazingFeature'`).
-4. Haz un Push a la rama (`git push origin feature/AmazingFeature`).
-5. Abre un Pull Request.
-
----
-
-## 📄 Licencia
-
-Este proyecto está bajo la Licencia MIT. Consulta el archivo `LICENSE` para más detalles.
-
----
-
-Desarrollado con ❤️ por [Eren Eliuth](https://github.com/ErenEliuth)
+Desarrollado con ❤️ por **[Eren Eliuth](https://github.com/ErenEliuth)**. 
+*Haciendo las finanzas más bellas y fáciles de gestionar.*
