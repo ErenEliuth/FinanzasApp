@@ -18,15 +18,23 @@ SplashScreen.preventAutoHideAsync();
 const INJECT_FONTS_WEB = `
   @font-face {
     font-family: 'Ionicons';
-    src: url('https://cdn.jsdelivr.net/npm/ionicons@latest/dist/fonts/ionicons.ttf') format('truetype');
+    src: url('https://raw.githubusercontent.com/oblador/react-native-vector-icons/master/Fonts/Ionicons.ttf') format('truetype');
   }
   @font-face {
     font-family: 'MaterialIcons';
-    src: url('https://cdn.jsdelivr.net/npm/@material-design-icons/font@latest/font/MaterialIcons-Regular.ttf') format('truetype');
+    src: url('https://raw.githubusercontent.com/oblador/react-native-vector-icons/master/Fonts/MaterialIcons.ttf') format('truetype');
+  }
+  @font-face {
+    font-family: 'Material Icons';
+    src: url('https://raw.githubusercontent.com/oblador/react-native-vector-icons/master/Fonts/MaterialIcons.ttf') format('truetype');
   }
   @font-face {
     font-family: 'Feather';
-    src: url('https://cdn.jsdelivr.net/npm/feather-font@latest/src/fonts/feather.ttf') format('truetype');
+    src: url('https://raw.githubusercontent.com/oblador/react-native-vector-icons/master/Fonts/Feather.ttf') format('truetype');
+  }
+  @font-face {
+    font-family: 'MaterialCommunityIcons';
+    src: url('https://raw.githubusercontent.com/oblador/react-native-vector-icons/master/Fonts/MaterialCommunityIcons.ttf') format('truetype');
   }
 `;
 
