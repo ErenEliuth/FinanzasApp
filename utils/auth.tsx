@@ -13,9 +13,9 @@ interface AuthContextType {
     user: User | null;
     session: Session | null;
     loading: boolean;
-    theme: 'light' | 'dark' | 'purple' | 'blue' | 'pink';
+    theme: 'light' | 'dark';
     toggleTheme: () => Promise<void>;
-    setThemeConfig: (theme: 'light' | 'dark' | 'purple' | 'blue' | 'pink') => Promise<void>;
+    setThemeConfig: (theme: 'light' | 'dark') => Promise<void>;
     isHidden: boolean;
     toggleHiddenMode: () => Promise<void>;
     login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
-    const [theme, setTheme] = useState<'light' | 'dark' | 'purple' | 'blue' | 'pink'>('light');
+    const [theme, setTheme] = useState<'light' | 'dark'>('light');
     const [isHidden, setIsHidden] = useState(false);
 
     useEffect(() => {
@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Cargar tema
         const loadTheme = async () => {
             const storedTheme = await AsyncStorage.getItem('user_theme');
-            if (['light', 'dark', 'purple', 'blue', 'pink'].includes(storedTheme || '')) {
+            if (['light', 'dark'].includes(storedTheme || '')) {
                 setTheme(storedTheme as any);
             }
             const storedHidden = await AsyncStorage.getItem('user_hidden_mode');
@@ -67,12 +67,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const toggleTheme = async () => {
-        const nextTheme = theme === 'light' ? 'dark' : theme === 'dark' ? 'purple' : theme === 'purple' ? 'blue' : theme === 'blue' ? 'pink' : 'light';
+        const nextTheme = theme === 'light' ? 'dark' : 'light';
         setTheme(nextTheme);
         await AsyncStorage.setItem('user_theme', nextTheme);
     };
 
-    const setThemeConfig = async (newTheme: 'light' | 'dark' | 'purple' | 'blue' | 'pink') => {
+    const setThemeConfig = async (newTheme: 'light' | 'dark') => {
         setTheme(newTheme);
         await AsyncStorage.setItem('user_theme', newTheme);
     };

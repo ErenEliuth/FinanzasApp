@@ -38,7 +38,7 @@ const FALLBACK_COLORS = ['#6366F1','#10B981','#F59E0B','#EC4899','#3B82F6','#F97
 export default function HistoryScreen() {
     const isFocused = useIsFocused();
     const { user, theme, isHidden } = useAuth();
-    const isDark = theme === 'dark' || ['purple', 'blue', 'pink'].includes(theme);
+    const isDark = theme === 'dark';
 
     const colors = {
         bg: isDark ? '#0F172A' : '#F4F6FF',

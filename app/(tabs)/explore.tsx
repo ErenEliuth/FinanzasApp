@@ -58,12 +58,12 @@ export default function AddTransactionScreen() {
   const { user, theme } = useAuth();
   const isDark = theme === 'dark';
   const colors = {
-    bg: isDark ? '#0F172A' : '#F4F6FF',
+    bg: isDark ? '#0F172A' : '#F8FAFF',
     card: isDark ? '#1E293B' : '#FFFFFF',
     text: isDark ? '#F1F5F9' : '#1E293B',
     sub: isDark ? '#94A3B8' : '#64748B',
     border: isDark ? '#334155' : '#E2E8F0',
-    input: isDark ? '#334155' : '#F1F5F9',
+    input: isDark ? '#1E293B' : '#F1F5F9',
   };
 
   const typeColor =
@@ -176,11 +176,6 @@ export default function AddTransactionScreen() {
   };
 
   const handleAmountChange = (text: string) => {
-    if (Platform.OS === 'web') {
-      const numeric = text.replace(/[^0-9]/g, '');
-      setAmount(numeric);
-      return;
-    }
     const numeric = text.replace(/\D/g, '');
     if (!numeric) { setAmount(''); return; }
     setAmount(numeric.replace(/\B(?=(\d{3})+(?!\d))/g, '.'));

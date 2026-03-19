@@ -52,7 +52,6 @@ export default function GoalsScreen() {
     const [withdrawAmount, setWithdrawAmount] = useState('');
 
     const formatInput = (text: string) => {
-        if (Platform.OS === 'web') return text.replace(/[^0-9]/g, '');
         const numericValue = text.replace(/\D/g, '');
         if (!numericValue) return '';
         return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');

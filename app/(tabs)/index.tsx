@@ -18,20 +18,17 @@ import {
 const screenWidth = Dimensions.get('window').width;
 
 const getColors = (t: string) => {
-  switch (t) {
-    case 'pink': return { bg: '#FDF2F8', card: '#FBCFE8', text: '#831843', sub: '#DB2777', border: '#F9A8D4' };
-    case 'purple': return { bg: '#F5F3FF', card: '#ddd6fe', text: '#4C1D95', sub: '#7C3AED', border: '#C4B5FD' };
-    case 'blue': return { bg: '#EFF6FF', card: '#bfdbfe', text: '#1E3A8A', sub: '#3B82F6', border: '#93C5FD' };
-    case 'dark': return { bg: '#0F172A', card: '#1E293B', text: '#F1F5F9', sub: '#94A3B8', border: '#334155' };
-    default: return { bg: '#F4F6FF', card: '#FFFFFF', text: '#1E293B', sub: '#64748B', border: '#E2E8F0' };
+  if (t === 'dark') {
+    return { bg: '#0F172A', card: '#1E293B', text: '#F1F5F9', sub: '#94A3B8', border: '#334155', accent: '#6366F1' };
   }
+  return { bg: '#F8FAFF', card: '#FFFFFF', text: '#1E293B', sub: '#64748B', border: '#E2E8F0', accent: '#6366F1' };
 };
 
 export default function HomeScreen() {
   const isFocused = useIsFocused();
   const router = useRouter();
   const { user, logout, theme, toggleTheme, isHidden, toggleHiddenMode } = useAuth();
-  const isDark = theme === 'dark' || ['purple', 'blue', 'pink'].includes(theme);
+  const isDark = theme === 'dark';
   const colorsNav = getColors(theme);
 
   const [ingresos, setIngresos] = useState(0);
@@ -46,6 +43,8 @@ export default function HomeScreen() {
   const [ahorroMes, setAhorroMes] = useState(0);
   const [pendingItems, setPendingItems] = useState<any[]>([]);
   const [userCards, setUserCards] = useState<string[]>([]);
+  const [showMissions, setShowMissions] = useState(false);
+  const [missions, setMissions] = useState({ income: false, expense: false, debt: false, card: false, goal: false });
 
   useEffect(() => {
     if (isFocused) loadData();
@@ -59,6 +58,8 @@ export default function HomeScreen() {
         .from('transactions')
         .select('*')
         .eq('user_id', user.id)
+        .order('date', { ascending: false })
+        .order('id', { ascending: false });
       if (txError) throw txError;
 
       // Cargar nombres de tarjetas para identificar qué cuentas son de crédito
@@ -116,7 +117,7 @@ export default function HomeScreen() {
       setAhorro(savTotal);
       setAhorroMes(savMes);
       setAccountTotals(accs);
-      setRecentTx(allTx?.slice(0, 4) || []);
+      setRecentTx(allTx?.slice(0, 5) || []);
 
 
       // 2. Cargar Deudas
@@ -127,8 +128,16 @@ export default function HomeScreen() {
 
       if (debtError) throw debtError;
 
-      const onlyDebts = allDebts?.filter(d => d.debt_type === 'debt' && d.paid < d.value) || [];
-      const totalDue = onlyDebts.reduce((sum, d) => sum + (Number(d.value) - Number(d.paid || 0)), 0);
+      const remainingDebts = allDebts?.filter(d => Number(d.paid || 0) < Number(d.value)) || [];
+      let totalDue = remainingDebts.reduce((sum, d) => sum + (Number(d.value) - Number(d.paid || 0)), 0);
+
+      // Sumar deudas de tarjetas de crédito (si tienen saldo negativo en sus transacciones)
+      Object.entries(accs).forEach(([accName, balance]) => {
+        if (cardNames.includes(accName) && Number(balance) < 0) {
+          totalDue += Math.abs(Number(balance));
+        }
+      });
+
       setDebtTotal(totalDue);
       setUpcomingDebts([]); // No longer used in main screen but keep state for now
 
@@ -171,6 +180,9 @@ export default function HomeScreen() {
       };
 
       // 3. Identificar notificaciones (Deudas urgentes o Gastos Fijos pendientes)
+      const dismissedStr = await AsyncStorage.getItem(`@dismissed_notifs_${user.id}`);
+      const dismissedNotifs = dismissedStr ? JSON.parse(dismissedStr) : [];
+
       const urgent = allDebts?.filter((d: any) => {
         if (d.paid >= d.value) return false;
         try {
@@ -180,26 +192,51 @@ export default function HomeScreen() {
 
           let checkDate = new Date(targetDate);
           if (d.debt_type === 'fixed') {
-            // Para gastos fijos, evaluamos el día del mes actual
             checkDate = new Date(today.getFullYear(), today.getMonth(), targetDate.getDate());
           }
           checkDate.setHours(0, 0, 0, 0);
 
+          // Unique ID para saber si la descarto ESTE mes
+          const uniqueId = d.debt_type === 'fixed' ? `${d.id}_${today.getMonth()}_${today.getFullYear()}` : `${d.id}`;
+          d.notifKey = uniqueId;
+          
+          if (dismissedNotifs.includes(uniqueId)) return false;
+
           const diffTime = checkDate.getTime() - today.getTime();
           const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
-          // REQUERIMIENTO: Notificar solo cuando falten 3 días o menos.
-          // También incluimos las vencidas recientemente (últimos 7 días) para que no se pierdan,
-          // pero ignoramos deudas viejas o muy lejanas en el futuro.
           return diffDays <= 3 && diffDays >= -7;
         } catch (e) { return false; }
       }) || [];
       setPendingItems(urgent);
 
+      // --- CHEQUEO DE MISIONES DE AYUDA ---
+      const { data: allGoals } = await supabase.from('goals').select('id').eq('user_id', user.id);
+
+      const hasIncome = allTx?.some((t: any) => t.type === 'income') || false;
+      const hasExpense = allTx?.some((t: any) => t.type === 'expense' && t.category !== 'Ahorro') || false;
+      const hasDebt = (allDebts && allDebts.length > 0) || false;
+      const hasCard = cardNames.length > 0;
+      const hasGoal = (allGoals && allGoals.length > 0) || false;
+
+      setMissions({ income: hasIncome, expense: hasExpense, debt: hasDebt, card: hasCard, goal: hasGoal });
+
+      const hiddenMissions = await AsyncStorage.getItem(`@hide_missions_${user.id}`);
+      if (!(hasIncome && hasExpense && hasDebt && hasCard && hasGoal) && hiddenMissions !== 'true') {
+          setShowMissions(true);
+      } else {
+          setShowMissions(false);
+      }
+
     } catch (e) { console.error('Error cargando datos de Supabase:', e); }
   };
 
-  const dineroActivo = ingresos - gastos - ahorroMes;
+  // Dinero Activo: Es la sumatoria del balance histórico de todas tus cuentas bancarias o efectivo,
+  // pero excluye la deuda proyectada en Tarjetas de Crédito y el dinero de la cuenta "Ahorro".
+  // De esta forma, si usas una TC, tu "Plata en Mano" no disminuye hasta que pagues la tarjeta.
+  const dineroActivo = Object.entries(accountTotals)
+    .filter(([accName]) => !userCards.includes(accName) && accName !== 'Ahorro')
+    .reduce((sum, [_, amt]) => sum + Number(amt), 0);
 
   const fmt = (n: number) =>
     isHidden
@@ -256,8 +293,11 @@ export default function HomeScreen() {
               {pendingItems.length > 0 && <View style={styles.notifBadge} />}
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.headerIcon, { backgroundColor: theme === 'dark' ? '#334155' : theme === 'purple' ? '#C4B5FD' : theme === 'blue' ? '#93C5FD' : theme === 'pink' ? '#F9A8D4' : '#6366F1' }]} onPress={toggleTheme}>
-              <Ionicons name={theme === 'dark' ? 'moon' : theme === 'purple' ? 'color-palette' : theme === 'blue' ? 'water' : theme === 'pink' ? 'flower' : 'sunny'} size={20} color={theme === 'purple' ? '#4C1D95' : theme === 'blue' ? '#1E3A8A' : theme === 'pink' ? '#831843' : '#FFF'} />
+            <TouchableOpacity 
+              style={[styles.headerIcon, { backgroundColor: isDark ? '#334155' : '#6366F1' }]} 
+              onPress={toggleTheme}
+            >
+              <Ionicons name={isDark ? 'moon' : 'sunny'} size={20} color="#FFF" />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.avatar} onPress={handleLogout} activeOpacity={0.8}>
@@ -266,9 +306,49 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* Missions / Primeros Pasos */}
+        {showMissions && (
+          <View style={[styles.missionsCard, { backgroundColor: isDark ? '#1E293B' : '#FFF', borderColor: isDark ? '#334155' : '#E2E8F0', borderWidth: 1 }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text style={[styles.missionsTitle, { color: colorsNav.text }]}>🚀 Guía de Primeros Pasos</Text>
+                <TouchableOpacity onPress={async () => {
+                    setShowMissions(false);
+                    await AsyncStorage.setItem(`@hide_missions_${user?.id}`, 'true');
+                }}>
+                    <Ionicons name="close" size={20} color={colorsNav.sub} />
+                </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={styles.missionItem} onPress={() => router.push('/(tabs)/explore')}>
+                <Ionicons name={missions.income ? "checkmark-circle" : "ellipse-outline"} size={22} color={missions.income ? "#10B981" : colorsNav.sub} />
+                <Text style={[styles.missionText, { color: missions.income ? '#10B981' : colorsNav.text, textDecorationLine: missions.income ? 'line-through' : 'none' }]}>1. Agrega tu primer Ingreso</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.missionItem} onPress={() => router.push('/(tabs)/explore')}>
+                <Ionicons name={missions.expense ? "checkmark-circle" : "ellipse-outline"} size={22} color={missions.expense ? "#10B981" : colorsNav.sub} />
+                <Text style={[styles.missionText, { color: missions.expense ? '#10B981' : colorsNav.text, textDecorationLine: missions.expense ? 'line-through' : 'none' }]}>2. Registra tu primer Gasto</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.missionItem} onPress={() => router.push('/(tabs)/debts')}>
+                <Ionicons name={missions.debt ? "checkmark-circle" : "ellipse-outline"} size={22} color={missions.debt ? "#10B981" : colorsNav.sub} />
+                <Text style={[styles.missionText, { color: missions.debt ? '#10B981' : colorsNav.text, textDecorationLine: missions.debt ? 'line-through' : 'none' }]}>3. Anota un Gasto Fijo o Deuda</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.missionItem} onPress={() => router.push('/(tabs)/profile')}>
+                <Ionicons name={missions.card ? "checkmark-circle" : "ellipse-outline"} size={22} color={missions.card ? "#10B981" : colorsNav.sub} />
+                <Text style={[styles.missionText, { color: missions.card ? '#10B981' : colorsNav.text, textDecorationLine: missions.card ? 'line-through' : 'none' }]}>4. Registra tus Tarjetas o Bancos</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.missionItem} onPress={() => router.push('/goals')}>
+                <Ionicons name={missions.goal ? "checkmark-circle" : "ellipse-outline"} size={22} color={missions.goal ? "#10B981" : colorsNav.sub} />
+                <Text style={[styles.missionText, { color: missions.goal ? '#10B981' : colorsNav.text, textDecorationLine: missions.goal ? 'line-through' : 'none' }]}>5. Crea una Meta de Ahorro</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Balance Card */}
         <TouchableOpacity
-          style={[styles.balanceCard, theme === 'purple' && { backgroundColor: '#7C3AED' }, theme === 'blue' && { backgroundColor: '#2563EB' }, theme === 'pink' && { backgroundColor: '#DB2777' }]}
+          style={[styles.balanceCard, { backgroundColor: isDark ? '#1E293B' : '#1E293B' }]}
           activeOpacity={0.9}
           onPress={() => setBreakdownVisible(true)}
         >
@@ -388,9 +468,27 @@ export default function HomeScreen() {
           <View style={[styles.breakdownCard, { backgroundColor: colorsNav.card, maxHeight: '70%' }]}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <Text style={[styles.breakdownTitle, { color: colorsNav.text, marginBottom: 0 }]}>Notificaciones</Text>
-              <TouchableOpacity onPress={() => setNotificationsVisible(false)}>
-                <Ionicons name="close" size={24} color={colorsNav.text} />
-              </TouchableOpacity>
+              
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                 {pendingItems.length > 0 && (
+                     <TouchableOpacity 
+                        style={{ backgroundColor: '#6366F115', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 }}
+                        onPress={async () => {
+                         const keys = pendingItems.map(i => i.notifKey);
+                         const prev = await AsyncStorage.getItem(`@dismissed_notifs_${user?.id}`);
+                         const parsed = prev ? JSON.parse(prev) : [];
+                         const updated = [...parsed, ...keys];
+                         await AsyncStorage.setItem(`@dismissed_notifs_${user?.id}`, JSON.stringify(updated));
+                         setPendingItems([]);
+                         setNotificationsVisible(false);
+                     }}>
+                         <Text style={{ color: '#6366F1', fontWeight: '800', fontSize: 13 }}>Marcar Leídas</Text>
+                     </TouchableOpacity>
+                 )}
+                 <TouchableOpacity onPress={() => setNotificationsVisible(false)}>
+                   <Ionicons name="close" size={24} color={colorsNav.text} />
+                 </TouchableOpacity>
+              </View>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -445,7 +543,7 @@ export default function HomeScreen() {
             <Text style={[styles.breakdownTitle, { color: colorsNav.text }]}>Distribución de Dinero</Text>
             <View style={styles.breakdownList}>
               {Object.entries(accountTotals)
-                .filter(([name]) => name !== 'Ahorro')
+                .filter(([name]) => name !== 'Ahorro' && !userCards.includes(name))
                 .map(([name, total]) => (
                   <View key={name} style={[styles.breakdownItem, { borderBottomColor: colorsNav.border }]}>
                     <View style={styles.breakdownLeft}>
@@ -498,6 +596,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarText: { color: '#FFF', fontWeight: '800', fontSize: 13 },
+
+  // Missions
+  missionsCard: {
+    borderRadius: 24, padding: 20, marginBottom: 24,
+    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 10, elevation: 3,
+  },
+  missionsTitle: { fontSize: 18, fontWeight: '800' },
+  missionItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 12 },
+  missionText: { fontSize: 15, fontWeight: '600' },
 
   // Balance Card
   balanceCard: {

@@ -100,10 +100,9 @@ export default function BudgetsScreen() {
               }).format(n);
 
     const formatInput = (text: string) => {
-        if (Platform.OS === 'web') return text.replace(/[^0-9]/g, '');
-        const numeric = text.replace(/\D/g, '');
-        if (!numeric) return '';
-        return numeric.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        const numericValue = text.replace(/\D/g, '');
+        if (!numericValue) return '';
+        return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     };
 
     const handleSaveBudget = async () => {

@@ -75,10 +75,9 @@ export default function DebtsScreen() {
     const [selectedAccount, setSelectedAccount] = useState('Efectivo');
 
     const formatInput = (text: string) => {
-        if (Platform.OS === 'web') return text.replace(/[^0-9]/g, '');
-        const numericValue = text.replace(/\D/g, '');
-        if (!numericValue) return '';
-        return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        const numeric = text.replace(/\D/g, '');
+        if (!numeric) return '';
+        return numeric.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     };
 
     const handleTabChange = (tab: Tab) => {
@@ -325,6 +324,31 @@ export default function DebtsScreen() {
         }
     };
 
+    const handleSkipFixed = async (debt: any) => {
+        if (Platform.OS === 'web') {
+            if (window.confirm(`¿Omitir cobro de "${debt.client}" por este mes? (Aparecerá como pagado pero no se descontará dinero)`)) {
+                try {
+                    await supabase.from('debts').update({ paid: debt.value }).eq('id', debt.id);
+                    loadData();
+                } catch (e) { console.error(e); }
+            }
+            return;
+        }
+        Alert.alert(
+            `Omitir ${debt.client}`,
+            `¿Deseas omitir este pago por este mes? (Aparecerá como pagado pero no se debitará de tu dinero)`,
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Omitir', onPress: async () => {
+                    try {
+                        await supabase.from('debts').update({ paid: debt.value }).eq('id', debt.id);
+                        loadData();
+                    } catch (e) { console.error(e); }
+                }}
+            ]
+        );
+    };
+
     const handleDelete = (debt: any) => {
         if (Platform.OS === 'web') {
             if (window.confirm(`¿Eliminar "${debt.client}"?`)) {
@@ -375,42 +399,42 @@ export default function DebtsScreen() {
     const currentList = activeTab === 'debt' ? debts : fixedExpenses;
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
 
             {/* Header */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>{activeTab === 'debt' ? 'Deudas' : 'Fijos'}</Text>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>{activeTab === 'debt' ? 'Deudas' : 'Fijos'}</Text>
                 <TouchableOpacity style={styles.addBtn} onPress={() => setAddModalVisible(true)}>
                     <MaterialIcons name="add" size={22} color="#FFF" />
                 </TouchableOpacity>
             </View>
 
             {/* Tab Selector */}
-            <View style={[styles.tabRow, isDark && { backgroundColor: '#1E293B', borderColor: '#334155' }]}>
+            <View style={[styles.tabRow, { backgroundColor: colors.tabBg, borderColor: colors.border }]}>
                 <TouchableOpacity
-                    style={[styles.tab, activeTab === 'debt' && styles.tabActive]}
+                    style={[styles.tab, activeTab === 'debt' && styles.tabActive, activeTab === 'debt' && { backgroundColor: colors.card }]}
                     onPress={() => handleTabChange('debt')}
                 >
                     <MaterialIcons name="credit-card" size={16}
-                        color={activeTab === 'debt' ? '#6366F1' : isDark ? '#64748B' : '#94A3B8'} />
-                    <Text style={[styles.tabText, activeTab === 'debt' && styles.tabTextActive, activeTab !== 'debt' && isDark && { color: '#64748B' }]}>
+                        color={activeTab === 'debt' ? '#6366F1' : colors.sub} />
+                    <Text style={[styles.tabText, activeTab === 'debt' && styles.tabTextActive, { color: activeTab === 'debt' ? '#6366F1' : colors.sub }]}>
                         Deudas
                     </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={[styles.tab, activeTab === 'fixed' && styles.tabActive]}
+                    style={[styles.tab, activeTab === 'fixed' && styles.tabActive, activeTab === 'fixed' && { backgroundColor: colors.card }]}
                     onPress={() => handleTabChange('fixed')}
                 >
                     <MaterialIcons name="repeat" size={16}
-                        color={activeTab === 'fixed' ? '#6366F1' : isDark ? '#64748B' : '#94A3B8'} />
-                    <Text style={[styles.tabText, activeTab === 'fixed' && styles.tabTextActive, activeTab !== 'fixed' && isDark && { color: '#64748B' }]}>
+                        color={activeTab === 'fixed' ? '#6366F1' : colors.sub} />
+                    <Text style={[styles.tabText, activeTab === 'fixed' && styles.tabTextActive, { color: activeTab === 'fixed' ? '#6366F1' : colors.sub }]}>
                         Fijos
                     </Text>
                 </TouchableOpacity>
             </View>
 
             {/* Summary Card */}
-            <View style={[styles.summaryCard, isDark && { backgroundColor: '#1E293B', shadowColor: '#000' }]}>
+            <View style={[styles.summaryCard, { backgroundColor: colors.card, shadowColor: isDark ? '#000' : '#000' }]}>
                 {activeTab === 'debt' ? (
                     <>
                         <MaterialIcons name="credit-card" size={22} color="#EF4444" />
@@ -436,7 +460,7 @@ export default function DebtsScreen() {
             </View>
 
             {/* Info Banner */}
-            <View style={[styles.infoBanner, isDark && { backgroundColor: `${activeTab === 'debt' ? '#6366F1' : '#F59E0B'}15` }]}>
+            <View style={[styles.infoBanner, { backgroundColor: isDark ? 'rgba(129, 140, 248, 0.12)' : 'rgba(99,102,241,0.06)' }]}>
                 <Ionicons name="information-circle-outline" size={16}
                     color={activeTab === 'debt' ? '#6366F1' : '#F59E0B'} style={{ marginTop: 2, marginRight: 4 }} />
                 <Text style={[styles.infoText, isDark && { color: colors.sub }]}>
@@ -466,7 +490,7 @@ export default function DebtsScreen() {
                     const isPaid = saldo <= 0;
                     const pct = Math.min(100, (debt.paid / debt.value) * 100);
                     return (
-                        <View key={debt.id} style={[styles.card, isDark && { backgroundColor: '#1E293B', borderColor: '#334155', borderWidth: 1 }, isPaid && styles.cardPaid]}>
+                        <View key={debt.id} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }, isPaid && styles.cardPaid]}>
                             <View style={styles.cardTop}>
                                 <View style={[styles.cardAvatar, isPaid && styles.cardAvatarPaid]}>
                                     {isPaid
@@ -475,7 +499,7 @@ export default function DebtsScreen() {
                                     }
                                 </View>
                                 <View style={styles.cardInfo}>
-                                    <Text style={[styles.cardTitle, isDark && { color: '#F1F5F9' }]}>{debt.client}</Text>
+                                    <Text style={[styles.cardTitle, { color: colors.text }]}>{debt.client}</Text>
                                     {!isPaid && (
                                         <View style={styles.countdownRow}>
                                             <View style={[styles.statusDot, { backgroundColor: getStatusInfo(debt.due_date, 'debt').color }]} />
@@ -484,9 +508,9 @@ export default function DebtsScreen() {
                                             </Text>
                                         </View>
                                     )}
-                                    {isPaid && <Text style={[styles.cardSub, isDark && { color: '#64748B' }]}>Pagada el {debt.due_date}</Text>}
+                                    {isPaid && <Text style={[styles.cardSub, { color: colors.sub }]}>Pagada el {debt.due_date}</Text>}
                                 </View>
-                                <View style={[styles.badge, isDark && { backgroundColor: '#334155' }, isPaid ? styles.badgePaid : styles.badgePending]}>
+                                <View style={[styles.badge, { backgroundColor: colors.border }, isPaid ? styles.badgePaid : styles.badgePending]}>
                                     <Text style={[styles.badgeText, isPaid ? styles.badgeTextPaid : styles.badgeTextPending]}>
                                         {isPaid ? '✅ Pagada' : '⏳ Vigente'}
                                     </Text>
@@ -506,7 +530,7 @@ export default function DebtsScreen() {
                             <View style={styles.amountsRow}>
                                 <View style={styles.amountCol}>
                                     <Text style={styles.amountLabel}>Deuda</Text>
-                                    <Text style={styles.amountVal}>{fmt(debt.value)}</Text>
+                                    <Text style={[styles.amountVal, { color: colors.text }]}>{fmt(debt.value)}</Text>
                                 </View>
                                 <View style={styles.amountCol}>
                                     <Text style={styles.amountLabel}>Abonado</Text>
@@ -545,7 +569,7 @@ export default function DebtsScreen() {
                     const brandColor = getBrandColor(fe.client) || '#F59E0B';
                     
                     return (
-                        <View key={fe.id} style={[styles.card, isPaid && styles.cardFixedPaid]}>
+                        <View key={fe.id} style={[styles.card, { backgroundColor: colors.card }, isPaid && styles.cardFixedPaid]}>
                             <View style={styles.cardTop}>
                                 <View style={[styles.cardAvatar,
                                 { backgroundColor: isPaid ? '#10B981' : brandColor }]}>
@@ -555,7 +579,7 @@ export default function DebtsScreen() {
                                     }
                                 </View>
                                 <View style={styles.cardInfo}>
-                                    <Text style={styles.cardTitle}>{fe.client}</Text>
+                                    <Text style={[styles.cardTitle, { color: colors.text }]}>{fe.client}</Text>
                                     {!isPaid && (
                                         <View style={styles.countdownRow}>
                                             <View style={[styles.statusDot, { backgroundColor: getStatusInfo(fe.due_date, 'fixed').color }]} />
@@ -564,7 +588,7 @@ export default function DebtsScreen() {
                                             </Text>
                                         </View>
                                     )}
-                                    {isPaid && <Text style={styles.cardSub}>Pagado este mes</Text>}
+                                    {isPaid && <Text style={[styles.cardSub, { color: colors.sub }]}>Pagado este mes</Text>}
                                 </View>
                                 <View style={[styles.badge, isPaid ? styles.badgePaid : styles.badgeFixed]}>
                                     <Text style={[styles.badgeText, isPaid ? styles.badgeTextPaid : styles.badgeTextFixed]}>
@@ -574,7 +598,7 @@ export default function DebtsScreen() {
                             </View>
 
                             {/* Monthly amount */}
-                            <View style={styles.fixedAmountRow}>
+                            <View style={[styles.fixedAmountRow, { backgroundColor: isDark ? '#0F172A' : '#F8FAFF' }]}>
                                 <View>
                                     <Text style={styles.amountLabel}>Monto mensual</Text>
                                     <Text style={[styles.fixedAmount, { color: isPaid ? '#10B981' : '#F59E0B' }]}>
@@ -593,16 +617,27 @@ export default function DebtsScreen() {
                             <View style={styles.actionsRow}>
                                 <TouchableOpacity
                                     style={[styles.primaryBtn, isPaid
-                                        ? { backgroundColor: '#64748B' }
-                                        : { backgroundColor: '#F59E0B' }]}
+                                        ? { backgroundColor: '#64748B', flex: 1.5 }
+                                        : { backgroundColor: '#F59E0B', flex: 1.5 }]}
                                     onPress={() => handleFixedAction(fe)}
                                 >
                                     <MaterialIcons name={isPaid ? 'refresh' : 'check'} size={16} color="#FFF" />
                                     <Text style={styles.primaryBtnText}>
-                                        {isPaid ? 'Restablecer para próximo mes' : 'Marcar como Pagado'}
+                                        {isPaid ? 'Restablecer pago' : 'Pagar Fijo'}
                                     </Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(fe)}>
+
+                                {!isPaid && (
+                                    <TouchableOpacity
+                                        style={[styles.deleteBtn, { flex: 1, flexDirection: 'row', gap: 4, width: 'auto', borderStyle: 'dashed', borderColor: colors.sub }]}
+                                        onPress={() => handleSkipFixed(fe)}
+                                    >
+                                        <MaterialIcons name="skip-next" size={16} color={colors.sub} />
+                                        <Text style={{ fontSize: 13, color: colors.sub, fontWeight: '700' }}>Omitir</Text>
+                                    </TouchableOpacity>
+                                )}
+
+                                <TouchableOpacity style={[styles.deleteBtn, { marginLeft: 8 }]} onPress={() => handleDelete(fe)}>
                                     <MaterialIcons name="delete-outline" size={16} color="#EF4444" />
                                 </TouchableOpacity>
                             </View>
@@ -622,7 +657,7 @@ export default function DebtsScreen() {
                         style={{ flex: 1, justifyContent: 'flex-end' }}
                     >
                         <TouchableWithoutFeedback onPress={Platform.OS === 'web' ? undefined : Keyboard.dismiss}>
-                            <View style={[styles.modalSheet, { maxHeight: height * 0.9 }]}>
+                            <View style={[styles.modalSheet, { backgroundColor: colors.card, maxHeight: height * 0.9 }]}>
                                 <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
                                     <View style={styles.modalHeader}>
                                         <View style={[styles.modalIcon,
@@ -633,11 +668,11 @@ export default function DebtsScreen() {
                                                 color={activeTab === 'debt' ? '#EF4444' : '#F59E0B'}
                                             />
                                         </View>
-                                        <Text style={styles.modalTitle}>
+                                        <Text style={[styles.modalTitle, { color: colors.text }]}>
                                             {activeTab === 'debt' ? 'Nueva Deuda' : 'Suscripción / Gasto Fijo'}
                                         </Text>
                                     </View>
-                                    <Text style={styles.modalHint}>
+                                    <Text style={[styles.modalHint, { color: colors.sub }]}>
                                         {activeTab === 'debt'
                                             ? 'Una deuda que pagarás hasta saldarla completamente'
                                             : 'Controla Netflix, Spotify, Arriendo, Internet o cualquier gasto recurrente'}
@@ -666,43 +701,61 @@ export default function DebtsScreen() {
                                         </View>
                                     )}
 
-                                    <TextInput style={styles.modalInput}
+                                    <TextInput style={[styles.modalInput, { backgroundColor: isDark ? '#0F172A' : '#F4F6FF', borderColor: colors.border, color: colors.text }]}
                                         placeholder={activeTab === 'debt' ? 'Nombre (ej. Juan, Banco)' : 'Nombre del servicio'}
-                                        placeholderTextColor="#94A3B8" value={newClient}
+                                        placeholderTextColor={colors.sub} value={newClient}
                                         onChangeText={setNewClient} returnKeyType="next" />
-                                    <TextInput style={styles.modalInput}
+                                    <TextInput style={[styles.modalInput, { backgroundColor: isDark ? '#0F172A' : '#F4F6FF', borderColor: colors.border, color: colors.text }]}
                                         placeholder={activeTab === 'debt' ? 'Valor total de la deuda' : 'Costo mensual'}
-                                        placeholderTextColor="#94A3B8" keyboardType="decimal-pad"
+                                        placeholderTextColor={colors.sub} keyboardType="decimal-pad"
                                         value={newValue} onChangeText={(text) => setNewValue(formatInput(text))} returnKeyType="next" />
-                                    <TouchableOpacity
-                                        style={styles.datePickerBtn}
-                                        onPress={() => {
-                                            Keyboard.dismiss();
-                                            setShowDatePicker(true);
-                                        }}
-                                    >
-                                        <MaterialIcons name="event" size={20} color="#6366F1" />
-                                        <Text style={[styles.datePickerBtnText, { color: colors.text }]}>
-                                            {activeTab === 'debt'
-                                                ? `Vence: ${newDueDate.toLocaleDateString()}`
-                                                : `Día de pago: ${newDueDate.getDate()}`
-                                            }
-                                        </Text>
-                                    </TouchableOpacity>
-
-                                    {Platform.OS === 'web' && showDatePicker && (
-                                        <TextInput
-                                            // @ts-ignore
-                                            type="date"
-                                            style={[styles.modalInput, { marginTop: 10 }]}
-                                            value={newDueDate.toISOString().split('T')[0]}
-                                            onChangeText={(text) => {
-                                                const d = new Date(text);
-                                                if (!isNaN(d.getTime())) setNewDueDate(d);
+                                    <View style={{ position: 'relative' }}>
+                                        <TouchableOpacity
+                                            style={[styles.datePickerBtn, { backgroundColor: isDark ? '#0F172A' : '#F4F6FF', borderColor: colors.border }]}
+                                            onPress={() => {
+                                                Keyboard.dismiss();
+                                                if (Platform.OS !== 'web') setShowDatePicker(true);
                                             }}
-                                            onBlur={() => setShowDatePicker(false)}
-                                        />
-                                    )}
+                                        >
+                                            <MaterialIcons name="event" size={20} color="#6366F1" />
+                                            <Text style={[styles.datePickerBtnText, { color: colors.text }]}>
+                                                {activeTab === 'debt'
+                                                    ? `Vence: ${newDueDate.toLocaleDateString()}`
+                                                    : `Día de pago: ${newDueDate.getDate()}`
+                                                }
+                                            </Text>
+                                        </TouchableOpacity>
+
+                                        {Platform.OS === 'web' && React.createElement('input', {
+                                            type: 'date',
+                                            style: {
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                bottom: 0,
+                                                width: '100%',
+                                                height: '100%',
+                                                opacity: 0,
+                                                cursor: 'pointer'
+                                            },
+                                            value: `${newDueDate.getFullYear()}-${String(newDueDate.getMonth() + 1).padStart(2, '0')}-${String(newDueDate.getDate()).padStart(2, '0')}`,
+                                            onChange: (e: any) => {
+                                                const text = e.target.value;
+                                                if (!text) return;
+                                                const parts = text.split('-');
+                                                if (parts.length === 3) {
+                                                    const y = parseInt(parts[0], 10);
+                                                    const m = parseInt(parts[1], 10);
+                                                    const d = parseInt(parts[2], 10);
+                                                    if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+                                                        const localDate = new Date(y, m - 1, d);
+                                                        setNewDueDate(localDate);
+                                                    }
+                                                }
+                                            }
+                                        })}
+                                    </View>
 
                                     {Platform.OS !== 'web' && showDatePicker && (
                                         <DateTimePicker
@@ -753,24 +806,24 @@ export default function DebtsScreen() {
                             keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 20}
                         >
                             <TouchableWithoutFeedback>
-                                <View style={styles.modalSheet}>
-                                    <Text style={styles.modalTitle}>
+                                <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
+                                    <Text style={[styles.modalTitle, { color: colors.text }]}>
                                         {selectedDebt?.debt_type === 'fixed' ? `Pagar ${selectedDebt.client}` : `Abono a ${selectedDebt?.client}`}
                                     </Text>
                                     {selectedDebt && selectedDebt.debt_type !== 'fixed' && (
-                                        <Text style={styles.modalHint}>
+                                        <Text style={[styles.modalHint, { color: colors.sub }]}>
                                             Saldo pendiente: {fmt(selectedDebt.value - selectedDebt.paid)}
                                         </Text>
                                     )}
                                     {selectedDebt?.debt_type === 'fixed' && (
-                                        <Text style={styles.modalHint}>
+                                        <Text style={[styles.modalHint, { color: colors.sub }]}>
                                             Valor: {fmt(selectedDebt.value)}
                                         </Text>
                                     )}
 
                                     {selectedDebt?.debt_type !== 'fixed' && (
-                                        <TextInput style={styles.modalInput}
-                                            placeholder="Monto del abono" placeholderTextColor="#94A3B8"
+                                        <TextInput style={[styles.modalInput, { backgroundColor: isDark ? '#0F172A' : '#F4F6FF', borderColor: colors.border, color: colors.text }]}
+                                            placeholder="Monto del abono" placeholderTextColor={colors.sub}
                                             keyboardType="decimal-pad" value={payAmount} onChangeText={(text) => setPayAmount(formatInput(text))}
                                             returnKeyType="done" onSubmitEditing={Keyboard.dismiss} autoFocus />
                                     )}
@@ -785,12 +838,12 @@ export default function DebtsScreen() {
                                                 style={{
                                                     paddingHorizontal: 16, paddingVertical: 10,
                                                     borderRadius: 12, borderWidth: 1.5,
-                                                    borderColor: selectedAccount === acc ? '#6366F1' : '#E2E8F0',
-                                                    backgroundColor: selectedAccount === acc ? '#6366F110' : '#FFFFFF'
+                                                    borderColor: selectedAccount === acc ? '#6366F1' : colors.border,
+                                                    backgroundColor: selectedAccount === acc ? '#6366F110' : (isDark ? '#0F172A' : '#FFFFFF')
                                                 }}
                                                 onPress={() => setSelectedAccount(acc)}
                                             >
-                                                <Text style={{ fontWeight: '600', color: selectedAccount === acc ? '#6366F1' : '#64748B' }}>
+                                                <Text style={{ fontWeight: '600', color: selectedAccount === acc ? '#6366F1' : colors.sub }}>
                                                     {acc}
                                                 </Text>
                                             </TouchableOpacity>
@@ -818,7 +871,7 @@ export default function DebtsScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F4F6FF' },
+    container: { flex: 1 },
 
     header: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
@@ -826,7 +879,7 @@ const styles = StyleSheet.create({
         paddingTop: Platform.OS === 'android' ? 50 : 20,
         paddingBottom: 12,
     },
-    headerTitle: { fontSize: 26, fontWeight: '800', color: '#1E293B' },
+    headerTitle: { fontSize: 26, fontWeight: '800' },
     addBtn: {
         width: 40, height: 40, borderRadius: 20,
         backgroundColor: '#6366F1', justifyContent: 'center', alignItems: 'center',
@@ -835,13 +888,13 @@ const styles = StyleSheet.create({
     // Tabs
     tabRow: {
         flexDirection: 'row', marginHorizontal: 20, marginBottom: 12,
-        backgroundColor: '#E8EEFF', borderRadius: 14, padding: 4,
+        borderRadius: 14, padding: 4,
     },
     tab: {
         flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
         paddingVertical: 10, borderRadius: 12, gap: 6,
     },
-    tabActive: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
+    tabActive: { shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
     tabText: { fontSize: 13, fontWeight: '700', color: '#94A3B8' },
     tabTextActive: { color: '#6366F1' },
 
@@ -849,7 +902,7 @@ const styles = StyleSheet.create({
     summaryCard: {
         flexDirection: 'row', alignItems: 'center',
         marginHorizontal: 20, marginBottom: 8,
-        backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14,
+        borderRadius: 16, padding: 14,
         borderLeftWidth: 4, borderLeftColor: '#EF4444',
         shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
     },
@@ -861,7 +914,6 @@ const styles = StyleSheet.create({
     infoBanner: {
         flexDirection: 'row', alignItems: 'flex-start', gap: 6,
         marginHorizontal: 20, marginBottom: 12,
-        backgroundColor: 'rgba(99,102,241,0.05)',
         borderRadius: 10, padding: 10,
     },
     infoText: { flex: 1, fontSize: 11, color: '#64748B', lineHeight: 16 },
@@ -870,12 +922,12 @@ const styles = StyleSheet.create({
 
     // Empty
     emptyState: { alignItems: 'center', paddingVertical: 60 },
-    emptyTitle: { fontSize: 22, fontWeight: '700', color: '#1E293B', marginTop: 16 },
+    emptyTitle: { fontSize: 22, fontWeight: '700', marginTop: 16 },
     emptyText: { fontSize: 14, color: '#94A3B8', marginTop: 6 },
 
     // Cards
     card: {
-        backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 14,
+        borderRadius: 20, padding: 16, marginBottom: 14,
         shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
     },
     cardPaid: { borderWidth: 1, borderColor: 'rgba(16,185,129,0.3)' },
@@ -889,7 +941,7 @@ const styles = StyleSheet.create({
     cardAvatarPaid: { backgroundColor: '#10B981' },
     cardAvatarText: { color: '#FFF', fontWeight: '800', fontSize: 16 },
     cardInfo: { flex: 1 },
-    cardTitle: { fontSize: 17, fontWeight: '700', color: '#1E293B' },
+    cardTitle: { fontSize: 17, fontWeight: '700' },
     cardSub: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
     countdownRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 6 },
     statusDot: { width: 6, height: 6, borderRadius: 3 },
@@ -908,20 +960,20 @@ const styles = StyleSheet.create({
     progressBg: { flex: 1, height: 8, backgroundColor: '#F1F5F9', borderRadius: 4, overflow: 'hidden' },
     progressFill: { height: '100%', backgroundColor: '#6366F1', borderRadius: 4 },
     progressFillPaid: { backgroundColor: '#10B981' },
-    progressPct: { fontSize: 12, fontWeight: '700', color: '#64748B', width: 36, textAlign: 'right' },
+    progressPct: { fontSize: 12, fontWeight: '700', width: 36, textAlign: 'right' },
 
     amountsRow: {
-        flexDirection: 'row', backgroundColor: '#F8FAFF',
+        flexDirection: 'row',
         borderRadius: 12, padding: 12, marginBottom: 12,
     },
     amountCol: { flex: 1, alignItems: 'center' },
     amountLabel: { fontSize: 11, color: '#94A3B8', fontWeight: '600', marginBottom: 4 },
-    amountVal: { fontSize: 14, fontWeight: '700', color: '#1E293B' },
+    amountVal: { fontSize: 14, fontWeight: '700' },
 
     // Fixed expense specific
     fixedAmountRow: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-        backgroundColor: '#F8FAFF', borderRadius: 12, padding: 12, marginBottom: 12,
+        borderRadius: 12, padding: 12, marginBottom: 12,
     },
     fixedAmount: { fontSize: 22, fontWeight: '800' },
     paidBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -943,22 +995,22 @@ const styles = StyleSheet.create({
     // Modal
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
     modalSheet: {
-        backgroundColor: '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28,
+        borderTopLeftRadius: 28, borderTopRightRadius: 28,
         padding: 24, paddingBottom: 40,
     },
     modalHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6 },
     modalIcon: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-    modalTitle: { fontSize: 20, fontWeight: '800', color: '#1E293B' },
+    modalTitle: { fontSize: 20, fontWeight: '800' },
     modalHint: { fontSize: 13, color: '#64748B', marginBottom: 16, lineHeight: 18 },
     modalInput: {
-        backgroundColor: '#F4F6FF', borderRadius: 14, padding: 16,
-        fontSize: 16, color: '#1E293B', marginBottom: 10,
-        borderWidth: 1, borderColor: '#E2E8F0',
+        borderRadius: 14, padding: 16,
+        fontSize: 16, marginBottom: 10,
+        borderWidth: 1,
     },
     datePickerBtn: {
         flexDirection: 'row', alignItems: 'center', gap: 10,
-        backgroundColor: '#F4F6FF', borderRadius: 14, padding: 16,
-        marginBottom: 10, borderWidth: 1, borderColor: '#E2E8F0',
+        borderRadius: 14, padding: 16,
+        marginBottom: 10, borderWidth: 1,
     },
     datePickerBtnText: { fontSize: 16, fontWeight: '600' },
     modalBtns: { flexDirection: 'row', gap: 12, marginTop: 8 },

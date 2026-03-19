@@ -8,6 +8,8 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
+    Animated,
+    Easing,
     Image,
     Modal,
     Platform,
@@ -188,6 +190,8 @@ const mSt = StyleSheet.create({
     legendTxt: { fontSize: 11 },
 });
 
+const gSt = StyleSheet.create({});
+
 // ─── Estadísticas de Categorías ────────────────────────────────────────────────
 const CAT_ICONS: Record<string, any> = {
     'Hogar': { icon: 'home', color: '#F97316' },
@@ -367,13 +371,10 @@ export default function ProfileScreen() {
     const isDark = theme === 'dark';
 
     const getColors = (t: string) => {
-        switch (t) {
-            case 'pink': return { bg: '#FDF2F8', card: '#FBCFE8', text: '#831843', sub: '#DB2777', border: '#F9A8D4' };
-            case 'purple': return { bg: '#F5F3FF', card: '#ddd6fe', text: '#4C1D95', sub: '#7C3AED', border: '#C4B5FD' };
-            case 'blue': return { bg: '#EFF6FF', card: '#bfdbfe', text: '#1E3A8A', sub: '#3B82F6', border: '#93C5FD' };
-            case 'dark': return { bg: '#0F172A', card: '#1E293B', text: '#F1F5F9', sub: '#94A3B8', border: '#334155' };
-            default: return { bg: '#F4F6FF', card: '#FFFFFF', text: '#1E293B', sub: '#64748B', border: '#E2E8F0' };
+        if (t === 'dark') {
+            return { bg: '#0F172A', card: '#1E293B', text: '#F1F5F9', sub: '#94A3B8', border: '#334155', accent: '#6366F1' };
         }
+        return { bg: '#F8FAFF', card: '#FFFFFF', text: '#1E293B', sub: '#64748B', border: '#E2E8F0', accent: '#6366F1' };
     };
     const colors = getColors(theme);
 
@@ -520,10 +521,10 @@ export default function ProfileScreen() {
                             <Text style={[styles.email, { color: colors.sub }]}>{email}</Text>
                         </View>
                         <TouchableOpacity
-                            style={[styles.themeBtn, { backgroundColor: isDark ? '#334155' : theme === 'purple' ? '#C4B5FD' : theme === 'blue' ? '#93C5FD' : theme === 'pink' ? '#F9A8D4' : '#F1F5F9' }]}
+                            style={[styles.themeBtn, { backgroundColor: isDark ? '#334155' : '#6366F1' }]}
                             onPress={toggleTheme}
                         >
-                            <Ionicons name={theme === 'dark' ? 'moon' : theme === 'purple' ? 'color-palette' : theme === 'blue' ? 'water' : theme === 'pink' ? 'flower' : 'sunny'} size={18} color={theme === 'purple' ? '#4C1D95' : theme === 'blue' ? '#1E3A8A' : theme === 'pink' ? '#831843' : '#6366F1'} />
+                            <Ionicons name={isDark ? 'moon' : 'sunny'} size={18} color="#FFF" />
                         </TouchableOpacity>
                     </View>
 
@@ -546,8 +547,6 @@ export default function ProfileScreen() {
                         <Text style={styles.logoutText}>Cerrar Sesión</Text>
                     </TouchableOpacity>
                 </View>
-
-
 
                 {/* ── Accesos Rápidos ── */}
                 <View style={styles.quickRow}>
