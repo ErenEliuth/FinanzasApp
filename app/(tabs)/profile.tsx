@@ -3,6 +3,7 @@ import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
+import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -481,9 +482,34 @@ export default function ProfileScreen() {
         });
 
         if (!result.canceled && result.assets[0]) {
-            const uri = result.assets[0].uri;
-            setAvatarUri(uri);
-            await AsyncStorage.setItem(`@avatar_${user?.id}`, uri);
+            const tempUri = result.assets[0].uri;
+            
+            try {
+                // Generar una ruta permanente
+                const fileName = `avatar_${user?.id}_${Date.now()}.jpg`;
+                const permanentUri = `${FileSystem.documentDirectory}${fileName}`;
+                
+                // Copiar el archivo de la memoria temporal a la permanente
+                await FileSystem.copyAsync({
+                    from: tempUri,
+                    to: permanentUri
+                });
+
+                // Eliminar el avatar anterior si existe (opcional pero recomendado para ahorrar espacio)
+                AsyncStorage.getItem(`@avatar_${user?.id}`).then(oldUri => {
+                    if (oldUri && oldUri.startsWith('file://')) {
+                        FileSystem.deleteAsync(oldUri, { idempotent: true }).catch(() => {});
+                    }
+                });
+
+                setAvatarUri(permanentUri);
+                await AsyncStorage.setItem(`@avatar_${user?.id}`, permanentUri);
+            } catch (e) {
+                console.error("Error guardando la imagen permanentemente:", e);
+                // Si falla la copia, al menos intentamos usar la temporal
+                setAvatarUri(tempUri);
+                await AsyncStorage.setItem(`@avatar_${user?.id}`, tempUri);
+            }
         }
     };
 

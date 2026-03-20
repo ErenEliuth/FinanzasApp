@@ -100,9 +100,9 @@ export default function BudgetsScreen() {
               }).format(n);
 
     const formatInput = (text: string) => {
-        const numericValue = text.replace(/\D/g, '');
-        if (!numericValue) return '';
-        return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        const clean = text.replace(/\D/g, '');
+        if (!clean) return '';
+        return new Intl.NumberFormat('es-CO').format(parseInt(clean, 10));
     };
 
     const handleSaveBudget = async () => {

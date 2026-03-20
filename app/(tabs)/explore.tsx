@@ -49,6 +49,7 @@ export default function AddTransactionScreen() {
   const [destAccount, setDestAccount] = useState('');
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [customAccounts, setCustomAccounts] = useState<string[]>([]);
+  const [cardNames, setCardNames] = useState<string[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [accountModalVisible, setAccountModalVisible] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -75,12 +76,14 @@ export default function AddTransactionScreen() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [rawCats, rawAccs] = await Promise.all([
+        const [rawCats, rawAccs, rawCards] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEY),
-          AsyncStorage.getItem(ACCOUNT_STORAGE_KEY)
+          AsyncStorage.getItem(ACCOUNT_STORAGE_KEY),
+          AsyncStorage.getItem(`@cards_${user?.id}`)
         ]);
         if (rawCats) setCustomCategories(JSON.parse(rawCats));
         if (rawAccs) setCustomAccounts(JSON.parse(rawAccs));
+        if (rawCards) setCardNames(JSON.parse(rawCards).map((c: any) => c.name));
       } catch (e) {
         console.error('Error al cargar datos persistidos:', e);
       }
@@ -175,10 +178,14 @@ export default function AddTransactionScreen() {
     ]);
   };
 
+  const formatInput = (text: string) => {
+    const clean = text.replace(/\D/g, '');
+    if (!clean) return '';
+    return new Intl.NumberFormat('es-CO').format(parseInt(clean, 10));
+  };
+
   const handleAmountChange = (text: string) => {
-    const numeric = text.replace(/\D/g, '');
-    if (!numeric) { setAmount(''); return; }
-    setAmount(numeric.replace(/\B(?=(\d{3})+(?!\d))/g, '.'));
+    setAmount(formatInput(text));
   };
 
   const handleSave = async () => {
@@ -335,9 +342,9 @@ export default function AddTransactionScreen() {
               </View>
 
               <View style={[styles.separator, { backgroundColor: colors.border }]} />
-              <Text style={[styles.sectionLabel, { color: colors.sub }]}>¿De dónde sale/entra el dinero?</Text>
+              <Text style={[styles.sectionLabel, { color: colors.sub }]}>Bancos y Efectivo</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
-                {['Efectivo', ...customAccounts].map(acc => (
+                {['Efectivo', ...customAccounts.filter(a => !cardNames.includes(a))].map(acc => (
                   <TouchableOpacity
                     key={acc}
                     style={[
@@ -364,13 +371,48 @@ export default function AddTransactionScreen() {
                 </TouchableOpacity>
               </ScrollView>
 
+              {cardNames.length > 0 && (
+                <>
+                  <View style={[styles.separator, { backgroundColor: colors.border, marginTop: 12 }]} />
+                  <Text style={[styles.sectionLabel, { color: colors.sub }]}>Tarjetas de Crédito</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
+                    {cardNames.map(name => (
+                      <TouchableOpacity
+                        key={name}
+                        style={[
+                          styles.catChip,
+                          { backgroundColor: isDark ? '#334155' : '#F1F5F9', borderColor: '#6366F120', borderWidth: 1 },
+                          account === name && { backgroundColor: '#6366F1', borderColor: '#6366F1' },
+                        ]}
+                        onPress={() => setAccount(name)}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <MaterialIcons name="credit-card" size={14} color={account === name ? '#FFF' : '#6366F1'} />
+                          <Text style={[
+                            styles.catText,
+                            { color: isDark ? '#94A3B8' : '#64748B' },
+                            account === name && { color: '#FFF' },
+                          ]}>
+                            {name}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </>
+              )}
+
               {/* Cuenta destino (solo aplica para Transferencias) */}
               {type === 'transfer' && (
                 <>
                   <View style={[styles.separator, { backgroundColor: colors.border }]} />
                   <Text style={[styles.sectionLabel, { color: colors.sub }]}>¿A dónde va el dinero?</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
-                    {['Efectivo', ...customAccounts].filter(a => a !== account).map(acc => (
+                    {[
+                      'Efectivo',
+                      ...customAccounts.filter(a => a !== account && !cardNames.includes(a)),
+                      ...cardNames.filter(a => a !== account)
+                    ].map(acc => (
                       <TouchableOpacity
                         key={acc}
                         style={[

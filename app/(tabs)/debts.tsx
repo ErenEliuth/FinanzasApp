@@ -75,9 +75,9 @@ export default function DebtsScreen() {
     const [selectedAccount, setSelectedAccount] = useState('Efectivo');
 
     const formatInput = (text: string) => {
-        const numeric = text.replace(/\D/g, '');
-        if (!numeric) return '';
-        return numeric.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        const clean = text.replace(/\D/g, '');
+        if (!clean) return '';
+        return new Intl.NumberFormat('es-CO').format(parseInt(clean, 10));
     };
 
     const handleTabChange = (tab: Tab) => {
