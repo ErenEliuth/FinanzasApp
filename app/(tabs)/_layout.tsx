@@ -85,21 +85,19 @@ export default function TabLayout() {
         options={{
           title: 'Añadir',
           href: '/explore',
-          tabBarIcon: ({ focused }) => {
-            return (
-              <View style={[styles.fabButton, isDebtsOrRestricted && styles.fabButtonDisabled, isDark && !isDebtsOrRestricted && { backgroundColor: '#4F46E5' }]}>
-                <MaterialIcons name="add" size={28} color="#FFFFFF" />
-              </View>
-            );
+          tabBarButton: (props) => {
+            if (isDebtsOrRestricted) {
+              return (
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={[styles.fabButton, styles.fabButtonDisabled]}>
+                    <MaterialIcons name="add" size={28} color="#FFFFFF" />
+                  </View>
+                </View>
+              );
+            }
+            return <HapticTab {...props} />;
           },
           tabBarLabel: () => null,
-        }}
-        listeners={{
-          tabPress: (e) => {
-            if (isDebtsOrRestricted) {
-              e.preventDefault();
-            }
-          },
         }}
       />
 
