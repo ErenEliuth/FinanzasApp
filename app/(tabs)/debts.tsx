@@ -27,6 +27,9 @@ import Svg, { Circle } from 'react-native-svg';
 
 const { height } = Dimensions.get('window');
 
+const ConditionalWrapper = ({ condition, wrapper, children }: { condition: boolean, wrapper: (c: any) => any, children: any }) => 
+  condition ? wrapper(children) : children;
+
 type DebtItem = {
     id: string;
     client: string;
@@ -459,8 +462,16 @@ export default function DebtsScreen() {
             {/* BOTÓN FLOTANTE (+) REMOVIDO POR SOLICITUD - USAR EL DEL HEADER */}
 
             {/* MODAL ADICIÓN */}
-            <Modal visible={modalVisible} animationType="slide" transparent>
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <Modal visible={modalVisible} animationType="slide" transparent>
+            <View style={{ flex: 1 }}>
+                <ConditionalWrapper
+                    condition={Platform.OS !== 'web'}
+                    wrapper={children => (
+                        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                            {children}
+                        </TouchableWithoutFeedback>
+                    )}
+                >
                     <View style={styles.modalOverlay}>
                         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ width: '100%' }}>
                             <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
@@ -492,24 +503,46 @@ export default function DebtsScreen() {
                                     keyboardType="numeric" value={amount} onChangeText={t => setAmount(formatInput(t))}
                                 />
                                 
-                                <TouchableOpacity 
-                                    style={[styles.input, { backgroundColor: isDark ? '#334155' : '#F1F5F9', justifyContent: 'center' }]}
-                                    onPress={() => setShowDatePicker(true)}
-                                >
-                                    <Text style={{ color: colors.text }}>
-                                        {viewMode === 'debt' ? 'Fecha Vencimiento: ' : 'Día de Cobro: '}
-                                        {dueDate.toLocaleDateString('es-CO')}
-                                    </Text>
-                                </TouchableOpacity>
-
-                                {showDatePicker && (
-                                    <DateTimePicker
-                                        value={dueDate} mode="date" display="default"
-                                        onChange={(e, d) => {
-                                            setShowDatePicker(false);
-                                            if (d) setDueDate(d);
+                                {Platform.OS === 'web' ? (
+                                    <input
+                                        type="date"
+                                        style={{
+                                            backgroundColor: isDark ? '#334155' : '#F1F5F9',
+                                            color: colors.text,
+                                            borderRadius: '12px',
+                                            padding: '16px',
+                                            fontSize: '16px',
+                                            marginBottom: '15px',
+                                            border: 'none',
+                                            outline: 'none',
+                                            width: '100%',
+                                            fontFamily: 'inherit'
                                         }}
+                                        value={dueDate.toISOString().split('T')[0]}
+                                        onChange={(e) => setDueDate(new Date(e.target.value))}
                                     />
+                                ) : (
+                                    <>
+                                        <TouchableOpacity 
+                                            style={[styles.input, { backgroundColor: isDark ? '#334155' : '#F1F5F9', justifyContent: 'center' }]}
+                                            onPress={() => setShowDatePicker(true)}
+                                        >
+                                            <Text style={{ color: colors.text }}>
+                                                {viewMode === 'debt' ? 'Fecha Vencimiento: ' : 'Día de Cobro: '}
+                                                {dueDate.toLocaleDateString('es-CO')}
+                                            </Text>
+                                        </TouchableOpacity>
+
+                                        {showDatePicker && (
+                                            <DateTimePicker
+                                                value={dueDate} mode="date" display="default"
+                                                onChange={(e, d) => {
+                                                    setShowDatePicker(false);
+                                                    if (d) setDueDate(d);
+                                                }}
+                                            />
+                                        )}
+                                    </>
                                 )}
 
                                 <View style={styles.modalBtns}>
@@ -523,60 +556,70 @@ export default function DebtsScreen() {
                             </View>
                         </KeyboardAvoidingView>
                     </View>
-                </TouchableWithoutFeedback>
-            </Modal>
+                </ConditionalWrapper>
+            </View>
+        </Modal>
 
             {/* MODAL PAGO (RECORDAR TRANSACCIÓN) */}
             <Modal visible={payModalVisible} animationType="slide" transparent>
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                    <View style={styles.modalOverlay}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ width: '100%' }}>
-                            <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
-                                <Text style={[styles.modalTitle, { color: colors.text }]}>
-                                    {selectedDebt?.debt_type === 'fixed' ? 'Pagar Gasto Fijo' : 'Registrar Abono'}
-                                </Text>
-                                <Text style={[styles.modalHint, { color: colors.sub }]}>
-                                    {selectedDebt?.client} - Pendiente: {fmt(selectedDebt ? selectedDebt.value - selectedDebt.paid : 0)}
-                                </Text>
+                <View style={{ flex: 1 }}>
+                    <ConditionalWrapper
+                        condition={Platform.OS !== 'web'}
+                        wrapper={children => (
+                            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                                {children}
+                            </TouchableWithoutFeedback>
+                        )}
+                    >
+                        <View style={styles.modalOverlay}>
+                            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ width: '100%' }}>
+                                <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
+                                    <Text style={[styles.modalTitle, { color: colors.text }]}>
+                                        {selectedDebt?.debt_type === 'fixed' ? 'Pagar Gasto Fijo' : 'Registrar Abono'}
+                                    </Text>
+                                    <Text style={[styles.modalHint, { color: colors.sub }]}>
+                                        {selectedDebt?.client} - Pendiente: {fmt(selectedDebt ? selectedDebt.value - selectedDebt.paid : 0)}
+                                    </Text>
 
-                                {selectedDebt?.debt_type !== 'fixed' && (
-                                    <TextInput 
-                                        style={[styles.input, { backgroundColor: isDark ? '#334155' : '#F1F5F9', color: colors.text }]}
-                                        placeholder="¿Cuánto vas a pagar?" placeholderTextColor={colors.sub}
-                                        keyboardType="numeric" value={payAmount} onChangeText={t => setPayAmount(formatInput(t))}
-                                        autoFocus
-                                    />
-                                )}
+                                    {selectedDebt?.debt_type !== 'fixed' && (
+                                        <TextInput 
+                                            style={[styles.input, { backgroundColor: isDark ? '#334155' : '#F1F5F9', color: colors.text }]}
+                                            placeholder="¿Cuánto vas a pagar?" placeholderTextColor={colors.sub}
+                                            keyboardType="numeric" value={payAmount} onChangeText={t => setPayAmount(formatInput(t))}
+                                            autoFocus
+                                        />
+                                    )}
 
-                                <Text style={{ fontSize: 12, fontWeight: '800', color: colors.sub, marginBottom: 10, marginTop: 10 }}>PAGAR DESDE:</Text>
-                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
-                                    {accounts.map(acc => (
-                                        <TouchableOpacity 
-                                            key={acc} 
-                                            onPress={() => setSelectedAccount(acc)}
-                                            style={{ 
-                                                paddingHorizontal: 15, paddingVertical: 10, borderRadius: 12, 
-                                                borderWidth: 2, borderColor: selectedAccount === acc ? colors.accent : colors.border,
-                                                backgroundColor: selectedAccount === acc ? colors.accent + '10' : 'transparent'
-                                            }}
-                                        >
-                                            <Text style={{ fontWeight: '700', color: selectedAccount === acc ? colors.accent : colors.sub }}>{acc}</Text>
+                                    <Text style={{ fontSize: 12, fontWeight: '800', color: colors.sub, marginBottom: 10, marginTop: 10 }}>PAGAR DESDE:</Text>
+                                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+                                        {accounts.map(acc => (
+                                            <TouchableOpacity 
+                                                key={acc} 
+                                                onPress={() => setSelectedAccount(acc)}
+                                                style={{ 
+                                                    paddingHorizontal: 15, paddingVertical: 10, borderRadius: 12, 
+                                                    borderWidth: 2, borderColor: selectedAccount === acc ? colors.accent : colors.border,
+                                                    backgroundColor: selectedAccount === acc ? colors.accent + '10' : 'transparent'
+                                                }}
+                                            >
+                                                <Text style={{ fontWeight: '700', color: selectedAccount === acc ? colors.accent : colors.sub }}>{acc}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+
+                                    <View style={styles.modalBtns}>
+                                        <TouchableOpacity style={[styles.btnAction, { backgroundColor: colors.border }]} onPress={() => setPayModalVisible(false)}>
+                                            <Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text>
                                         </TouchableOpacity>
-                                    ))}
+                                        <TouchableOpacity style={[styles.btnAction, { backgroundColor: colors.accent }]} onPress={handlePayment}>
+                                            <Text style={{ color: '#FFF', fontWeight: '700' }}>Confirmar Pago</Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
-
-                                <View style={styles.modalBtns}>
-                                    <TouchableOpacity style={[styles.btnAction, { backgroundColor: colors.border }]} onPress={() => setPayModalVisible(false)}>
-                                        <Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity style={[styles.btnAction, { backgroundColor: colors.accent }]} onPress={handlePayment}>
-                                        <Text style={{ color: '#FFF', fontWeight: '700' }}>Confirmar Pago</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        </KeyboardAvoidingView>
-                    </View>
-                </TouchableWithoutFeedback>
+                            </KeyboardAvoidingView>
+                        </View>
+                    </ConditionalWrapper>
+                </View>
             </Modal>
         </SafeAreaView>
     );
