@@ -357,11 +357,9 @@ export default function DebtsScreen() {
                             const isLate = new Date() > date && !isPaid;
 
                             return (
-                                <TouchableOpacity 
+                                <View 
                                     key={item.id} 
                                     style={styles.itemWrapper} 
-                                    onLongPress={() => handleDelete(item.id)}
-                                    onPress={() => viewMode === 'debt' ? handleDebtAction(item) : handleFixedAction(item)}
                                 >
                                     {/* Fecha y Punto Timeline (solo deudas) */}
                                     {viewMode === 'debt' && (
@@ -373,23 +371,30 @@ export default function DebtsScreen() {
                                     )}
 
                                     {/* Card Contenido */}
-                                    <View style={[styles.itemCard, { backgroundColor: colors.card, borderLeftWidth: viewMode === 'fixed' ? 4 : 0, borderLeftColor: isPaid ? colors.green : colors.accent }]}>
-                                        <View style={styles.itemHeaderInner}>
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={[styles.itemLabel, { color: colors.sub }]}>
-                                                    {viewMode === 'fixed' ? `Día de pago: ${day}` : `${Math.round(itemPct)}% completado`}
-                                                </Text>
-                                                <Text style={[styles.itemTitle, { color: colors.text }]} numberOfLines={1}>{item.client}</Text>
+                                    <View style={[styles.itemCard, { backgroundColor: colors.card, borderLeftWidth: viewMode === 'fixed' ? 4 : 0, borderLeftColor: isPaid ? colors.green : colors.accent, padding: 0 }]}>
+                                        <TouchableOpacity 
+                                            style={{ padding: 18 }}
+                                            activeOpacity={0.7}
+                                            onLongPress={() => handleDelete(item.id)}
+                                            onPress={() => viewMode === 'debt' ? handleDebtAction(item) : handleFixedAction(item)}
+                                        >
+                                            <View style={styles.itemHeaderInner}>
+                                                <View style={{ flex: 1 }}>
+                                                    <Text style={[styles.itemLabel, { color: colors.sub }]}>
+                                                        {viewMode === 'fixed' ? `Día de pago: ${day}` : `${Math.round(itemPct)}% completado`}
+                                                    </Text>
+                                                    <Text style={[styles.itemTitle, { color: colors.text }]} numberOfLines={1}>{item.client}</Text>
+                                                </View>
+                                                <Text style={[styles.itemAmount, { color: colors.text }]}>{fmt(item.value)}</Text>
                                             </View>
-                                            <Text style={[styles.itemAmount, { color: colors.text }]}>{fmt(item.value)}</Text>
-                                        </View>
 
-                                        {/* Barra progreso pequeña */}
-                                        <View style={[styles.miniBarBase, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
-                                            <View style={[styles.miniBarFill, { width: `${itemPct}%`, backgroundColor: isPaid ? colors.green : isLate ? colors.red : colors.accent }]} />
-                                        </View>
+                                            {/* Barra progreso pequeña */}
+                                            <View style={[styles.miniBarBase, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
+                                                <View style={[styles.miniBarFill, { width: `${itemPct}%`, backgroundColor: isPaid ? colors.green : isLate ? colors.red : colors.accent }]} />
+                                            </View>
+                                        </TouchableOpacity>
 
-                                        <View style={styles.itemFooter}>
+                                        <View style={[styles.itemFooter, { paddingHorizontal: 18, paddingBottom: 18 }]}>
                                             <View style={[styles.badge, { backgroundColor: isPaid ? colors.green + '15' : isLate ? colors.red + '15' : colors.orange + '15' }]}>
                                                 <Text style={[styles.badgeText, { color: isPaid ? colors.green : isLate ? colors.red : colors.orange }]}>
                                                     {isPaid ? 'Pagado' : isLate ? 'Atrasado' : 'Pendiente'}
@@ -411,12 +416,14 @@ export default function DebtsScreen() {
                                                  </TouchableOpacity>
 
                                                  {viewMode === 'fixed' && (
-                                                     <Ionicons name={isPaid ? "checkbox" : "square-outline"} size={22} color={isPaid ? colors.green : colors.sub} />
+                                                     <TouchableOpacity onPress={() => handleFixedAction(item)}>
+                                                        <Ionicons name={isPaid ? "checkbox" : "square-outline"} size={22} color={isPaid ? colors.green : colors.sub} />
+                                                     </TouchableOpacity>
                                                  )}
                                             </View>
                                         </View>
                                     </View>
-                                </TouchableOpacity>
+                                </View>
                             );
                         })}
                     </View>
