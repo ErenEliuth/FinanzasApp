@@ -1,4 +1,5 @@
 import { useAuth } from '@/utils/auth';
+import { syncUp } from '@/utils/sync';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -99,12 +100,14 @@ export default function AddTransactionScreen() {
   const persistCustomCategories = async (cats: string[]) => {
     setCustomCategories(cats);
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(cats));
+    if (user?.id) syncUp(user.id);
   };
 
   const persistCustomAccounts = async (accs: string[]) => {
     setAccount(accs[accs.length - 1] || 'Efectivo');
     setCustomAccounts(accs);
     await AsyncStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(accs));
+    if (user?.id) syncUp(user.id);
   };
 
   const handleAddCustomCategory = async () => {

@@ -4,6 +4,7 @@ import { Session, User } from '@supabase/supabase-js';
 import * as WebBrowser from 'expo-web-browser';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
+import { syncDown } from './sync';
 
 WebBrowser.maybeCompleteAuthSession(); // Necesario para que el navegador se cierre tras el login
 
@@ -34,19 +35,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
     const [theme, setTheme] = useState<'light' | 'dark'>('light');
     const [isHidden, setIsHidden] = useState(false);
-
     useEffect(() => {
         // Cargar sesión inicial de Supabase
         supabase.auth.getSession().then(({ data: { session } }) => {
+            const userId = session?.user?.id;
             setSession(session);
             setUser(session?.user ?? null);
+            if (userId) syncDown(userId);
             setLoading(false);
         });
 
         // Escuchar cambios en el estado de autenticación (login, logout, token refresh)
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            const userId = session?.user?.id;
             setSession(session);
             setUser(session?.user ?? null);
+            if (userId && (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED')) {
+                syncDown(userId);
+            }
             setLoading(false);
         });
 

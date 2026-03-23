@@ -1,4 +1,5 @@
 import { useAuth } from '@/utils/auth';
+import { syncUp } from '@/utils/sync';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -177,6 +178,7 @@ export default function CardsScreen() {
         const updatedCards = [...cards, newCard];
         setCards(updatedCards);
         await AsyncStorage.setItem(`@cards_${user?.id}`, JSON.stringify(updatedCards));
+        if (user?.id) syncUp(user.id);
 
         // Add this card to global custom accounts so user can select it when buying something
         try {
@@ -184,6 +186,7 @@ export default function CardsScreen() {
             const customAccounts = storedParams ? JSON.parse(storedParams) : [];
             if (!customAccounts.includes(newCard.name)) {
                 await AsyncStorage.setItem('@custom_accounts', JSON.stringify([...customAccounts, newCard.name]));
+                if (user?.id) syncUp(user.id);
             }
         } catch (e) { }
 
@@ -198,11 +201,13 @@ export default function CardsScreen() {
                 const updated = cards.filter(c => c.id !== card.id);
                 setCards(updated);
                 await AsyncStorage.setItem(`@cards_${user?.id}`, JSON.stringify(updated));
+                if (user?.id) syncUp(user.id);
                 try {
                     const storedParams = await AsyncStorage.getItem('@custom_accounts');
                     const customAccounts = storedParams ? JSON.parse(storedParams) : [];
                     const filteredAccounts = customAccounts.filter((a: string) => a !== card.name);
                     await AsyncStorage.setItem('@custom_accounts', JSON.stringify(filteredAccounts));
+                    if (user?.id) syncUp(user.id);
                 } catch(e) {}
                 loadData();
             }
@@ -220,6 +225,7 @@ export default function CardsScreen() {
                         const updated = cards.filter(c => c.id !== card.id);
                         setCards(updated);
                         await AsyncStorage.setItem(`@cards_${user?.id}`, JSON.stringify(updated));
+                        if (user?.id) syncUp(user.id);
                         
                         // Optionally remove from custom accounts
                         try {
@@ -227,6 +233,7 @@ export default function CardsScreen() {
                             const customAccounts = storedParams ? JSON.parse(storedParams) : [];
                             const filteredAccounts = customAccounts.filter((a: string) => a !== card.name);
                             await AsyncStorage.setItem('@custom_accounts', JSON.stringify(filteredAccounts));
+                            if (user?.id) syncUp(user.id);
                         } catch(e) {}
 
                         loadData();
