@@ -152,13 +152,25 @@ export default function DebtsScreen() {
     };
 
     const handleDelete = async (id: string) => {
-        Alert.alert('Eliminar', '¿Estás seguro de eliminar este registro?', [
-            { text: 'Cancelar', style: 'cancel' },
-            { text: 'Eliminar', style: 'destructive', onPress: async () => {
-                await supabase.from('debts').delete().eq('id', id);
-                loadData();
-            }}
-        ]);
+        const confirmDelete = Platform.OS === 'web' 
+            ? window.confirm('¿Estás seguro de eliminar este registro?')
+            : true;
+
+        if (Platform.OS === 'web' && !confirmDelete) return;
+
+        const performDelete = async () => {
+            await supabase.from('debts').delete().eq('id', id);
+            loadData();
+        };
+
+        if (Platform.OS === 'web') {
+            performDelete();
+        } else {
+            Alert.alert('Eliminar', '¿Estás seguro de eliminar este registro?', [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Eliminar', style: 'destructive', onPress: performDelete}
+            ]);
+        }
     };
 
     const handlePayment = async () => {
@@ -239,13 +251,25 @@ export default function DebtsScreen() {
     };
 
     const handleSkipFixed = async (item: DebtItem) => {
-        Alert.alert('Omitir Pago', `¿Quieres omitir el pago de "${item.client}" este mes? Se marcará como pagado pero NO se descontará de tus cuentas.`, [
-            { text: 'Cancelar', style: 'cancel' },
-            { text: 'Omitir', onPress: async () => {
-                await supabase.from('debts').update({ paid: item.value }).eq('id', item.id);
-                loadData();
-            }}
-        ]);
+        const confirmSkip = Platform.OS === 'web' 
+            ? window.confirm(`¿Quieres omitir el pago de "${item.client}" este mes?`)
+            : true;
+
+        if (Platform.OS === 'web' && !confirmSkip) return;
+
+        const performSkip = async () => {
+           await supabase.from('debts').update({ paid: item.value }).eq('id', item.id);
+           loadData();
+        };
+
+        if (Platform.OS === 'web') {
+            performSkip();
+        } else {
+            Alert.alert('Omitir Pago', `¿Quieres omitir el pago de "${item.client}" este mes? Se marcará como pagado pero NO se descontará de tus cuentas.`, [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Omitir', onPress: performSkip}
+            ]);
+        }
     };
 
     // Calculations
@@ -432,10 +456,7 @@ export default function DebtsScreen() {
                 <View style={{ height: 100 }} />
             </ScrollView>
 
-            {/* BOTÓN FLOTANTE (+) */}
-            <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
-                <MaterialIcons name="add" size={32} color="#FFF" />
-            </TouchableOpacity>
+            {/* BOTÓN FLOTANTE (+) REMOVIDO POR SOLICITUD - USAR EL DEL HEADER */}
 
             {/* MODAL ADICIÓN */}
             <Modal visible={modalVisible} animationType="slide" transparent>

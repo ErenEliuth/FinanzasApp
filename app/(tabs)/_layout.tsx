@@ -83,7 +83,9 @@ export default function TabLayout() {
           title: 'Añadir',
           href: '/explore',
           tabBarIcon: ({ focused }) => {
-            const isDisabled = pathname === '/debts' || pathname === '/goals' || pathname === '/cards';
+            const currentPath = pathname.split('/').pop() || '';
+            const isDisabled = currentPath === 'debts' || currentPath === 'goals' || currentPath === 'cards';
+            
             return (
               <View style={[styles.fabButton, isDisabled && styles.fabButtonDisabled, isDark && !isDisabled && { backgroundColor: '#4F46E5' }]}>
                 <MaterialIcons name="add" size={28} color="#FFFFFF" />
@@ -94,7 +96,8 @@ export default function TabLayout() {
         }}
         listeners={{
           tabPress: (e) => {
-            if (pathname === '/debts' || pathname === '/goals' || pathname === '/cards') {
+            const currentPath = pathname.split('/').pop() || '';
+            if (currentPath === 'debts' || currentPath === 'goals' || currentPath === 'cards') {
               e.preventDefault();
             }
           },
