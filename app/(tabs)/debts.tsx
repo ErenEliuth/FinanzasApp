@@ -238,6 +238,16 @@ export default function DebtsScreen() {
         }
     };
 
+    const handleSkipFixed = async (item: DebtItem) => {
+        Alert.alert('Omitir Pago', `¿Quieres omitir el pago de "${item.client}" este mes? Se marcará como pagado pero NO se descontará de tus cuentas.`, [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Omitir', onPress: async () => {
+                await supabase.from('debts').update({ paid: item.value }).eq('id', item.id);
+                loadData();
+            }}
+        ]);
+    };
+
     // Calculations
     const currentList = debts.filter(d => d.debt_type === viewMode);
     const totalValue = currentList.reduce((s, d) => s + d.value, 0);
@@ -340,8 +350,8 @@ export default function DebtsScreen() {
                         
                         {currentList.map((item, index) => {
                             const date = new Date(item.due_date);
-                            const day = date.getDate().toString().padStart(2, '0');
-                            const month = date.toLocaleString('es-CO', { month: 'short' }).toUpperCase();
+                            const day = date.getUTCDate().toString().padStart(2, '0');
+                            const month = date.toLocaleString('es-CO', { month: 'short', timeZone: 'UTC' }).toUpperCase();
                             const itemPct = (item.paid / item.value) * 100;
                             const isPaid = item.paid >= item.value;
                             const isLate = new Date() > date && !isPaid;
@@ -366,7 +376,9 @@ export default function DebtsScreen() {
                                     <View style={[styles.itemCard, { backgroundColor: colors.card, borderLeftWidth: viewMode === 'fixed' ? 4 : 0, borderLeftColor: isPaid ? colors.green : colors.accent }]}>
                                         <View style={styles.itemHeaderInner}>
                                             <View style={{ flex: 1 }}>
-                                                <Text style={[styles.itemLabel, { color: colors.sub }]}>{Math.round(itemPct)}% completado</Text>
+                                                <Text style={[styles.itemLabel, { color: colors.sub }]}>
+                                                    {viewMode === 'fixed' ? `Día de pago: ${day}` : `${Math.round(itemPct)}% completado`}
+                                                </Text>
                                                 <Text style={[styles.itemTitle, { color: colors.text }]} numberOfLines={1}>{item.client}</Text>
                                             </View>
                                             <Text style={[styles.itemAmount, { color: colors.text }]}>{fmt(item.value)}</Text>
@@ -383,10 +395,21 @@ export default function DebtsScreen() {
                                                     {isPaid ? 'Pagado' : isLate ? 'Atrasado' : 'Pendiente'}
                                                 </Text>
                                             </View>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                                                 <TouchableOpacity onPress={() => handleDelete(item.id)}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                                 {!isPaid && viewMode === 'fixed' && (
+                                                     <TouchableOpacity 
+                                                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.sub + '15', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}
+                                                        onPress={() => handleSkipFixed(item)}
+                                                     >
+                                                         <MaterialIcons name="skip-next" size={14} color={colors.sub} />
+                                                         <Text style={{ fontSize: 10, fontWeight: '800', color: colors.sub }}>OMITIR</Text>
+                                                     </TouchableOpacity>
+                                                 )}
+                                                 
+                                                 <TouchableOpacity onPress={() => handleDelete(item.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                                                      <Ionicons name="trash-outline" size={18} color={colors.sub} />
                                                  </TouchableOpacity>
+
                                                  {viewMode === 'fixed' && (
                                                      <Ionicons name={isPaid ? "checkbox" : "square-outline"} size={22} color={isPaid ? colors.green : colors.sub} />
                                                  )}
