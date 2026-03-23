@@ -85,6 +85,9 @@ export default function TabLayout() {
         options={{
           title: 'Añadir',
           href: '/explore',
+          tabBarItemStyle: isDebtsOrRestricted 
+            ? { pointerEvents: 'none' as any, opacity: 0.5 } 
+            : {},
           tabBarIcon: ({ focused }) => {
             return (
               <View 
@@ -93,7 +96,6 @@ export default function TabLayout() {
                   isDebtsOrRestricted && styles.fabButtonDisabled, 
                   isDark && !isDebtsOrRestricted && { backgroundColor: '#4F46E5' }
                 ]}
-                pointerEvents={isDebtsOrRestricted ? 'none' : 'auto'}
               >
                 <MaterialIcons name="add" size={28} color="#FFFFFF" />
               </View>
