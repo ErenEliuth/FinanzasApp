@@ -86,28 +86,22 @@ export default function HomeScreen() {
         if (tx.type === 'income') {
           const acc = tx.account || 'Efectivo';
           if (!accs[acc]) accs[acc] = 0;
-          if (isThisMonth) inc += tx.amount;
+          // Si es este mes y no es transferencia, lo sumamos al total de ingresos
+          if (isThisMonth && tx.category !== 'Transferencia') inc += tx.amount;
           accs[acc] += tx.amount;
         } else {
           // Es un gasto o un ahorro
           if (tx.category === 'Ahorro') {
             savTotal += tx.amount;
             if (isThisMonth) savMes += tx.amount;
-          } else {
+          } else if (tx.category !== 'Transferencia') {
+            // No contamos las transferencias (salientes) como gasto real del mes
             if (isThisMonth) expGastos += tx.amount;
           }
 
-          // El dinero sale de la cuenta activa (Efectivo/Nequi/etc)
-          // Si por error el "account" dice "Ahorro", lo tratamos como Efectivo para el saldo
           const acc = (tx.account === 'Ahorro' || !tx.account) ? 'Efectivo' : tx.account;
           if (!accs[acc]) accs[acc] = 0;
           accs[acc] -= tx.amount;
-
-          // Si el gasto es de tarjeta de crédito, no debería restar del flujo de caja "líquido" del mes
-          // porque el dinero físico todavía está en tu poder.
-          // Pero depende de cómo el usuario quiera ver su balance.
-          // Actualmente, el balance del mes es: ingresos - gastos - ahorroMes.
-          // Dejaremos el balance del mes igual, pero en el breakdown mostraremos cuáles son tarjetas.
         }
       });
 

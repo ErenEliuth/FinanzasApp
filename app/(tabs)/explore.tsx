@@ -211,8 +211,8 @@ export default function AddTransactionScreen() {
             .eq('user_id', user?.id)
             .gte('date', startOfMonth);
 
-          const monthInc = (txData?.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0) || 0) + parsed;
-          const monthExp = txData?.filter(t => t.type === 'expense' && t.category !== 'Ahorro').reduce((s, t) => s + t.amount, 0) || 0;
+          const monthInc = (txData?.filter(t => t.type === 'income' && t.category !== 'Transferencia').reduce((s, t) => s + t.amount, 0) || 0) + parsed;
+          const monthExp = txData?.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia').reduce((s, t) => s + t.amount, 0) || 0;
 
           // Fetch Debts
           const { data: debtData } = await supabase
