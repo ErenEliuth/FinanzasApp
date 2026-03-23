@@ -34,13 +34,8 @@ export default function WelcomeScreen() {
             if (user) {
                 router.replace('/(tabs)');
             } else {
-                // Verificar si ya completó el onboarding
-                const onboardingDone = await AsyncStorage.getItem('@onboarding_done');
-                if (onboardingDone === 'true') {
-                    router.replace('/login');
-                } else {
-                    router.replace('/onboarding');
-                }
+                // Siempre ir al login, omitir onboarding
+                router.replace('/login');
             }
         }, 3000);
 

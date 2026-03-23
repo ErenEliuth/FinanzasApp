@@ -54,6 +54,11 @@ export default function AddTransactionScreen() {
   const [accountModalVisible, setAccountModalVisible] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newAccountName, setNewAccountName] = useState('');
+  const [savingsModalVisible, setSavingsModalVisible] = useState(false);
+  const [incomeToSave, setIncomeToSave] = useState(0);
+  const [savingsSuggestion, setSavingsSuggestion] = useState(0);
+  const [savingsMessage, setSavingsMessage] = useState('');
+  const [savingsPercentage, setSavingsPercentage] = useState(15);
 
   const router = useRouter();
   const { user, theme } = useAuth();
@@ -192,6 +197,71 @@ export default function AddTransactionScreen() {
     const parsed = parseFloat(amount.replace(/\./g, '').replace(',', '.'));
     if (isNaN(parsed) || parsed <= 0) return;
 
+    // ── INCOME SMART SUGGESTION ──
+    if (type === 'income') {
+      const calculateSmartSaving = async () => {
+        try {
+          const today = new Date();
+          const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
+
+          // Fetch Month Stats
+          const { data: txData } = await supabase
+            .from('transactions')
+            .select('type, amount, category')
+            .eq('user_id', user?.id)
+            .gte('date', startOfMonth);
+
+          const monthInc = (txData?.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0) || 0) + parsed;
+          const monthExp = txData?.filter(t => t.type === 'expense' && t.category !== 'Ahorro').reduce((s, t) => s + t.amount, 0) || 0;
+
+          // Fetch Debts
+          const { data: debtData } = await supabase
+            .from('debts')
+            .select('value, paid')
+            .eq('user_id', user?.id);
+          
+          const totalDebt = debtData?.reduce((s, d) => s + (d.value - (d.paid || 0)), 0) || 0;
+
+          // Logic
+          let pct = 15;
+          let msg = "Es un buen momento para separar una parte.";
+
+          const debtToIncome = totalDebt / (monthInc || 1);
+          const surplusRatio = (monthInc - monthExp) / (monthInc || 1);
+
+          if (debtToIncome > 1.2) {
+            pct = 5;
+            msg = "Tus deudas son altas este mes. Sugerimos un ahorro pequeño del 5% para priorizar tus pagos.";
+          } else if (surplusRatio > 0.4) {
+            pct = 20;
+            msg = "¡Vas muy bien! Tus gastos están bajo control, podrías ahorrar un 20% sin problemas.";
+          } else if (surplusRatio < 0.1) {
+            pct = 10;
+            msg = "Este mes tu presupuesto está algo ajustado. Ahorra un 10% para no descuidar tu fondo.";
+          } else {
+            pct = 15;
+            msg = "Basado en tus finanzas de este mes, un 15% es lo ideal para mantener tu equilibrio.";
+          }
+
+          setIncomeToSave(parsed);
+          setSavingsPercentage(pct);
+          setSavingsSuggestion(Math.round(parsed * (pct / 100)));
+          setSavingsMessage(msg);
+          setSavingsModalVisible(true);
+        } catch (e) {
+          // Fallback simple si falla el fetch
+          setIncomeToSave(parsed);
+          setSavingsPercentage(15);
+          setSavingsSuggestion(Math.round(parsed * 0.15));
+          setSavingsMessage("Conserva el hábito y separa un poco para el futuro.");
+          setSavingsModalVisible(true);
+        }
+      };
+
+      calculateSmartSaving();
+      return;
+    }
+
     // ── TRANSFER ──
     if (type === 'transfer') {
       if (!destAccount || destAccount === account) {
@@ -226,8 +296,8 @@ export default function AddTransactionScreen() {
       return;
     }
 
-    // ── NORMAL ──
-    const dbType = type === 'income' ? 'income' : 'expense';
+    // ── NORMAL (Expense / Ahorro) ──
+    const dbType = 'expense';
     const dbCategory = type === 'ahorro' ? 'Ahorro' : (category || 'General');
     const desc = description.trim() || dbCategory;
 
@@ -248,6 +318,47 @@ export default function AddTransactionScreen() {
       router.push('/(tabs)');
     } catch (e) {
       console.error('Error guardando transacción:', e);
+    }
+  };
+
+  const confirmSaveWithSavings = async (shouldSave15: boolean) => {
+    const parsed = incomeToSave;
+    const savings = savingsSuggestion;
+    const desc = description.trim() || (category || 'Sueldo');
+
+    try {
+      // 1. Guardar el Ingreso
+      await supabase.from('transactions').insert([{
+        user_id: user?.id,
+        type: 'income',
+        amount: parsed,
+        description: desc,
+        category: category || 'Sueldo',
+        account: account,
+        date: new Date().toISOString(),
+      }]);
+
+      // 2. Guardar el Ahorro si se aceptó
+      if (shouldSave15) {
+        await supabase.from('transactions').insert([{
+          user_id: user?.id,
+          type: 'expense', 
+          amount: savings,
+          description: `Ahorro (${savingsPercentage}%) de: ${desc}`,
+          category: 'Ahorro',
+          account: account,
+          date: new Date().toISOString(),
+        }]);
+      }
+
+      setSavingsModalVisible(false);
+      setAmount('');
+      setDescription('');
+      setCategory('');
+      router.push('/(tabs)');
+    } catch (e) {
+      console.error('Error guardando con ahorro:', e);
+      Alert.alert('Error', 'No se pudo guardar la transacción.');
     }
   };
 
@@ -616,6 +727,44 @@ export default function AddTransactionScreen() {
             </KeyboardAvoidingView>
           </View>
         </Modal>
+
+        {/* ── Modal Sugerencia Ahorro Inteligente ─────────────────── */}
+        <Modal visible={savingsModalVisible} transparent animationType="fade">
+          <View style={[styles.modalOverlay, { justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.7)' }]}>
+            <View style={[styles.savingsSuggestionCard, { backgroundColor: colors.card }]}>
+              <View style={styles.savingsIconWrap}>
+                <MaterialIcons name="auto-awesome" size={32} color="#6366F1" />
+              </View>
+              
+              <Text style={[styles.savingsTitle, { color: colors.text }]}>Sugerencia Inteligente</Text>
+              <Text style={[styles.savingsSub, { color: colors.sub }]}>
+                {savingsMessage}
+              </Text>
+
+              <View style={styles.savingsAmountPill}>
+                <Text style={{fontSize: 12, color: colors.sub, fontWeight: '700', marginBottom: 2}}>Ahorro sugerido ({savingsPercentage}%)</Text>
+                <Text style={styles.savingsAmountText}>
+                  {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(savingsSuggestion)}
+                </Text>
+              </View>
+
+              <View style={styles.modalBtns}>
+                <TouchableOpacity
+                  style={[styles.modalBtn, { backgroundColor: colors.border }]}
+                  onPress={() => confirmSaveWithSavings(false)}
+                >
+                  <Text style={{ color: colors.text, fontWeight: '700' }}>Solo guardar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalBtn, { backgroundColor: '#6366F1' }]}
+                  onPress={() => confirmSaveWithSavings(true)}
+                >
+                  <Text style={{ color: '#FFF', fontWeight: '800' }}>Sí, ahorrar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </TouchableWithoutFeedback>
   );
@@ -698,5 +847,53 @@ const styles = StyleSheet.create({
   modalInput: { fontSize: 16 },
   modalBtns: { flexDirection: 'row', gap: 12 },
   modalBtn: { flex: 1, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+
+  // Savings Suggestion Styles
+  savingsSuggestionCard: {
+    marginHorizontal: 30,
+    borderRadius: 28,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  savingsIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 22,
+    backgroundColor: 'rgba(99,102,241,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  savingsTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  savingsSub: {
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  savingsAmountPill: {
+    backgroundColor: 'rgba(16,185,129,0.1)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.2)',
+    marginBottom: 24,
+  },
+  savingsAmountText: {
+    color: '#10B981',
+    fontSize: 24,
+    fontWeight: '900',
+  },
 });
 

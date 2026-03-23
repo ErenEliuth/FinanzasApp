@@ -34,17 +34,16 @@ export default function HomeScreen() {
   const [ingresos, setIngresos] = useState(0);
   const [gastos, setGastos] = useState(0);
   const [ahorro, setAhorro] = useState(0);
+  const [ahorroMes, setAhorroMes] = useState(0);
   const [debtTotal, setDebtTotal] = useState(0);
   const [recentTx, setRecentTx] = useState<any[]>([]);
   const [upcomingDebts, setUpcomingDebts] = useState<any[]>([]);
   const [accountTotals, setAccountTotals] = useState<any>({});
   const [breakdownVisible, setBreakdownVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
-  const [ahorroMes, setAhorroMes] = useState(0);
   const [pendingItems, setPendingItems] = useState<any[]>([]);
   const [userCards, setUserCards] = useState<string[]>([]);
-  const [showMissions, setShowMissions] = useState(false);
-  const [missions, setMissions] = useState({ income: false, expense: false, debt: false, card: false, goal: false });
+  const [isRealBalanceCollapsed, setIsRealBalanceCollapsed] = useState(true);
 
   useEffect(() => {
     if (isFocused) loadData();
@@ -210,23 +209,8 @@ export default function HomeScreen() {
       }) || [];
       setPendingItems(urgent);
 
-      // --- CHEQUEO DE MISIONES DE AYUDA ---
-      const { data: allGoals } = await supabase.from('goals').select('id').eq('user_id', user.id);
-
-      const hasIncome = allTx?.some((t: any) => t.type === 'income') || false;
-      const hasExpense = allTx?.some((t: any) => t.type === 'expense' && t.category !== 'Ahorro') || false;
-      const hasDebt = (allDebts && allDebts.length > 0) || false;
-      const hasCard = cardNames.length > 0;
-      const hasGoal = (allGoals && allGoals.length > 0) || false;
-
-      setMissions({ income: hasIncome, expense: hasExpense, debt: hasDebt, card: hasCard, goal: hasGoal });
-
-      const hiddenMissions = await AsyncStorage.getItem(`@hide_missions_${user.id}`);
-      if (!(hasIncome && hasExpense && hasDebt && hasCard && hasGoal) && hiddenMissions !== 'true') {
-          setShowMissions(true);
-      } else {
-          setShowMissions(false);
-      }
+      // Misiones eliminadas por solicitud del usuario
+      // ------------------------------------------
 
     } catch (e) { console.error('Error cargando datos de Supabase:', e); }
   };
@@ -237,6 +221,8 @@ export default function HomeScreen() {
   const dineroActivo = Object.entries(accountTotals)
     .filter(([accName]) => !userCards.includes(accName) && accName !== 'Ahorro')
     .reduce((sum, [_, amt]) => sum + Number(amt), 0);
+
+  const dineroReal = (dineroActivo + ahorro) - debtTotal;
 
   const fmt = (n: number) =>
     isHidden
@@ -306,45 +292,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Missions / Primeros Pasos */}
-        {showMissions && (
-          <View style={[styles.missionsCard, { backgroundColor: isDark ? '#1E293B' : '#FFF', borderColor: isDark ? '#334155' : '#E2E8F0', borderWidth: 1 }]}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <Text style={[styles.missionsTitle, { color: colorsNav.text }]}>🚀 Guía de Primeros Pasos</Text>
-                <TouchableOpacity onPress={async () => {
-                    setShowMissions(false);
-                    await AsyncStorage.setItem(`@hide_missions_${user?.id}`, 'true');
-                }}>
-                    <Ionicons name="close" size={20} color={colorsNav.sub} />
-                </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity style={styles.missionItem} onPress={() => router.push('/(tabs)/explore')}>
-                <Ionicons name={missions.income ? "checkmark-circle" : "ellipse-outline"} size={22} color={missions.income ? "#10B981" : colorsNav.sub} />
-                <Text style={[styles.missionText, { color: missions.income ? '#10B981' : colorsNav.text, textDecorationLine: missions.income ? 'line-through' : 'none' }]}>1. Agrega tu primer Ingreso</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.missionItem} onPress={() => router.push('/(tabs)/explore')}>
-                <Ionicons name={missions.expense ? "checkmark-circle" : "ellipse-outline"} size={22} color={missions.expense ? "#10B981" : colorsNav.sub} />
-                <Text style={[styles.missionText, { color: missions.expense ? '#10B981' : colorsNav.text, textDecorationLine: missions.expense ? 'line-through' : 'none' }]}>2. Registra tu primer Gasto</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.missionItem} onPress={() => router.push('/(tabs)/debts')}>
-                <Ionicons name={missions.debt ? "checkmark-circle" : "ellipse-outline"} size={22} color={missions.debt ? "#10B981" : colorsNav.sub} />
-                <Text style={[styles.missionText, { color: missions.debt ? '#10B981' : colorsNav.text, textDecorationLine: missions.debt ? 'line-through' : 'none' }]}>3. Anota un Gasto Fijo o Deuda</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.missionItem} onPress={() => router.push('/(tabs)/profile')}>
-                <Ionicons name={missions.card ? "checkmark-circle" : "ellipse-outline"} size={22} color={missions.card ? "#10B981" : colorsNav.sub} />
-                <Text style={[styles.missionText, { color: missions.card ? '#10B981' : colorsNav.text, textDecorationLine: missions.card ? 'line-through' : 'none' }]}>4. Registra tus Tarjetas o Bancos</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.missionItem} onPress={() => router.push('/goals')}>
-                <Ionicons name={missions.goal ? "checkmark-circle" : "ellipse-outline"} size={22} color={missions.goal ? "#10B981" : colorsNav.sub} />
-                <Text style={[styles.missionText, { color: missions.goal ? '#10B981' : colorsNav.text, textDecorationLine: missions.goal ? 'line-through' : 'none' }]}>5. Crea una Meta de Ahorro</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        {/* Misiones eliminadas */}
 
         {/* Balance Card */}
         <TouchableOpacity
@@ -415,7 +363,72 @@ export default function HomeScreen() {
 
 
 
-        {/* Últimas Transacciones */}
+        {/* ── Balance Real Dashboard (Desplegable) ────────────────────────────── */}
+        <View style={{ marginHorizontal: 20, marginTop: 10 }}>
+            <TouchableOpacity 
+                activeOpacity={0.7}
+                onPress={() => setIsRealBalanceCollapsed(!isRealBalanceCollapsed)}
+                style={[
+                    styles.realBalanceHeaderToggle, 
+                    { 
+                        backgroundColor: isDark ? '#1E293B' : '#FFFFFF', 
+                        borderColor: isDark ? '#334155' : '#E2E8F0',
+                        borderBottomLeftRadius: isRealBalanceCollapsed ? 16 : 0,
+                        borderBottomRightRadius: isRealBalanceCollapsed ? 16 : 0,
+                    }
+                ]}
+            >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <MaterialIcons name="health-and-safety" size={18} color={dineroReal >= 0 ? '#10B981' : '#EF4444'} />
+                    <Text style={[styles.realBalanceTitle, { color: colorsNav.text, fontSize: 13, fontWeight: '700' }]}>Salud Financiera</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    {isRealBalanceCollapsed && (
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: dineroReal >= 0 ? '#10B981' : '#EF4444' }}>{fmt(dineroReal)}</Text>
+                    )}
+                    <Ionicons name={isRealBalanceCollapsed ? 'chevron-down' : 'chevron-up'} size={18} color={colorsNav.sub} />
+                </View>
+            </TouchableOpacity>
+
+            {!isRealBalanceCollapsed && (
+                <View style={[
+                    styles.realBalanceCard, 
+                    { 
+                        backgroundColor: isDark ? '#1E293B' : '#FFFFFF', 
+                        borderColor: isDark ? '#334155' : '#E2E8F0', 
+                        padding: 14, 
+                        marginTop: 0,
+                        borderTopWidth: 0,
+                        borderTopLeftRadius: 0,
+                        borderTopRightRadius: 0
+                    }
+                ]}>
+                    <View style={{ alignItems: 'center', marginBottom: 12, marginTop: 4 }}>
+                        <Text style={[styles.realBalanceMainAmount, { color: dineroReal >= 0 ? (isDark ? '#F1F5F9' : '#1E293B') : '#EF4444', fontSize: 26 }]}>
+                            {fmt(dineroReal)}
+                        </Text>
+                        <Text style={{ fontSize: 10, color: colorsNav.sub, fontWeight: '500', marginTop: -2 }}>Dinero proyectado una vez pagues deudas</Text>
+                    </View>
+
+                    <View style={[styles.realBalanceGrid, { padding: 8, borderRadius: 12 }]}>
+                        <View style={styles.realBalanceItem}>
+                            <Text style={[styles.realBalanceItemLabel, { fontSize: 8 }]}>Disponible</Text>
+                            <Text style={[styles.realBalanceItemValue, { color: '#10B981', fontSize: 11 }]}>{fmt(dineroActivo)}</Text>
+                        </View>
+                        <View style={{ width: 1, backgroundColor: colorsNav.border, height: '60%', alignSelf: 'center' }} />
+                        <View style={styles.realBalanceItem}>
+                            <Text style={[styles.realBalanceItemLabel, { fontSize: 8 }]}>Ahorro</Text>
+                            <Text style={[styles.realBalanceItemValue, { color: '#6366F1', fontSize: 11 }]}>{fmt(ahorro)}</Text>
+                        </View>
+                        <View style={{ width: 1, backgroundColor: colorsNav.border, height: '60%', alignSelf: 'center' }} />
+                        <View style={styles.realBalanceItem}>
+                            <Text style={[styles.realBalanceItemLabel, { fontSize: 8 }]}>Deuda</Text>
+                            <Text style={[styles.realBalanceItemValue, { color: '#EF4444', fontSize: 11 }]}>−{fmt(debtTotal)}</Text>
+                        </View>
+                    </View>
+                </View>
+            )}
+        </View>
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colorsNav.text }]}>Últimas Transacciones</Text>
@@ -757,6 +770,60 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.4)',
     fontSize: 10,
     fontWeight: '600',
+  },
+  // Dinero Real Dashboard
+  realBalanceHeaderToggle: {
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  realBalanceCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  realBalancePill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  realBalanceTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  realBalancePillText: {
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  realBalanceMainAmount: {
+    fontWeight: '900',
+    letterSpacing: -0.5,
+  },
+  realBalanceGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(148,163,184,0.08)',
+  },
+  realBalanceItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  realBalanceItemLabel: {
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    marginBottom: 2,
+    color: '#94A3B8',
+  },
+  realBalanceItemValue: {
+    fontWeight: '800',
   },
   modalOverlay: {
     flex: 1,
