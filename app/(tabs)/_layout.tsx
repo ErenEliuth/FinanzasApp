@@ -1,6 +1,6 @@
 import { HapticTab } from '@/components/haptic-tab';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { Tabs, usePathname } from 'expo-router';
+import { Tabs, usePathname, useSegments } from 'expo-router';
 import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
@@ -8,8 +8,11 @@ import { useAuth } from '@/utils/auth';
 
 export default function TabLayout() {
   const pathname = usePathname();
+  const segments = useSegments();
   const { theme } = useAuth();
   const isDark = theme === 'dark';
+
+  const isDebtsOrRestricted = (segments as string[]).some(s => ['debts', 'goals', 'cards', 'budgets'].includes(s));
 
   const colors = {
     bg: isDark ? '#1E293B' : '#FFFFFF',
@@ -83,11 +86,8 @@ export default function TabLayout() {
           title: 'Añadir',
           href: '/explore',
           tabBarIcon: ({ focused }) => {
-            const path = pathname.toLowerCase();
-            const isDisabled = path.includes('debts') || path.includes('goals') || path.includes('cards') || path.includes('budgets');
-            
             return (
-              <View style={[styles.fabButton, isDisabled && styles.fabButtonDisabled, isDark && !isDisabled && { backgroundColor: '#4F46E5' }]}>
+              <View style={[styles.fabButton, isDebtsOrRestricted && styles.fabButtonDisabled, isDark && !isDebtsOrRestricted && { backgroundColor: '#4F46E5' }]}>
                 <MaterialIcons name="add" size={28} color="#FFFFFF" />
               </View>
             );
@@ -96,8 +96,7 @@ export default function TabLayout() {
         }}
         listeners={{
           tabPress: (e) => {
-            const path = pathname.toLowerCase();
-            if (path.includes('debts') || path.includes('goals') || path.includes('cards') || path.includes('budgets')) {
+            if (isDebtsOrRestricted) {
               e.preventDefault();
             }
           },
