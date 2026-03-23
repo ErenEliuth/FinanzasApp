@@ -63,7 +63,9 @@ export default function DebtsScreen() {
     const [loading, setLoading] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);
     
-    // Form state for new entry
+    // Form state for new/edit entry
+    const [isEditing, setIsEditing] = useState(false);
+    const [editId, setEditId] = useState<string | null>(null);
     const [name, setName] = useState('');
     const [amount, setAmount] = useState('');
     const [dueDate, setDueDate] = useState(new Date());
@@ -94,7 +96,18 @@ export default function DebtsScreen() {
                 .order('due_date', { ascending: true });
 
             if (error) throw error;
-            setDebts(data || []);
+            
+            // Sorting: Unpaid first (earliest due date first), then Paid (earliest due date first)
+            const sorted = (data || []).sort((a, b) => {
+                const isPaidA = a.paid >= a.value;
+                const isPaidB = b.paid >= b.value;
+                
+                if (isPaidA !== isPaidB) return isPaidA ? 1 : -1;
+                
+                return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+            });
+
+            setDebts(sorted);
         } catch (e) {
             console.error('Error loading debts:', e);
         } finally {
@@ -131,17 +144,27 @@ export default function DebtsScreen() {
         const dateStr = dueDate.toISOString().split('T')[0];
 
         try {
-            const { error } = await supabase.from('debts').insert([{
-                user_id: user?.id,
-                client: name.trim(),
-                value: val,
-                paid: 0,
-                due_date: dateStr,
-                debt_type: viewMode,
-                created_date: new Date().toISOString()
-            }]);
+            if (isEditing && editId) {
+                const { error } = await supabase.from('debts').update({
+                    client: name.trim(),
+                    value: val,
+                    due_date: dateStr,
+                }).eq('id', editId);
+                if (error) throw error;
+                Alert.alert('Éxito', 'Registro actualizado');
+            } else {
+                const { error } = await supabase.from('debts').insert([{
+                    user_id: user?.id,
+                    client: name.trim(),
+                    value: val,
+                    paid: 0,
+                    due_date: dateStr,
+                    debt_type: viewMode,
+                    created_date: new Date().toISOString()
+                }]);
+                if (error) throw error;
+            }
 
-            if (error) throw error;
             setModalVisible(false);
             resetForm();
             loadData();
@@ -152,6 +175,16 @@ export default function DebtsScreen() {
 
     const resetForm = () => {
         setName(''); setAmount(''); setDueDate(new Date());
+        setIsEditing(false); setEditId(null);
+    };
+
+    const handleEditStart = (item: DebtItem) => {
+        setName(item.client);
+        setAmount(item.value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+        setDueDate(new Date(item.due_date + 'T12:00:00')); // T12 to avoid timezone issues
+        setEditId(item.id);
+        setIsEditing(true);
+        setModalVisible(true);
     };
 
     const handleDelete = async (id: string) => {
@@ -438,6 +471,10 @@ export default function DebtsScreen() {
                                                      </TouchableOpacity>
                                                  )}
                                                  
+                                                 <TouchableOpacity onPress={() => handleEditStart(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                                                     <Ionicons name="pencil-outline" size={18} color={colors.sub} />
+                                                 </TouchableOpacity>
+                                                 
                                                  <TouchableOpacity onPress={() => handleDelete(item.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                                                      <Ionicons name="trash-outline" size={18} color={colors.sub} />
                                                  </TouchableOpacity>
@@ -475,22 +512,26 @@ export default function DebtsScreen() {
                     <View style={styles.modalOverlay}>
                         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ width: '100%' }}>
                             <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
-                                <Text style={[styles.modalTitle, { color: colors.text }]}>Nuevo Registro</Text>
+                                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                                    {isEditing ? 'Editar Registro' : 'Nuevo Registro'}
+                                </Text>
                                 
-                                <View style={styles.typeSelector}>
-                                    <TouchableOpacity 
-                                        style={[styles.typeBtn, viewMode === 'debt' && { backgroundColor: colors.accent }]}
-                                        onPress={() => setViewMode('debt')}
-                                    >
-                                        <Text style={{ color: viewMode === 'debt' ? '#FFF' : colors.sub, fontWeight: '700' }}>Deuda</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity 
-                                        style={[styles.typeBtn, viewMode === 'fixed' && { backgroundColor: colors.accent }]}
-                                        onPress={() => setViewMode('fixed')}
-                                    >
-                                        <Text style={{ color: viewMode === 'fixed' ? '#FFF' : colors.sub, fontWeight: '700' }}>Gasto Fijo</Text>
-                                    </TouchableOpacity>
-                                </View>
+                                {!isEditing && (
+                                    <View style={styles.typeSelector}>
+                                        <TouchableOpacity 
+                                            style={[styles.typeBtn, viewMode === 'debt' && { backgroundColor: colors.accent }]}
+                                            onPress={() => setViewMode('debt')}
+                                        >
+                                            <Text style={{ color: viewMode === 'debt' ? '#FFF' : colors.sub, fontWeight: '700' }}>Deuda</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity 
+                                            style={[styles.typeBtn, viewMode === 'fixed' && { backgroundColor: colors.accent }]}
+                                            onPress={() => setViewMode('fixed')}
+                                        >
+                                            <Text style={{ color: viewMode === 'fixed' ? '#FFF' : colors.sub, fontWeight: '700' }}>Gasto Fijo</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
 
                                 <TextInput 
                                     style={[styles.input, { backgroundColor: isDark ? '#334155' : '#F1F5F9', color: colors.text }]}
