@@ -83,8 +83,8 @@ export default function TabLayout() {
           title: 'Añadir',
           href: '/explore',
           tabBarIcon: ({ focused }) => {
-            const currentPath = pathname.split('/').pop() || '';
-            const isDisabled = currentPath === 'debts' || currentPath === 'goals' || currentPath === 'cards';
+            const path = pathname.toLowerCase();
+            const isDisabled = path.includes('debts') || path.includes('goals') || path.includes('cards') || path.includes('budgets');
             
             return (
               <View style={[styles.fabButton, isDisabled && styles.fabButtonDisabled, isDark && !isDisabled && { backgroundColor: '#4F46E5' }]}>
@@ -96,8 +96,8 @@ export default function TabLayout() {
         }}
         listeners={{
           tabPress: (e) => {
-            const currentPath = pathname.split('/').pop() || '';
-            if (currentPath === 'debts' || currentPath === 'goals' || currentPath === 'cards') {
+            const path = pathname.toLowerCase();
+            if (path.includes('debts') || path.includes('goals') || path.includes('cards') || path.includes('budgets')) {
               e.preventDefault();
             }
           },
