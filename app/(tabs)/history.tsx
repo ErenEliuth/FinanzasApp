@@ -2,7 +2,7 @@ import { useAuth } from '@/utils/auth';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Alert,
     Dimensions,
@@ -10,7 +10,6 @@ import {
     RefreshControl,
     SafeAreaView,
     ScrollView,
-    SectionList,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -20,33 +19,29 @@ import { PieChart } from 'react-native-chart-kit';
 
 const screenWidth = Dimensions.get('window').width;
 
-const CAT_COLORS: Record<string, string> = {
-    'Comida':          '#F43F5E',
-    'Transporte':      '#6366F1',
-    'Hogar':           '#F97316',
-    'Salud':           '#10B981',
-    'Educación':       '#3B82F6',
-    'Entretenimiento': '#EC4899',
-    'Deudas':          '#EF4444',
-    'Gasto Fijo':      '#F59E0B',
-    'Ropa':            '#8B5CF6',
-    'Recibos':         '#64748B',
-    'Gimnasio':        '#14B8A6',
+// ─── Sanctuary Theme Colors ───────────────────────────────────────────
+const getColors = (t: string) => {
+    if (t === 'dark') {
+        return {
+            bg: '#1A1A2E', card: '#25253D', text: '#F5F0E8', sub: '#A09B8C',
+            border: '#3A3A52', accent: '#4A7C59', cardBg: '#2A2A42',
+            warmBg: '#1A1A2E',
+        };
+    }
+    return {
+        bg: '#FFF8F0', card: '#FFFFFF', text: '#2D2D2D', sub: '#8B8680',
+        border: '#F0E8DC', accent: '#4A7C59', cardBg: '#FFF5EB',
+        warmBg: '#FFF8F0',
+    };
 };
-const FALLBACK_COLORS = ['#6366F1','#10B981','#F59E0B','#EC4899','#3B82F6','#F97316','#8B5CF6','#14B8A6'];
+
+const PIE_COLORS = ['#4A7C59', '#8B5CF6', '#F59E0B', '#3B82F6', '#EF4444', '#00BCD4', '#E91E63'];
 
 export default function HistoryScreen() {
     const isFocused = useIsFocused();
     const { user, theme, isHidden } = useAuth();
     const isDark = theme === 'dark';
-
-    const colors = {
-        bg: isDark ? '#0F172A' : '#F4F6FF',
-        card: isDark ? '#1E293B' : '#FFFFFF',
-        text: isDark ? '#F1F5F9' : '#1E293B',
-        sub: isDark ? '#94A3B8' : '#64748B',
-        border: isDark ? '#334155' : '#F1F5F9',
-    };
+    const colorsNav = getColors(theme);
 
     const [transactions, setTransactions] = useState<any[]>([]);
     const [refreshing, setRefreshing] = useState(false);
@@ -80,8 +75,9 @@ export default function HistoryScreen() {
     };
 
     const handleDelete = (tx: any) => {
+        const desc = tx.description === 'Sin descripción' || !tx.description ? tx.category : tx.description;
         if (Platform.OS === 'web') {
-            if (window.confirm(`¿Quieres eliminar "${tx.description}"?`)) {
+            if (window.confirm(`¿Quieres eliminar "${desc}"?`)) {
                 (async () => {
                     const { error } = await supabase.from('transactions').delete().eq('id', tx.id);
                     if (!error) setTransactions(prev => prev.filter(t => t.id !== tx.id));
@@ -91,7 +87,7 @@ export default function HistoryScreen() {
         }
         Alert.alert(
             'Eliminar transacción',
-            `¿Quieres eliminar "${tx.description}"?`,
+            `¿Quieres eliminar "${desc}"?`,
             [
                 { text: 'Cancelar', style: 'cancel' },
                 {
@@ -111,11 +107,11 @@ export default function HistoryScreen() {
     const currMonth = today.getMonth();
     const currYear = today.getFullYear();
 
-    const totalIngresos = transactions.filter(t => t.type === 'income' && t.category !== 'Transferencia').reduce((s, t) => s + t.amount, 0);
+    const totalIngresos = transactions.filter(t => t.type === 'income' && t.category !== 'Transferencia' && t.category !== 'Ahorro').reduce((s, t) => s + t.amount, 0);
     const totalGastos = transactions.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia').reduce((s, t) => s + t.amount, 0);
     const totalAhorro = transactions.filter(t => t.category === 'Ahorro').reduce((s, t) => s + t.amount, 0);
 
-    // Datos para el gráfico de torta (gastos del mes actual por categoría)
+    // Datos para el gráfico
     const monthExpenses = transactions.filter(t => {
         const d = new Date(t.date);
         return t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && d.getMonth() === currMonth && d.getFullYear() === currYear;
@@ -130,8 +126,8 @@ export default function HistoryScreen() {
         .map(([name, amount], i) => ({
             name,
             amount,
-            color: CAT_COLORS[name] || FALLBACK_COLORS[i % FALLBACK_COLORS.length],
-            legendFontColor: isDark ? '#94A3B8' : '#64748B',
+            color: PIE_COLORS[i % PIE_COLORS.length],
+            legendFontColor: colorsNav.sub,
             legendFontSize: 12,
         }));
 
@@ -142,173 +138,167 @@ export default function HistoryScreen() {
                 style: 'currency', currency: 'COP', minimumFractionDigits: 0
               }).format(n);
 
-    const fmtDate = (iso: string) => {
-        if (!iso) return '';
-        const d = new Date(iso);
-        const day = d.getDate().toString().padStart(2, '0');
-        const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-        const month = months[d.getMonth()];
-        return `${day} ${month}`;
+    const getTxIconInfo = (tx: any) => {
+        if (tx.type === 'income') {
+            if (tx.category === 'Transferencia') return { icon: 'swap-horiz', bg: '#E3F0FF', color: '#3B82F6' };
+            return { icon: 'call-received', bg: '#E3F0FF', color: '#3B82F6' };
+        }
+        if (tx.category === 'Ahorro') return { icon: 'savings', bg: '#F0E6FF', color: '#8B5CF6' };
+        if (tx.category === 'Comida' || tx.category === 'Supermercado') return { icon: 'shopping-cart', bg: '#FFF0E0', color: '#F59E0B' };
+        if (tx.category === 'Transporte') return { icon: 'directions-car', bg: '#E0F7FA', color: '#00BCD4' };
+        if (tx.category === 'Salud') return { icon: 'favorite', bg: '#FCE4EC', color: '#E91E63' };
+        if (tx.category === 'Hogar') return { icon: 'home', bg: '#E8F5E9', color: '#4CAF50' };
+        if (tx.category === 'Transferencia') return { icon: 'swap-horiz', bg: '#E3F0FF', color: '#3B82F6' };
+        return { icon: 'bolt', bg: '#FFF8E1', color: '#FF9800' };
     };
 
-    const getIcon = (tx: any) => {
-        if (tx.category === 'Ahorro') return 'wallet';
-        if (tx.type === 'income') return 'trending-up';
-        return 'trending-down';
+    const formatTxDate = (dateStr: string) => {
+        const txDate = new Date(dateStr);
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        const isToday = txDate.toDateString() === today.toDateString();
+        const isYesterday = txDate.toDateString() === yesterday.toDateString();
+
+        const timeStr = txDate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+        if (isToday) return `HOY, ${timeStr}`;
+        if (isYesterday) return `AYER, ${timeStr}`;
+        return `${txDate.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }).toUpperCase()}, ${timeStr}`;
     };
-
-    const getIconColor = (tx: any) =>
-        tx.category === 'Ahorro' ? (isDark ? '#A5B4FC' : '#6366F1') :
-            tx.type === 'income' ? '#10B981' : '#EF4444';
-
-    const getIconBg = (tx: any) =>
-        tx.category === 'Ahorro' ? 'rgba(99,102,241,0.12)' :
-            tx.type === 'income' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)';
-
-    const getLabel = (tx: any) =>
-        tx.category === 'Ahorro' ? 'Ahorro' :
-            tx.type === 'income' ? 'Ingreso' : 'Gasto';
-
-    const getBadgeBg = (tx: any) =>
-        tx.category === 'Ahorro' ? 'rgba(99,102,241,0.12)' :
-            tx.type === 'income' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)';
-
-
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-            {/* Header */}
-            <View style={[styles.header, { backgroundColor: colors.bg }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: colorsNav.bg }]}>
+            {/* ── Header ────────────────────────────────────────────────── */}
+            <View style={styles.header}>
                 <View>
-                    <Text style={[styles.headerTitle, { color: colors.text }]}>Historial</Text>
-                    <Text style={[styles.headerSub, { color: colors.sub }]}>{transactions.length} transacciones</Text>
+                    <Text style={[styles.headerTitle, { color: colorsNav.text }]}>Historial</Text>
+                    <Text style={[styles.headerSub, { color: colorsNav.sub }]}>{transactions.length} transacciones registradas</Text>
                 </View>
-                <View style={{ flexDirection: 'row', gap: 10 }}>
-                    <TouchableOpacity
-                        style={[styles.chartToggleBtn, { backgroundColor: showChart ? '#6366F1' : (isDark ? '#334155' : '#E0E7FF') }]}
-                        onPress={() => setShowChart(!showChart)}
-                    >
-                        <Ionicons name="pie-chart" size={16} color={showChart ? '#FFF' : '#6366F1'} />
-                        <Text style={[styles.chartToggleText, { color: showChart ? '#FFF' : '#6366F1' }]}>
-                            {showChart ? 'Ocultar' : 'Gráfico'}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
+                <TouchableOpacity
+                    style={[styles.chartToggleBtn, { backgroundColor: showChart ? colorsNav.accent : (isDark ? '#3A3A52' : '#F5EDE0') }]}
+                    onPress={() => setShowChart(!showChart)}
+                >
+                    <Ionicons name="pie-chart" size={16} color={showChart ? '#FFF' : colorsNav.accent} />
+                    <Text style={[styles.chartToggleText, { color: showChart ? '#FFF' : colorsNav.accent }]}>
+                        {showChart ? 'Ver Lista' : 'Gráfico'}
+                    </Text>
+                </TouchableOpacity>
             </View>
 
-            {/* Summary cards */}
-            <View style={styles.summaryRow}>
-                <View style={[styles.summaryCard, { backgroundColor: 'rgba(16,185,129,0.1)' }]}>
-                    <MaterialIcons name="trending-up" size={15} color="#10B981" />
-                    <Text style={styles.summaryLabel}>Ingresos</Text>
-                    <Text style={[styles.summaryValue, { color: '#10B981' }]}>{fmt(totalIngresos)}</Text>
-                </View>
-                <View style={[styles.summaryCard, { backgroundColor: 'rgba(239,68,68,0.1)' }]}>
-                    <MaterialIcons name="trending-down" size={15} color="#EF4444" />
-                    <Text style={styles.summaryLabel}>Gastos</Text>
-                    <Text style={[styles.summaryValue, { color: '#EF4444' }]}>{fmt(totalGastos)}</Text>
-                </View>
-                <View style={[styles.summaryCard, { backgroundColor: 'rgba(99,102,241,0.1)' }]}>
-                    <Ionicons name="wallet" size={15} color="#6366F1" />
-                    <Text style={styles.summaryLabel}>Ahorro</Text>
-                    <Text style={[styles.summaryValue, { color: '#6366F1' }]}>{fmt(totalAhorro)}</Text>
-                </View>
-            </View>
-
-            {/* Gráfico de torta */}
-            {showChart && pieData.length > 0 && (
-                <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
-                    <Text style={[styles.chartTitle, { color: colors.text }]}>Gastos este mes por categoría</Text>
-                    <PieChart
-                        data={pieData}
-                        width={screenWidth - 32}
-                        height={180}
-                        chartConfig={{
-                            color: (opacity = 1) => `rgba(99, 102, 241, ${opacity})`,
-                            backgroundColor: 'transparent',
-                            backgroundGradientFrom: 'transparent',
-                            backgroundGradientTo: 'transparent',
-                        }}
-                        accessor="amount"
-                        backgroundColor="transparent"
-                        paddingLeft="10"
-                        absolute={false}
-                    />
-                </View>
-            )}
-            {showChart && pieData.length === 0 && (
-                <View style={[styles.chartCard, { backgroundColor: colors.card, alignItems: 'center', paddingVertical: 24 }]}>
-                    <Ionicons name="pie-chart-outline" size={36} color={colors.sub} />
-                    <Text style={[styles.chartEmptyText, { color: colors.sub }]}>Sin gastos registrados este mes</Text>
-                </View>
-            )}
-
-            {/* Lista de transacciones */}
-            <ScrollView
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />}
-            >
-                {transactions.length === 0 ? (
-                    <View style={styles.emptyWrap}>
-                        <MaterialIcons name="receipt-long" size={48} color="#CBD5E1" />
-                        <Text style={styles.emptyTitle}>Sin transacciones</Text>
-                        <Text style={styles.emptySub}>Tus movimientos aparecerán aquí</Text>
+            {/* ── Resumen Rápido Sanctuary ──────────────────────────────── */}
+            {!showChart && (
+                <View style={styles.summaryRow}>
+                    <View style={[styles.summaryCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
+                        <View style={[styles.miniIcon, { backgroundColor: '#E3F0FF' }]}>
+                            <MaterialIcons name="call-received" size={12} color="#3B82F6" />
+                        </View>
+                        <Text style={[styles.summaryLabel, { color: colorsNav.sub }]}>INGRESOS</Text>
+                        <Text style={[styles.summaryValue, { color: colorsNav.text }]}>{fmt(totalIngresos)}</Text>
                     </View>
-                ) : (
-                    transactions.map(tx => (
-                        <TouchableOpacity
-                            key={tx.id}
-                            style={[styles.txCard, { backgroundColor: colors.card }]}
-                            onLongPress={() => handleDelete(tx)}
-                            activeOpacity={0.8}
-                        >
-                            {/* Icono */}
-                            <View style={[styles.txIconCircle, { backgroundColor: getIconBg(tx) }]}>
-                                {tx.category === 'Ahorro'
-                                    ? <Ionicons name="wallet" size={18} color={getIconColor(tx)} />
-                                    : <MaterialIcons name={getIcon(tx) as any} size={18} color={getIconColor(tx)} />
-                                }
-                            </View>
+                    <View style={[styles.summaryCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
+                        <View style={[styles.miniIcon, { backgroundColor: '#FFEBEE' }]}>
+                            <MaterialIcons name="call-made" size={12} color="#EF4444" />
+                        </View>
+                        <Text style={[styles.summaryLabel, { color: colorsNav.sub }]}>GASTOS</Text>
+                        <Text style={[styles.summaryValue, { color: colorsNav.text }]}>{fmt(totalGastos)}</Text>
+                    </View>
+                    <View style={[styles.summaryCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
+                        <View style={[styles.miniIcon, { backgroundColor: '#F0E6FF' }]}>
+                            <MaterialIcons name="savings" size={12} color="#8B5CF6" />
+                        </View>
+                        <Text style={[styles.summaryLabel, { color: colorsNav.sub }]}>AHORRO</Text>
+                        <Text style={[styles.summaryValue, { color: colorsNav.text }]}>{fmt(totalAhorro)}</Text>
+                    </View>
+                </View>
+            )}
 
-                            {/* Info */}
-                            <View style={styles.txInfo}>
-                                <Text style={[styles.txDesc, { color: colors.text }]} numberOfLines={1}>
-                                    {tx.description === 'Sin descripción' || !tx.description ? tx.category : tx.description}
-                                </Text>
-                                <View style={styles.txMeta}>
-                                    <View style={[styles.catBadge, { backgroundColor: colors.border }]}>
-                                        <Text style={[styles.catText, { color: colors.sub }]} numberOfLines={1}>{tx.category}</Text>
+            {/* ── Gráfico de Gastos ────────────────────────────────────── */}
+            {showChart && (
+                <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+                    {pieData.length > 0 ? (
+                        <View style={[styles.chartCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
+                            <Text style={[styles.chartTitle, { color: colorsNav.text }]}>Distribución de Gastos (Mes Actual)</Text>
+                            <PieChart
+                                data={pieData}
+                                width={screenWidth - 40}
+                                height={220}
+                                chartConfig={{
+                                    color: (opacity = 1) => `rgba(74, 124, 89, ${opacity})`,
+                                }}
+                                accessor="amount"
+                                backgroundColor="transparent"
+                                paddingLeft="15"
+                                absolute={false}
+                            />
+                        </View>
+                    ) : (
+                        <View style={[styles.chartCard, { backgroundColor: isDark ? colorsNav.card : '#FFF', alignItems: 'center', paddingVertical: 40 }]}>
+                            <Ionicons name="pie-chart-outline" size={48} color={colorsNav.sub} />
+                            <Text style={[styles.chartEmptyText, { color: colorsNav.sub }]}>No hay gastos registrados este mes</Text>
+                        </View>
+                    )}
+                </ScrollView>
+            )}
+
+            {/* ── Lista de Transacciones ────────────────────────────────── */}
+            {!showChart && (
+                <ScrollView
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colorsNav.accent} />}
+                >
+                    {transactions.length === 0 ? (
+                        <View style={styles.emptyWrap}>
+                            <MaterialIcons name="receipt-long" size={60} color={isDark ? '#3A3A52' : '#E0D8CC'} />
+                            <Text style={[styles.emptyTitle, { color: colorsNav.text }]}>Sin movimientos</Text>
+                            <Text style={[styles.emptySub, { color: colorsNav.sub }]}>Tus transacciones aparecerán aquí</Text>
+                        </View>
+                    ) : (
+                        transactions.map(tx => {
+                            const iconInfo = getTxIconInfo(tx);
+                            return (
+                                <TouchableOpacity
+                                    key={tx.id}
+                                    style={[styles.txCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}
+                                    onLongPress={() => handleDelete(tx)}
+                                    activeOpacity={0.8}
+                                >
+                                    <View style={[styles.txIcon, { backgroundColor: isDark ? colorsNav.cardBg : iconInfo.bg }]}>
+                                        <MaterialIcons name={iconInfo.icon as any} size={20} color={iconInfo.color} />
                                     </View>
-                                    {tx.account && tx.account !== 'Ahorro' && (
-                                        <View style={[styles.accBadge, { borderColor: colors.border, borderWidth: 1 }]}>
-                                            <Text style={[styles.accDate, { color: colors.sub }]} numberOfLines={1}>{tx.account}</Text>
-                                        </View>
-                                    )}
-                                    <Text style={[styles.txDate, { color: colors.sub }]}>{fmtDate(tx.date)}</Text>
-                                </View>
-                            </View>
 
-                            {/* Monto y tipo */}
-                            <View style={styles.txRight}>
-                                <Text style={[
-                                    styles.txAmount,
-                                    { color: getIconColor(tx) }
-                                ]}>
-                                    {tx.category === 'Ahorro' ? '' : (tx.type === 'income' ? '+' : '-')}{fmt(tx.amount)}
-                                </Text>
-                                <View style={[styles.typePill, { backgroundColor: getBadgeBg(tx) }]}>
-                                    <Text style={[styles.typeLabel, { color: getIconColor(tx) }]}>
-                                        {getLabel(tx)}
-                                    </Text>
-                                </View>
-                            </View>
-                        </TouchableOpacity>
-                    ))
-                )}
-                <Text style={styles.swipeHint}>💡 Mantén presionada una transacción para eliminarla</Text>
-                <View style={{ height: 100 }} />
-            </ScrollView>
+                                    <View style={styles.txInfo}>
+                                        <Text style={[styles.txTitle, { color: colorsNav.text }]} numberOfLines={1}>
+                                            {tx.description === 'Sin descripción' || !tx.description ? tx.category : tx.description}
+                                        </Text>
+                                        <View style={styles.txMeta}>
+                                            <Text style={[styles.txSub, { color: colorsNav.sub }]}>{formatTxDate(tx.date)}</Text>
+                                            <View style={styles.dot} />
+                                            <Text style={[styles.txSub, { color: colorsNav.sub }]} numberOfLines={1}>{tx.category}</Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.txRight}>
+                                        <Text style={[
+                                            styles.txAmount,
+                                            tx.category === 'Ahorro' ? { color: '#8B5CF6' } : (tx.type === 'income' ? { color: '#4A7C59' } : { color: '#EF4444' })
+                                        ]}>
+                                            {tx.type === 'income' ? '+' : '-'}{fmt(tx.amount)}
+                                        </Text>
+                                        {(tx.account && tx.account !== 'Ahorro') && (
+                                            <Text style={[styles.accText, { color: colorsNav.sub }]}>{tx.account}</Text>
+                                        )}
+                                    </View>
+                                </TouchableOpacity>
+                            );
+                        })
+                    )}
+                    <Text style={[styles.swipeHint, { color: colorsNav.sub }]}>💡 Mantén presionada una transacción para eliminarla</Text>
+                    <View style={{ height: 120 }} />
+                </ScrollView>
+            )}
         </SafeAreaView>
     );
 }
@@ -321,63 +311,61 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingTop: Platform.OS === 'android' ? 50 : 20,
-        paddingBottom: 12,
+        paddingBottom: 20,
     },
-    headerTitle: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
-    headerSub: { fontSize: 13, fontWeight: '500', marginTop: 2 },
+    headerTitle: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
+    headerSub: { fontSize: 13, fontWeight: '500', marginTop: 4 },
     chartToggleBtn: {
-        flexDirection: 'row', alignItems: 'center', gap: 5,
-        paddingHorizontal: 12, paddingVertical: 8,
-        borderRadius: 12,
+        flexDirection: 'row', alignItems: 'center', gap: 6,
+        paddingHorizontal: 14, paddingVertical: 10,
+        borderRadius: 14,
     },
-    chartToggleText: { fontSize: 12, fontWeight: '700' },
-    chartCard: {
-        marginHorizontal: 16, marginBottom: 12,
-        borderRadius: 20, padding: 16,
-        shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
-    },
-    chartTitle: { fontSize: 14, fontWeight: '800', marginBottom: 10, textAlign: 'center' },
-    chartEmptyText: { fontSize: 13, marginTop: 8, fontWeight: '500' },
+    chartToggleText: { fontSize: 13, fontWeight: '700' },
 
     summaryRow: {
         flexDirection: 'row', gap: 10,
-        paddingHorizontal: 20, marginBottom: 16,
+        paddingHorizontal: 20, marginBottom: 20,
     },
     summaryCard: {
-        flex: 1, borderRadius: 16, padding: 12, alignItems: 'center', gap: 4,
+        flex: 1, borderRadius: 18, padding: 14, gap: 6,
+        shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 10, elevation: 2,
     },
-    summaryLabel: { fontSize: 10, fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.3 },
+    miniIcon: {
+        width: 24, height: 24, borderRadius: 8, justifyContent: 'center', alignItems: 'center',
+    },
+    summaryLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 0.8 },
     summaryValue: { fontSize: 13, fontWeight: '800' },
 
     listContent: { paddingHorizontal: 20 },
+    chartCard: {
+        marginHorizontal: 20, borderRadius: 24, padding: 20, marginTop: 10,
+        shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 15, elevation: 3,
+    },
+    chartTitle: { fontSize: 16, fontWeight: '800', marginBottom: 20, textAlign: 'center' },
+    chartEmptyText: { fontSize: 14, marginTop: 12, fontWeight: '600' },
 
-    emptyWrap: { alignItems: 'center', paddingTop: 60, gap: 8 },
-    emptyTitle: { fontSize: 17, fontWeight: '700', color: '#94A3B8' },
-    emptySub: { fontSize: 14, color: '#CBD5E1' },
+    emptyWrap: { alignItems: 'center', paddingTop: 80, gap: 12 },
+    emptyTitle: { fontSize: 18, fontWeight: '800' },
+    emptySub: { fontSize: 14, textAlign: 'center' },
 
     txCard: {
         flexDirection: 'row', alignItems: 'center',
-        borderRadius: 18, padding: 14, marginBottom: 10,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
+        borderRadius: 20, padding: 14, marginBottom: 10,
+        shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 10, elevation: 2,
     },
-    txIconCircle: {
-        width: 42, height: 42, borderRadius: 14,
-        justifyContent: 'center', alignItems: 'center', marginRight: 12,
+    txIcon: {
+        width: 44, height: 44, borderRadius: 14,
+        justifyContent: 'center', alignItems: 'center',
     },
-    txInfo: { flex: 1, gap: 5 },
-    txDesc: { fontSize: 15, fontWeight: '700' },
-    txMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    catBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
-    catText: { fontSize: 11, fontWeight: '600' },
-    txDate: { fontSize: 11 },
+    txInfo: { flex: 1, marginLeft: 14 },
+    txTitle: { fontSize: 15, fontWeight: '700' },
+    txMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+    txSub: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.3 },
+    dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#CBD5E1' },
 
-    txRight: { alignItems: 'flex-end', gap: 5 },
+    txRight: { alignItems: 'flex-end' },
     txAmount: { fontSize: 15, fontWeight: '800' },
-    typePill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
-    typeLabel: { fontSize: 9, fontWeight: '800', textTransform: 'uppercase' },
+    accText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginTop: 4, letterSpacing: 0.5 },
 
-    swipeHint: { textAlign: 'center', fontSize: 11, color: '#CBD5E1', marginTop: 12 },
-    accBadge: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6 },
-    accDate: { fontSize: 9, fontWeight: '700', textTransform: 'uppercase' },
+    swipeHint: { textAlign: 'center', fontSize: 12, marginTop: 24, fontWeight: '500' },
 });

@@ -50,6 +50,7 @@
 - ✅ Formato de fecha en transacciones: "HOY, 10:45 AM" en vez de fecha larga
 - ✅ Badge de % en tarjeta de balance (ej: "+12.5% este mes")
 - ✅ Tab bar: FAB verde, colores cálidos, bordes crema
+- ✅ Historial: rediseño completo con iconos Sanctuary y resumen minimalista
 - ✅ Tema dark actualizado a paleta cálida oscura (`#1A1A2E`)
 
 **Mecánicas conservadas (NO tocar):**
