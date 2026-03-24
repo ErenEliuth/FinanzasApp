@@ -401,8 +401,8 @@ export default function AddTransactionScreen() {
                 </ScrollView>
               </View>
 
-              {/* Tarjetas de Crédito */}
-              {cardNames.length > 0 && (
+              {/* Tarjetas de Crédito (Solo para Ingreso o Gasto) */}
+              {cardNames.length > 0 && type !== 'ahorro' && type !== 'transfer' && (
                 <View style={styles.section}>
                   <Text style={[styles.sectionTitle, { color: colors.text }]}>Tarjetas de Crédito</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
@@ -461,26 +461,7 @@ export default function AddTransactionScreen() {
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
-                  
-                  {cardNames.filter(a => a !== account).length > 0 && (
-                    <View style={{ marginTop: 12 }}>
-                      <Text style={[styles.sectionTitle, { color: colors.text, fontSize: 13, marginBottom: 8 }]}>Pagar Tarjeta</Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                        {cardNames.filter(a => a !== account).map(acc => (
-                          <TouchableOpacity
-                            key={acc}
-                            style={[styles.chip, { backgroundColor: colors.bg, borderColor: '#6366F140', borderWidth: 1 }, destAccount === acc && { backgroundColor: '#6366F1', borderColor: '#6366F1' }]}
-                            onPress={() => setDestAccount(acc)}
-                          >
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <MaterialIcons name="credit-card" size={14} color={destAccount === acc ? '#FFF' : '#6366F1'} />
-                              <Text style={[styles.chipText, { color: colors.sub }, destAccount === acc && { color: '#FFF' }]}>{acc}</Text>
-                            </View>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-                    </View>
-                  )}
+                  {/* Nota: Las tarjetas se ocultan para Mover y Ahorro según petición del usuario */}
               </View>
               )}
             </View>
