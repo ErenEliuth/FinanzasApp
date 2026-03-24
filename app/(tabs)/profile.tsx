@@ -274,9 +274,14 @@ export default function ProfileScreen() {
     const [activeDays, setActiveDays] = useState<Map<string, number>>(new Map());
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [statsModalVisible, setStatsModalVisible] = useState(false);
+    const [weeklyModalVisible, setWeeklyModalVisible] = useState(false);
     const [newName, setNewName] = useState(user?.user_metadata?.name || '');
     const [avatarUri, setAvatarUri] = useState<string | null>(null);
+    
     const [weeklySpending, setWeeklySpending] = useState(0);
+    const [weeklyTopCat, setWeeklyTopCat] = useState('');
+    const [weeklyTopAmt, setWeeklyTopAmt] = useState(0);
+    const [weeklySummaryData, setWeeklySummaryData] = useState<[string, number][]>([]);
 
     useEffect(() => { if (isFocused) loadData(); }, [isFocused]);
 
@@ -302,10 +307,25 @@ export default function ProfileScreen() {
             // Calcular resumen semanal (últimos 7 días)
             const weekAgo = new Date();
             weekAgo.setDate(weekAgo.getDate() - 7);
-            const totalWeek = txs
-                .filter(t => t.type === 'expense' && t.category !== 'Ahorro' && new Date(t.date) >= weekAgo)
-                .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+            const weekTxs = txs.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && new Date(t.date) >= weekAgo);
+            
+            const totalWeek = weekTxs.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
             setWeeklySpending(totalWeek);
+
+            const catMap: Record<string, number> = {};
+            weekTxs.forEach(t => {
+                const c = t.category || 'Otros';
+                catMap[c] = (catMap[c] || 0) + Math.abs(t.amount || 0);
+            });
+            const sorted = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
+            setWeeklySummaryData(sorted);
+            if (sorted[0]) {
+                setWeeklyTopCat(sorted[0][0]);
+                setWeeklyTopAmt(sorted[0][1]);
+            } else {
+                setWeeklyTopCat('');
+                setWeeklyTopAmt(0);
+            }
 
         } catch (e) { console.error(e); }
     };
@@ -414,15 +434,27 @@ export default function ProfileScreen() {
                         <Text style={[styles.optSub, { color: colorsNav.sub }]}>Control Mensual</Text>
                     </TouchableOpacity>
 
-                    {/* Resumen Semanal Card */}
-                    <View style={[styles.optBtn, { backgroundColor: colorsNav.card }]}>
+                    {/* Resumen Semanal Card Interactive */}
+                    <TouchableOpacity 
+                        style={[styles.optBtn, { backgroundColor: colorsNav.card, borderColor: '#EF444420', borderWidth: 1 }]}
+                        onPress={() => setWeeklyModalVisible(true)}
+                    >
                         <View style={[styles.optIcon, { backgroundColor: '#FFF0F0' }]}>
                             <MaterialIcons name="calendar-today" size={24} color="#EF4444" />
                         </View>
                         <Text style={[styles.optTitle, { color: colorsNav.text }]}>Resumen Semanal</Text>
-                        <Text style={[styles.optSub, { color: '#EF4444', fontWeight: '800' }]}>{fmtCOP(weeklySpending, isHidden)}</Text>
-                        <Text style={[styles.optSub, { color: colorsNav.sub, fontSize: 10 }]}>Últimos 7 días</Text>
-                    </View>
+                        <View style={{ marginTop: 2 }}>
+                            <Text style={{ color: '#EF4444', fontWeight: '900', fontSize: 13 }}>{fmtCOP(weeklySpending, isHidden)}</Text>
+                            {weeklyTopCat ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 }}>
+                                    <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#EF444430' }} />
+                                    <Text style={{ fontSize: 9, color: colorsNav.sub, fontWeight: '700' }} numberOfLines={1}>
+                                        Top: {weeklyTopCat}
+                                    </Text>
+                                </View>
+                            ) : null}
+                        </View>
+                    </TouchableOpacity>
                 </View>
 
                 <View style={{ height: 120 }} />
@@ -447,7 +479,7 @@ export default function ProfileScreen() {
                 </View>
             </Modal>
 
-            {/* Modal Estadísticas */}
+            {/* Modal Estadísticas Generales */}
             <Modal visible={statsModalVisible} animationType="slide">
                 <SafeAreaView style={{ flex: 1, backgroundColor: colorsNav.bg }}>
                     <View style={styles.modalHeader}>
@@ -463,6 +495,62 @@ export default function ProfileScreen() {
                     </ScrollView>
                 </SafeAreaView>
             </Modal>
+
+            {/* Modal Resumen Semanal Interactivo */}
+            <Modal visible={weeklyModalVisible} animationType="slide" transparent>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
+                    <View style={[styles.weeklyBottomModal, { backgroundColor: colorsNav.card }]}>
+                        <View style={styles.modalHandle} />
+                        <View style={styles.modalHeaderInner}>
+                            <Text style={[styles.weeklyModalTitle, { color: colorsNav.text }]}>Análisis Semanal</Text>
+                            <TouchableOpacity onPress={() => setWeeklyModalVisible(false)}>
+                                <MaterialIcons name="close" size={24} color={colorsNav.sub} />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        <View style={styles.weeklyHero}>
+                            <Text style={styles.weeklyHeroLabel}>Total Gastado (7 días)</Text>
+                            <Text style={[styles.weeklyHeroAmt, { color: '#EF4444' }]}>{fmtCOP(weeklySpending, isHidden)}</Text>
+                            <Text style={[styles.weeklyHeroSub, { color: colorsNav.sub }]}>Últimas transacciones registradas</Text>
+                        </View>
+
+                        {weeklyTopCat ? (
+                            <View style={[styles.insightCard, { backgroundColor: '#FF8A6515' }]}>
+                                <MaterialIcons name="warning" size={20} color="#FF8A65" />
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.insightTitle, { color: colorsNav.text }]}>Aviso de Control</Text>
+                                    <Text style={[styles.insightText, { color: colorsNav.sub }]}>
+                                        Tu mayor gasto ha sido en <Text style={{ fontWeight: '800', color: colorsNav.text }}>{weeklyTopCat}</Text> por {fmtCOP(weeklyTopAmt, isHidden)}. ¡Ojo ahí!
+                                    </Text>
+                                </View>
+                            </View>
+                        ) : null}
+
+                        <Text style={[styles.catLabel, { color: colorsNav.text }]}>DESGLOSE POR CATEGORÍA</Text>
+                        <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 300 }}>
+                            {weeklySummaryData.map(([cat, amt]) => {
+                                const info = CAT_INFO[cat] || CAT_INFO['Otros'];
+                                return (
+                                    <View key={cat} style={styles.weekCatRow}>
+                                        <View style={[styles.weekCatIcon, { backgroundColor: info.bg }]}>
+                                            <MaterialIcons name={info.icon} size={18} color={info.color} />
+                                        </View>
+                                        <Text style={[styles.weekCatName, { color: colorsNav.text }]}>{cat}</Text>
+                                        <Text style={[styles.weekCatAmt, { color: colorsNav.text }]}>{fmtCOP(amt, isHidden)}</Text>
+                                    </View>
+                                );
+                            })}
+                            {weeklySummaryData.length === 0 && (
+                                <Text style={{ color: colorsNav.sub, textAlign: 'center', marginVertical: 20 }}>No hay gastos en la última semana.</Text>
+                            )}
+                        </ScrollView>
+
+                        <TouchableOpacity style={[styles.closeModalBtn, { backgroundColor: colorsNav.accent }]} onPress={() => setWeeklyModalVisible(false)}>
+                            <Text style={styles.closeModalBtnTxt}>Entendido</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -474,7 +562,7 @@ const styles = StyleSheet.create({
     themeBtn: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
     scroll: { padding: 20 },
 
-    profileCard: { borderRadius: 28, padding: 24, marginBottom: 16 },
+    profileCard: { borderRadius: 28, padding: 24, marginBottom: 16, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
     profileTop: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20 },
     avatar: { width: 64, height: 64, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
     avatarImg: { width: 64, height: 64, borderRadius: 24 },
@@ -488,9 +576,9 @@ const styles = StyleSheet.create({
     actionBtnTxt: { fontSize: 13, fontWeight: '800' },
 
     optionsGrid: { flexDirection: 'row', gap: 16, marginBottom: 16 },
-    optBtn: { flex: 1, padding: 20, borderRadius: 24, gap: 4, justifyContent: 'flex-start' },
-    optIcon: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
-    optTitle: { fontSize: 14, fontWeight: '800' },
+    optBtn: { flex: 1, padding: 18, borderRadius: 24, gap: 4, justifyContent: 'flex-start' },
+    optIcon: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
+    optTitle: { fontSize: 13, fontWeight: '800' },
     optSub: { fontSize: 11, fontWeight: '600', opacity: 0.6 },
 
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
@@ -503,4 +591,24 @@ const styles = StyleSheet.create({
 
     modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? 40 : 10, paddingBottom: 10 },
     modalHeaderTitle: { fontSize: 18, fontWeight: '800' },
+
+    // Weekly Modal
+    weeklyBottomModal: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40 },
+    modalHandle: { width: 40, height: 5, borderRadius: 3, backgroundColor: '#E0D8CC', alignSelf: 'center', marginBottom: 20 },
+    modalHeaderInner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+    weeklyModalTitle: { fontSize: 20, fontWeight: '800' },
+    weeklyHero: { alignItems: 'center', marginBottom: 24 },
+    weeklyHeroLabel: { fontSize: 12, fontWeight: '700', color: '#8B8680', letterSpacing: 1 },
+    weeklyHeroAmt: { fontSize: 36, fontWeight: '900', marginVertical: 4 },
+    weeklyHeroSub: { fontSize: 12 },
+    insightCard: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 18, borderRadius: 20, marginBottom: 20 },
+    insightTitle: { fontSize: 14, fontWeight: '800', marginBottom: 2 },
+    insightText: { fontSize: 13, lineHeight: 18 },
+    catLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 16 },
+    weekCatRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+    weekCatIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+    weekCatName: { flex: 1, fontSize: 14, fontWeight: '700' },
+    weekCatAmt: { fontSize: 14, fontWeight: '800' },
+    closeModalBtn: { padding: 18, borderRadius: 20, alignItems: 'center', marginTop: 24 },
+    closeModalBtnTxt: { color: '#FFF', fontWeight: '800', fontSize: 16 },
 });
