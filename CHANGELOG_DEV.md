@@ -51,6 +51,7 @@
 - ✅ Badge de % en tarjeta de balance (ej: "+12.5% este mes")
 - ✅ Tab bar: FAB verde, colores cálidos, bordes crema
 - ✅ Historial: rediseño completo con iconos Sanctuary y resumen minimalista
+- ✅ Cuentas: rediseño de tarjetas de crédito con estética Sanctuary y modales actualizados
 - ✅ Tema dark actualizado a paleta cálida oscura (`#1A1A2E`)
 
 **Mecánicas conservadas (NO tocar):**

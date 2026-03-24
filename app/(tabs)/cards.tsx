@@ -13,6 +13,8 @@ import {
     KeyboardAvoidingView,
     Modal,
     Platform,
+    RefreshControl,
+    SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
@@ -34,13 +36,30 @@ type CreditCard = {
     color: string;
 };
 
-const CARD_COLORS = ['#1E293B', '#6366F1', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6'];
+const CARD_COLORS = ['#2D5A3D', '#4A7C59', '#1E293B', '#8B5CF6', '#F59E0B', '#EF4444'];
+
+// ─── Sanctuary Theme Colors ───────────────────────────────────────────
+const getColors = (t: string) => {
+    if (t === 'dark') {
+        return {
+            bg: '#1A1A2E', card: '#25253D', text: '#F5F0E8', sub: '#A09B8C',
+            border: '#3A3A52', accent: '#4A7C59', cardBg: '#2A2A42',
+            warmBg: '#1A1A2E', greenCard: '#2D5A3D', cream: '#25253D',
+        };
+    }
+    return {
+        bg: '#FFF8F0', card: '#FFFFFF', text: '#2D2D2D', sub: '#8B8680',
+        border: '#F0E8DC', accent: '#4A7C59', cardBg: '#FFF5EB',
+        warmBg: '#FFF8F0', greenCard: '#2D5A3D', cream: '#F5EDE0',
+    };
+};
 
 export default function CardsScreen() {
     const isFocused = useIsFocused();
     const router = useRouter();
     const { user, theme, isHidden } = useAuth();
     const isDark = theme === 'dark';
+    const colorsNav = getColors(theme);
 
     const [cards, setCards] = useState<CreditCard[]>([]);
     const [cardBalances, setCardBalances] = useState<Record<string, number>>({});
@@ -61,14 +80,6 @@ export default function CardsScreen() {
     const [accounts, setAccounts] = useState<string[]>(['Efectivo']);
     const [selectedAccount, setSelectedAccount] = useState('Efectivo');
 
-    const colors = {
-        bg: isDark ? '#0F172A' : '#F4F6FF',
-        card: isDark ? '#1E293B' : '#FFFFFF',
-        text: isDark ? '#F1F5F9' : '#1E293B',
-        sub: isDark ? '#94A3B8' : '#64748B',
-        border: isDark ? '#334155' : '#E2E8F0',
-    };
-
     const formatInput = (text: string) => {
         const clean = text.replace(/\D/g, '');
         if (!clean) return '';
@@ -84,24 +95,17 @@ export default function CardsScreen() {
 
     const loadData = async () => {
         try {
-            // Load cards configuration from AsyncStorage
             const storedCards = await AsyncStorage.getItem(`@cards_${user?.id}`);
             const parsedCards: CreditCard[] = storedCards ? JSON.parse(storedCards) : [];
             setCards(parsedCards);
 
-            // Load extra accounts to pay from
             const storedAccounts = await AsyncStorage.getItem('@custom_accounts');
-            if (storedAccounts) setAccounts(['Efectivo', ...JSON.parse(storedAccounts)]);
-            else setAccounts(['Efectivo']);
-
-            // Filter out the actual card accounts to avoid a card paying itself
             const extra = storedAccounts ? JSON.parse(storedAccounts) : [];
             const nonCardAccounts = ['Efectivo', ...extra].filter(
                 acc => !parsedCards.some((c: CreditCard) => c.name === acc)
             );
             setAccounts(nonCardAccounts);
 
-            // Load balances perfectly by querying transactions where account === card.name
             if (parsedCards.length > 0) {
                 const { data: txs, error } = await supabase
                     .from('transactions')
@@ -114,19 +118,15 @@ export default function CardsScreen() {
                 const balances: Record<string, number> = {};
                 parsedCards.forEach(c => balances[c.name] = 0);
 
-                // If type === 'expense' with a card, the debt increases.
-                // If type === 'transfer' towards a card, the debt decreases.
-                // If type === 'income' to a card (payment), the debt decreases.
                 txs?.forEach(tx => {
                     const amt = Number(tx.amount || 0);
                     if (tx.type === 'expense') {
-                        balances[tx.account] += amt; // Spends increase debt
+                        balances[tx.account] += amt;
                     } else if (tx.type === 'income' || tx.type === 'transfer') {
-                        balances[tx.account] -= amt; // Payments decrease debt
+                        balances[tx.account] -= amt;
                     }
                 });
 
-                // Prevent negative debt visually if overpaid
                 Object.keys(balances).forEach(k => {
                     if (balances[k] < 0) balances[k] = 0;
                 });
@@ -156,14 +156,6 @@ export default function CardsScreen() {
             }
             return;
         }
-        if (cut < 1 || cut > 31 || due < 1 || due > 31) {
-            if (Platform.OS === 'web') {
-                window.alert('Los días deben estar entre 1 y 31.');
-            } else {
-                Alert.alert('Día Inválido', 'Los días deben estar entre 1 y 31.');
-            }
-            return;
-        }
 
         const newCard: CreditCard = {
             id: Date.now().toString(),
@@ -180,7 +172,6 @@ export default function CardsScreen() {
         await AsyncStorage.setItem(`@cards_${user?.id}`, JSON.stringify(updatedCards));
         if (user?.id) syncUp(user.id);
 
-        // Add this card to global custom accounts so user can select it when buying something
         try {
             const storedParams = await AsyncStorage.getItem('@custom_accounts');
             const customAccounts = storedParams ? JSON.parse(storedParams) : [];
@@ -202,20 +193,13 @@ export default function CardsScreen() {
                 setCards(updated);
                 await AsyncStorage.setItem(`@cards_${user?.id}`, JSON.stringify(updated));
                 if (user?.id) syncUp(user.id);
-                try {
-                    const storedParams = await AsyncStorage.getItem('@custom_accounts');
-                    const customAccounts = storedParams ? JSON.parse(storedParams) : [];
-                    const filteredAccounts = customAccounts.filter((a: string) => a !== card.name);
-                    await AsyncStorage.setItem('@custom_accounts', JSON.stringify(filteredAccounts));
-                    if (user?.id) syncUp(user.id);
-                } catch(e) {}
                 loadData();
             }
             return;
         }
         Alert.alert(
             'Eliminar Tarjeta',
-            `¿Estás seguro de eliminar la tarjeta ${card.name}? No podrás recuperarla, pero tus transacciones se mantendrán.`,
+            `¿Estás seguro de eliminar la tarjeta ${card.name}?`,
             [
                 { text: 'Cancelar', style: 'cancel' },
                 {
@@ -226,16 +210,6 @@ export default function CardsScreen() {
                         setCards(updated);
                         await AsyncStorage.setItem(`@cards_${user?.id}`, JSON.stringify(updated));
                         if (user?.id) syncUp(user.id);
-                        
-                        // Optionally remove from custom accounts
-                        try {
-                            const storedParams = await AsyncStorage.getItem('@custom_accounts');
-                            const customAccounts = storedParams ? JSON.parse(storedParams) : [];
-                            const filteredAccounts = customAccounts.filter((a: string) => a !== card.name);
-                            await AsyncStorage.setItem('@custom_accounts', JSON.stringify(filteredAccounts));
-                            if (user?.id) syncUp(user.id);
-                        } catch(e) {}
-
                         loadData();
                     }
                 }
@@ -252,14 +226,7 @@ export default function CardsScreen() {
         const actualPay = Math.min(pay, debt);
 
         try {
-            // Un pago de tarjeta de crédito es una SALIDA desde la cuenta de ahorros (o Efectivo)
-            // Hacia la tarjeta de crédito. Registramos como tipo "transfer" pero aquí para que la app sepa
-            // que fue un gasto desde la cuenta bancaria principal, se puede registrar un Expense.
-            
-            // To be accurate for balance: Effectivo goes down (-= actualPay). Credit card balance goes up (payment decreases debt).
-            // Let's create an expense from SelectedAccount. And ALSO an income to the Credit Card.
-            
-            const { error: txError1 } = await supabase.from('transactions').insert([{
+            await supabase.from('transactions').insert([{
                 user_id: user?.id,
                 amount: actualPay,
                 type: 'expense',
@@ -269,7 +236,7 @@ export default function CardsScreen() {
                 date: new Date().toISOString()
             }]);
 
-            const { error: txError2 } = await supabase.from('transactions').insert([{
+            await supabase.from('transactions').insert([{
                 user_id: user?.id,
                 amount: actualPay,
                 type: 'income',
@@ -278,8 +245,6 @@ export default function CardsScreen() {
                 account: selectedCard.name,
                 date: new Date().toISOString()
             }]);
-
-            if (txError1 || txError2) throw new Error('Error guardando transacciones');
 
             setPayAmount('');
             setPayModalVisible(false);
@@ -297,7 +262,6 @@ export default function CardsScreen() {
         let targetDate = new Date(currentY, currentM, targetDay);
         
         if (today.getDate() > targetDay) {
-            // Already passed this month, moves to next month
             targetDate = new Date(currentY, currentM + 1, targetDay);
         }
         
@@ -306,22 +270,25 @@ export default function CardsScreen() {
     };
 
     return (
-        <View style={[styles.container, { backgroundColor: colors.bg }]}>
-            {/* Header */}
+        <SafeAreaView style={[styles.container, { backgroundColor: colorsNav.bg }]}>
+            {/* ── Header Sanctuary ─────────────────────────────────────── */}
             <View style={styles.header}>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>Tarjetas de Crédito</Text>
-                <TouchableOpacity style={styles.addBtn} onPress={() => setAddModalVisible(true)}>
-                    <MaterialIcons name="add" size={22} color="#FFF" />
+                <View>
+                    <Text style={[styles.headerTitle, { color: colorsNav.text }]}>Cuentas</Text>
+                    <Text style={[styles.headerSub, { color: colorsNav.sub }]}>Control de tarjetas de crédito</Text>
+                </View>
+                <TouchableOpacity style={[styles.addBtn, { backgroundColor: colorsNav.accent }]} onPress={() => setAddModalVisible(true)}>
+                    <MaterialIcons name="add" size={24} color="#FFF" />
                 </TouchableOpacity>
             </View>
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 {cards.length === 0 ? (
                     <View style={styles.emptyState}>
-                        <Ionicons name="card-outline" size={64} color={colors.sub} style={{ opacity: 0.5, marginBottom: 16 }} />
-                        <Text style={[styles.emptyTitle, { color: colors.text }]}>Sin Tarjetas</Text>
-                        <Text style={[styles.emptySubtitle, { color: colors.sub }]}>
-                            Mantén el control exacto de tus límites, fechas de corte y pagos de tus tarjetas de crédito agregándolas aquí.
+                        <MaterialIcons name="account-balance-wallet" size={64} color={isDark ? '#3A3A52' : '#E0D8CC'} style={{ opacity: 0.6, marginBottom: 16 }} />
+                        <Text style={[styles.emptyTitle, { color: colorsNav.text }]}>Sin Tarjetas Agregadas</Text>
+                        <Text style={[styles.emptySubtitle, { color: colorsNav.sub }]}>
+                            Mantén el control exacto de tus límites, fechas de corte y pagos agregando tus tarjetas aquí.
                         </Text>
                     </View>
                 ) : (
@@ -330,124 +297,120 @@ export default function CardsScreen() {
                         const available = card.limit - debt;
                         const daysToCut = getDaysLeft(card.cutDay);
                         const daysToPay = getDaysLeft(card.dueDay);
-
                         const isWarningPay = daysToPay <= 3 && debt > 0;
 
                         return (
-                            <TouchableOpacity 
-                                key={card.id} 
-                                style={[styles.cardWrapper, { shadowColor: card.color }]}
-                                activeOpacity={0.9}
-                                onLongPress={() => handleDeleteCard(card)}
-                            >
-                                <View style={[styles.cardFace, { backgroundColor: card.color }]}>
+                            <View key={card.id} style={styles.cardContainer}>
+                                <TouchableOpacity 
+                                    style={[styles.cardFace, { backgroundColor: card.color }]}
+                                    activeOpacity={0.9}
+                                    onLongPress={() => handleDeleteCard(card)}
+                                >
                                     <View style={styles.cardHeader}>
-                                        <Text style={styles.cardBank}>{card.name}</Text>
-                                        <Ionicons 
-                                            name={card.brand === 'visa' ? 'logo-venmo' : card.brand === 'mastercard' ? 'logo-usd' : card.brand === 'amex' ? 'cube' : 'card'} 
-                                            size={20} 
-                                            color="rgba(255,255,255,0.6)" 
-                                        />
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                            <MaterialIcons name="credit-card" size={18} color="rgba(255,255,255,0.7)" />
+                                            <Text style={styles.cardBank}>{card.name.toUpperCase()}</Text>
+                                        </View>
+                                        <Text style={styles.cardBrand}>{card.brand.toUpperCase()}</Text>
                                     </View>
                                     
                                     <View style={styles.cardBody}>
-                                        <Text style={styles.cardLabel}>Deuda Actual</Text>
+                                        <Text style={styles.cardLabel}>DEUDA ACTUAL</Text>
                                         <Text style={styles.cardDebt}>{fmt(debt)}</Text>
                                     </View>
                                     
                                     <View style={styles.cardFooter}>
                                         <View>
-                                            <Text style={styles.cardLabel}>Cupo Disponible</Text>
+                                            <Text style={styles.cardLabel}>DISPONIBLE</Text>
                                             <Text style={styles.cardLimit}>{fmt(available)}</Text>
                                         </View>
                                         <View style={{ alignItems: 'flex-end' }}>
-                                            <Text style={styles.cardLabel}>Corte: {card.cutDay}</Text>
-                                            <Text style={styles.cardSmallText}>Paga el {card.dueDay}</Text>
+                                            <Text style={styles.cardLabel}>FECHA PAGO</Text>
+                                            <Text style={styles.cardSmallText}>Día {card.dueDay}</Text>
                                         </View>
                                     </View>
-                                </View>
+                                </TouchableOpacity>
 
                                 {/* Reminders & Actions */}
-                                <View style={[styles.cardActionsRow, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderTopWidth: 0 }]}>
+                                <View style={[styles.cardBelow, { backgroundColor: isDark ? colorsNav.card : '#FFF', borderColor: colorsNav.border }]}>
                                     <View style={styles.notificationArea}>
                                         {isWarningPay ? (
                                             <View style={styles.alertNotice}>
-                                                <Ionicons name="alert-circle" size={16} color="#EF4444" />
-                                                <Text style={styles.alertNoticeText}>¡Paga en {daysToPay} días!</Text>
+                                                <MaterialIcons name="error-outline" size={16} color="#EF4444" />
+                                                <Text style={styles.alertNoticeText}>Pagar en {daysToPay} días</Text>
                                             </View>
                                         ) : debt > 0 ? (
                                             <View style={styles.infoNotice}>
-                                                <Ionicons name="information-circle" size={16} color="#6366F1" />
-                                                <Text style={[styles.infoNoticeText, { color: colors.sub }]}>Al corte en {daysToCut} días</Text>
+                                                <MaterialIcons name="event" size={16} color={colorsNav.sub} />
+                                                <Text style={[styles.infoNoticeText, { color: colorsNav.sub }]}>Corte en {daysToCut} días</Text>
                                             </View>
                                         ) : (
                                             <View style={styles.infoNotice}>
-                                                <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                                                <Text style={[styles.infoNoticeText, { color: '#10B981' }]}>Sin deuda</Text>
+                                                <MaterialIcons name="check-circle-outline" size={16} color="#4A7C59" />
+                                                <Text style={[styles.infoNoticeText, { color: '#4A7C59' }]}>Sin deuda</Text>
                                             </View>
                                         )}
                                     </View>
                                     
                                     <TouchableOpacity 
-                                        style={[styles.payBtn, debt === 0 && { opacity: 0.5 }]} 
+                                        style={[styles.payBtn, { backgroundColor: colorsNav.accent }, debt === 0 && { opacity: 0.3 }]} 
                                         disabled={debt === 0}
-                                        onPress={() => { setSelectedCard(card); setPayModalVisible(true); }}
+                                        onPress={() => { setSelectedCard(card); setPayAmount(''); setPayModalVisible(true); }}
                                     >
-                                        <Text style={styles.payBtnText}>Pagar</Text>
+                                        <Text style={styles.payBtnText}>PAGAR</Text>
                                     </TouchableOpacity>
                                 </View>
-                            </TouchableOpacity>
+                            </View>
                         );
                     })
                 )}
             </ScrollView>
 
             {/* ADDCARD MODAL */}
-            <Modal visible={addModalVisible} transparent animationType="slide">
+            <Modal visible={addModalVisible} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
-                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-                        <TouchableWithoutFeedback onPress={Platform.OS === 'web' ? undefined : Keyboard.dismiss}>
-                            <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
-                                <ScrollView showsVerticalScrollIndicator={false}>
-                                    <Text style={[styles.modalTitle, { color: colors.text }]}>Nueva Tarjeta de Crédito</Text>
-                                    
-                                    <TextInput style={[styles.modalInput, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }]}
-                                        placeholder="Nombre (ej. Visa Bancolombia)" placeholderTextColor={colors.sub}
-                                        value={newName} onChangeText={setNewName} />
+                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%', alignItems: 'center' }}>
+                        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                            <View style={[styles.modalSheet, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
+                                <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Nueva Tarjeta de Crédito</Text>
+                                <Text style={[styles.modalSub, { color: colorsNav.sub }]}>Configura los límites y fechas de tu tarjeta</Text>
+                                
+                                <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border }]}
+                                    placeholder="Nombre de la tarjeta" placeholderTextColor={colorsNav.sub}
+                                    value={newName} onChangeText={setNewName} />
 
-                                    <TextInput style={[styles.modalInput, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }]}
-                                        placeholder="Cupo Total Máximo ($)" placeholderTextColor={colors.sub}
-                                        keyboardType="decimal-pad" value={newLimit} onChangeText={(text) => setNewLimit(formatInput(text))} />
+                                <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border }]}
+                                    placeholder="Cupo Total ($)" placeholderTextColor={colorsNav.sub}
+                                    keyboardType="decimal-pad" value={newLimit} onChangeText={(text) => setNewLimit(formatInput(text))} />
 
-                                    <View style={{ flexDirection: 'row', gap: 12 }}>
-                                        <TextInput style={[styles.modalInput, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border, flex: 1 }]}
-                                            placeholder="Día de Corte (1-31)" placeholderTextColor={colors.sub}
-                                            keyboardType="number-pad" value={newCutDay} onChangeText={setNewCutDay} />
-                                        <TextInput style={[styles.modalInput, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border, flex: 1 }]}
-                                            placeholder="Día de Pago Máx." placeholderTextColor={colors.sub}
-                                            keyboardType="number-pad" value={newDueDay} onChangeText={setNewDueDay} />
-                                    </View>
+                                <View style={{ flexDirection: 'row', gap: 12 }}>
+                                    <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border, flex: 1 }]}
+                                        placeholder="Día Corte" placeholderTextColor={colorsNav.sub}
+                                        keyboardType="number-pad" value={newCutDay} onChangeText={setNewCutDay} />
+                                    <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border, flex: 1 }]}
+                                        placeholder="Día Pago" placeholderTextColor={colorsNav.sub}
+                                        keyboardType="number-pad" value={newDueDay} onChangeText={setNewDueDay} />
+                                </View>
 
-                                    <Text style={[styles.labelSection, { color: colors.sub }]}>COLOR DE TARJETA</Text>
-                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
-                                        {CARD_COLORS.map(c => (
-                                            <TouchableOpacity 
-                                                key={c} 
-                                                style={[styles.colorCircle, { backgroundColor: c }, newColor === c && styles.colorCircleActive]} 
-                                                onPress={() => setNewColor(c)} 
-                                            />
-                                        ))}
-                                    </ScrollView>
-
-                                    <View style={styles.modalBtns}>
-                                        <TouchableOpacity style={[styles.modalBtnCancel, { backgroundColor: colors.bg }]} onPress={() => setAddModalVisible(false)}>
-                                            <Text style={[styles.modalBtnCancelText, { color: colors.text }]}>Cancelar</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity style={styles.modalBtnConfirm} onPress={handleAddCard}>
-                                            <Text style={styles.modalBtnConfirmText}>Crear Tarjeta</Text>
-                                        </TouchableOpacity>
-                                    </View>
+                                <Text style={[styles.labelSection, { color: colorsNav.sub }]}>COLOR DEL PLÁSTICO</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+                                    {CARD_COLORS.map(c => (
+                                        <TouchableOpacity 
+                                            key={c} 
+                                            style={[styles.colorCircle, { backgroundColor: c }, newColor === c && { borderColor: isDark ? '#FFF' : '#2D5A3D', borderWidth: 3 }]} 
+                                            onPress={() => setNewColor(c)} 
+                                        />
+                                    ))}
                                 </ScrollView>
+
+                                <View style={styles.modalBtns}>
+                                    <TouchableOpacity style={[styles.modalBtnCancel, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }]} onPress={() => setAddModalVisible(false)}>
+                                        <Text style={[styles.modalBtnCancelText, { color: colorsNav.text }]}>Cancelar</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={[styles.modalBtnConfirm, { backgroundColor: colorsNav.accent }]} onPress={handleAddCard}>
+                                        <Text style={styles.modalBtnConfirmText}>Crear Tarjeta</Text>
+                                    </TouchableOpacity>
+                                </View>
                             </View>
                         </TouchableWithoutFeedback>
                     </KeyboardAvoidingView>
@@ -455,112 +418,121 @@ export default function CardsScreen() {
             </Modal>
 
             {/* PAY MODAL */}
-            <Modal visible={payModalVisible} transparent animationType="slide">
-                <TouchableWithoutFeedback onPress={Platform.OS === 'web' ? undefined : Keyboard.dismiss}>
-                    <View style={styles.modalOverlay}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 20}>
-                            <TouchableWithoutFeedback>
-                                <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
-                                    <Text style={[styles.modalTitle, { color: colors.text }]}>Pagar {selectedCard?.name}</Text>
-                                    <Text style={[styles.modalHint, { color: colors.sub }]}>Deuda total actual: {fmt(cardBalances[selectedCard?.name || ''] || 0)}</Text>
+            <Modal visible={payModalVisible} transparent animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%', alignItems: 'center' }}>
+                        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                            <View style={[styles.modalSheet, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
+                                <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Pagar {selectedCard?.name}</Text>
+                                <Text style={[styles.modalSub, { color: colorsNav.sub }]}>Deuda actual: {fmt(cardBalances[selectedCard?.name || ''] || 0)}</Text>
 
-                                    <TextInput style={[styles.modalInput, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }]}
-                                        placeholder="Valor a pagar" placeholderTextColor={colors.sub}
-                                        keyboardType="decimal-pad" value={payAmount} onChangeText={(text) => setPayAmount(formatInput(text))}
-                                        autoFocus />
+                                <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border, fontSize: 24, fontWeight: '800' }]}
+                                    placeholder="$ 0" placeholderTextColor={colorsNav.sub}
+                                    keyboardType="decimal-pad" value={payAmount} onChangeText={(text) => setPayAmount(formatInput(text))}
+                                    autoFocus />
 
-                                    <Text style={[styles.labelSection, { color: colors.sub, marginTop: 10 }]}>MÉTODO DE PAGO (CAUSA LA SALIDA)</Text>
-                                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
-                                        {accounts.map(acc => (
-                                            <TouchableOpacity 
-                                                key={acc} 
-                                                style={[
-                                                    styles.accPill, 
-                                                    { borderColor: colors.border },
-                                                    selectedAccount === acc && { borderColor: '#6366F1', backgroundColor: 'rgba(99, 102, 241, 0.1)' }
-                                                ]}
-                                                onPress={() => setSelectedAccount(acc)}
-                                            >
-                                                <Text style={{ fontWeight: '600', color: selectedAccount === acc ? '#6366F1' : colors.text }}>
-                                                    {acc}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        ))}
-                                    </View>
-
-                                    <View style={styles.modalBtns}>
-                                        <TouchableOpacity style={[styles.modalBtnCancel, { backgroundColor: colors.bg }]} onPress={() => setPayModalVisible(false)}>
-                                            <Text style={[styles.modalBtnCancelText, { color: colors.text }]}>Cancelar</Text>
+                                <Text style={[styles.labelSection, { color: colorsNav.sub, marginTop: 10 }]}>¿DESDE DÓNDE PAGAS?</Text>
+                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
+                                    {accounts.map(acc => (
+                                        <TouchableOpacity 
+                                            key={acc} 
+                                            style={[
+                                                styles.accPill, 
+                                                { borderColor: colorsNav.border, backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2' },
+                                                selectedAccount === acc && { borderColor: colorsNav.accent, backgroundColor: isDark ? '#4A7C5930' : '#E8F5E9' }
+                                            ]}
+                                            onPress={() => setSelectedAccount(acc)}
+                                        >
+                                            <Text style={{ fontWeight: '700', color: selectedAccount === acc ? colorsNav.accent : colorsNav.sub }}>
+                                                {acc}
+                                            </Text>
                                         </TouchableOpacity>
-                                        <TouchableOpacity style={styles.modalBtnConfirm} onPress={handlePayCard}>
-                                            <Text style={styles.modalBtnConfirmText}>Confirmar Pago</Text>
-                                        </TouchableOpacity>
-                                    </View>
+                                    ))}
                                 </View>
-                            </TouchableWithoutFeedback>
-                        </KeyboardAvoidingView>
-                    </View>
-                </TouchableWithoutFeedback>
+
+                                <View style={styles.modalBtns}>
+                                    <TouchableOpacity style={[styles.modalBtnCancel, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }]} onPress={() => setPayModalVisible(false)}>
+                                        <Text style={[styles.modalBtnCancelText, { color: colorsNav.text }]}>Cancelar</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={[styles.modalBtnConfirm, { backgroundColor: colorsNav.accent }]} onPress={handlePayCard}>
+                                        <Text style={styles.modalBtnConfirmText}>Confirmar Pago</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </TouchableWithoutFeedback>
+                    </KeyboardAvoidingView>
+                </View>
             </Modal>
-        </View>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, paddingTop: Platform.OS === 'android' ? 50 : 60 },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 20 },
-    headerTitle: { fontSize: 28, fontWeight: '800' },
-    addBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#6366F1', justifyContent: 'center', alignItems: 'center' },
+    container: { flex: 1 },
+    header: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        paddingHorizontal: 20, 
+        paddingTop: Platform.OS === 'android' ? 50 : 20,
+        marginBottom: 10 
+    },
+    headerTitle: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
+    headerSub: { fontSize: 13, fontWeight: '500', marginTop: 4 },
+    addBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', elevation: 4, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8 },
     
-    scrollContent: { padding: 20, paddingBottom: 100 },
+    scrollContent: { padding: 20, paddingBottom: 120 },
     
-    emptyState: { alignItems: 'center', marginTop: 100, paddingHorizontal: 20 },
-    emptyTitle: { fontSize: 20, fontWeight: '700', marginBottom: 8 },
+    emptyState: { alignItems: 'center', marginTop: 80, paddingHorizontal: 30 },
+    emptyTitle: { fontSize: 18, fontWeight: '800', marginBottom: 8 },
     emptySubtitle: { fontSize: 14, textAlign: 'center', lineHeight: 22 },
 
-    cardWrapper: { marginBottom: 24 },
+    cardContainer: { marginBottom: 20 },
     cardFace: {
-        borderRadius: 20, padding: 24, paddingBottom: 20,
-        height: 200, justifyContent: 'space-between',
-        shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10
+        borderRadius: 24, padding: 24,
+        height: 190, justifyContent: 'space-between',
+        shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 8,
+        zIndex: 2
     },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    cardBank: { color: 'rgba(255,255,255,0.9)', fontSize: 16, fontWeight: '600', letterSpacing: 1 },
+    cardBank: { color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: '700', letterSpacing: 1 },
+    cardBrand: { color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '800' },
     cardBody: {},
-    cardLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '600', letterSpacing: 1, marginBottom: 4 },
-    cardDebt: { color: '#FFF', fontSize: 32, fontWeight: '800' },
+    cardLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginBottom: 6 },
+    cardDebt: { color: '#FFF', fontSize: 32, fontWeight: '900', letterSpacing: -1 },
     cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-    cardLimit: { color: '#FFF', fontSize: 16, fontWeight: '600' },
-    cardSmallText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+    cardLimit: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+    cardSmallText: { color: '#FFF', fontSize: 15, fontWeight: '800' },
 
-    cardActionsRow: {
+    cardBelow: {
+        marginTop: -20, paddingTop: 34, padding: 18,
+        borderBottomLeftRadius: 24, borderBottomRightRadius: 24,
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-        padding: 16, borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
-        marginTop: -10, paddingTop: 20 
+        borderWidth: 1, borderTopWidth: 0,
+        shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 10, elevation: 1
     },
     notificationArea: { flex: 1 },
     alertNotice: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    alertNoticeText: { color: '#EF4444', fontWeight: '700', fontSize: 13 },
+    alertNoticeText: { color: '#EF4444', fontWeight: '800', fontSize: 13 },
     infoNotice: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    infoNoticeText: { fontWeight: '600', fontSize: 13 },
-    payBtn: { backgroundColor: '#64748B', paddingHorizontal: 20, paddingVertical: 8, borderRadius: 12 },
-    payBtnText: { color: '#FFF', fontWeight: '700', fontSize: 14 },
+    infoNoticeText: { fontWeight: '700', fontSize: 13 },
+    payBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
+    payBtnText: { color: '#FFF', fontWeight: '800', fontSize: 12, letterSpacing: 0.5 },
 
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-    modalSheet: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, maxHeight: height * 0.9 },
-    modalTitle: { fontSize: 22, fontWeight: '800', marginBottom: 6 },
-    modalHint: { fontSize: 14, marginBottom: 24 },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 },
+    modalSheet: { borderRadius: 28, padding: 24, width: '100%', maxWidth: 450 },
+    modalTitle: { fontSize: 22, fontWeight: '800', marginBottom: 4 },
+    modalSub: { fontSize: 14, marginBottom: 20, fontWeight: '500' },
     modalInput: { borderWidth: 1, borderRadius: 16, padding: 16, fontSize: 16, marginBottom: 12 },
     
-    labelSection: { fontSize: 12, fontWeight: 'bold', letterSpacing: 1, marginBottom: 12, marginLeft: 4 },
-    colorCircle: { width: 44, height: 44, borderRadius: 22, marginRight: 12, borderWidth: 3, borderColor: 'transparent' },
-    colorCircleActive: { borderColor: '#FFF' },
+    labelSection: { fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 14, marginTop: 14 },
+    colorCircle: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
     
-    accPill: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5 },
+    accPill: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 2 },
 
     modalBtns: { flexDirection: 'row', gap: 12, marginTop: 10 },
     modalBtnCancel: { flex: 1, padding: 16, borderRadius: 16, alignItems: 'center' },
-    modalBtnCancelText: { fontWeight: '700', fontSize: 16 },
-    modalBtnConfirm: { flex: 1, backgroundColor: '#6366F1', padding: 16, borderRadius: 16, alignItems: 'center' },
-    modalBtnConfirmText: { color: '#FFF', fontWeight: '700', fontSize: 16 },
+    modalBtnCancelText: { fontWeight: '700', fontSize: 15 },
+    modalBtnConfirm: { flex: 1, padding: 16, borderRadius: 16, alignItems: 'center' },
+    modalBtnConfirmText: { color: '#FFF', fontWeight: '800', fontSize: 15 },
 });
