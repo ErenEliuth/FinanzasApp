@@ -2,7 +2,7 @@ import { HapticTab } from '@/components/haptic-tab';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { Tabs, usePathname, useSegments } from 'expo-router';
 import React from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { useAuth } from '@/utils/auth';
 
@@ -10,6 +10,8 @@ export default function TabLayout() {
   const pathname = usePathname();
   const segments = useSegments();
   const { theme } = useAuth();
+  const { width } = useWindowDimensions();
+  const isDesktop = width > 768;
   const isDark = theme === 'dark';
 
   const isDebtsOrRestricted = (segments as string[]).some(s => ['debts', 'goals', 'cards', 'budgets'].includes(s));
@@ -46,6 +48,7 @@ export default function TabLayout() {
           shadowOpacity: 0.06,
           shadowRadius: 16,
           zIndex: 100,
+          display: isDesktop ? 'none' : 'flex', // HIDE ON PC
         },
         tabBarLabelStyle: {
           fontSize: 11,
@@ -71,7 +74,7 @@ export default function TabLayout() {
         name="history"
         options={{
           title: 'Historial',
-          href: '/history',
+          href: !isDesktop ? '/history' : null, // Disable link on PC
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? styles.activeIconWrap : styles.iconWrap}>
               <MaterialIcons name="receipt-long" size={22} color={color} />
@@ -116,7 +119,7 @@ export default function TabLayout() {
         name="cards"
         options={{
           title: 'Cuentas',
-          href: '/cards',
+          href: !isDesktop ? '/cards' : null, // Disable link on PC
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? styles.activeIconWrap : styles.iconWrap}>
               <MaterialIcons name="account-balance-wallet" size={22} color={color} />

@@ -7,16 +7,29 @@ import React, { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Alert,
-  Dimensions,
   Modal,
-  Platform, SafeAreaView, ScrollView, StyleSheet,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View
 } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
-const screenWidth = Dimensions.get('window').width;
+// ─── Types and Constants ─────────────────────────────────────────────
+type CreditCard = {
+  id: string;
+  name: string;
+  brand: 'visa' | 'mastercard' | 'amex' | 'other';
+  limit: number;
+  cutDay: number;
+  dueDay: number;
+  color: string;
+};
 
 // ─── Sanctuary Theme Colors ───────────────────────────────────────────
 const getColors = (t: string) => {
@@ -63,6 +76,8 @@ const CircularProgress = ({ percentage, size = 80, strokeWidth = 8, color = '#4A
 export default function HomeScreen() {
   const isFocused = useIsFocused();
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isDesktop = width > 768;
   const { user, logout, theme, toggleTheme, isHidden, toggleHiddenMode } = useAuth();
   const isDark = theme === 'dark';
   const colorsNav = getColors(theme);
@@ -79,6 +94,9 @@ export default function HomeScreen() {
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [pendingItems, setPendingItems] = useState<any[]>([]);
   const [userCards, setUserCards] = useState<string[]>([]);
+  const [cards, setCards] = useState<CreditCard[]>([]);
+  const [cardBalances, setCardBalances] = useState<Record<string, number>>({});
+  const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const [isRealBalanceCollapsed, setIsRealBalanceCollapsed] = useState(true);
 
   useEffect(() => {
@@ -142,6 +160,39 @@ export default function HomeScreen() {
       setAhorroMes(savMes);
       setAccountTotals(accs);
       setRecentTx(allTx?.slice(0, 5) || []);
+      setAllTransactions(allTx || []);
+
+      let parsedCards: CreditCard[] = [];
+      try {
+        const storedCards = await AsyncStorage.getItem(`@cards_${user.id}`);
+        if (storedCards) {
+          parsedCards = JSON.parse(storedCards);
+          setCards(parsedCards);
+          const cardNames = parsedCards.map((c: any) => c.name);
+          setUserCards(cardNames);
+          
+          // Calculate card balances based on allTx
+          const balances: Record<string, number> = {};
+          parsedCards.forEach(c => balances[c.name] = 0);
+          
+          allTx?.forEach(tx => {
+            if (cardNames.includes(tx.account)) {
+              const amt = Number(tx.amount || 0);
+              if (tx.type === 'expense') {
+                balances[tx.account] += amt;
+              } else if (tx.type === 'income' || tx.type === 'transfer') {
+                balances[tx.account] -= amt;
+              }
+            }
+          });
+          
+          Object.keys(balances).forEach(k => {
+             if (balances[k] < 0) balances[k] = 0;
+          });
+          setCardBalances(balances);
+        }
+      } catch (e) { }
+
 
       const { data: allDebts, error: debtError } = await supabase
         .from('debts')
@@ -315,7 +366,13 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colorsNav.bg }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={[
+          styles.scrollContent,
+          isDesktop && styles.desktopScrollContainer
+        ]} 
+        showsVerticalScrollIndicator={false}
+      >
 
         {/* ── Header Sanctuary ─────────────────────────────────────── */}
         <View style={styles.header}>
@@ -340,157 +397,215 @@ export default function HomeScreen() {
             >
               <Ionicons name={isHidden ? 'eye-off' : 'eye'} size={18} color={isDark ? '#D4C5A9' : '#8B7355'} />
             </TouchableOpacity>
-          </View>
-        </View>
 
-        {/* ── Greeting ─────────────────────────────────────────────── */}
-        <View style={styles.greetingSection}>
-          <Text style={[styles.greeting, { color: colorsNav.text }]}>
-            Hola, {displayName.split(' ')[0]} 👋
-          </Text>
-          <Text style={[styles.subtitle, { color: colorsNav.sub }]}>Tu resumen financiero hoy</Text>
-        </View>
+            {isDesktop && (
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <TouchableOpacity
+                  style={[styles.headerIconBtn, { backgroundColor: colorsNav.accent, width: 'auto', paddingHorizontal: 16, borderRadius: 12 }]}
+                  onPress={() => router.push('/explore')}
+                >
+                  <MaterialIcons name="add" size={20} color="#FFF" />
+                  <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800', marginLeft: 6 }}>Nuevo Movimiento</Text>
+                </TouchableOpacity>
 
-        {/* ── Balance Card (Green) ─────────────────────────────────── */}
-        <TouchableOpacity
-          style={[styles.balanceCard, { backgroundColor: colorsNav.greenCard }]}
-          activeOpacity={0.9}
-          onPress={() => setBreakdownVisible(true)}
-        >
-          <Text style={styles.balanceLabel}>DINERO ACTIVO</Text>
-          <Text style={styles.balanceAmount}>{fmt(dineroActivo)}</Text>
-          <View style={styles.balanceBadge}>
-            <MaterialIcons name="trending-up" size={14} color="#4A7C59" />
-            <Text style={styles.balanceBadgeText}>
-              {Number(porcentajeMes) >= 0 ? '+' : ''}{porcentajeMes}% este mes
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* ── Ahorros & Deudas Row ─────────────────────────────────── */}
-        <View style={styles.widgetsRow}>
-          <TouchableOpacity
-            style={[styles.widgetCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}
-            activeOpacity={0.8}
-            onPress={() => router.push('/goals')}
-          >
-            <View style={[styles.widgetIconWrap, { backgroundColor: isDark ? '#3A5A4A' : '#E8F5E9' }]}>
-              <MaterialIcons name="savings" size={22} color="#4A7C59" />
-            </View>
-            <Text style={[styles.widgetLabel, { color: colorsNav.sub }]}>AHORROS</Text>
-            <Text style={[styles.widgetValue, { color: colorsNav.text }]}>{fmt(ahorro)}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.widgetCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}
-            activeOpacity={0.8}
-            onPress={() => router.push('/(tabs)/debts')}
-          >
-            <View style={[styles.widgetIconWrap, { backgroundColor: isDark ? '#5A3A3A' : '#FFEBEE' }]}>
-              <MaterialIcons name="credit-card" size={22} color="#EF4444" />
-            </View>
-            <Text style={[styles.widgetLabel, { color: colorsNav.sub }]}>DEUDAS</Text>
-            <Text style={[styles.widgetValueAlert, { color: '#EF4444' }]}>{fmt(debtTotal)}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* ── Salud Financiera ──────────────────────────────────────── */}
-        <View style={[styles.healthCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
-          <Text style={[styles.healthTitle, { color: colorsNav.text }]}>Salud Financiera</Text>
-          <View style={styles.healthContent}>
-            <View style={styles.healthCircleWrap}>
-              <CircularProgress
-                percentage={saludPorcentaje}
-                size={90}
-                strokeWidth={9}
-                color={saludColor}
-              />
-              <View style={styles.healthCircleLabel}>
-                <Text style={[styles.healthPercentage, { color: saludColor }]}>{saludPorcentaje}%</Text>
-                <Text style={[styles.healthStatus, { color: saludColor }]}>{saludLabel}</Text>
+                <TouchableOpacity
+                  style={[styles.headerIconBtn, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0', width: 'auto', paddingHorizontal: 14, borderRadius: 12 }]}
+                  onPress={() => router.push('/profile')}
+                >
+                  <Ionicons name="person-outline" size={18} color={isDark ? '#D4C5A9' : '#8B7355'} />
+                  <Text style={{ color: isDark ? '#D4C5A9' : '#8B7355', fontSize: 13, fontWeight: '700', marginLeft: 6 }}>Perfil</Text>
+                </TouchableOpacity>
               </View>
+            )}
+          </View>
+        </View>
+
+        {/* ── View Row Responsive en PC ───────────────────────────── */}
+        <View style={isDesktop ? styles.desktopMainRow : undefined}>
+          
+          {/* LADO IZQUIERDO EN PC - RESUMEN */}
+          <View style={isDesktop ? styles.colSummary : undefined}>
+            {/* ── Greeting ─────────────────────────────────────────────── */}
+            <View style={styles.greetingSection}>
+              <Text style={[styles.greeting, { color: colorsNav.text }]}>
+                Hola, {displayName.split(' ')[0]} 👋
+              </Text>
+              <Text style={[styles.subtitle, { color: colorsNav.sub }]}>Tu resumen financiero hoy</Text>
             </View>
-            <View style={styles.healthDetails}>
-              <Text style={[styles.healthDetailLabel, { color: colorsNav.sub }]}>SALDO DISPONIBLE</Text>
-              <Text style={[styles.healthDetailValue, { color: colorsNav.text }]}>{fmt(saldoDisponible)}</Text>
+
+            {/* ── Balance Card (Green) ─────────────────────────────────── */}
+            <TouchableOpacity
+              style={[styles.balanceCard, { backgroundColor: colorsNav.greenCard }]}
+              activeOpacity={0.9}
+              onPress={() => setBreakdownVisible(true)}
+            >
+              <Text style={styles.balanceLabel}>DINERO ACTIVO</Text>
+              <Text style={styles.balanceAmount}>{fmt(dineroActivo)}</Text>
+              <View style={styles.balanceBadge}>
+                <MaterialIcons name="trending-up" size={14} color="#4A7C59" />
+                <Text style={styles.balanceBadgeText}>
+                  {Number(porcentajeMes) >= 0 ? '+' : ''}{porcentajeMes}% este mes
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* ── Ahorros & Deudas Row ─────────────────────────────────── */}
+            <View style={styles.widgetsRow}>
               <TouchableOpacity
-                style={[styles.healthDetailBtn, { borderColor: isDark ? colorsNav.border : '#E0D8CC' }]}
-                onPress={() => setIsRealBalanceCollapsed(!isRealBalanceCollapsed)}
+                style={[styles.widgetCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}
+                activeOpacity={0.8}
+                onPress={() => router.push('/goals')}
               >
-                <Text style={[styles.healthDetailBtnText, { color: colorsNav.sub }]}>Ver detalles</Text>
-                <MaterialIcons name="arrow-forward" size={14} color={colorsNav.sub} />
+                <View style={[styles.widgetIconWrap, { backgroundColor: isDark ? '#3A5A4A' : '#E8F5E9' }]}>
+                  <MaterialIcons name="savings" size={22} color="#4A7C59" />
+                </View>
+                <Text style={[styles.widgetLabel, { color: colorsNav.sub }]}>AHORROS</Text>
+                <Text style={[styles.widgetValue, { color: colorsNav.text }]}>{fmt(ahorro)}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.widgetCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}
+                activeOpacity={0.8}
+                onPress={() => router.push('/(tabs)/debts')}
+              >
+                <View style={[styles.widgetIconWrap, { backgroundColor: isDark ? '#5A3A3A' : '#FFEBEE' }]}>
+                  <MaterialIcons name="credit-card" size={22} color="#EF4444" />
+                </View>
+                <Text style={[styles.widgetLabel, { color: colorsNav.sub }]}>DEUDAS</Text>
+                <Text style={[styles.widgetValueAlert, { color: '#EF4444' }]}>{fmt(debtTotal)}</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
 
-        {/* ── Detalles expandidos de Salud Financiera ──────────────── */}
-        {!isRealBalanceCollapsed && (
-          <View style={[styles.healthExpandedCard, { backgroundColor: isDark ? colorsNav.card : '#FFF', borderColor: isDark ? colorsNav.border : '#F0E8DC' }]}>
-            <View style={{ alignItems: 'center', marginBottom: 14 }}>
-              <Text style={[styles.healthExpandedTitle, { color: colorsNav.text }]}>Balance Real</Text>
-              <Text style={[styles.healthExpandedAmount, { color: dineroReal >= 0 ? colorsNav.text : '#EF4444' }]}>
-                {fmt(dineroReal)}
-              </Text>
-              <Text style={[styles.healthExpandedSub, { color: colorsNav.sub }]}>
-                Dinero proyectado una vez pagues deudas
-              </Text>
-            </View>
-            <View style={[styles.healthExpandedGrid, { backgroundColor: isDark ? '#2A2A42' : '#FAF5ED' }]}>
-              <View style={styles.healthExpandedItem}>
-                <Text style={[styles.healthExpandedItemLabel, { color: colorsNav.sub }]}>Disponible</Text>
-                <Text style={[styles.healthExpandedItemValue, { color: '#4A7C59' }]}>{fmt(dineroActivo)}</Text>
-              </View>
-              <View style={{ width: 1, backgroundColor: isDark ? colorsNav.border : '#E8E0D4', height: '60%', alignSelf: 'center' as any }} />
-              <View style={styles.healthExpandedItem}>
-                <Text style={[styles.healthExpandedItemLabel, { color: colorsNav.sub }]}>Ahorro</Text>
-                <Text style={[styles.healthExpandedItemValue, { color: '#8B5CF6' }]}>{fmt(ahorro)}</Text>
-              </View>
-              <View style={{ width: 1, backgroundColor: isDark ? colorsNav.border : '#E8E0D4', height: '60%', alignSelf: 'center' as any }} />
-              <View style={styles.healthExpandedItem}>
-                <Text style={[styles.healthExpandedItemLabel, { color: colorsNav.sub }]}>Deuda</Text>
-                <Text style={[styles.healthExpandedItemValue, { color: '#EF4444' }]}>−{fmt(debtTotal)}</Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* ── Últimas Transacciones ────────────────────────────────── */}
-        <View style={styles.sectionContainer}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colorsNav.text }]}>Últimas Transacciones</Text>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
-              <Text style={styles.seeAll}>Ver todas</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.transactionList}>
-            {recentTx.length === 0 ? (
-              <Text style={[styles.emptyText, { color: colorsNav.sub }]}>No hay transacciones recientes</Text>
-            ) : (
-              recentTx.map((tx) => {
-                const iconInfo = getTxIconInfo(tx);
-                return (
-                  <View key={tx.id} style={[styles.txItem, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
-                    <View style={[styles.txIcon, { backgroundColor: isDark ? colorsNav.cardBg : iconInfo.bg }]}>
-                      <MaterialIcons name={iconInfo.icon as any} size={20} color={iconInfo.color} />
-                    </View>
-                    <View style={styles.txMeta}>
-                      <Text style={[styles.txTitle, { color: colorsNav.text }]}>
-                        {tx.description === 'Sin descripción' || !tx.description ? tx.category : tx.description}
-                      </Text>
-                      <Text style={[styles.txSub, { color: colorsNav.sub }]}>{formatTxDate(tx.date)}</Text>
-                    </View>
-                    <Text style={[
-                      styles.txAmount,
-                      tx.category === 'Ahorro' ? { color: '#8B5CF6' } : (tx.type === 'income' ? { color: '#4A7C59' } : { color: '#EF4444' }),
-                    ]}>
-                      {tx.type === 'income' ? '+' : '-'}{fmt(tx.amount)}
-                    </Text>
+            {/* ── Salud Financiera ──────────────────────────────────────── */}
+            <View style={[styles.healthCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
+              <Text style={[styles.healthTitle, { color: colorsNav.text }]}>Salud Financiera</Text>
+              <View style={styles.healthContent}>
+                <View style={styles.healthCircleWrap}>
+                  <CircularProgress percentage={saludPorcentaje} size={90} strokeWidth={9} color={saludColor} />
+                  <View style={styles.healthCircleLabel}>
+                    <Text style={[styles.healthPercentage, { color: saludColor }]}>{saludPorcentaje}%</Text>
+                    <Text style={[styles.healthStatus, { color: saludColor }]}>{saludLabel}</Text>
                   </View>
-                );
-              })
+                </View>
+                <View style={styles.healthDetails}>
+                  <Text style={[styles.healthDetailLabel, { color: colorsNav.sub }]}>SALDO DISPONIBLE</Text>
+                  <Text style={[styles.healthDetailValue, { color: colorsNav.text }]}>{fmt(saldoDisponible)}</Text>
+                  <TouchableOpacity
+                    style={[styles.healthDetailBtn, { borderColor: isDark ? colorsNav.border : '#E0D8CC' }]}
+                    onPress={() => setIsRealBalanceCollapsed(!isRealBalanceCollapsed)}
+                  >
+                    <Text style={[styles.healthDetailBtnText, { color: colorsNav.sub }]}>Ver detalles</Text>
+                    <MaterialIcons name="arrow-forward" size={14} color={colorsNav.sub} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+
+            {/* ── Detalles expandidos ──────────────────────────────────── */}
+            {!isRealBalanceCollapsed && (
+              <View style={[styles.healthExpandedCard, { backgroundColor: isDark ? colorsNav.card : '#FFF', borderColor: isDark ? colorsNav.border : '#F0E8DC' }]}>
+                <View style={{ alignItems: 'center', marginBottom: 14 }}>
+                  <Text style={[styles.healthExpandedTitle, { color: colorsNav.text }]}>Balance Real</Text>
+                  <Text style={[styles.healthExpandedAmount, { color: dineroReal >= 0 ? colorsNav.text : '#EF4444' }]}>
+                    {fmt(dineroReal)}
+                  </Text>
+                  <Text style={[styles.healthExpandedSub, { color: colorsNav.sub }]}>Dinero proyectado una vez pagues deudas</Text>
+                </View>
+                <View style={[styles.healthExpandedGrid, { backgroundColor: isDark ? '#2A2A42' : '#FAF5ED' }]}>
+                  <View style={styles.healthExpandedItem}>
+                    <Text style={[styles.healthExpandedItemLabel, { color: colorsNav.sub }]}>Disponible</Text>
+                    <Text style={[styles.healthExpandedItemValue, { color: '#4A7C59' }]}>{fmt(dineroActivo)}</Text>
+                  </View>
+                  <View style={{ width: 1, backgroundColor: isDark ? colorsNav.border : '#E8E0D4', height: '60%', alignSelf: 'center' }} />
+                  <View style={styles.healthExpandedItem}>
+                    <Text style={[styles.healthExpandedItemLabel, { color: colorsNav.sub }]}>Ahorro</Text>
+                    <Text style={[styles.healthExpandedItemValue, { color: '#8B5CF6' }]}>{fmt(ahorro)}</Text>
+                  </View>
+                  <View style={{ width: 1, backgroundColor: isDark ? colorsNav.border : '#E8E0D4', height: '60%', alignSelf: 'center' }} />
+                  <View style={styles.healthExpandedItem}>
+                    <Text style={[styles.healthExpandedItemLabel, { color: colorsNav.sub }]}>Deuda</Text>
+                    <Text style={[styles.healthExpandedItemValue, { color: '#EF4444' }]}>−{fmt(debtTotal)}</Text>
+                  </View>
+                </View>
+              </View>
             )}
+          </View>
+
+          {/* COLUMNA CENTRAL (TARJETAS) EN PC */}
+          {isDesktop && (
+            <View style={styles.colCards}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: colorsNav.text }]}>Mis Cuentas</Text>
+                <TouchableOpacity onPress={() => router.push('/cards')}>
+                  <Text style={styles.seeAll}>Gestionar</Text>
+                </TouchableOpacity>
+              </View>
+              
+              <View style={styles.desktopCardsList}>
+                {cards.length === 0 ? (
+                  <Text style={[styles.emptyText, { color: colorsNav.sub }]}>No hay cuentas registradas</Text>
+                ) : (
+                  cards.map(card => {
+                    const debt = cardBalances[card.name] || 0;
+                    return (
+                      <View key={card.id} style={[styles.miniCard, { backgroundColor: card.color }]}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                          <Text style={styles.miniCardName}>{card.name}</Text>
+                          <Text style={styles.miniCardBrand}>{card.brand.toUpperCase()}</Text>
+                        </View>
+                        <View>
+                          <Text style={styles.miniCardLabel}>DEUDA</Text>
+                          <Text style={styles.miniCardAmount}>{fmt(debt)}</Text>
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* LADO DERECHO EN PC - TRANSACCIONES */}
+          <View style={isDesktop ? styles.colHistory : undefined}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colorsNav.text }]}>
+                {isDesktop ? 'Historial Completo' : 'Últimas Transacciones'}
+              </Text>
+              {!isDesktop && (
+                <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
+                  <Text style={styles.seeAll}>Ver todas</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <View style={[styles.transactionList, isDesktop && styles.desktopScrollHistory]}>
+              {(isDesktop ? allTransactions : recentTx).length === 0 ? (
+                <Text style={[styles.emptyText, { color: colorsNav.sub }]}>No hay transacciones</Text>
+              ) : (
+                (isDesktop ? allTransactions : recentTx).map((tx) => {
+                  const iconInfo = getTxIconInfo(tx);
+                  return (
+                    <View key={tx.id} style={[styles.txItem, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
+                      <View style={[styles.txIcon, { backgroundColor: isDark ? colorsNav.cardBg : iconInfo.bg }]}>
+                        <MaterialIcons name={iconInfo.icon as any} size={20} color={iconInfo.color} />
+                      </View>
+                      <View style={styles.txMeta}>
+                        <Text style={[styles.txTitle, { color: colorsNav.text }]} numberOfLines={1}>
+                          {tx.description === 'Sin descripción' || !tx.description ? tx.category : tx.description}
+                        </Text>
+                        <Text style={[styles.txSub, { color: colorsNav.sub }]}>{formatTxDate(tx.date)}</Text>
+                      </View>
+                      <Text style={[
+                        styles.txAmount,
+                        tx.category === 'Ahorro' ? { color: '#8B5CF6' } : (tx.type === 'income' ? { color: '#4A7C59' } : { color: '#EF4444' }),
+                      ]}>
+                        {tx.type === 'income' ? '+' : '-'}{fmt(tx.amount)}
+                      </Text>
+                    </View>
+                  );
+                })
+              )}
+            </View>
           </View>
         </View>
 
@@ -614,6 +729,51 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: Platform.OS === 'android' ? 50 : 20,
     paddingBottom: 100,
+  },
+  desktopScrollContainer: {
+    maxWidth: 1100,
+    width: '100%',
+    alignSelf: 'center',
+    paddingHorizontal: 40,
+    paddingTop: 40,
+  },
+  desktopMainRow: {
+    flexDirection: 'row',
+    gap: 30,
+    alignItems: 'flex-start',
+  },
+  colSummary: {
+    flex: 1.1,
+  },
+  colCards: {
+    flex: 0.9,
+  },
+  colHistory: {
+    flex: 1.2,
+  },
+
+  // Desktop Cards
+  desktopCardsList: {
+    gap: 12,
+  },
+  miniCard: {
+    borderRadius: 18,
+    padding: 18,
+    height: 120,
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  miniCardName: { color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: '700', letterSpacing: 0.5 },
+  miniCardBrand: { color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '800' },
+  miniCardLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 9, fontWeight: '700', letterSpacing: 1, marginBottom: 2 },
+  miniCardAmount: { color: '#FFF', fontSize: 20, fontWeight: '900' },
+
+  desktopScrollHistory: {
+    maxHeight: 600,
+    overflow: 'hidden',
   },
 
   // ── Header ──────────────────────────────────────────────────

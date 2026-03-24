@@ -33,6 +33,26 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-24 — Integración "Todo en una Ventana" para PC / Desktop
+
+**Archivos modificados:**
+- `app/(tabs)/index.tsx` — Dashboard rediseñado para 3 columnas en PC (Resumen, Cuentas, Historial)
+- `app/(tabs)/_layout.tsx` — Tab bar oculto en PC, navegación integrada en Header de Inicio
+
+**Cambios realizados:**
+- ✅ **Layout de 3 columnas (PC)**:
+    - Columna 1: Resumen financiero, Salud, Ahorros/Deudas (redirecciones)
+    - Columna 2: **Mis Cuentas** (Tarjetas/Cuentas con deuda actual)
+    - Columna 3: **Historial Completo** de transacciones con scroll interno
+- ✅ **Navegación Desktop**: 
+    - Tab bar inferior oculto en pantallas > 768px
+    - Botones de "Nuevo Movimiento" y "Perfil" añadidos al Header derecho
+- ✅ **Lógica de carga**: `loadData` ahora procesa balances de tarjetas y transacciones completas para el dashboard en PC
+- ✅ **Redirecciones conservadas**: Ahorros (`/goals`), Deudas (`/debts`) y Perfil (`/profile`) siguen cargando en páginas independientes como se solicitó
+- ✅ **Responsividad**: En celulares (`width <= 768`), la navegación por tabs y el dashboard simplificado se mantienen intactos
+
+---
+
 ### 2026-03-24 — Rediseño Visual "Sanctuary"
 
 **Archivos modificados:**
