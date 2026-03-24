@@ -276,6 +276,7 @@ export default function ProfileScreen() {
     const [statsModalVisible, setStatsModalVisible] = useState(false);
     const [newName, setNewName] = useState(user?.user_metadata?.name || '');
     const [avatarUri, setAvatarUri] = useState<string | null>(null);
+    const [weeklySpending, setWeeklySpending] = useState(0);
 
     useEffect(() => { if (isFocused) loadData(); }, [isFocused]);
 
@@ -290,12 +291,22 @@ export default function ProfileScreen() {
             if (error) throw error;
             const txs = data || [];
             setTransactions(txs);
+            
             const map = new Map<string, number>();
             txs.forEach(tx => {
                 const k = toKey(new Date(tx.date));
                 map.set(k, (map.get(k) ?? 0) + 1);
             });
             setActiveDays(map);
+
+            // Calcular resumen semanal (últimos 7 días)
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            const totalWeek = txs
+                .filter(t => t.type === 'expense' && t.category !== 'Ahorro' && new Date(t.date) >= weekAgo)
+                .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+            setWeeklySpending(totalWeek);
+
         } catch (e) { console.error(e); }
     };
 
@@ -393,7 +404,7 @@ export default function ProfileScreen() {
                 {/* ── Heatmap ── */}
                 <MonthHeatmap activeDays={activeDays} colorsNav={colorsNav} />
 
-                {/* ── Quick Options ── */}
+                {/* ── Quick Options & Weekly Summary ── */}
                 <View style={styles.optionsGrid}>
                     <TouchableOpacity style={[styles.optBtn, { backgroundColor: colorsNav.card }]} onPress={() => router.push('/budgets' as any)}>
                         <View style={[styles.optIcon, { backgroundColor: '#E0F7FA' }]}>
@@ -403,13 +414,15 @@ export default function ProfileScreen() {
                         <Text style={[styles.optSub, { color: colorsNav.sub }]}>Control Mensual</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={[styles.optBtn, { backgroundColor: colorsNav.card }]} onPress={() => router.push('/goals' as any)}>
-                        <View style={[styles.optIcon, { backgroundColor: '#F0E6FF' }]}>
-                            <MaterialIcons name="savings" size={24} color="#8B5CF6" />
+                    {/* Resumen Semanal Card */}
+                    <View style={[styles.optBtn, { backgroundColor: colorsNav.card }]}>
+                        <View style={[styles.optIcon, { backgroundColor: '#FFF0F0' }]}>
+                            <MaterialIcons name="calendar-today" size={24} color="#EF4444" />
                         </View>
-                        <Text style={[styles.optTitle, { color: colorsNav.text }]}>Metas</Text>
-                        <Text style={[styles.optSub, { color: colorsNav.sub }]}>Objetivos de ahorro</Text>
-                    </TouchableOpacity>
+                        <Text style={[styles.optTitle, { color: colorsNav.text }]}>Resumen Semanal</Text>
+                        <Text style={[styles.optSub, { color: '#EF4444', fontWeight: '800' }]}>{fmtCOP(weeklySpending, isHidden)}</Text>
+                        <Text style={[styles.optSub, { color: colorsNav.sub, fontSize: 10 }]}>Últimos 7 días</Text>
+                    </View>
                 </View>
 
                 <View style={{ height: 120 }} />
@@ -475,9 +488,9 @@ const styles = StyleSheet.create({
     actionBtnTxt: { fontSize: 13, fontWeight: '800' },
 
     optionsGrid: { flexDirection: 'row', gap: 16, marginBottom: 16 },
-    optBtn: { flex: 1, padding: 20, borderRadius: 24, gap: 8 },
+    optBtn: { flex: 1, padding: 20, borderRadius: 24, gap: 4, justifyContent: 'flex-start' },
     optIcon: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
-    optTitle: { fontSize: 15, fontWeight: '800' },
+    optTitle: { fontSize: 14, fontWeight: '800' },
     optSub: { fontSize: 11, fontWeight: '600', opacity: 0.6 },
 
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
