@@ -64,17 +64,32 @@ export default function AddTransactionScreen() {
   const router = useRouter();
   const { user, theme } = useAuth();
   const isDark = theme === 'dark';
-  const colors = {
-    bg: isDark ? '#0F172A' : '#F8FAFF',
-    card: isDark ? '#1E293B' : '#FFFFFF',
-    text: isDark ? '#F1F5F9' : '#1E293B',
-    sub: isDark ? '#94A3B8' : '#64748B',
-    border: isDark ? '#334155' : '#E2E8F0',
-    input: isDark ? '#1E293B' : '#F1F5F9',
-  };
+
+  // ── Sanctuary Palette ──
+  const colors = isDark 
+    ? {
+        bg: '#1A1A2E',
+        card: '#25253D',
+        text: '#F5F0E8',
+        sub: '#A09B8C',
+        border: '#3A3A52',
+        accent: '#4A7C59',
+        lightAccent: '#4A7C5930',
+        input: '#1A1A2E',
+      }
+    : {
+        bg: '#FFF8F0',
+        card: '#FFFFFF',
+        text: '#2D2D2D',
+        sub: '#8B8680',
+        border: '#F0E8DC',
+        accent: '#4A7C59',
+        lightAccent: '#E8F5E9',
+        input: '#F5EDE0',
+      };
 
   const typeColor =
-    type === 'income' ? '#10B981' :
+    type === 'income' ? '#4A7C59' :
       type === 'ahorro' ? '#6366F1' :
         type === 'transfer' ? '#F59E0B' : '#EF4444';
 
@@ -95,7 +110,7 @@ export default function AddTransactionScreen() {
       }
     };
     loadData();
-  }, []);
+  }, [user]);
 
   const persistCustomCategories = async (cats: string[]) => {
     setCustomCategories(cats);
@@ -200,14 +215,11 @@ export default function AddTransactionScreen() {
     const parsed = parseFloat(amount.replace(/\./g, '').replace(',', '.'));
     if (isNaN(parsed) || parsed <= 0) return;
 
-    // ── INCOME SMART SUGGESTION ──
     if (type === 'income') {
       const calculateSmartSaving = async () => {
         try {
           const today = new Date();
           const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
-
-          // Fetch Month Stats
           const { data: txData } = await supabase
             .from('transactions')
             .select('type, amount, category')
@@ -216,35 +228,18 @@ export default function AddTransactionScreen() {
 
           const monthInc = (txData?.filter(t => t.type === 'income' && t.category !== 'Transferencia').reduce((s, t) => s + t.amount, 0) || 0) + parsed;
           const monthExp = txData?.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia').reduce((s, t) => s + t.amount, 0) || 0;
-
-          // Fetch Debts
-          const { data: debtData } = await supabase
-            .from('debts')
-            .select('value, paid')
-            .eq('user_id', user?.id);
-          
+          const { data: debtData } = await supabase.from('debts').select('value, paid').eq('user_id', user?.id);
           const totalDebt = debtData?.reduce((s, d) => s + (d.value - (d.paid || 0)), 0) || 0;
 
-          // Logic
           let pct = 15;
           let msg = "Es un buen momento para separar una parte.";
-
           const debtToIncome = totalDebt / (monthInc || 1);
           const surplusRatio = (monthInc - monthExp) / (monthInc || 1);
 
-          if (debtToIncome > 1.2) {
-            pct = 5;
-            msg = "Tus deudas son altas este mes. Sugerimos un ahorro pequeño del 5% para priorizar tus pagos.";
-          } else if (surplusRatio > 0.4) {
-            pct = 20;
-            msg = "¡Vas muy bien! Tus gastos están bajo control, podrías ahorrar un 20% sin problemas.";
-          } else if (surplusRatio < 0.1) {
-            pct = 10;
-            msg = "Este mes tu presupuesto está algo ajustado. Ahorra un 10% para no descuidar tu fondo.";
-          } else {
-            pct = 15;
-            msg = "Basado en tus finanzas de este mes, un 15% es lo ideal para mantener tu equilibrio.";
-          }
+          if (debtToIncome > 1.2) { pct = 5; msg = "Tus deudas son altas este mes. Sugerimos un ahorro pequeño del 5%."; }
+          else if (surplusRatio > 0.4) { pct = 20; msg = "¡Vas muy bien! Podrías ahorrar un 20% sin problemas."; }
+          else if (surplusRatio < 0.1) { pct = 10; msg = "Este mes tu presupuesto está ajustado. Ahorra un 10%."; }
+          else { pct = 15; msg = "Basado en tus finanzas, un 15% es lo ideal ahora."; }
 
           setIncomeToSave(parsed);
           setSavingsPercentage(pct);
@@ -252,7 +247,6 @@ export default function AddTransactionScreen() {
           setSavingsMessage(msg);
           setSavingsModalVisible(true);
         } catch (e) {
-          // Fallback simple si falla el fetch
           setIncomeToSave(parsed);
           setSavingsPercentage(15);
           setSavingsSuggestion(Math.round(parsed * 0.15));
@@ -260,12 +254,10 @@ export default function AddTransactionScreen() {
           setSavingsModalVisible(true);
         }
       };
-
       calculateSmartSaving();
       return;
     }
 
-    // ── TRANSFER ──
     if (type === 'transfer') {
       if (!destAccount || destAccount === account) {
         Alert.alert('Error', 'Selecciona una cuenta de destino diferente.');
@@ -273,25 +265,11 @@ export default function AddTransactionScreen() {
       }
       const desc = description.trim() || `Transferencia ${account} → ${destAccount}`;
       try {
-        // Salida de la cuenta origen
         await supabase.from('transactions').insert([{
-          user_id: user?.id,
-          type: 'expense',
-          amount: parsed,
-          description: desc,
-          category: 'Transferencia',
-          account: account,
-          date: new Date().toISOString(),
+          user_id: user?.id, type: 'expense', amount: parsed, description: desc, category: 'Transferencia', account: account, date: new Date().toISOString(),
         }]);
-        // Entrada a la cuenta destino
         await supabase.from('transactions').insert([{
-          user_id: user?.id,
-          type: 'income',
-          amount: parsed,
-          description: desc,
-          category: 'Transferencia',
-          account: destAccount,
-          date: new Date().toISOString(),
+          user_id: user?.id, type: 'income', amount: parsed, description: desc, category: 'Transferencia', account: destAccount, date: new Date().toISOString(),
         }]);
         setAmount(''); setDescription(''); setDestAccount('');
         router.push('/(tabs)');
@@ -299,70 +277,36 @@ export default function AddTransactionScreen() {
       return;
     }
 
-    // ── NORMAL (Expense / Ahorro) ──
     const dbType = 'expense';
     const dbCategory = type === 'ahorro' ? 'Ahorro' : (category || 'General');
     const desc = description.trim() || dbCategory;
 
     try {
       const { error } = await supabase.from('transactions').insert([{
-        user_id: user?.id,
-        type: dbType,
-        amount: parsed,
-        description: desc,
-        category: dbCategory,
-        account: type === 'ahorro' ? 'Ahorro' : account,
-        date: new Date().toISOString(),
+        user_id: user?.id, type: dbType, amount: parsed, description: desc, category: dbCategory, account: type === 'ahorro' ? 'Ahorro' : account, date: new Date().toISOString(),
       }]);
       if (error) throw error;
-      setAmount('');
-      setDescription('');
-      setCategory('');
+      setAmount(''); setDescription(''); setCategory('');
       router.push('/(tabs)');
-    } catch (e) {
-      console.error('Error guardando transacción:', e);
-    }
+    } catch (e) { console.error('Error guardando transacción:', e); }
   };
 
   const confirmSaveWithSavings = async (shouldSave15: boolean) => {
     const parsed = incomeToSave;
     const savings = savingsSuggestion;
     const desc = description.trim() || (category || 'Sueldo');
-
     try {
-      // 1. Guardar el Ingreso
       await supabase.from('transactions').insert([{
-        user_id: user?.id,
-        type: 'income',
-        amount: parsed,
-        description: desc,
-        category: category || 'Sueldo',
-        account: account,
-        date: new Date().toISOString(),
+        user_id: user?.id, type: 'income', amount: parsed, description: desc, category: category || 'Sueldo', account: account, date: new Date().toISOString(),
       }]);
-
-      // 2. Guardar el Ahorro si se aceptó
       if (shouldSave15) {
         await supabase.from('transactions').insert([{
-          user_id: user?.id,
-          type: 'expense', 
-          amount: savings,
-          description: `Ahorro (${savingsPercentage}%) de: ${desc}`,
-          category: 'Ahorro',
-          account: account,
-          date: new Date().toISOString(),
+          user_id: user?.id, type: 'expense', amount: savings, description: `Ahorro (${savingsPercentage}%) de: ${desc}`, category: 'Ahorro', account: account, date: new Date().toISOString(),
         }]);
       }
-
-      setSavingsModalVisible(false);
-      setAmount('');
-      setDescription('');
-      setCategory('');
+      setSavingsModalVisible(false); setAmount(''); setDescription(''); setCategory('');
       router.push('/(tabs)');
-    } catch (e) {
-      console.error('Error guardando con ahorro:', e);
-      Alert.alert('Error', 'No se pudo guardar la transacción.');
-    }
+    } catch (e) { Alert.alert('Error', 'No se pudo guardar la transacción.'); }
   };
 
   const allCategories = type === 'income'
@@ -377,45 +321,31 @@ export default function AddTransactionScreen() {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-            <Text style={[styles.title, { color: colors.text }]}>Nueva Transacción</Text>
-
-            {/* ── Selector de Tipo: Ingreso / Gasto / Ahorro ─────────────── */}
-            <View style={[styles.typeSelector, { backgroundColor: colors.card }]}>
-              {/* Ingreso */}
-              <TouchableOpacity
-                style={[styles.typeBtn, type === 'income' && { backgroundColor: '#10B981' }]}
-                onPress={() => { setType('income'); setDescription(''); }}
-              >
-                <MaterialIcons name="trending-up" size={15} color={type === 'income' ? '#FFF' : '#94A3B8'} />
-                <Text style={[styles.typeBtnText, type === 'income' && styles.typeBtnActive]}>Ingreso</Text>
+            {/* ── Header ── */}
+            <View style={styles.header}>
+              <Text style={[styles.title, { color: colors.text }]}>Nueva Transacción</Text>
+              <TouchableOpacity onPress={() => router.back()} style={[styles.closeBtn, { backgroundColor: colors.card }]}>
+                <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
+            </View>
 
-              {/* Gasto */}
-              <TouchableOpacity
-                style={[styles.typeBtn, type === 'expense' && { backgroundColor: '#EF4444' }]}
-                onPress={() => { setType('expense'); setDescription(''); }}
-              >
-                <MaterialIcons name="trending-down" size={15} color={type === 'expense' ? '#FFF' : '#94A3B8'} />
-                <Text style={[styles.typeBtnText, type === 'expense' && styles.typeBtnActive]}>Gasto</Text>
-              </TouchableOpacity>
-
-              {/* Ahorro */}
-              <TouchableOpacity
-                style={[styles.typeBtn, type === 'ahorro' && { backgroundColor: '#6366F1' }]}
-                onPress={() => { setType('ahorro'); setDescription('Ahorro'); }}
-              >
-                <Ionicons name="wallet" size={15} color={type === 'ahorro' ? '#FFF' : '#94A3B8'} />
-                <Text style={[styles.typeBtnText, type === 'ahorro' && styles.typeBtnActive]}>Ahorro</Text>
-              </TouchableOpacity>
-
-              {/* Transferencia */}
-              <TouchableOpacity
-                style={[styles.typeBtn, type === 'transfer' && { backgroundColor: '#F59E0B' }]}
-                onPress={() => { setType('transfer'); setDescription(''); }}
-              >
-                <MaterialIcons name="swap-horiz" size={15} color={type === 'transfer' ? '#FFF' : '#94A3B8'} />
-                <Text style={[styles.typeBtnText, type === 'transfer' && styles.typeBtnActive]}>Mover</Text>
-              </TouchableOpacity>
+            {/* ── Selector de Tipo: Sanctuary Cards ─────────────── */}
+            <View style={[styles.typeList, { backgroundColor: colors.card }]}>
+              {[
+                { id: 'income', label: 'Ingreso', icon: 'trending-up', c: '#4A7C59' },
+                { id: 'expense', label: 'Gasto', icon: 'trending-down', c: '#EF4444' },
+                { id: 'ahorro', label: 'Ahorro', icon: 'wallet', c: '#6366F1' },
+                { id: 'transfer', label: 'Mover', icon: 'swap-horiz', c: '#F59E0B' },
+              ].map(t => (
+                <TouchableOpacity
+                  key={t.id}
+                  style={[styles.typeItem, type === t.id && { backgroundColor: t.c + '15', borderColor: t.c }]}
+                  onPress={() => { setType(t.id as TxType); setDescription(t.id === 'ahorro' ? 'Ahorro' : ''); }}
+                >
+                  <MaterialIcons name={t.icon as any} size={18} color={type === t.id ? t.c : colors.sub} />
+                  <Text style={[styles.typeItemText, { color: type === t.id ? t.c : colors.sub }]}>{t.label}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
 
             {/* ── Monto ─────────────────────────────────────────────────── */}
@@ -433,339 +363,163 @@ export default function AddTransactionScreen() {
               />
             </View>
 
-            {/* ── Formulario ────────────────────────────────────────────── */}
+            {/* ── Formulario Sanctuary ────────────────────────────────────── */}
             <View style={[styles.form, { backgroundColor: colors.card }]}>
               {/* Descripción */}
-              <View style={styles.inputRow}>
-                <View style={[styles.inputIcon, { backgroundColor: typeColor + '18' }]}>
-                  <MaterialIcons name="edit" size={20} color={typeColor} />
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.sub }]}>Descripción</Text>
+                <View style={[styles.inputContainer, { backgroundColor: colors.bg }]}>
+                  <TextInput
+                    style={[styles.textInput, { color: colors.text }]}
+                    value={description}
+                    onChangeText={setDescription}
+                    placeholder="Ej. Supermercado, Nómina..."
+                    placeholderTextColor={colors.sub + '80'}
+                  />
                 </View>
-                <TextInput
-                  style={[styles.textInput, { color: colors.text }]}
-                  value={description}
-                  onChangeText={setDescription}
-                  placeholder={
-                    type === 'ahorro' ? 'Nombre del ahorro (ej. Viaje)' :
-                      type === 'income' ? 'Descripción (ej. Sueldo)' :
-                        'Descripción (ej. Supermercado)'
-                  }
-                  placeholderTextColor="#94A3B8"
-                  returnKeyType="done"
-                  onSubmitEditing={Keyboard.dismiss}
-                />
               </View>
 
-              <View style={[styles.separator, { backgroundColor: colors.border }]} />
-              <Text style={[styles.sectionLabel, { color: colors.sub }]}>Bancos y Efectivo</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
-                {['Efectivo', ...customAccounts.filter(a => !cardNames.includes(a))].map(acc => (
-                  <TouchableOpacity
-                    key={acc}
-                    style={[
-                      styles.catChip,
-                      { backgroundColor: isDark ? '#334155' : '#F1F5F9' },
-                      account === acc && { backgroundColor: typeColor },
-                    ]}
-                    onPress={() => setAccount(acc)}
-                    onLongPress={() => customAccounts.includes(acc) && handleDeleteCustomAccount(acc)}
-                  >
-                    <Text style={[
-                      styles.catText,
-                      { color: isDark ? '#94A3B8' : '#64748B' },
-                      account === acc && { color: '#FFF' },
-                    ]}>
-                      {acc}
-                    </Text>
+              {/* Cuentas */}
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Cuenta</Text>
+                  <TouchableOpacity onPress={() => setAccountModalVisible(true)}>
+                    <MaterialIcons name="add-circle" size={24} color={colors.accent} />
                   </TouchableOpacity>
-                ))}
-                {/* Botón + Nueva Cuenta */}
-                <TouchableOpacity style={styles.catAddBtn} onPress={() => setAccountModalVisible(true)}>
-                  <MaterialIcons name="add" size={15} color="#6366F1" />
-                  <Text style={styles.catAddText}>Banco</Text>
-                </TouchableOpacity>
-              </ScrollView>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                  {['Efectivo', ...customAccounts.filter(a => !cardNames.includes(a)), ...cardNames].map(acc => (
+                    <TouchableOpacity
+                      key={acc}
+                      style={[styles.chip, { backgroundColor: colors.bg }, account === acc && { backgroundColor: colors.accent }]}
+                      onPress={() => setAccount(acc)}
+                      onLongPress={() => customAccounts.includes(acc) && handleDeleteCustomAccount(acc)}
+                    >
+                      <Text style={[styles.chipText, { color: colors.sub }, account === acc && { color: '#FFF' }]}>{acc}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
 
-              {cardNames.length > 0 && (
-                <>
-                  <View style={[styles.separator, { backgroundColor: colors.border, marginTop: 12 }]} />
-                  <Text style={[styles.sectionLabel, { color: colors.sub }]}>Tarjetas de Crédito</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
-                    {cardNames.map(name => (
-                      <TouchableOpacity
-                        key={name}
-                        style={[
-                          styles.catChip,
-                          { backgroundColor: isDark ? '#334155' : '#F1F5F9', borderColor: '#6366F120', borderWidth: 1 },
-                          account === name && { backgroundColor: '#6366F1', borderColor: '#6366F1' },
-                        ]}
-                        onPress={() => setAccount(name)}
-                      >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <MaterialIcons name="credit-card" size={14} color={account === name ? '#FFF' : '#6366F1'} />
-                          <Text style={[
-                            styles.catText,
-                            { color: isDark ? '#94A3B8' : '#64748B' },
-                            account === name && { color: '#FFF' },
-                          ]}>
-                            {name}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </>
-              )}
-
-              {/* Cuenta destino (solo aplica para Transferencias) */}
-              {type === 'transfer' && (
-                <>
-                  <View style={[styles.separator, { backgroundColor: colors.border }]} />
-                  <Text style={[styles.sectionLabel, { color: colors.sub }]}>¿A dónde va el dinero?</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
-                    {[
-                      'Efectivo',
-                      ...customAccounts.filter(a => a !== account && !cardNames.includes(a)),
-                      ...cardNames.filter(a => a !== account)
-                    ].map(acc => (
-                      <TouchableOpacity
-                        key={acc}
-                        style={[
-                          styles.catChip,
-                          { backgroundColor: isDark ? '#334155' : '#F1F5F9' },
-                          destAccount === acc && { backgroundColor: '#F59E0B' },
-                        ]}
-                        onPress={() => setDestAccount(acc)}
-                      >
-                        <Text style={[
-                          styles.catText,
-                          { color: isDark ? '#94A3B8' : '#64748B' },
-                          destAccount === acc && { color: '#FFF' },
-                        ]}>
-                          {acc}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </>
-              )}
-
-              {/* Categorías (no aplica para Ahorro ni Transfer) */}
+              {/* Categoría */}
               {type !== 'ahorro' && type !== 'transfer' && (
-                <>
-                  <View style={[styles.separator, { backgroundColor: colors.border }]} />
-                  <Text style={[styles.sectionLabel, { color: colors.sub }]}>Categoría</Text>
-
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
+                <View style={styles.section}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Categoría</Text>
+                    <TouchableOpacity onPress={() => setModalVisible(true)}>
+                      <MaterialIcons name="add-circle" size={24} color={colors.accent} />
+                    </TouchableOpacity>
+                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
                     {allCategories.map(cat => (
                       <TouchableOpacity
                         key={cat}
-                        style={[
-                          styles.catChip,
-                          { backgroundColor: isDark ? '#334155' : '#F1F5F9' },
-                          category === cat && { backgroundColor: typeColor },
-                        ]}
+                        style={[styles.chip, { backgroundColor: colors.bg }, category === cat && { backgroundColor: typeColor }]}
                         onPress={() => setCategory(cat)}
                         onLongPress={() => customCategories.includes(cat) && handleDeleteCustomCategory(cat)}
                       >
-                        <Text style={[
-                          styles.catText,
-                          { color: isDark ? '#94A3B8' : '#64748B' },
-                          category === cat && { color: '#FFF' },
-                        ]}>
-                          {cat}
-                        </Text>
+                        <Text style={[styles.chipText, { color: colors.sub }, category === cat && { color: '#FFF' }]}>{cat}</Text>
                       </TouchableOpacity>
                     ))}
-
-                    {/* Botón + Nueva */}
-                    <TouchableOpacity style={styles.catAddBtn} onPress={() => setModalVisible(true)}>
-                      <MaterialIcons name="add" size={15} color="#6366F1" />
-                      <Text style={styles.catAddText}>Nueva</Text>
-                    </TouchableOpacity>
                   </ScrollView>
-
-                  {customCategories.length > 0 && (
-                    <Text style={styles.hintText}>💡 Mantén presionada una categoría tuya para eliminarla</Text>
-                  )}
-                </>
+                </View>
               )}
 
-              {/* Info box de Ahorro */}
-              {type === 'ahorro' && (
-                <View style={[styles.ahorroBox, { backgroundColor: '#6366F1' + '12' }]}>
-                  <Ionicons name="information-circle" size={18} color="#6366F1" />
-                  <Text style={styles.ahorroText}>
-                    Este monto se restará de tu Dinero Activo y se sumará a tu Ahorro.
-                  </Text>
+              {/* Destino (Transferencia) */}
+              {type === 'transfer' && (
+                <View style={styles.section}>
+                  <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 12 }]}>Destino</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                    {['Efectivo', ...customAccounts, ...cardNames].filter(a => a !== account).map(acc => (
+                      <TouchableOpacity
+                        key={acc}
+                        style={[styles.chip, { backgroundColor: colors.bg }, destAccount === acc && { backgroundColor: typeColor }]}
+                        onPress={() => setDestAccount(acc)}
+                      >
+                        <Text style={[styles.chipText, { color: colors.sub }, destAccount === acc && { color: '#FFF' }]}>{acc}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
                 </View>
               )}
             </View>
 
             {/* ── Botón Guardar ──────────────────────────────────────── */}
             <TouchableOpacity
-              style={[styles.saveBtn, { backgroundColor: typeColor }, (!amount) && styles.saveBtnDisabled]}
+              style={[styles.saveBtn, { backgroundColor: typeColor }, !amount && { opacity: 0.5 }]}
               onPress={handleSave}
               disabled={!amount}
-              activeOpacity={0.85}
             >
-              <Ionicons name="checkmark-circle" size={22} color="#FFF" />
-              <Text style={styles.saveBtnText}>
-                {type === 'income' ? 'Guardar Ingreso' :
-                  type === 'ahorro' ? 'Guardar Ahorro' : 'Guardar Gasto'}
-              </Text>
+              <Text style={styles.saveBtnText}>Guardar Movimiento</Text>
+              <Ionicons name="arrow-forward" size={20} color="#FFF" />
             </TouchableOpacity>
 
             <View style={{ height: 100 }} />
           </ScrollView>
         </KeyboardAvoidingView>
 
-        {/* ── Modal de nueva categoría ─────────────────────────────── */}
-        <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
-          <View style={styles.modalOverlay}>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={{ width: '100%' }}
-              keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 20}
-            >
-              <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>Nueva categoría</Text>
-                <Text style={[styles.modalSub, { color: colors.sub }]}>Elige una sugerencia o escribe la tuya</Text>
-
-                {/* Sugeridas */}
-                <Text style={[styles.modalSectionLabel, { color: colors.sub }]}>Sugeridas</Text>
-                <View style={styles.suggestionsWrap}>
-                  {SUGGESTED_EXTRAS
-                    .filter(s =>
-                      s.type === type &&
-                      !customCategories.includes(s.label) &&
-                      !DEFAULT_INCOME_CATS.includes(s.label) &&
-                      !DEFAULT_EXPENSE_CATS.includes(s.label)
-                    )
-                    .map(s => (
-                      <TouchableOpacity
-                        key={s.label}
-                        style={styles.suggestionChip}
-                        onPress={() => { setCategory(s.label); setModalVisible(false); }}
-                      >
-                        <MaterialIcons name={s.icon as any} size={15} color="#6366F1" />
-                        <Text style={styles.suggestionText}>{s.label}</Text>
-                      </TouchableOpacity>
-                    ))}
-                </View>
-
-                {/* Crear nueva */}
-                <Text style={[styles.modalSectionLabel, { color: colors.sub, marginTop: 18 }]}>Crear y guardar</Text>
-                <View style={[styles.modalInputWrap, { borderColor: colors.border, backgroundColor: colors.input }]}>
-                  <TextInput
-                    style={[styles.modalInput, { color: colors.text }]}
-                    value={newCategoryName}
-                    onChangeText={setNewCategoryName}
-                    placeholder="Ej: Netflix, Mascota, Ropa..."
-                    placeholderTextColor="#94A3B8"
-                    autoFocus
-                    returnKeyType="done"
-                    onSubmitEditing={handleAddCustomCategory}
-                  />
-                </View>
-
+        {/* Modales Sanctuary */}
+        <Modal visible={modalVisible} transparent animationType="fade">
+          <View style={styles.overlay}>
+             <View style={[styles.modalBox, { backgroundColor: colors.card }]}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Nueva Categoría</Text>
+                <TextInput
+                  style={[styles.modalInput, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }]}
+                  value={newCategoryName} onChangeText={setNewCategoryName} placeholder="Ej. Suscripciones"
+                />
                 <View style={styles.modalBtns}>
-                  <TouchableOpacity
-                    style={[styles.modalBtn, { backgroundColor: colors.border }]}
-                    onPress={() => { setModalVisible(false); setNewCategoryName(''); }}
-                  >
-                    <Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text>
+                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.bg }]} onPress={() => setModalVisible(false)}>
+                    <Text style={{ color: colors.text }}>Cancelar</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.modalBtn, { backgroundColor: '#6366F1' }]}
-                    onPress={handleAddCustomCategory}
-                  >
-                    <Text style={{ color: '#FFF', fontWeight: '700' }}>Guardar</Text>
+                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.accent }]} onPress={handleAddCustomCategory}>
+                    <Text style={{ color: '#FFF', fontWeight: '800' }}>Guardar</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
-            </KeyboardAvoidingView>
+             </View>
           </View>
         </Modal>
 
-        {/* ── Modal de nueva cuenta (banco) ─────────────────────────── */}
-        <Modal visible={accountModalVisible} transparent animationType="slide" onRequestClose={() => setAccountModalVisible(false)}>
-          <View style={styles.modalOverlay}>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={{ width: '100%' }}
-              keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 20}
-            >
-              <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>Nuevo Banco / Cuenta</Text>
-                <Text style={[styles.modalSub, { color: colors.sub }]}>Escribe el nombre del banco o cuenta</Text>
-
-                <View style={[styles.modalInputWrap, { borderColor: colors.border, backgroundColor: colors.input }]}>
-                  <TextInput
-                    style={[styles.modalInput, { color: colors.text }]}
-                    value={newAccountName}
-                    onChangeText={setNewAccountName}
-                    placeholder="Ej: Bancolombia, Nequi, Daviplata..."
-                    placeholderTextColor="#94A3B8"
-                    autoFocus
-                    returnKeyType="done"
-                    onSubmitEditing={handleAddCustomAccount}
-                  />
-                </View>
-
+        <Modal visible={accountModalVisible} transparent animationType="fade">
+          <View style={styles.overlay}>
+             <View style={[styles.modalBox, { backgroundColor: colors.card }]}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Nueva Cuenta</Text>
+                <TextInput
+                  style={[styles.modalInput, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }]}
+                  value={newAccountName} onChangeText={setNewAccountName} placeholder="Ej. Bancolombia"
+                />
                 <View style={styles.modalBtns}>
-                  <TouchableOpacity
-                    style={[styles.modalBtn, { backgroundColor: colors.border }]}
-                    onPress={() => { setAccountModalVisible(false); setNewAccountName(''); }}
-                  >
-                    <Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text>
+                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.bg }]} onPress={() => setAccountModalVisible(false)}>
+                    <Text style={{ color: colors.text }}>Cancelar</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.modalBtn, { backgroundColor: '#6366F1' }]}
-                    onPress={handleAddCustomAccount}
-                  >
-                    <Text style={{ color: '#FFF', fontWeight: '700' }}>Guardar</Text>
+                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.accent }]} onPress={handleAddCustomAccount}>
+                    <Text style={{ color: '#FFF', fontWeight: '800' }}>Guardar</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
-            </KeyboardAvoidingView>
+             </View>
           </View>
         </Modal>
 
-        {/* ── Modal Sugerencia Ahorro Inteligente ─────────────────── */}
         <Modal visible={savingsModalVisible} transparent animationType="fade">
-          <View style={[styles.modalOverlay, { justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.7)' }]}>
-            <View style={[styles.savingsSuggestionCard, { backgroundColor: colors.card }]}>
-              <View style={styles.savingsIconWrap}>
-                <MaterialIcons name="auto-awesome" size={32} color="#6366F1" />
-              </View>
-              
-              <Text style={[styles.savingsTitle, { color: colors.text }]}>Sugerencia Inteligente</Text>
-              <Text style={[styles.savingsSub, { color: colors.sub }]}>
-                {savingsMessage}
-              </Text>
-
-              <View style={styles.savingsAmountPill}>
-                <Text style={{fontSize: 12, color: colors.sub, fontWeight: '700', marginBottom: 2}}>Ahorro sugerido ({savingsPercentage}%)</Text>
-                <Text style={styles.savingsAmountText}>
-                  {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(savingsSuggestion)}
-                </Text>
-              </View>
-
-              <View style={styles.modalBtns}>
-                <TouchableOpacity
-                  style={[styles.modalBtn, { backgroundColor: colors.border }]}
-                  onPress={() => confirmSaveWithSavings(false)}
-                >
-                  <Text style={{ color: colors.text, fontWeight: '700' }}>Solo guardar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalBtn, { backgroundColor: '#6366F1' }]}
-                  onPress={() => confirmSaveWithSavings(true)}
-                >
-                  <Text style={{ color: '#FFF', fontWeight: '800' }}>Sí, ahorrar</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+          <View style={[styles.overlay, { backgroundColor: 'rgba(0,0,0,0.8)' }]}>
+             <View style={[styles.modalBox, { backgroundColor: colors.card, alignItems: 'center' }]}>
+                <View style={[styles.aiIcon, { backgroundColor: colors.accent + '15' }]}>
+                  <MaterialIcons name="auto-awesome" size={32} color={colors.accent} />
+                </View>
+                <Text style={[styles.modalTitle, { color: colors.text, textAlign: 'center' }]}>Sugerencia Inteligente</Text>
+                <Text style={[styles.modalSub, { color: colors.sub, textAlign: 'center' }]}>{savingsMessage}</Text>
+                <View style={styles.suggestionPill}>
+                  <Text style={styles.suggestionAmt}>{fmtCOP(savingsSuggestion)}</Text>
+                  <Text style={styles.suggestionLab}>Ahorro ({savingsPercentage}%)</Text>
+                </View>
+                <View style={styles.modalBtns}>
+                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.bg }]} onPress={() => confirmSaveWithSavings(false)}>
+                    <Text style={{ color: colors.text }}>Solo guardar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.accent }]} onPress={() => confirmSaveWithSavings(true)}>
+                    <Text style={{ color: '#FFF', fontWeight: '800' }}>Sí, ahorrar</Text>
+                  </TouchableOpacity>
+                </View>
+             </View>
           </View>
         </Modal>
       </SafeAreaView>
@@ -773,130 +527,49 @@ export default function AddTransactionScreen() {
   );
 }
 
+const fmtCOP = (n: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { padding: 20, paddingTop: Platform.OS === 'android' ? 50 : 20 },
-  title: { fontSize: 26, fontWeight: '800', marginBottom: 20 },
+  scroll: { padding: 24, paddingBottom: 100 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, marginTop: Platform.OS === 'android' ? 20 : 0 },
+  title: { fontSize: 24, fontWeight: '900' },
+  closeBtn: { width: 44, height: 44, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
 
-  typeSelector: {
-    flexDirection: 'row', borderRadius: 16, padding: 5, marginBottom: 20, gap: 4,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
-  },
-  typeBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'center', paddingVertical: 12, borderRadius: 13, gap: 5,
-  },
-  typeBtnText: { color: '#94A3B8', fontSize: 13, fontWeight: '700' },
-  typeBtnActive: { color: '#FFF' },
+  typeList: { flexDirection: 'row', padding: 6, borderRadius: 20, marginBottom: 20, justifyContent: 'space-between' },
+  typeItem: { flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center', gap: 4, borderWidth: 1, borderColor: 'transparent' },
+  typeItemText: { fontSize: 11, fontWeight: '800' },
 
-  amountCard: {
-    borderRadius: 20, padding: 20, alignItems: 'center',
-    flexDirection: 'row', justifyContent: 'center', marginBottom: 16,
-  },
-  currSign: { color: '#FFF', fontSize: 24, fontWeight: '800', marginRight: 4 },
-  amountInput: { color: '#FFF', fontSize: 36, fontWeight: '800', minWidth: 100, textAlign: 'center' },
+  amountCard: { borderRadius: 28, padding: 32, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', marginBottom: 24, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 15 },
+  currSign: { color: '#FFF', fontSize: 28, fontWeight: '800', marginRight: 6 },
+  amountInput: { color: '#FFF', fontSize: 42, fontWeight: '900', minWidth: 150, textAlign: 'center' },
 
-  form: {
-    borderRadius: 20, padding: 16, marginBottom: 20,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
-  },
-  inputRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
-  inputIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  textInput: { flex: 1, fontSize: 16 },
-  separator: { height: 1, marginVertical: 12 },
-  sectionLabel: { fontSize: 13, fontWeight: '600', marginBottom: 10 },
+  form: { borderRadius: 32, padding: 24, gap: 24, elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
+  inputGroup: { gap: 8 },
+  inputLabel: { fontSize: 13, fontWeight: '800', marginLeft: 4 },
+  inputContainer: { borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14 },
+  textInput: { fontSize: 16, fontWeight: '600' },
 
-  catRow: { gap: 8, paddingBottom: 6 },
-  catChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
-  catText: { fontSize: 13, fontWeight: '600' },
-  catAddBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(99,102,241,0.1)', paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: 20, borderWidth: 1, borderColor: '#6366F1',
-  },
-  catAddText: { fontSize: 13, fontWeight: '700', color: '#6366F1' },
-  hintText: { fontSize: 11, color: '#94A3B8', marginTop: 8 },
+  section: { gap: 12 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  sectionTitle: { fontSize: 16, fontWeight: '800' },
+  chipRow: { gap: 10 },
+  chip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14 },
+  chipText: { fontSize: 13, fontWeight: '800' },
 
-  ahorroBox: {
-    flexDirection: 'row', alignItems: 'flex-start',
-    borderRadius: 12, padding: 12, gap: 8, marginTop: 8,
-  },
-  ahorroText: { flex: 1, fontSize: 13, color: '#64748B', lineHeight: 18 },
+  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 20, borderRadius: 24, marginTop: 32, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 15 },
+  saveBtnText: { color: '#FFF', fontSize: 18, fontWeight: '900' },
 
-  saveBtn: {
-    borderRadius: 16, height: 56,
-    flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8,
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6,
-  },
-  saveBtnDisabled: { opacity: 0.5 },
-  saveBtnText: { color: '#FFF', fontSize: 17, fontWeight: '700' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
+  modalBox: { borderRadius: 32, padding: 32, gap: 20 },
+  modalTitle: { fontSize: 20, fontWeight: '800' },
+  modalSub: { fontSize: 14, lineHeight: 20 },
+  modalInput: { borderWidth: 1, borderRadius: 16, padding: 18, fontSize: 16 },
+  modalBtns: { flexDirection: 'row', gap: 12, width: '100%', marginTop: 10 },
+  mBtn: { flex: 1, padding: 18, borderRadius: 18, alignItems: 'center' },
 
-  // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 44 },
-  modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: 4 },
-  modalSub: { fontSize: 14, marginBottom: 18 },
-  modalSectionLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
-  suggestionsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  suggestionChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(99,102,241,0.1)', paddingVertical: 8,
-    paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(99,102,241,0.2)',
-  },
-  suggestionText: { fontSize: 13, fontWeight: '600', color: '#6366F1' },
-  modalInputWrap: { borderWidth: 1.5, borderRadius: 14, paddingHorizontal: 14, height: 50, justifyContent: 'center', marginBottom: 20 },
-  modalInput: { fontSize: 16 },
-  modalBtns: { flexDirection: 'row', gap: 12 },
-  modalBtn: { flex: 1, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-
-  // Savings Suggestion Styles
-  savingsSuggestionCard: {
-    marginHorizontal: 30,
-    borderRadius: 28,
-    padding: 24,
-    alignItems: 'center',
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  savingsIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 22,
-    backgroundColor: 'rgba(99,102,241,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  savingsTitle: {
-    fontSize: 22,
-    fontWeight: '900',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  savingsSub: {
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 20,
-  },
-  savingsAmountPill: {
-    backgroundColor: 'rgba(16,185,129,0.1)',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(16,185,129,0.2)',
-    marginBottom: 24,
-  },
-  savingsAmountText: {
-    color: '#10B981',
-    fontSize: 24,
-    fontWeight: '900',
-  },
+  aiIcon: { width: 64, height: 64, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
+  suggestionPill: { backgroundColor: '#4A7C5915', padding: 20, borderRadius: 24, alignItems: 'center', width: '100%' },
+  suggestionAmt: { fontSize: 28, fontWeight: '900', color: '#4A7C59' },
+  suggestionLab: { fontSize: 12, color: '#4A7C59', fontWeight: '800', marginTop: 4 },
 });
-
