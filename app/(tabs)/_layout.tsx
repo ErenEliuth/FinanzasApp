@@ -15,11 +15,11 @@ export default function TabLayout() {
   const isDebtsOrRestricted = (segments as string[]).some(s => ['debts', 'goals', 'cards', 'budgets'].includes(s));
 
   const colors = {
-    bg: isDark ? '#1E293B' : '#FFFFFF',
-    text: isDark ? '#F1F5F9' : '#1E293B',
-    inactive: isDark ? '#64748B' : '#94A3B8',
-    active: isDark ? '#818CF8' : '#6366F1',
-    border: isDark ? '#334155' : '#E2E8F0',
+    bg: isDark ? '#1A1A2E' : '#FFFFFF',
+    text: isDark ? '#F5F0E8' : '#2D2D2D',
+    inactive: isDark ? '#64748B' : '#B0A89C',
+    active: isDark ? '#7CC68E' : '#4A7C59',
+    border: isDark ? '#3A3A52' : '#F0E8DC',
   };
 
   return (
@@ -41,9 +41,9 @@ export default function TabLayout() {
           borderTopWidth: 1,
           borderTopColor: colors.border,
           elevation: 20,
-          shadowColor: colors.active,
+          shadowColor: '#000',
           shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.08,
+          shadowOpacity: 0.06,
           shadowRadius: 16,
           zIndex: 100,
         },
@@ -94,7 +94,7 @@ export default function TabLayout() {
                 style={[
                   styles.fabButton, 
                   isDebtsOrRestricted && styles.fabButtonDisabled, 
-                  isDark && !isDebtsOrRestricted && { backgroundColor: '#4F46E5' }
+                  isDark && !isDebtsOrRestricted && { backgroundColor: '#3D8B53' }
                 ]}
               >
                 <MaterialIcons name="add" size={28} color="#FFFFFF" />
@@ -115,11 +115,11 @@ export default function TabLayout() {
       <Tabs.Screen
         name="cards"
         options={{
-          title: 'Tarjetas',
+          title: 'Cuentas',
           href: '/cards',
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? styles.activeIconWrap : styles.iconWrap}>
-              <MaterialIcons name="credit-card" size={22} color={color} />
+              <MaterialIcons name="account-balance-wallet" size={22} color={color} />
             </View>
           ),
         }}
@@ -142,7 +142,7 @@ export default function TabLayout() {
         name="debts"
         options={{
           title: 'Deudas',
-          href: null, // Ocultar del tab bar — se accede desde el dashboard
+          href: null,
         }}
       />
 
@@ -150,7 +150,7 @@ export default function TabLayout() {
         name="budgets"
         options={{
           title: 'Presupuestos',
-          href: null, // Ocultar del tab bar — se accede desde el perfil
+          href: null,
         }}
       />
     </Tabs>
@@ -171,25 +171,25 @@ const styles = StyleSheet.create({
     width: 40,
     height: 32,
     borderRadius: 10,
-    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    backgroundColor: 'rgba(74, 124, 89, 0.12)',
   },
   fabButton: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#6366F1',
+    backgroundColor: '#4A7C59',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Platform.OS === 'web' ? 0 : 20,
     top: Platform.OS === 'web' ? -10 : 0,
-    shadowColor: '#6366F1',
+    shadowColor: '#4A7C59',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.35,
     shadowRadius: 8,
     elevation: 8,
   },
   fabButtonDisabled: {
-    backgroundColor: '#CBD5E1', // disabled gray
+    backgroundColor: '#CBD5E1',
     shadowOpacity: 0,
     elevation: 0,
   },
