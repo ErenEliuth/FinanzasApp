@@ -9,8 +9,6 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
-    Animated,
-    Easing,
     Image,
     Modal,
     Platform,
@@ -27,7 +25,7 @@ const MONTH_NAMES_FULL = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ];
-const DAY_HEADERS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+const DAY_HEADERS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
 const toKey = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -39,38 +37,40 @@ const fmtCOP = (n: number, isHidden: boolean) =>
             style: 'currency', currency: 'COP', minimumFractionDigits: 0
           }).format(n);
 
-function MonthHeatmap({ activeDays, isDark, theme, colors }: {
+// ─── Sanctuary Theme Colors ───────────────────────────────────────────
+const getColors = (t: string) => {
+    if (t === 'dark') {
+        return {
+            bg: '#1A1A2E', card: '#25253D', text: '#F5F0E8', sub: '#A09B8C',
+            border: '#3A3A52', accent: '#4A7C59', cardBg: '#2A2A42',
+            warmBg: '#1A1A2E',
+        };
+    }
+    return {
+        bg: '#FFF8F0', card: '#FFFFFF', text: '#2D2D2D', sub: '#8B8680',
+        border: '#F0E8DC', accent: '#4A7C59', cardBg: '#FFF5EB',
+        warmBg: '#FFF8F0',
+    };
+};
+
+function MonthHeatmap({ activeDays, colorsNav }: {
     activeDays: Map<string, number>;
-    isDark: boolean;
-    theme: string;
-    colors: any;
+    colorsNav: any;
 }) {
     const today = new Date();
     const todayKey = toKey(today);
     const month = today.getMonth();
     const year = today.getFullYear();
 
-    // Días del mes
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    // Día de la semana del 1ro (0=Dom → ajustamos a Lun=0)
     const firstWeekDay = new Date(year, month, 1).getDay();
-    const startOffset = (firstWeekDay === 0 ? 6 : firstWeekDay - 1); // Lun-based
+    const startOffset = (firstWeekDay === 0 ? 6 : firstWeekDay - 1); 
 
-    // Construir celdas: prefix vacíos + días reales
     const cells: (number | null)[] = [
         ...Array(startOffset).fill(null),
         ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
     ];
-    // Completar última fila con nulos
     while (cells.length % 7 !== 0) cells.push(null);
-
-    // Racha actual
-    const streak = (() => {
-        let s = 0;
-        const t = new Date(today);
-        while (activeDays.has(toKey(t))) { s++; t.setDate(t.getDate() - 1); }
-        return s;
-    })();
 
     const totalActive = [...activeDays.keys()].filter(k => {
         const d = new Date(k);
@@ -78,39 +78,29 @@ function MonthHeatmap({ activeDays, isDark, theme, colors }: {
     }).length;
 
     return (
-        <View style={[mSt.card, { backgroundColor: colors.card }]}>
-            {/* Cabecera */}
+        <View style={[mSt.card, { backgroundColor: colorsNav.card }]}>
             <View style={mSt.header}>
                 <View>
-                    <Text style={[mSt.monthName, { color: colors.text }]}>
+                    <Text style={[mSt.monthName, { color: colorsNav.text }]}>
                         {MONTH_NAMES_FULL[month]} {year}
                     </Text>
-                    <Text style={[mSt.subtitle, { color: colors.sub }]}>
+                    <Text style={[mSt.subtitle, { color: colorsNav.sub }]}>
                         Actividad financiera
                     </Text>
                 </View>
-                <View style={{ gap: 6, alignItems: 'flex-end' }}>
-                    <View style={mSt.pill}>
-                        <Text style={mSt.pillTxt}>✅ {totalActive} días</Text>
-                    </View>
-                    {streak > 0 && (
-                        <View style={[mSt.pill, { backgroundColor: 'rgba(124,58,237,0.1)' }]}>
-                            <Text style={[mSt.pillTxt, { color: '#7C3AED' }]}>🔥 {streak} racha</Text>
-                        </View>
-                    )}
+                <View style={[mSt.pill, { backgroundColor: '#E8F5E9' }]}>
+                    <Text style={[mSt.pillTxt, { color: '#4A7C59' }]}>{totalActive} días activos</Text>
                 </View>
             </View>
 
-            {/* Encabezados de días */}
             <View style={mSt.weekRow}>
-                {DAY_HEADERS.map(d => (
-                    <View key={d} style={mSt.dayHeader}>
-                        <Text style={[mSt.dayHeaderTxt, { color: colors.sub }]}>{d}</Text>
+                {DAY_HEADERS.map((d, i) => (
+                    <View key={i} style={mSt.dayHeader}>
+                        <Text style={[mSt.dayHeaderTxt, { color: colorsNav.sub }]}>{d}</Text>
                     </View>
                 ))}
             </View>
 
-            {/* Cuadrícula */}
             {Array.from({ length: cells.length / 7 }, (_, row) => (
                 <View key={row} style={mSt.weekRow}>
                     {cells.slice(row * 7, row * 7 + 7).map((day, col) => {
@@ -120,30 +110,22 @@ function MonthHeatmap({ activeDays, isDark, theme, colors }: {
                         const isToday = k === todayKey;
                         const isFuture = new Date(year, month, day) > today;
 
-                        const bgColor = isFuture
-                            ? 'transparent'
-                            : count > 0
-                                ? '#22C55E'
-                                : ['dark', 'purple', 'blue', 'pink'].includes(theme) ? colors.bg : '#EEF2F7';
+                        let bgColor = colorsNav.bg;
+                        if (isFuture) bgColor = 'transparent';
+                        else if (count > 0) bgColor = '#4A7C59';
 
                         return (
                             <View key={col} style={mSt.cell}>
                                 <View style={[
                                     mSt.dayCircle,
                                     { backgroundColor: bgColor },
-                                    isToday && {
-                                        borderWidth: 2,
-                                        borderColor: '#7C3AED',
-                                        backgroundColor: count > 0 ? '#22C55E' : 'transparent',
-                                    },
+                                    isToday && { borderWidth: 2, borderColor: colorsNav.accent },
                                 ]}>
                                     <Text style={[
                                         mSt.dayNum,
-                                        isFuture && { color: ['dark', 'purple', 'blue', 'pink'].includes(theme) ? colors.sub : '#D1D5DB' },
-                                        !isFuture && count === 0 && { color: colors.text },
-                                        !isFuture && count > 0 && { color: '#FFF' },
-                                        isToday && { color: colors.sub, fontWeight: '800' },
-                                        isToday && count > 0 && { color: '#FFF' },
+                                        { color: count > 0 ? '#FFF' : colorsNav.text },
+                                        isFuture && { color: colorsNav.sub + '50' },
+                                        isToday && { fontWeight: '900' }
                                     ]}>
                                         {day}
                                     </Text>
@@ -153,83 +135,55 @@ function MonthHeatmap({ activeDays, isDark, theme, colors }: {
                     })}
                 </View>
             ))}
-
-            {/* Leyenda */}
-            <View style={mSt.legend}>
-                <View style={[mSt.legendDot, { backgroundColor: ['dark', 'purple', 'blue', 'pink'].includes(theme) ? colors.bg : '#EEF2F7' }]} />
-                <Text style={[mSt.legendTxt, { color: colors.sub }]}>Sin actividad</Text>
-                <View style={[mSt.legendDot, { backgroundColor: '#22C55E' }]} />
-                <Text style={[mSt.legendTxt, { color: colors.sub }]}>Con actividad</Text>
-                <View style={[mSt.legendDot, { backgroundColor: 'transparent', borderWidth: 2, borderColor: '#7C3AED' }]} />
-                <Text style={[mSt.legendTxt, { color: colors.sub }]}>Hoy</Text>
-            </View>
         </View>
     );
 }
 
 const mSt = StyleSheet.create({
-    card: {
-        borderRadius: 22, padding: 18, marginBottom: 16,
-        shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
-    },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
-    monthName: { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
+    card: { borderRadius: 24, padding: 20, marginBottom: 16 },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    monthName: { fontSize: 18, fontWeight: '800' },
     subtitle: { fontSize: 12, marginTop: 2 },
-    pill: { backgroundColor: 'rgba(34,197,94,0.12)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-    pillTxt: { fontSize: 11, fontWeight: '700', color: '#16A34A' },
-
-    weekRow: { flexDirection: 'row', marginBottom: 4 },
-    dayHeader: { flex: 1, alignItems: 'center', marginBottom: 6 },
-    dayHeaderTxt: { fontSize: 11, fontWeight: '700' },
-
-    cell: { flex: 1, alignItems: 'center', marginBottom: 4 },
-    dayCircle: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-    dayNum: { fontSize: 13, fontWeight: '600' },
-
-    legend: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, justifyContent: 'center' },
-    legendDot: { width: 12, height: 12, borderRadius: 4 },
-    legendTxt: { fontSize: 11 },
+    pill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+    pillTxt: { fontSize: 11, fontWeight: '800' },
+    weekRow: { flexDirection: 'row', marginBottom: 8 },
+    dayHeader: { flex: 1, alignItems: 'center' },
+    dayHeaderTxt: { fontSize: 11, fontWeight: '700', opacity: 0.6 },
+    cell: { flex: 1, alignItems: 'center' },
+    dayCircle: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+    dayNum: { fontSize: 12, fontWeight: '600' },
 });
 
-const gSt = StyleSheet.create({});
-
 // ─── Estadísticas de Categorías ────────────────────────────────────────────────
-const CAT_ICONS: Record<string, any> = {
-    'Hogar': { icon: 'home', color: '#F97316' },
-    'Transporte': { icon: 'directions-car', color: '#6366F1' },
-    'Comida': { icon: 'restaurant', color: '#F43F5E' },
-    'Servicios': { icon: 'build', color: '#8B5CF6' },
-    'Salud': { icon: 'medical-services', color: '#10B981' },
-    'Educación': { icon: 'school', color: '#3B82F6' },
-    'Entretenimiento': { icon: 'sports-esports', color: '#EC4899' },
-    'Otros': { icon: 'more-horiz', color: '#94A3B8' },
+const CAT_INFO: Record<string, any> = {
+    'Hogar': { icon: 'home', color: '#4CAF50', bg: '#E8F5E9' },
+    'Transporte': { icon: 'directions-car', color: '#00BCD4', bg: '#E0F7FA' },
+    'Comida': { icon: 'restaurant', color: '#F59E0B', bg: '#FFF0E0' },
+    'Supermercado': { icon: 'shopping-cart', color: '#F59E0B', bg: '#FFF0E0' },
+    'Salud': { icon: 'favorite', color: '#E91E63', bg: '#FCE4EC' },
+    'Educación': { icon: 'school', color: '#3B82F6', bg: '#E3F0FF' },
+    'Entretenimiento': { icon: 'sports-esports', color: '#EC4899', bg: '#FDF2F8' },
+    'Otros': { icon: 'more-horiz', color: '#94A3B8', bg: '#F1F5F9' },
 };
 
-function CategoryStatistics({ transactions, isDark, colors, isHidden }: { transactions: any[]; isDark: boolean; colors: any; isHidden: boolean }) {
+function CategoryStatistics({ transactions, colorsNav, isHidden }: { transactions: any[]; colorsNav: any; isHidden: boolean }) {
     const today = new Date();
     const currMonth = today.getMonth();
     const currYear = today.getFullYear();
-
     const lastMonthDate = new Date(currYear, currMonth - 1, 1);
     const lastMonth = lastMonthDate.getMonth();
     const lastYear = lastMonthDate.getFullYear();
 
-    // Gastos de este mes
     const thisMonthExpenses = transactions.filter(t => {
         const d = new Date(t.date);
         return t.type === 'expense' && t.category !== 'Ahorro' && d.getMonth() === currMonth && d.getFullYear() === currYear;
     });
-
-    // Gastos del mes pasado
-    const lastMonthExpenses = transactions.filter(t => {
+    const lastMonthTotal = transactions.filter(t => {
         const d = new Date(t.date);
         return t.type === 'expense' && t.category !== 'Ahorro' && d.getMonth() === lastMonth && d.getFullYear() === lastYear;
-    });
+    }).reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
 
     const thisMonthTotal = thisMonthExpenses.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
-    const lastMonthTotal = lastMonthExpenses.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
-
-    // Desglose por categoría (mes actual)
     const categoryTotals: Record<string, number> = {};
     thisMonthExpenses.forEach(t => {
         const cat = t.category || 'Otros';
@@ -237,131 +191,75 @@ function CategoryStatistics({ transactions, isDark, colors, isHidden }: { transa
     });
 
     const sortedCats = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
-
-    if (thisMonthExpenses.length === 0 && lastMonthExpenses.length === 0) {
-        return (
-            <View style={[statStyle.card, { backgroundColor: colors.card, marginTop: 16 }]}>
-                <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text, marginBottom: 8 }}>Análisis Mensual</Text>
-                <Text style={{ color: colors.sub }}>Aún no hay suficientes datos para generar un análisis comparativo.</Text>
-            </View>
-        );
-    }
-
-    const highestCat = sortedCats[0] ? sortedCats[0][0] : null;
-    const highestVal = sortedCats[0] ? sortedCats[0][1] : 0;
     const maxVal = Math.max(...sortedCats.map(c => c[1]), 1);
-
-    // Comparación porcentual
     const diff = lastMonthTotal > 0 ? ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100 : 0;
     const isHigher = thisMonthTotal > lastMonthTotal;
 
     return (
-        <View style={{ gap: 24, paddingBottom: 40 }}>
-            {/* ── Comparativa Mensual ── */}
-            <View>
-                <Text style={[statStyle.sectionLabel, { color: colors.text }]}>RESUMEN COMPARATIVO</Text>
-                <View style={statStyle.dividerSmall} />
-
-                <View style={[statStyle.compareCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <View style={statStyle.compareRow}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={[statStyle.compareLabel, { color: colors.sub }]}>Mes Anterior</Text>
-                            <Text style={[statStyle.compareVal, { color: colors.text }]}>{fmtCOP(lastMonthTotal, isHidden)}</Text>
-                        </View>
-                        <View style={statStyle.compareDivider} />
-                        <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                            <Text style={[statStyle.compareLabel, { color: colors.sub }]}>Mes Actual</Text>
-                            <Text style={[statStyle.compareVal, { color: '#6366F1' }]}>{fmtCOP(thisMonthTotal, isHidden)}</Text>
-                        </View>
+        <View style={{ gap: 24 }}>
+            <View style={[statStyle.card, { backgroundColor: colorsNav.card }]}>
+                <Text style={[statStyle.title, { color: colorsNav.text }]}>Análisis del Mes</Text>
+                <View style={statStyle.compRow}>
+                    <View>
+                        <Text style={[statStyle.compLab, { color: colorsNav.sub }]}>Gasto Total</Text>
+                        <Text style={[statStyle.compVal, { color: colorsNav.text }]}>{fmtCOP(thisMonthTotal, isHidden)}</Text>
                     </View>
-
                     {lastMonthTotal > 0 && (
-                        <View style={[statStyle.diffBadge, { backgroundColor: isHigher ? '#FEF2F2' : '#F0FDF4' }]}>
-                            <MaterialIcons
-                                name={isHigher ? 'trending-up' : 'trending-down'}
-                                size={16}
-                                color={isHigher ? '#EF4444' : '#10B981'}
-                            />
-                            <Text style={[statStyle.diffText, { color: isHigher ? '#EF4444' : '#10B981' }]}>
-                                {isHigher ? 'Gastaste un' : 'Ahorraste un'} {Math.abs(diff).toFixed(1)}% comparado al mes pasado
+                        <View style={[statStyle.compBadge, { backgroundColor: isHigher ? '#FFEBEE' : '#E8F5E9' }]}>
+                            <MaterialIcons name={isHigher ? 'trending-up' : 'trending-down'} size={14} color={isHigher ? '#EF4444' : '#4A7C59'} />
+                            <Text style={[statStyle.compBadgeTxt, { color: isHigher ? '#EF4444' : '#4A7C59' }]}>
+                                {Math.abs(diff).toFixed(0)}% vs mes pasado
                             </Text>
                         </View>
                     )}
                 </View>
             </View>
 
-            {/* ── Categoría Más Costosa ── */}
-            {highestCat && (
-                <View style={[statStyle.insightCard, { backgroundColor: (CAT_ICONS[highestCat]?.color || '#94A3B8') + '15' }]}>
-                    <View style={[statStyle.insightIcon, { backgroundColor: CAT_ICONS[highestCat]?.color || '#94A3B8' }]}>
-                        <MaterialIcons name={CAT_ICONS[highestCat]?.icon || 'stars'} size={24} color="#FFF" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                        <Text style={[statStyle.insightTitle, { color: colors.text }]}>Mayor Gasto</Text>
-                        <Text style={[statStyle.insightDesc, { color: colors.sub }]}>
-                            Tu mayor gasto este mes es en <Text style={{ fontWeight: '800', color: colors.text }}>{highestCat}</Text> con {fmtCOP(highestVal, isHidden)}.
-                        </Text>
-                    </View>
-                </View>
-            )}
-
-            {/* ── Desglose por Categoría ── */}
-            <View>
-                <Text style={[statStyle.sectionLabel, { color: colors.text }]}>GASTO POR CATEGORÍA</Text>
-                <View style={statStyle.dividerSmall} />
-
-                <View style={{ marginTop: 10, gap: 16 }}>
-                    {sortedCats.map(([cat, val]) => {
-                        const info = CAT_ICONS[cat] || CAT_ICONS['Otros'];
-                        const widthPct = (val / maxVal) * 100;
+            <View style={[statStyle.card, { backgroundColor: colorsNav.card }]}>
+                <Text style={[statStyle.title, { color: colorsNav.text, marginBottom: 20 }]}>Gastos por Categoría</Text>
+                {sortedCats.length === 0 ? (
+                        <Text style={{ color: colorsNav.sub, textAlign: 'center' }}>No hay gastos este mes</Text>
+                ) : (
+                    sortedCats.map(([cat, val]) => {
+                        const info = CAT_INFO[cat] || CAT_INFO['Otros'];
                         return (
-                            <View key={cat} style={statStyle.hBarRow}>
-                                <View style={[statStyle.hBarIcon, { backgroundColor: info.color }]}>
-                                    <MaterialIcons name={info.icon} size={18} color="#FFF" />
+                            <View key={cat} style={statStyle.barRow}>
+                                <View style={[statStyle.barIcon, { backgroundColor: info.bg }]}>
+                                    <MaterialIcons name={info.icon} size={18} color={info.color} />
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                                        <Text style={[statStyle.hBarLabel, { color: colors.text }]}>{cat}</Text>
-                                        <Text style={[statStyle.hBarVal, { color: colors.text }]}>{fmtCOP(val, isHidden)}</Text>
+                                    <View style={statStyle.barHeaders}>
+                                        <Text style={[statStyle.barLabel, { color: colorsNav.text }]}>{cat}</Text>
+                                        <Text style={[statStyle.barAmount, { color: colorsNav.text }]}>{fmtCOP(val, isHidden)}</Text>
                                     </View>
-                                    <View style={[statStyle.barBg, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
-                                        <View style={[statStyle.barFill, { width: `${widthPct}%`, backgroundColor: info.color }]} />
+                                    <View style={[statStyle.barTrack, { backgroundColor: colorsNav.bg }]}>
+                                        <View style={[statStyle.barFill, { width: `${(val / maxVal) * 100}%`, backgroundColor: info.color }]} />
                                     </View>
                                 </View>
                             </View>
                         );
-                    })}
-                </View>
+                    })
+                )}
             </View>
         </View>
     );
 }
 
 const statStyle = StyleSheet.create({
-    sectionLabel: { fontSize: 16, fontWeight: '900', letterSpacing: -0.5, marginBottom: 4 },
-    dividerSmall: { width: 30, height: 3, backgroundColor: '#6366F1', borderRadius: 2, marginBottom: 12 },
-
-    compareCard: { borderRadius: 20, padding: 20, borderWidth: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
-    compareRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
-    compareLabel: { fontSize: 12, fontWeight: '600', marginBottom: 4 },
-    compareVal: { fontSize: 20, fontWeight: '800' },
-    compareDivider: { width: 1, height: 40, backgroundColor: '#E2E8F0', marginHorizontal: 15 },
-    diffBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, borderRadius: 12 },
-    diffText: { fontSize: 12, fontWeight: '700' },
-
-    insightCard: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 20, borderRadius: 24 },
-    insightIcon: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-    insightTitle: { fontSize: 14, fontWeight: '800', marginBottom: 2 },
-    insightDesc: { fontSize: 13, lineHeight: 18 },
-
-    hBarRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    hBarIcon: { width: 40, height: 40, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-    hBarLabel: { fontSize: 14, fontWeight: '700' },
-    hBarVal: { fontSize: 14, fontWeight: '800' },
-    barBg: { height: 10, borderRadius: 5, overflow: 'hidden' },
-    barFill: { height: '100%', borderRadius: 5 },
-
-    card: { borderRadius: 22, padding: 18, marginBottom: 16 },
+    card: { borderRadius: 24, padding: 24 },
+    title: { fontSize: 18, fontWeight: '800', marginBottom: 12 },
+    compRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+    compLab: { fontSize: 12, fontWeight: '700', marginBottom: 4 },
+    compVal: { fontSize: 24, fontWeight: '900' },
+    compBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
+    compBadgeTxt: { fontSize: 11, fontWeight: '800' },
+    barRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20 },
+    barIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+    barHeaders: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+    barLabel: { fontSize: 14, fontWeight: '700' },
+    barAmount: { fontSize: 14, fontWeight: '800' },
+    barTrack: { height: 8, borderRadius: 4, overflow: 'hidden' },
+    barFill: { height: '100%', borderRadius: 4 },
 });
 
 // ─── Pantalla principal ────────────────────────────────────────────────────────
@@ -370,14 +268,7 @@ export default function ProfileScreen() {
     const { user, logout, theme, isHidden, toggleTheme } = useAuth();
     const isFocused = useIsFocused();
     const isDark = theme === 'dark';
-
-    const getColors = (t: string) => {
-        if (t === 'dark') {
-            return { bg: '#0F172A', card: '#1E293B', text: '#F1F5F9', sub: '#94A3B8', border: '#334155', accent: '#6366F1' };
-        }
-        return { bg: '#F8FAFF', card: '#FFFFFF', text: '#1E293B', sub: '#64748B', border: '#E2E8F0', accent: '#6366F1' };
-    };
-    const colors = getColors(theme);
+    const colorsNav = getColors(theme);
 
     const [transactions, setTransactions] = useState<any[]>([]);
     const [activeDays, setActiveDays] = useState<Map<string, number>>(new Map());
@@ -385,24 +276,17 @@ export default function ProfileScreen() {
     const [statsModalVisible, setStatsModalVisible] = useState(false);
     const [newName, setNewName] = useState(user?.user_metadata?.name || '');
     const [avatarUri, setAvatarUri] = useState<string | null>(null);
-    const [weeklyInsight, setWeeklyInsight] = useState<{
-        totalGasto: number; topCat: string; topCatAmount: number; message: string;
-    } | null>(null);
 
     useEffect(() => { if (isFocused) loadData(); }, [isFocused]);
 
     useEffect(() => {
-        // Cargar foto de perfil guardada
-        AsyncStorage.getItem(`@avatar_${user?.id}`).then(uri => {
-            if (uri) setAvatarUri(uri);
-        });
+        AsyncStorage.getItem(`@avatar_${user?.id}`).then(uri => { if (uri) setAvatarUri(uri); });
     }, [user]);
 
     const loadData = async () => {
         if (!user) return;
         try {
-            const { data, error } = await supabase
-                .from('transactions').select('*').eq('user_id', user.id);
+            const { data, error } = await supabase.from('transactions').select('*').eq('user_id', user.id);
             if (error) throw error;
             const txs = data || [];
             setTransactions(txs);
@@ -412,31 +296,6 @@ export default function ProfileScreen() {
                 map.set(k, (map.get(k) ?? 0) + 1);
             });
             setActiveDays(map);
-
-            // Resumen Semanal: gastos de los últimos 7 días
-            const weekAgo = new Date();
-            weekAgo.setDate(weekAgo.getDate() - 7);
-            const weekExpenses = txs.filter(tx => {
-                const d = new Date(tx.date);
-                return tx.type === 'expense' && tx.category !== 'Ahorro' && tx.category !== 'Transferencia' && d >= weekAgo;
-            });
-            const weekTotal = weekExpenses.reduce((s, t) => s + t.amount, 0);
-            const weekCats: Record<string, number> = {};
-            weekExpenses.forEach(t => { weekCats[t.category || 'Otros'] = (weekCats[t.category || 'Otros'] || 0) + t.amount; });
-            const sorted = Object.entries(weekCats).sort((a, b) => b[1] - a[1]);
-            const messages = [
-                '¡Sigue así! 💪 Cada peso que controlas te acerca a tu meta.',
-                '🌟 Tip: Intenta reducir tu gasto más alto esta semana.',
-                '☕ Pequeños ahorros diarios hacen grandes diferencias.',
-                '🚀 ¡Vas bien! Mantén el hábito de registrar todo.',
-            ];
-            setWeeklyInsight({
-                totalGasto: weekTotal,
-                topCat: sorted[0]?.[0] || '',
-                topCatAmount: sorted[0]?.[1] || 0,
-                message: messages[Math.floor(Math.random() * messages.length)],
-            });
-
         } catch (e) { console.error(e); }
     };
 
@@ -445,26 +304,17 @@ export default function ProfileScreen() {
         try {
             await supabase.auth.updateUser({ data: { name: newName.trim() } });
             setEditModalVisible(false);
-            if (Platform.OS === 'web') {
-                window.alert('¡Éxito! Nombre actualizado.');
-            } else {
-                Alert.alert('¡Éxito!', 'Nombre actualizado.');
-            }
+            if (Platform.OS === 'web') window.alert('Éxito: Nombre actualizado.');
+            else Alert.alert('¡Éxito!', 'Nombre actualizado.');
         } catch (e: any) {
-            if (Platform.OS === 'web') {
-                window.alert('Error: ' + e.message);
-            } else {
-                Alert.alert('Error', e.message);
-            }
+            if (Platform.OS === 'web') window.alert('Error: ' + e.message);
+            else Alert.alert('Error', e.message);
         }
     };
 
     const handleLogout = async () => {
         if (Platform.OS === 'web') {
-            if (window.confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-                await logout();
-                router.replace('/login');
-            }
+            if (window.confirm('¿Cerrar sesión?')) { await logout(); router.replace('/login'); }
             return;
         }
         Alert.alert('Cerrar Sesión', '¿Estás seguro?', [
@@ -475,38 +325,20 @@ export default function ProfileScreen() {
 
     const handlePickAvatar = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.7,
+            mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7,
         });
-
         if (!result.canceled && result.assets[0]) {
             const tempUri = result.assets[0].uri;
-            
             try {
-                // Generar una ruta permanente
                 const fileName = `avatar_${user?.id}_${Date.now()}.jpg`;
-                const permanentUri = `${FileSystem.documentDirectory}${fileName}`;
-                
-                // Copiar el archivo de la memoria temporal a la permanente
-                await FileSystem.copyAsync({
-                    from: tempUri,
-                    to: permanentUri
-                });
-
-                // Eliminar el avatar anterior si existe (opcional pero recomendado para ahorrar espacio)
-                AsyncStorage.getItem(`@avatar_${user?.id}`).then(oldUri => {
-                    if (oldUri && oldUri.startsWith('file://')) {
-                        FileSystem.deleteAsync(oldUri, { idempotent: true }).catch(() => {});
-                    }
-                });
-
+                const docDir = (FileSystem as any).documentDirectory;
+                const permanentUri = docDir ? `${docDir}${fileName}` : tempUri;
+                if (docDir) {
+                    await (FileSystem as any).copyAsync({ from: tempUri, to: permanentUri });
+                }
                 setAvatarUri(permanentUri);
                 await AsyncStorage.setItem(`@avatar_${user?.id}`, permanentUri);
             } catch (e) {
-                console.error("Error guardando la imagen permanentemente:", e);
-                // Si falla la copia, al menos intentamos usar la temporal
                 setAvatarUri(tempUri);
                 await AsyncStorage.setItem(`@avatar_${user?.id}`, tempUri);
             }
@@ -514,155 +346,107 @@ export default function ProfileScreen() {
     };
 
     const displayName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuario';
-    const email = user?.email || '';
     const initials = displayName.slice(0, 2).toUpperCase();
 
-    // Resumen rápido
-    const income = transactions.filter(t => t.type === 'income' && t.category !== 'Transferencia').reduce((s, t) => s + t.amount, 0);
-    const expense = transactions.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia').reduce((s, t) => s + t.amount, 0);
-    const savings = transactions.filter(t => t.category === 'Ahorro').reduce((s, t) => s + t.amount, 0);
-
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: colorsNav.bg }]}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+                
+                {/* ── Header ── */}
+                <View style={styles.header}>
+                    <Text style={[styles.headerTitle, { color: colorsNav.text }]}>Perfil</Text>
+                    <TouchableOpacity style={[styles.themeBtn, { backgroundColor: isDark ? colorsNav.card : '#F5EDE0' }]} onPress={toggleTheme}>
+                        <Ionicons name={isDark ? 'moon' : 'sunny'} size={20} color={colorsNav.accent} />
+                    </TouchableOpacity>
+                </View>
 
-                {/* ── Perfil ── */}
-                <View style={[styles.profileCard, { backgroundColor: colors.card }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                        <TouchableOpacity style={styles.avatar} onPress={handlePickAvatar}>
-                            {avatarUri ? (
-                                <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
-                            ) : (
-                                <Text style={styles.avatarText}>{initials}</Text>
-                            )}
-                            <View style={styles.avatarBadge}>
+                {/* ── Perfil Card ── */}
+                <View style={[styles.profileCard, { backgroundColor: colorsNav.card }]}>
+                    <View style={styles.profileTop}>
+                        <TouchableOpacity style={[styles.avatar, { backgroundColor: colorsNav.accent }]} onPress={handlePickAvatar}>
+                            {avatarUri ? <Image source={{ uri: avatarUri }} style={styles.avatarImg} /> : <Text style={styles.avatarTxt}>{initials}</Text>}
+                            <View style={[styles.camBtn, { backgroundColor: colorsNav.accent }]}>
                                 <MaterialIcons name="camera-alt" size={12} color="#FFF" />
                             </View>
                         </TouchableOpacity>
                         <View style={{ flex: 1 }}>
-                            <TouchableOpacity onPress={() => setEditModalVisible(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                <Text style={[styles.name, { color: colors.text }]}>{displayName}</Text>
-                                <MaterialIcons name="edit" size={14} color={colors.sub} />
+                            <TouchableOpacity onPress={() => setEditModalVisible(true)} style={styles.nameRow}>
+                                <Text style={[styles.name, { color: colorsNav.text }]}>{displayName}</Text>
+                                <MaterialIcons name="edit" size={14} color={colorsNav.sub} />
                             </TouchableOpacity>
-                            <Text style={[styles.email, { color: colors.sub }]}>{email}</Text>
+                            <Text style={[styles.email, { color: colorsNav.sub }]}>{user?.email}</Text>
                         </View>
-                        <TouchableOpacity
-                            style={[styles.themeBtn, { backgroundColor: isDark ? '#334155' : '#6366F1' }]}
-                            onPress={toggleTheme}
-                        >
-                            <Ionicons name={isDark ? 'moon' : 'sunny'} size={18} color="#FFF" />
+                    </View>
+
+                    <View style={styles.actionRow}>
+                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colorsNav.bg }]} onPress={() => setStatsModalVisible(true)}>
+                            <MaterialIcons name="bar-chart" size={18} color={colorsNav.accent} />
+                            <Text style={[styles.actionBtnTxt, { color: colorsNav.text }]}>Estadísticas</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colorsNav.bg }]} onPress={handleLogout}>
+                            <MaterialIcons name="exit-to-app" size={18} color="#EF4444" />
+                            <Text style={[styles.actionBtnTxt, { color: '#EF4444' }]}>Salir</Text>
                         </TouchableOpacity>
                     </View>
+                </View>
 
-                    {/* Stats rápidos */}
-                    <View style={styles.statsRow}>
-                        {[
-                            { label: 'Ingresos', value: fmtCOP(income, isHidden), color: '#10B981' },
-                            { label: 'Gastos', value: fmtCOP(expense, isHidden), color: '#EF4444' },
-                            { label: 'Ahorro', value: fmtCOP(savings, isHidden), color: '#6366F1' },
-                        ].map(s => (
-                            <View key={s.label} style={[styles.statBox, { backgroundColor: isDark ? '#334155' : '#F8FAFF' }]}>
-                                <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
-                                <Text style={[styles.statLabel, { color: colors.sub }]}>{s.label}</Text>
-                            </View>
-                        ))}
-                    </View>
+                {/* ── Heatmap ── */}
+                <MonthHeatmap activeDays={activeDays} colorsNav={colorsNav} />
 
-                    <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-                        <MaterialIcons name="logout" size={15} color="#EF4444" />
-                        <Text style={styles.logoutText}>Cerrar Sesión</Text>
+                {/* ── Quick Options ── */}
+                <View style={styles.optionsGrid}>
+                    <TouchableOpacity style={[styles.optBtn, { backgroundColor: colorsNav.card }]} onPress={() => router.push('/budgets' as any)}>
+                        <View style={[styles.optIcon, { backgroundColor: '#E0F7FA' }]}>
+                            <MaterialIcons name="pie-chart" size={24} color="#00BCD4" />
+                        </View>
+                        <Text style={[styles.optTitle, { color: colorsNav.text }]}>Presupuestos</Text>
+                        <Text style={[styles.optSub, { color: colorsNav.sub }]}>Control Mensual</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.optBtn, { backgroundColor: colorsNav.card }]} onPress={() => router.push('/goals' as any)}>
+                        <View style={[styles.optIcon, { backgroundColor: '#F0E6FF' }]}>
+                            <MaterialIcons name="savings" size={24} color="#8B5CF6" />
+                        </View>
+                        <Text style={[styles.optTitle, { color: colorsNav.text }]}>Metas</Text>
+                        <Text style={[styles.optSub, { color: colorsNav.sub }]}>Objetivos de ahorro</Text>
                     </TouchableOpacity>
                 </View>
 
-                {/* ── Accesos Rápidos ── */}
-                <View style={styles.quickRow}>
-                    <TouchableOpacity
-                        style={[styles.quickBtn, { backgroundColor: isDark ? '#1E3A5C' : '#EFF6FF' }]}
-                        onPress={() => router.push('/budgets' as any)}
-                    >
-                        <View style={[styles.quickIcon, { backgroundColor: '#6366F115' }]}>
-                            <MaterialIcons name="account-balance-wallet" size={22} color="#6366F1" />
-                        </View>
-                        <Text style={[styles.quickLabel, { color: colors.text }]}>Presupuestos</Text>
-                        <Text style={[styles.quickSub, { color: colors.sub }]}>Límites mensuales</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.quickBtn, { backgroundColor: isDark ? '#1C3A2C' : '#F0FDF4' }]}
-                        onPress={() => setStatsModalVisible(true)}
-                    >
-                        <View style={[styles.quickIcon, { backgroundColor: '#10B98115' }]}>
-                            <Ionicons name="pie-chart" size={22} color="#10B981" />
-                        </View>
-                        <Text style={[styles.quickLabel, { color: colors.text }]}>Estadísticas</Text>
-                        <Text style={[styles.quickSub, { color: colors.sub }]}>Análisis de gastos</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* ── Heatmap del mes actual ── */}
-                <MonthHeatmap activeDays={activeDays} isDark={isDark} theme={theme} colors={colors} />
-
-                {/* ── Resumen Semanal ── */}
-                {weeklyInsight && (
-                    <View style={[styles.weeklyCard, { backgroundColor: colors.card }]}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                            <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(99,102,241,0.12)', justifyContent: 'center', alignItems: 'center' }}>
-                                <Ionicons name="sparkles" size={18} color="#6366F1" />
-                            </View>
-                            <Text style={[styles.weeklyTitle, { color: colors.text }]}>Resumen Semanal</Text>
-                        </View>
-                        <Text style={[styles.weeklyText, { color: colors.sub }]}>
-                            {weeklyInsight.totalGasto > 0 ? (
-                                <>La semana pasada gastaste <Text style={{ fontWeight: '800', color: colors.text }}>{fmtCOP(weeklyInsight.totalGasto, isHidden)}</Text>.{weeklyInsight.topCat ? ` Tu mayor gasto fue en ${weeklyInsight.topCat} (${fmtCOP(weeklyInsight.topCatAmount, isHidden)}).` : ''}</>
-                            ) : (
-                                <>No registraste gastos la semana pasada. ¡Qué buen control!</>
-                            )}
-                        </Text>
-                        <Text style={styles.weeklyMotivation}>{weeklyInsight.message}</Text>
-                    </View>
-                )}
-
-                <View style={{ height: 110 }} />
+                <View style={{ height: 120 }} />
             </ScrollView>
 
-            {/* Modal editar nombre */}
-            <Modal visible={editModalVisible} transparent animationType="fade" onRequestClose={() => setEditModalVisible(false)}>
+            {/* Modal Editar Nombre */}
+            <Modal visible={editModalVisible} transparent animationType="fade">
                 <View style={styles.overlay}>
-                    <View style={[styles.modalBox, { backgroundColor: colors.card }]}>
-                        <Text style={[styles.modalTitle, { color: colors.text }]}>Editar nombre</Text>
-                        <TextInput
-                            style={[styles.modalInput, { color: colors.text, borderColor: colors.border }]}
-                            value={newName}
-                            onChangeText={setNewName}
-                            placeholder="Tu nombre"
-                            placeholderTextColor={colors.sub}
-                            autoFocus
-                        />
-                        <View style={{ flexDirection: 'row', gap: 10 }}>
-                            <TouchableOpacity style={[styles.modalBtn, { backgroundColor: colors.border }]} onPress={() => setEditModalVisible(false)}>
-                                <Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text>
+                    <View style={[styles.modalBox, { backgroundColor: colorsNav.card }]}>
+                        <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Editar Nombre</Text>
+                        <TextInput style={[styles.modalInput, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]}
+                            value={newName} onChangeText={setNewName} autoFocus />
+                        <View style={styles.modalBtns}>
+                            <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.bg }]} onPress={() => setEditModalVisible(false)}>
+                                <Text style={[styles.mBtnTxt, { color: colorsNav.text }]}>Cancelar</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#6366F1' }]} onPress={handleUpdateName}>
-                                <Text style={{ color: '#FFF', fontWeight: '700' }}>Guardar</Text>
+                            <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.accent }]} onPress={handleUpdateName}>
+                                <Text style={[styles.mBtnTxt, { color: '#FFF' }]}>Guardar</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
                 </View>
             </Modal>
 
-            {/* Modal de Estadísticas */}
-            <Modal visible={statsModalVisible} animationType="slide" onRequestClose={() => setStatsModalVisible(false)}>
-                <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-                    <View style={[styles.modalHeader, { backgroundColor: colors.bg }]}>
-                        <TouchableOpacity style={styles.closeBtn} onPress={() => setStatsModalVisible(false)}>
-                            <Ionicons name="close" size={28} color={colors.text} />
+            {/* Modal Estadísticas */}
+            <Modal visible={statsModalVisible} animationType="slide">
+                <SafeAreaView style={{ flex: 1, backgroundColor: colorsNav.bg }}>
+                    <View style={styles.modalHeader}>
+                        <TouchableOpacity onPress={() => setStatsModalVisible(false)}>
+                            <MaterialIcons name="close" size={28} color={colorsNav.text} />
                         </TouchableOpacity>
-                        <Text style={[styles.modalTitleCentral, { color: colors.text }]}>Mis Estadísticas</Text>
+                        <Text style={[styles.modalHeaderTitle, { color: colorsNav.text }]}>Mis Estadísticas</Text>
                         <View style={{ width: 28 }} />
                     </View>
-                    <ScrollView contentContainerStyle={{ padding: 16, backgroundColor: colors.bg }}>
-                        <CategoryStatistics transactions={transactions} isDark={isDark} colors={colors} isHidden={isHidden} />
-                        <View style={{ height: 40 }} />
+                    <ScrollView contentContainerStyle={{ padding: 20 }}>
+                        <CategoryStatistics transactions={transactions} colorsNav={colorsNav} isHidden={isHidden} />
+                        <View style={{ height: 50 }} />
                     </ScrollView>
                 </SafeAreaView>
             </Modal>
@@ -672,62 +456,38 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    scroll: { padding: 16, paddingTop: Platform.OS === 'android' ? 48 : 16 },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? 50 : 20, marginBottom: 20 },
+    headerTitle: { fontSize: 28, fontWeight: '800' },
+    themeBtn: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+    scroll: { padding: 20 },
 
-    profileCard: {
-        borderRadius: 22, padding: 18, marginBottom: 16,
-        shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
-    },
-    avatar: {
-        width: 54, height: 54, borderRadius: 27, backgroundColor: '#6366F1',
-        justifyContent: 'center', alignItems: 'center', overflow: 'hidden',
-    },
-    avatarImage: { width: 54, height: 54, borderRadius: 27 },
-    avatarBadge: {
-        position: 'absolute', bottom: -2, right: -2, width: 22, height: 22, borderRadius: 11,
-        backgroundColor: '#6366F1', justifyContent: 'center', alignItems: 'center',
-        borderWidth: 2, borderColor: '#FFF',
-    },
-    avatarText: { color: '#FFF', fontSize: 20, fontWeight: '800' },
-    name: { fontSize: 18, fontWeight: '800' },
-    email: { fontSize: 13, marginTop: 2 },
-    themeBtn: { width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+    profileCard: { borderRadius: 28, padding: 24, marginBottom: 16 },
+    profileTop: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20 },
+    avatar: { width: 64, height: 64, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
+    avatarImg: { width: 64, height: 64, borderRadius: 24 },
+    avatarTxt: { color: '#FFF', fontSize: 24, fontWeight: '800' },
+    camBtn: { position: 'absolute', bottom: -4, right: -4, width: 24, height: 24, borderRadius: 12, borderColor: '#FFF', justifyContent: 'center', alignItems: 'center', borderWidth: 2 },
+    nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    name: { fontSize: 20, fontWeight: '800' },
+    email: { fontSize: 13, marginTop: 2, opacity: 0.7 },
+    actionRow: { flexDirection: 'row', gap: 12 },
+    actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 16 },
+    actionBtnTxt: { fontSize: 13, fontWeight: '800' },
 
-    // Weekly Insight
-    weeklyCard: {
-        borderRadius: 22, padding: 20, marginBottom: 16,
-        shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
-    },
-    weeklyTitle: { fontSize: 16, fontWeight: '800' },
-    weeklyText: { fontSize: 14, lineHeight: 22 },
-    weeklyMotivation: { fontSize: 13, color: '#6366F1', fontWeight: '700', marginTop: 10 },
+    optionsGrid: { flexDirection: 'row', gap: 16, marginBottom: 16 },
+    optBtn: { flex: 1, padding: 20, borderRadius: 24, gap: 8 },
+    optIcon: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
+    optTitle: { fontSize: 15, fontWeight: '800' },
+    optSub: { fontSize: 11, fontWeight: '600', opacity: 0.6 },
 
-    statsRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
-    statBox: { flex: 1, borderRadius: 12, padding: 10, alignItems: 'center', gap: 3 },
-    statVal: { fontSize: 12, fontWeight: '800' },
-    statLabel: { fontSize: 10, fontWeight: '600' },
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
+    modalBox: { borderRadius: 32, padding: 24 },
+    modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: 20 },
+    modalInput: { borderWidth: 1, borderRadius: 16, padding: 16, fontSize: 16, marginBottom: 24 },
+    modalBtns: { flexDirection: 'row', gap: 12 },
+    mBtn: { flex: 1, padding: 16, borderRadius: 16, alignItems: 'center' },
+    mBtnTxt: { fontWeight: '800' },
 
-    quickRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-    quickBtn: { flex: 1, borderRadius: 20, padding: 16, alignItems: 'center', gap: 6 },
-    quickIcon: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
-    quickLabel: { fontSize: 14, fontWeight: '800', textAlign: 'center' },
-    quickSub: { fontSize: 11, textAlign: 'center' },
-
-    logoutBtn: {
-        flexDirection: 'row', alignItems: 'center', gap: 6,
-        marginTop: 14, alignSelf: 'flex-start',
-        paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10,
-        backgroundColor: 'rgba(239,68,68,0.08)',
-    },
-    logoutText: { color: '#EF4444', fontWeight: '700', fontSize: 13 },
-
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-    modalBox: { width: '100%', borderRadius: 24, padding: 24 },
-    modalTitle: { fontSize: 18, fontWeight: '800', marginBottom: 16 },
-    modalInput: { borderWidth: 1.5, borderRadius: 12, padding: 12, fontSize: 16, marginBottom: 20 },
-    modalBtn: { flex: 1, height: 46, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-
-    modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: Platform.OS === 'android' ? 40 : 16, paddingBottom: 16 },
-    closeBtn: { padding: 4 },
-    modalTitleCentral: { fontSize: 18, fontWeight: '800' },
+    modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? 40 : 10, paddingBottom: 10 },
+    modalHeaderTitle: { fontSize: 18, fontWeight: '800' },
 });
