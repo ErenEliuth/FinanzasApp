@@ -84,7 +84,7 @@ export default function GoalsScreen() {
             // Subir a la nube si hay una imagen seleccionada
             if (newGoalImage && (newGoalImage.startsWith('file:') || newGoalImage.startsWith('blob:') || newGoalImage.startsWith('content:'))) {
                 const fileName = `goal_${Date.now()}.jpg`;
-                const uploadedUrl = await uploadImage(newGoalImage, 'media', `goals/${user?.id}/${fileName}`);
+                const uploadedUrl = await uploadImage(newGoalImage, 'savings_goals', `${user?.id}/${fileName}`);
                 if (uploadedUrl) {
                     finalImageUri = uploadedUrl;
                 }
