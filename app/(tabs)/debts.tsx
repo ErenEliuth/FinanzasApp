@@ -25,10 +25,7 @@ import {
 } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
-const { height } = Dimensions.get('window');
-
-const ConditionalWrapper = ({ condition, wrapper, children }: { condition: boolean, wrapper: (c: any) => any, children: any }) => 
-  condition ? wrapper(children) : children;
+const { width } = Dimensions.get('window');
 
 type DebtItem = {
     id: string;
@@ -46,24 +43,16 @@ export default function DebtsScreen() {
     const { user, theme, isHidden } = useAuth();
     const isDark = theme === 'dark';
 
-    const colors = {
-        bg:     isDark ? '#0F172A' : '#F8FAFC',
-        card:   isDark ? '#1E293B' : '#FFFFFF',
-        text:   isDark ? '#F1F5F9' : '#1E293B',
-        sub:    isDark ? '#94A3B8' : '#64748B',
-        border: isDark ? '#334155' : '#E2E8F0',
-        accent: '#6366F1',
-        red:    '#EF4444',
-        green:  '#10B981',
-        orange: '#F59E0B',
-    };
+    // ── Sanctuary Palette ──
+    const colors = isDark 
+        ? { bg: '#1A1A2E', card: '#25253D', text: '#F5F0E8', sub: '#A09B8C', border: '#3A3A52', accent: '#4A7C59', warmBg: '#1A1A2E' }
+        : { bg: '#FFF8F0', card: '#FFFFFF', text: '#2D2D2D', sub: '#8B8680', border: '#F0E8DC', accent: '#4A7C59', warmBg: '#FFF8F0' };
 
     const [viewMode, setViewMode] = useState<'debt' | 'fixed'>('debt');
     const [debts, setDebts] = useState<DebtItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);
     
-    // Form state for new/edit entry
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState<string | null>(null);
     const [name, setName] = useState('');
@@ -71,48 +60,28 @@ export default function DebtsScreen() {
     const [dueDate, setDueDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
 
-    // Payment state
     const [payModalVisible, setPayModalVisible] = useState(false);
     const [selectedDebt, setSelectedDebt] = useState<DebtItem | null>(null);
     const [payAmount, setPayAmount] = useState('');
     const [accounts, setAccounts] = useState<string[]>(['Efectivo']);
     const [selectedAccount, setSelectedAccount] = useState('Efectivo');
 
-    useEffect(() => {
-        if (isFocused) {
-            loadData();
-            loadAccounts();
-        }
-    }, [isFocused]);
+    useEffect(() => { if (isFocused) { loadData(); loadAccounts(); } }, [isFocused]);
 
     const loadData = async () => {
         if (!user) return;
         setLoading(true);
         try {
-            const { data, error } = await supabase
-                .from('debts')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('due_date', { ascending: true });
-
+            const { data, error } = await supabase.from('debts').select('*').eq('user_id', user.id).order('due_date', { ascending: true });
             if (error) throw error;
-            
-            // Sorting: Unpaid first (earliest due date first), then Paid (earliest due date first)
             const sorted = (data || []).sort((a, b) => {
                 const isPaidA = a.paid >= a.value;
                 const isPaidB = b.paid >= b.value;
-                
                 if (isPaidA !== isPaidB) return isPaidA ? 1 : -1;
-                
                 return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
             });
-
             setDebts(sorted);
-        } catch (e) {
-            console.error('Error loading debts:', e);
-        } finally {
-            setLoading(false);
-        }
+        } catch (e) { console.error(e); } finally { setLoading(false); }
     };
 
     const loadAccounts = async () => {
@@ -129,537 +98,269 @@ export default function DebtsScreen() {
         return new Intl.NumberFormat('es-CO').format(parseInt(clean, 10));
     };
 
-    const fmt = (n: number) =>
-        isHidden ? '****' : new Intl.NumberFormat('es-CO', {
-            style: 'currency', currency: 'COP', minimumFractionDigits: 0
-        }).format(n);
+    const fmt = (n: number) => isHidden ? '****' : new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
 
     const handleSave = async () => {
         const val = parseFloat(amount.replace(/\./g, ''));
         if (!name.trim() || isNaN(val) || val <= 0) {
-            Alert.alert('Error', 'Completa todos los campos');
+            if (Platform.OS === 'web') window.alert('Completa todos los campos');
+            else Alert.alert('Error', 'Completa todos los campos');
             return;
         }
-
         const dateStr = dueDate.toISOString().split('T')[0];
-
         try {
             if (isEditing && editId) {
-                const { error } = await supabase.from('debts').update({
-                    client: name.trim(),
-                    value: val,
-                    due_date: dateStr,
-                }).eq('id', editId);
-                if (error) throw error;
-                Alert.alert('Éxito', 'Registro actualizado');
+                await supabase.from('debts').update({ client: name.trim(), value: val, due_date: dateStr }).eq('id', editId);
             } else {
-                const { error } = await supabase.from('debts').insert([{
-                    user_id: user?.id,
-                    client: name.trim(),
-                    value: val,
-                    paid: 0,
-                    due_date: dateStr,
-                    debt_type: viewMode,
-                    created_date: new Date().toISOString()
-                }]);
-                if (error) throw error;
+                await supabase.from('debts').insert([{ user_id: user?.id, client: name.trim(), value: val, paid: 0, due_date: dateStr, debt_type: viewMode, created_date: new Date().toISOString() }]);
             }
-
-            setModalVisible(false);
-            resetForm();
-            loadData();
-        } catch (e) {
-            Alert.alert('Error', 'No se pudo guardar el registro');
-        }
+            setModalVisible(false); resetForm(); loadData();
+        } catch (e) { console.error(e); }
     };
 
-    const resetForm = () => {
-        setName(''); setAmount(''); setDueDate(new Date());
-        setIsEditing(false); setEditId(null);
-    };
+    const resetForm = () => { setName(''); setAmount(''); setDueDate(new Date()); setIsEditing(false); setEditId(null); };
 
     const handleEditStart = (item: DebtItem) => {
         setName(item.client);
         setAmount(item.value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
-        setDueDate(new Date(item.due_date + 'T12:00:00')); // T12 to avoid timezone issues
-        setEditId(item.id);
-        setIsEditing(true);
-        setModalVisible(true);
+        setDueDate(new Date(item.due_date + 'T12:00:00'));
+        setEditId(item.id); setIsEditing(true); setModalVisible(true);
     };
 
     const handleDelete = async (id: string) => {
-        const confirmDelete = Platform.OS === 'web' 
-            ? window.confirm('¿Estás seguro de eliminar este registro?')
-            : true;
-
-        if (Platform.OS === 'web' && !confirmDelete) return;
-
-        const performDelete = async () => {
-            await supabase.from('debts').delete().eq('id', id);
-            loadData();
-        };
-
+        const msg = '¿Estás seguro de eliminar este registro?';
         if (Platform.OS === 'web') {
-            performDelete();
-        } else {
-            Alert.alert('Eliminar', '¿Estás seguro de eliminar este registro?', [
-                { text: 'Cancelar', style: 'cancel' },
-                { text: 'Eliminar', style: 'destructive', onPress: performDelete}
-            ]);
+            if (window.confirm(msg)) { await supabase.from('debts').delete().eq('id', id); loadData(); }
+            return;
         }
+        Alert.alert('Eliminar', msg, [{ text: 'Cancelar' }, { text: 'Eliminar', style: 'destructive', onPress: async () => { await supabase.from('debts').delete().eq('id', id); loadData(); } }]);
+    };
+
+    const handleSkipFixed = async (item: DebtItem) => {
+        const msg = `¿Quieres omitir el pago de "${item.client}" este mes? Se marcará como pagado pero NO se descontará de tus cuentas.`;
+        if (Platform.OS === 'web') {
+            if (window.confirm(msg)) { await supabase.from('debts').update({ paid: item.value }).eq('id', item.id); loadData(); }
+            return;
+        }
+        Alert.alert('Omitir Pago', msg, [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Omitir', onPress: async () => { await supabase.from('debts').update({ paid: item.value }).eq('id', item.id); loadData(); } }
+        ]);
     };
 
     const handlePayment = async () => {
         if (!selectedDebt) return;
-        
         const isFixed = selectedDebt.debt_type === 'fixed';
         const pVal = isFixed ? selectedDebt.value : parseFloat(payAmount.replace(/\./g, ''));
-        
-        if (isNaN(pVal) || pVal <= 0) {
-            Alert.alert('Error', 'Monto no válido');
-            return;
-        }
-
+        if (isNaN(pVal) || pVal <= 0) return;
         const actualPay = isFixed ? pVal : Math.min(pVal, selectedDebt.value - selectedDebt.paid);
-
         try {
-            // 1. Actualizar deuda
-            const { error: debtError } = await supabase
-                .from('debts')
-                .update({ paid: selectedDebt.paid + actualPay })
-                .eq('id', selectedDebt.id);
-
-            if (debtError) throw debtError;
-
-            // 2. Registrar transacción
-            await supabase.from('transactions').insert([{
-                user_id: user?.id,
-                amount: actualPay,
-                type: 'expense',
-                category: isFixed ? 'Gasto Fijo' : 'Deudas',
-                description: isFixed ? `Pago: ${selectedDebt.client}` : `Abono: ${selectedDebt.client}`,
-                account: selectedAccount,
-                date: new Date().toISOString()
-            }]);
-
-            setPayModalVisible(false);
-            setPayAmount('');
-            setSelectedDebt(null);
-            loadData();
-        } catch (e) {
-            Alert.alert('Error', 'No se pudo registrar el pago');
-        }
+            await supabase.from('debts').update({ paid: selectedDebt.paid + actualPay }).eq('id', selectedDebt.id);
+            await supabase.from('transactions').insert([{ user_id: user?.id, amount: actualPay, type: 'expense', category: isFixed ? 'Gasto Fijo' : 'Deudas', description: isFixed ? `Pago: ${selectedDebt.client}` : `Abono: ${selectedDebt.client}`, account: selectedAccount, date: new Date().toISOString() }]);
+            setPayModalVisible(false); setPayAmount(''); setSelectedDebt(null); loadData();
+        } catch (e) { console.error(e); }
     };
 
-    const handleDebtAction = (item: DebtItem) => {
-        if (item.paid >= item.value) {
-            Alert.alert('Pagada', 'Esta deuda ya ha sido saldada completamente.');
-            return;
-        }
-        setSelectedDebt(item);
-        setPayAmount('');
-        setSelectedAccount('Efectivo');
-        setPayModalVisible(true);
-    };
-
-    const handleFixedAction = async (item: DebtItem) => {
-        const isPaidNow = item.paid >= item.value;
-        
-        if (!isPaidNow) {
-            setSelectedDebt(item);
-            setSelectedAccount('Efectivo');
-            setPayModalVisible(true);
-        } else {
-            // Lógica de Reinicio Mensual
-            Alert.alert('Pagar de nuevo', '¿Quieres marcar este gasto para el próximo mes?', [
-                { text: 'Cancelar' },
-                { text: 'Reiniciar', onPress: async () => {
-                    const nextDate = new Date(item.due_date);
-                    nextDate.setMonth(nextDate.getMonth() + 1);
-                    await supabase.from('debts').update({
-                        paid: 0,
-                        due_date: nextDate.toISOString().split('T')[0]
-                    }).eq('id', item.id);
-                    loadData();
-                }}
-            ]);
-        }
-    };
-
-    const handleSkipFixed = async (item: DebtItem) => {
-        const confirmSkip = Platform.OS === 'web' 
-            ? window.confirm(`¿Quieres omitir el pago de "${item.client}" este mes?`)
-            : true;
-
-        if (Platform.OS === 'web' && !confirmSkip) return;
-
-        const performSkip = async () => {
-           await supabase.from('debts').update({ paid: item.value }).eq('id', item.id);
-           loadData();
-        };
-
-        if (Platform.OS === 'web') {
-            performSkip();
-        } else {
-            Alert.alert('Omitir Pago', `¿Quieres omitir el pago de "${item.client}" este mes? Se marcará como pagado pero NO se descontará de tus cuentas.`, [
-                { text: 'Cancelar', style: 'cancel' },
-                { text: 'Omitir', onPress: performSkip}
-            ]);
-        }
-    };
-
-    // Calculations
     const currentList = debts.filter(d => d.debt_type === viewMode);
     const totalValue = currentList.reduce((s, d) => s + d.value, 0);
     const totalPaid = currentList.reduce((s, d) => s + (d.paid || 0), 0);
-    const totalPending = totalValue - totalPaid;
     const progressPct = totalValue > 0 ? (totalPaid / totalValue) * 100 : 0;
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
             {/* Header */}
-            <View style={[styles.header, { backgroundColor: colors.bg }]}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <MaterialIcons name="arrow-back-ios" size={20} color={colors.text} />
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => router.back()} style={[styles.circleBtn, { backgroundColor: colors.card }]}>
+                    <Ionicons name="arrow-back" size={24} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>
-                    {viewMode === 'debt' ? 'Mis Deudas' : 'Gastos Fijos'}
-                </Text>
-                <TouchableOpacity style={styles.addBtnHeader} onPress={() => setModalVisible(true)}>
-                    <MaterialIcons name="add" size={24} color="#FFF" />
+                <Text style={[styles.headerTitle, { color: colors.text }]}>{viewMode === 'debt' ? 'Deudas' : 'Gastos Fijos'}</Text>
+                <TouchableOpacity onPress={() => { resetForm(); setModalVisible(true); }} style={[styles.circleBtn, { backgroundColor: colors.accent }]}>
+                    <Ionicons name="add" size={26} color="#FFF" />
                 </TouchableOpacity>
             </View>
 
-            {/* Pestañas (Selector de modo) */}
-            <View style={styles.tabBar}>
-                <TouchableOpacity 
-                    onPress={() => setViewMode('debt')}
-                    style={[styles.tab, viewMode === 'debt' && { borderBottomColor: colors.accent, borderBottomWidth: 3 }]}
-                >
-                    <Text style={[styles.tabText, { color: viewMode === 'debt' ? colors.text : colors.sub }]}>Deudas</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                    onPress={() => setViewMode('fixed')}
-                    style={[styles.tab, viewMode === 'fixed' && { borderBottomColor: colors.accent, borderBottomWidth: 3 }]}
-                >
-                    <Text style={[styles.tabText, { color: viewMode === 'fixed' ? colors.text : colors.sub }]}>Gastos Fijos</Text>
-                </TouchableOpacity>
+            {/* Selector de Modo */}
+            <View style={styles.selectorCont}>
+                <View style={[styles.selectorBg, { backgroundColor: colors.card }]}>
+                    <TouchableOpacity onPress={() => setViewMode('debt')} style={[styles.selBtn, viewMode === 'debt' && { backgroundColor: colors.accent }]}>
+                        <Text style={[styles.selTxt, { color: viewMode === 'debt' ? '#FFF' : colors.sub }]}>Deudas</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setViewMode('fixed')} style={[styles.selBtn, viewMode === 'fixed' && { backgroundColor: colors.accent }]}>
+                        <Text style={[styles.selTxt, { color: viewMode === 'fixed' ? '#FFF' : colors.sub }]}>Gastos Fijos</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-                
-                {/* ── SECCIÓN DE RESUMEN (Gráfico o Barra) ── */}
-                {viewMode === 'fixed' ? (
-                    <View style={[styles.summaryCard, { backgroundColor: colors.card }]}>
-                        <View style={styles.chartWrap}>
-                            <Svg width={140} height={140} viewBox="0 0 100 100">
-                                <Circle cx="50" cy="50" r="45" stroke={isDark ? '#334155' : '#F1F5F9'} strokeWidth="8" fill="none" />
-                                <Circle 
-                                    cx="50" cy="50" r="45" stroke={colors.accent} strokeWidth="8" 
-                                    fill="none" strokeDasharray={`${progressPct * 2.82} 282`}
-                                    strokeLinecap="round" transform="rotate(-90 50 50)"
-                                />
-                                <View style={styles.chartLabel}>
-                                    <Text style={[styles.chartPct, { color: colors.text }]}>{Math.round(progressPct)}%</Text>
-                                    <Text style={[styles.chartSub, { color: colors.sub }]}>Cubierto</Text>
+                {/* Resumen */}
+                <View style={[styles.heroCard, { backgroundColor: colors.accent }]}>
+                    <View style={styles.heroRow}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.heroLab}>Total {viewMode === 'debt' ? 'Pendiente' : 'del Mes'}</Text>
+                            <Text style={styles.heroVal}>{fmt(totalValue - totalPaid)}</Text>
+                        </View>
+                        <View style={styles.chartMini}>
+                            <Svg width={70} height={70} viewBox="0 0 100 100">
+                                <Circle cx="50" cy="50" r="45" stroke="rgba(255,255,255,0.2)" strokeWidth="10" fill="none" />
+                                <Circle cx="50" cy="50" r="45" stroke="#FFF" strokeWidth="10" fill="none" strokeDasharray={`${progressPct * 2.82} 282`} strokeLinecap="round" transform="rotate(-90 50 50)" />
+                                <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center' }]}>
+                                    <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{Math.round(progressPct)}%</Text>
                                 </View>
                             </Svg>
                         </View>
-                        <Text style={[styles.summaryTitle, { color: colors.text }]}>Progreso Mensual</Text>
-                        <Text style={[styles.summaryDetail, { color: colors.sub }]}>
-                            Has pagado {fmt(totalPaid)} de {fmt(totalValue)}
-                        </Text>
                     </View>
-                ) : (
-                    <View style={[styles.summaryCard, { backgroundColor: colors.card }]}>
-                        <Text style={[styles.summaryHeaderLabel, { color: colors.text }]}>Total Deuda</Text>
-                        
-                        <View style={[styles.progressBarBase, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
-                            <View style={[styles.progressBarFill, { width: `${progressPct}%`, backgroundColor: colors.green }]} />
-                        </View>
-
-                        <View style={styles.summaryStatsRow}>
-                            <View style={styles.statCol}>
-                                <Text style={[styles.statLabel, { color: colors.sub }]}>Pagado</Text>
-                                <Text style={[styles.statValue, { color: colors.green }]}>{fmt(totalPaid)}</Text>
-                            </View>
-                            <View style={styles.statDivider} />
-                            <View style={styles.statCol}>
-                                <Text style={[styles.statLabel, { color: colors.sub }]}>Pendiente</Text>
-                                <Text style={[styles.statValue, { color: colors.red }]}>{fmt(totalPending)}</Text>
-                            </View>
-                        </View>
+                    <View style={styles.heroFooter}>
+                        <Text style={styles.heroMsg}>Has cubierto {fmt(totalPaid)} hasta hoy. {totalValue > totalPaid && `Faltan ${fmt(totalValue - totalPaid)}`}</Text>
                     </View>
-                )}
+                </View>
 
-                {/* ── LISTADO ESTILO TIMELINE / CARDS ── */}
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                    {viewMode === 'debt' ? 'Próximos Pagos' : 'Tus Gastos Obligatorios'}
-                </Text>
-
+                {/* Listado */}
                 {loading ? (
-                    <ActivityIndicator size="large" color={colors.accent} style={{ marginTop: 20 }} />
+                    <ActivityIndicator color={colors.accent} style={{ marginTop: 40 }} />
                 ) : currentList.length === 0 ? (
-                    <View style={styles.emptyState}>
-                        <Ionicons name="receipt-outline" size={48} color={colors.sub} />
-                        <Text style={[styles.emptyText, { color: colors.sub }]}>No hay registros aquí.</Text>
+                    <View style={styles.empty}>
+                        <Ionicons name="leaf-outline" size={64} color={colors.sub + '40'} />
+                        <Text style={[styles.emptyTxt, { color: colors.sub }]}>Todo está en orden por aquí.</Text>
                     </View>
                 ) : (
-                    <View style={styles.timelineContainer}>
-                        {viewMode === 'debt' && <View style={[styles.timelineLine, { backgroundColor: colors.border }]} />}
-                        
-                        {currentList.map((item, index) => {
-                            const date = new Date(item.due_date);
-                            const day = date.getUTCDate().toString().padStart(2, '0');
-                            const month = date.toLocaleString('es-CO', { month: 'short', timeZone: 'UTC' }).toUpperCase();
-                            const itemPct = (item.paid / item.value) * 100;
-                            const isPaid = item.paid >= item.value;
-                            const isLate = new Date() > date && !isPaid;
+                    currentList.map(item => {
+                        const isPaid = item.paid >= item.value;
+                        const pct = (item.paid / item.value) * 100;
+                        const date = new Date(item.due_date);
+                        const dayStr = date.getUTCDate().toString().padStart(2, '0');
+                        const monthStr = date.toLocaleString('es-CO', { month: 'short', timeZone: 'UTC' }).toUpperCase();
 
-                            return (
-                                <View 
-                                    key={item.id} 
-                                    style={styles.itemWrapper} 
-                                >
-                                    {/* Fecha y Punto Timeline (solo deudas) */}
-                                    {viewMode === 'debt' && (
-                                        <View style={styles.timelineDateCol}>
-                                            <Text style={[styles.dateDay, { color: colors.text }]}>{day}</Text>
-                                            <Text style={[styles.dateMonth, { color: colors.sub }]}>{month}</Text>
-                                            <View style={[styles.timelineDot, { backgroundColor: isPaid ? colors.green : isLate ? colors.red : colors.orange }]} />
-                                        </View>
-                                    )}
-
-                                    {/* Card Contenido */}
-                                    <View style={[styles.itemCard, { backgroundColor: colors.card, borderLeftWidth: viewMode === 'fixed' ? 4 : 0, borderLeftColor: isPaid ? colors.green : colors.accent, padding: 0 }]}>
-                                        <TouchableOpacity 
-                                            style={{ padding: 18 }}
-                                            activeOpacity={0.7}
-                                            onLongPress={() => handleDelete(item.id)}
-                                            onPress={() => viewMode === 'debt' ? handleDebtAction(item) : handleFixedAction(item)}
-                                        >
-                                            <View style={styles.itemHeaderInner}>
-                                                <View style={{ flex: 1 }}>
-                                                    <Text style={[styles.itemLabel, { color: colors.sub }]}>
-                                                        {viewMode === 'fixed' ? `Día de pago: ${day}` : `${Math.round(itemPct)}% completado`}
-                                                    </Text>
-                                                    <Text style={[styles.itemTitle, { color: colors.text }]} numberOfLines={1}>{item.client}</Text>
-                                                </View>
-                                                <Text style={[styles.itemAmount, { color: colors.text }]}>{fmt(item.value)}</Text>
-                                            </View>
-
-                                            {/* Barra progreso pequeña */}
-                                            <View style={[styles.miniBarBase, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
-                                                <View style={[styles.miniBarFill, { width: `${itemPct}%`, backgroundColor: isPaid ? colors.green : isLate ? colors.red : colors.accent }]} />
-                                            </View>
-                                        </TouchableOpacity>
-
-                                        <View style={[styles.itemFooter, { paddingHorizontal: 18, paddingBottom: 18 }]}>
-                                            <View style={[styles.badge, { backgroundColor: isPaid ? colors.green + '15' : isLate ? colors.red + '15' : colors.orange + '15' }]}>
-                                                <Text style={[styles.badgeText, { color: isPaid ? colors.green : isLate ? colors.red : colors.orange }]}>
-                                                    {isPaid ? 'Pagado' : isLate ? 'Atrasado' : 'Pendiente'}
-                                                </Text>
-                                            </View>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                                                 {!isPaid && viewMode === 'fixed' && (
-                                                     <TouchableOpacity 
-                                                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.sub + '15', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}
-                                                        onPress={() => handleSkipFixed(item)}
-                                                     >
-                                                         <MaterialIcons name="skip-next" size={14} color={colors.sub} />
-                                                         <Text style={{ fontSize: 10, fontWeight: '800', color: colors.sub }}>OMITIR</Text>
-                                                     </TouchableOpacity>
-                                                 )}
-                                                 
-                                                 <TouchableOpacity onPress={() => handleEditStart(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                                                     <Ionicons name="pencil-outline" size={18} color={colors.sub} />
-                                                 </TouchableOpacity>
-                                                 
-                                                 <TouchableOpacity onPress={() => handleDelete(item.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                                                     <Ionicons name="trash-outline" size={18} color={colors.sub} />
-                                                 </TouchableOpacity>
-
-                                                 {viewMode === 'fixed' && (
-                                                     <TouchableOpacity onPress={() => handleFixedAction(item)}>
-                                                        <Ionicons name={isPaid ? "checkbox" : "square-outline"} size={22} color={isPaid ? colors.green : colors.sub} />
-                                                     </TouchableOpacity>
-                                                 )}
-                                            </View>
+                        return (
+                            <TouchableOpacity 
+                                key={item.id} 
+                                style={[styles.itemCard, { backgroundColor: colors.card }]}
+                                onPress={() => { setSelectedDebt(item); setPayModalVisible(true); }}
+                                onLongPress={() => handleEditStart(item)}
+                            >
+                                <View style={styles.cardInfo}>
+                                    <View style={[styles.dateBox, { backgroundColor: colors.bg }]}>
+                                        <Text style={[styles.dateD, { color: colors.text }]}>{dayStr}</Text>
+                                        <Text style={[styles.dateM, { color: colors.sub }]}>{monthStr}</Text>
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.itemName, { color: colors.text }]}>{item.client}</Text>
+                                        <Text style={[styles.itemSub, { color: colors.sub }]}>{isPaid ? 'Completado' : `Saldo: ${fmt(item.value - item.paid)}`}</Text>
+                                    </View>
+                                    <View style={{ alignItems: 'flex-end' }}>
+                                        <Text style={[styles.totalVal, { color: colors.text }]}>{fmt(item.value)}</Text>
+                                        <View style={[styles.statusBadge, { backgroundColor: isPaid ? '#E8F5E9' : '#FFF3E0' }]}>
+                                            <Text style={[styles.statusTxt, { color: isPaid ? '#4A7C59' : '#E67E22' }]}>{isPaid ? 'PAGO' : 'PEND.'}</Text>
                                         </View>
                                     </View>
                                 </View>
-                            );
-                        })}
-                    </View>
+                                
+                                <View style={styles.progressArea}>
+                                    <View style={[styles.pBarBg, { backgroundColor: colors.bg }]}>
+                                        <View style={[styles.pBarFill, { width: `${pct}%`, backgroundColor: isPaid ? '#4A7C59' : colors.accent }]} />
+                                    </View>
+                                </View>
+
+                                <View style={styles.cardActions}>
+                                    {!isPaid && viewMode === 'fixed' && (
+                                        <TouchableOpacity 
+                                            style={styles.skipBtn} 
+                                            onPress={() => handleSkipFixed(item)}
+                                        >
+                                            <Ionicons name="play-forward" size={14} color={colors.sub} />
+                                            <Text style={styles.skipTxt}>OMITIR</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                    <TouchableOpacity style={styles.miniBtn} onPress={() => handleEditStart(item)}>
+                                        <Ionicons name="pencil" size={16} color={colors.sub} />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={styles.miniBtn} onPress={() => handleDelete(item.id)}>
+                                        <Ionicons name="trash" size={16} color="#EF4444" />
+                                    </TouchableOpacity>
+                                </View>
+                            </TouchableOpacity>
+                        );
+                    })
                 )}
-                
                 <View style={{ height: 100 }} />
             </ScrollView>
 
-            {/* BOTÓN FLOTANTE (+) REMOVIDO POR SOLICITUD - USAR EL DEL HEADER */}
-
-            {/* MODAL ADICIÓN */}
-        <Modal visible={modalVisible} animationType="slide" transparent>
-            <View style={{ flex: 1 }}>
-                <ConditionalWrapper
-                    condition={Platform.OS !== 'web'}
-                    wrapper={children => (
-                        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                            {children}
-                        </TouchableWithoutFeedback>
-                    )}
-                >
-                    <View style={styles.modalOverlay}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ width: '100%' }}>
-                            <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
-                                <Text style={[styles.modalTitle, { color: colors.text }]}>
-                                    {isEditing ? 'Editar Registro' : 'Nuevo Registro'}
-                                </Text>
-                                
-                                {!isEditing && (
-                                    <View style={styles.typeSelector}>
-                                        <TouchableOpacity 
-                                            style={[styles.typeBtn, viewMode === 'debt' && { backgroundColor: colors.accent }]}
-                                            onPress={() => setViewMode('debt')}
-                                        >
-                                            <Text style={{ color: viewMode === 'debt' ? '#FFF' : colors.sub, fontWeight: '700' }}>Deuda</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity 
-                                            style={[styles.typeBtn, viewMode === 'fixed' && { backgroundColor: colors.accent }]}
-                                            onPress={() => setViewMode('fixed')}
-                                        >
-                                            <Text style={{ color: viewMode === 'fixed' ? '#FFF' : colors.sub, fontWeight: '700' }}>Gasto Fijo</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                )}
-
-                                <TextInput 
-                                    style={[styles.input, { backgroundColor: isDark ? '#334155' : '#F1F5F9', color: colors.text }]}
-                                    placeholder="Nombre (ej. Arriendo, Mamá)" placeholderTextColor={colors.sub}
-                                    value={name} onChangeText={setName}
-                                />
-                                <TextInput 
-                                    style={[styles.input, { backgroundColor: isDark ? '#334155' : '#F1F5F9', color: colors.text }]}
-                                    placeholder="Monto ($)" placeholderTextColor={colors.sub}
-                                    keyboardType="numeric" value={amount} onChangeText={t => setAmount(formatInput(t))}
-                                />
-                                
-                                {Platform.OS === 'web' ? (
-                                    <input
-                                        type="date"
-                                        style={{
-                                            backgroundColor: isDark ? '#334155' : '#F1F5F9',
-                                            color: colors.text,
-                                            borderRadius: '12px',
-                                            padding: '16px',
-                                            fontSize: '16px',
-                                            marginBottom: '15px',
-                                            border: 'none',
-                                            outline: 'none',
-                                            width: '100%',
-                                            fontFamily: 'inherit'
-                                        }}
-                                        value={dueDate.toISOString().split('T')[0]}
-                                        onChange={(e) => setDueDate(new Date(e.target.value))}
-                                    />
-                                ) : (
-                                    <>
-                                        <TouchableOpacity 
-                                            style={[styles.input, { backgroundColor: isDark ? '#334155' : '#F1F5F9', justifyContent: 'center' }]}
-                                            onPress={() => setShowDatePicker(true)}
-                                        >
-                                            <Text style={{ color: colors.text }}>
-                                                {viewMode === 'debt' ? 'Fecha Vencimiento: ' : 'Día de Cobro: '}
-                                                {dueDate.toLocaleDateString('es-CO')}
-                                            </Text>
-                                        </TouchableOpacity>
-
-                                        {showDatePicker && (
-                                            <DateTimePicker
-                                                value={dueDate} mode="date" display="default"
-                                                onChange={(e, d) => {
-                                                    setShowDatePicker(false);
-                                                    if (d) setDueDate(d);
-                                                }}
-                                            />
-                                        )}
-                                    </>
-                                )}
-
-                                <View style={styles.modalBtns}>
-                                    <TouchableOpacity style={[styles.btnAction, { backgroundColor: colors.border }]} onPress={() => setModalVisible(false)}>
-                                        <Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity style={[styles.btnAction, { backgroundColor: colors.accent }]} onPress={handleSave}>
-                                        <Text style={{ color: '#FFF', fontWeight: '700' }}>Guardar</Text>
-                                    </TouchableOpacity>
-                                </View>
+            {/* Modal Creación/Edición */}
+            <Modal visible={modalVisible} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+                        <View style={StyleSheet.absoluteFill} />
+                    </TouchableWithoutFeedback>
+                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%' }}>
+                        <View style={[styles.modalBox, { backgroundColor: colors.card }]}>
+                            <View style={styles.mHeader}>
+                                <Text style={[styles.mTitle, { color: colors.text }]}>{isEditing ? 'Editar' : 'Nueva'} {viewMode === 'debt' ? 'Deuda' : 'Gasto'}</Text>
+                                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                                    <Ionicons name="close" size={24} color={colors.sub} />
+                                </TouchableOpacity>
                             </View>
-                        </KeyboardAvoidingView>
-                    </View>
-                </ConditionalWrapper>
-            </View>
-        </Modal>
 
-            {/* MODAL PAGO (RECORDAR TRANSACCIÓN) */}
-            <Modal visible={payModalVisible} animationType="slide" transparent>
-                <View style={{ flex: 1 }}>
-                    <ConditionalWrapper
-                        condition={Platform.OS !== 'web'}
-                        wrapper={children => (
-                            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                                {children}
-                            </TouchableWithoutFeedback>
-                        )}
-                    >
-                        <View style={styles.modalOverlay}>
-                            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ width: '100%' }}>
-                                <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
-                                    <Text style={[styles.modalTitle, { color: colors.text }]}>
-                                        {selectedDebt?.debt_type === 'fixed' ? 'Pagar Gasto Fijo' : 'Registrar Abono'}
-                                    </Text>
-                                    <Text style={[styles.modalHint, { color: colors.sub }]}>
-                                        {selectedDebt?.client} - Pendiente: {fmt(selectedDebt ? selectedDebt.value - selectedDebt.paid : 0)}
-                                    </Text>
+                            <View style={styles.mField}>
+                                <Text style={[styles.mLabel, { color: colors.sub }]}>NOMBRE</Text>
+                                <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} value={name} onChangeText={setName} placeholder="Ej. Arriendo, Crédito Bancolombia" placeholderTextColor={colors.sub + '60'} />
+                            </View>
 
-                                    {selectedDebt?.debt_type !== 'fixed' && (
-                                        <TextInput 
-                                            style={[styles.input, { backgroundColor: isDark ? '#334155' : '#F1F5F9', color: colors.text }]}
-                                            placeholder="¿Cuánto vas a pagar?" placeholderTextColor={colors.sub}
-                                            keyboardType="numeric" value={payAmount} onChangeText={t => setPayAmount(formatInput(t))}
-                                            autoFocus
-                                        />
-                                    )}
+                            <View style={styles.mField}>
+                                <Text style={[styles.mLabel, { color: colors.sub }]}>MONTO</Text>
+                                <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} value={amount} onChangeText={t => setAmount(formatInput(t))} placeholder="$ 0" placeholderTextColor={colors.sub + '60'} keyboardType="decimal-pad" />
+                            </View>
 
-                                    <Text style={{ fontSize: 12, fontWeight: '800', color: colors.sub, marginBottom: 10, marginTop: 10 }}>PAGAR DESDE:</Text>
-                                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
-                                        {accounts.map(acc => (
-                                            <TouchableOpacity 
-                                                key={acc} 
-                                                onPress={() => setSelectedAccount(acc)}
-                                                style={{ 
-                                                    paddingHorizontal: 15, paddingVertical: 10, borderRadius: 12, 
-                                                    borderWidth: 2, borderColor: selectedAccount === acc ? colors.accent : colors.border,
-                                                    backgroundColor: selectedAccount === acc ? colors.accent + '10' : 'transparent'
-                                                }}
-                                            >
-                                                <Text style={{ fontWeight: '700', color: selectedAccount === acc ? colors.accent : colors.sub }}>{acc}</Text>
-                                            </TouchableOpacity>
-                                        ))}
-                                    </View>
-
-                                    <View style={styles.modalBtns}>
-                                        <TouchableOpacity style={[styles.btnAction, { backgroundColor: colors.border }]} onPress={() => setPayModalVisible(false)}>
-                                            <Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity style={[styles.btnAction, { backgroundColor: colors.accent }]} onPress={handlePayment}>
-                                            <Text style={{ color: '#FFF', fontWeight: '700' }}>Confirmar Pago</Text>
-                                        </TouchableOpacity>
-                                    </View>
+                            <TouchableOpacity style={styles.mField} onPress={() => setShowDatePicker(true)}>
+                                <Text style={[styles.mLabel, { color: colors.sub }]}>FECHA LÍMITE</Text>
+                                <View style={[styles.mInput, { borderBottomColor: colors.border, justifyContent: 'center' }]}>
+                                    <Text style={{ color: colors.text, fontSize: 16 }}>{dueDate.toLocaleDateString('es-CO')}</Text>
                                 </View>
-                            </KeyboardAvoidingView>
+                            </TouchableOpacity>
+
+                            {showDatePicker && (
+                                <DateTimePicker value={dueDate} mode="date" display="default" onChange={(e, d) => { setShowDatePicker(false); if (d) setDueDate(d); }} />
+                            )}
+
+                            <TouchableOpacity style={[styles.mBtnPrimary, { backgroundColor: colors.accent }]} onPress={handleSave}>
+                                <Text style={styles.mBtnText}>{isEditing ? 'Actualizar' : 'Registrar'}</Text>
+                            </TouchableOpacity>
                         </View>
-                    </ConditionalWrapper>
+                    </KeyboardAvoidingView>
+                </View>
+            </Modal>
+
+            {/* Modal Pago */}
+            <Modal visible={payModalVisible} animationType="fade" transparent>
+                <View style={styles.overlayCenter}>
+                    <View style={[styles.miniModal, { backgroundColor: colors.card }]}>
+                        <Text style={[styles.miniTitle, { color: colors.text }]}>{selectedDebt?.client}</Text>
+                        <Text style={[styles.miniSub, { color: colors.sub }]}>Pendiente: {fmt(selectedDebt ? selectedDebt.value - selectedDebt.paid : 0)}</Text>
+                        
+                        {selectedDebt?.debt_type === 'debt' && (
+                            <TextInput 
+                                style={[styles.miniInput, { color: colors.text, borderBottomColor: colors.border }]}
+                                value={payAmount} onChangeText={t => setPayAmount(formatInput(t))}
+                                placeholder="Monto a pagar" placeholderTextColor={colors.sub + '40'}
+                                keyboardType="decimal-pad" autoFocus
+                            />
+                        )}
+
+                        <View style={styles.accountRow}>
+                            {accounts.map(acc => (
+                                <TouchableOpacity key={acc} onPress={() => setSelectedAccount(acc)} style={[styles.accBtn, { borderColor: colors.border }, selectedAccount === acc && { backgroundColor: colors.accent, borderColor: colors.accent }]}>
+                                    <Text style={[styles.accTxt, { color: selectedAccount === acc ? '#FFF' : colors.sub }]}>{acc}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <View style={styles.miniActions}>
+                            <TouchableOpacity style={[styles.mBtnB, { backgroundColor: colors.bg }]} onPress={() => setPayModalVisible(false)}>
+                                <Text style={{ color: colors.text, fontWeight: '800' }}>Cerrar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.mBtnB, { backgroundColor: colors.accent }]} onPress={handlePayment}>
+                                <Text style={{ color: '#FFF', fontWeight: '800' }}>Confirmar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
                 </View>
             </Modal>
         </SafeAreaView>
@@ -668,77 +369,65 @@ export default function DebtsScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    header: { 
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', 
-        paddingHorizontal: 20, paddingVertical: 15, paddingTop: Platform.OS === 'android' ? 50 : 15 
-    },
-    backBtn: { width: 40, height: 40, justifyContent: 'center' },
-    headerTitle: { fontSize: 20, fontWeight: '800' },
-    addBtnHeader: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#6366F1', justifyContent: 'center', alignItems: 'center' },
-    
-    // Tabs
-    tabBar: { flexDirection: 'row', paddingHorizontal: 20, marginBottom: 20 },
-    tab: { flex: 1, paddingVertical: 10, alignItems: 'center' },
-    tabText: { fontWeight: '700', fontSize: 16 },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: Platform.OS === 'android' ? 50 : 20, marginBottom: 20 },
+    headerTitle: { fontSize: 22, fontWeight: '900' },
+    circleBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
 
-    scroll: { paddingHorizontal: 20 },
+    selectorCont: { paddingHorizontal: 24, marginBottom: 24 },
+    selectorBg: { flexDirection: 'row', borderRadius: 20, padding: 6 },
+    selBtn: { flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center' },
+    selTxt: { fontSize: 14, fontWeight: '800' },
 
-    // Summary Card
-    summaryCard: { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.05)', borderRadius: 24, padding: 24, marginBottom: 25, alignItems: 'center' },
-    summaryHeaderLabel: { fontSize: 22, fontWeight: '900', marginBottom: 20, width: '100%', textAlign: 'left' },
-    progressBarBase: { height: 12, width: '100%', borderRadius: 6, marginBottom: 20, overflow: 'hidden' },
-    progressBarFill: { height: '100%', borderRadius: 6 },
-    summaryStatsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
-    statCol: { flex: 1 },
-    statLabel: { fontSize: 12, fontWeight: '700', marginBottom: 4 },
-    statValue: { fontSize: 20, fontWeight: '800' },
-    statDivider: { width: 1, height: 30, backgroundColor: 'rgba(128,128,128,0.2)', marginHorizontal: 20 },
+    scroll: { paddingHorizontal: 24 },
+    heroCard: { borderRadius: 32, padding: 24, marginBottom: 24, elevation: 6, shadowColor: '#4A7C59', shadowOpacity: 0.2, shadowRadius: 15 },
+    heroRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
+    heroLab: { color: 'rgba(255,255,255,0.7)', fontSize: 14, fontWeight: '700', marginBottom: 4 },
+    heroVal: { color: '#FFF', fontSize: 28, fontWeight: '900' },
+    chartMini: { width: 70, height: 70, justifyContent: 'center', alignItems: 'center' },
+    heroFooter: { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' },
+    heroMsg: { color: '#FFF', fontSize: 13, fontWeight: '600', opacity: 0.9 },
 
-    chartWrap: { position: 'relative', marginBottom: 15 },
-    chartLabel: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' },
-    chartPct: { fontSize: 24, fontWeight: '900' },
-    chartSub: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
-    summaryTitle: { fontSize: 18, fontWeight: '800', marginBottom: 5 },
-    summaryDetail: { fontSize: 13, fontWeight: '600' },
+    empty: { alignItems: 'center', marginTop: 60, opacity: 0.6 },
+    emptyTxt: { marginTop: 16, fontWeight: '700', fontSize: 15 },
 
-    sectionTitle: { fontSize: 18, fontWeight: '800', marginBottom: 20 },
+    itemCard: { borderRadius: 28, padding: 20, marginBottom: 16, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
+    cardInfo: { flexDirection: 'row', gap: 14, alignItems: 'center' },
+    dateBox: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+    dateD: { fontSize: 16, fontWeight: '900' },
+    dateM: { fontSize: 9, fontWeight: '800' },
+    itemName: { fontSize: 16, fontWeight: '800' },
+    itemSub: { fontSize: 12, fontWeight: '600', marginTop: 2 },
+    totalVal: { fontSize: 15, fontWeight: '800', marginBottom: 4 },
+    statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+    statusTxt: { fontSize: 10, fontWeight: '900' },
 
-    // Timeline Items
-    timelineContainer: { position: 'relative' },
-    timelineLine: { position: 'absolute', left: 24, top: 0, bottom: 0, width: 2 },
-    itemWrapper: { flexDirection: 'row', marginBottom: 25, gap: 15 },
-    timelineDateCol: { width: 50, alignItems: 'center', position: 'relative' },
-    dateDay: { fontSize: 20, fontWeight: '900' },
-    dateMonth: { fontSize: 11, fontWeight: '700' },
-    timelineDot: { width: 14, height: 14, borderRadius: 7, position: 'absolute', right: 0, top: 8, zIndex: 10, borderWidth: 3, borderColor: '#FFF' },
-    
-    itemCard: { flex: 1, borderRadius: 20, padding: 18, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
-    itemHeaderInner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-    itemLabel: { fontSize: 11, fontWeight: '800', marginBottom: 2 },
-    itemTitle: { fontSize: 16, fontWeight: '700' },
-    itemAmount: { fontSize: 16, fontWeight: '800' },
-    miniBarBase: { height: 6, borderRadius: 3, overflow: 'hidden', marginBottom: 14 },
-    miniBarFill: { height: '100%', borderRadius: 3 },
-    itemFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-    badgeText: { fontSize: 11, fontWeight: '800' },
+    progressArea: { marginTop: 16 },
+    pBarBg: { height: 8, borderRadius: 4, overflow: 'hidden' },
+    pBarFill: { height: '100%', borderRadius: 4 },
+    cardActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 12, alignItems: 'center' },
+    miniBtn: { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.03)', justifyContent: 'center', alignItems: 'center' },
+    skipBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.03)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+    skipTxt: { fontSize: 10, fontWeight: '900', color: '#8B8680' },
 
-    emptyState: { alignItems: 'center', marginTop: 40 },
-    emptyText: { marginTop: 10, fontWeight: '600' },
-
-    fab: { 
-        position: 'absolute', bottom: 30, right: 30, width: 64, height: 64, 
-        borderRadius: 32, backgroundColor: '#6366F1', justifyContent: 'center', alignItems: 'center',
-        shadowColor: '#6366F1', shadowOpacity: 0.4, shadowRadius: 10, elevation: 5
-    },
-
+    // Modales
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-    modalSheet: { borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, paddingBottom: 50 },
-    modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: 12 },
-    modalHint: { fontSize: 14, marginBottom: 20 },
-    typeSelector: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-    typeBtn: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(128,128,128,0.2)' },
-    input: { borderRadius: 12, padding: 16, fontSize: 16, marginBottom: 15 },
-    modalBtns: { flexDirection: 'row', gap: 15, marginTop: 10 },
-    btnAction: { flex: 1, height: 50, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
+    modalBox: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 32, paddingBottom: 48 },
+    mHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 },
+    mTitle: { fontSize: 22, fontWeight: '900' },
+    mField: { marginBottom: 24 },
+    mLabel: { fontSize: 11, fontWeight: '800', marginBottom: 10, letterSpacing: 1 },
+    mInput: { fontSize: 18, fontWeight: '700', paddingVertical: 12, borderBottomWidth: 2 },
+    mBtnPrimary: { height: 56, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginTop: 10 },
+    mBtnText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
+
+    overlayCenter: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },
+    miniModal: { borderRadius: 32, padding: 28 },
+    miniTitle: { fontSize: 20, fontWeight: '900', textAlign: 'center' },
+    miniSub: { fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 4, marginBottom: 20 },
+    miniInput: { fontSize: 24, fontWeight: '900', textAlign: 'center', paddingVertical: 12, borderBottomWidth: 2, marginBottom: 20 },
+    accountRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginBottom: 24 },
+    accBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1.5 },
+    accTxt: { fontSize: 12, fontWeight: '800' },
+    miniActions: { flexDirection: 'row', gap: 12 },
+    mBtnB: { flex: 1, height: 50, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
 });
