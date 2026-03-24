@@ -176,11 +176,11 @@ function CategoryStatistics({ transactions, colorsNav, isHidden }: { transaction
 
     const thisMonthExpenses = transactions.filter(t => {
         const d = new Date(t.date);
-        return t.type === 'expense' && t.category !== 'Ahorro' && d.getMonth() === currMonth && d.getFullYear() === currYear;
+        return t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && d.getMonth() === currMonth && d.getFullYear() === currYear;
     });
     const lastMonthTotal = transactions.filter(t => {
         const d = new Date(t.date);
-        return t.type === 'expense' && t.category !== 'Ahorro' && d.getMonth() === lastMonth && d.getFullYear() === lastYear;
+        return t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && d.getMonth() === lastMonth && d.getFullYear() === lastYear;
     }).reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
 
     const thisMonthTotal = thisMonthExpenses.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
@@ -307,7 +307,7 @@ export default function ProfileScreen() {
             // Calcular resumen semanal (últimos 7 días)
             const weekAgo = new Date();
             weekAgo.setDate(weekAgo.getDate() - 7);
-            const weekTxs = txs.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && new Date(t.date) >= weekAgo);
+            const weekTxs = txs.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && new Date(t.date) >= weekAgo);
             
             const totalWeek = weekTxs.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
             setWeeklySpending(totalWeek);
