@@ -39,7 +39,6 @@ export default function BudgetsScreen() {
     const { user, theme, isHidden } = useAuth();
     const isDark = theme === 'dark';
 
-    // ── Sanctuary Palette ──
     const colors = isDark 
         ? { bg: '#1A1A2E', card: '#25253D', text: '#F5F0E8', sub: '#A09B8C', border: '#3A3A52', accent: '#4A7C59', lightAccent: '#4A7C5930', input: '#1A1A2E' }
         : { bg: '#FFF8F0', card: '#FFFFFF', text: '#2D2D2D', sub: '#8B8680', border: '#F0E8DC', accent: '#4A7C59', lightAccent: '#E8F5E9', input: '#F5EDE0' };
@@ -103,7 +102,16 @@ export default function BudgetsScreen() {
         setModalVisible(true);
     };
 
-    const monthName = new Date().toLocaleString('es-CO', { month: 'long', year: 'numeric' });
+    const today = new Date();
+    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const remainingDays = lastDayOfMonth - today.getDate() + 1;
+    const monthName = today.toLocaleString('es-CO', { month: 'long', year: 'numeric' });
+
+    // Totales resumidos
+    const totalLimit = budgets.reduce((sum, b) => sum + b.monthly_limit, 0);
+    const totalSpent = budgets.reduce((sum, b) => sum + (spending[b.category] || 0), 0);
+    const totalRemaining = Math.max(0, totalLimit - totalSpent);
+    const dailySafeSpend = totalRemaining > 0 ? totalRemaining / remainingDays : 0;
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -120,10 +128,27 @@ export default function BudgetsScreen() {
             </View>
 
             <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-                {/* Banner */}
-                <View style={[styles.banner, { backgroundColor: colors.accent + '10' }]}>
-                    <Ionicons name="bulb" size={20} color={colors.accent} />
-                    <Text style={[styles.bannerTxt, { color: colors.sub }]}>Controla tus gastos definiendo límites mensuales por categoría.</Text>
+                
+                {/* ── Summary Card: Smart Features ── */}
+                <View style={[styles.summaryCard, { backgroundColor: colors.accent }]}>
+                    <View style={styles.summaryRow}>
+                        <View>
+                            <Text style={styles.summaryLab}>Presupuesto Total</Text>
+                            <Text style={styles.summaryVal}>{fmt(totalLimit)}</Text>
+                        </View>
+                        <View style={styles.dailyBox}>
+                            <Text style={styles.dailyLab}>Diario Sugerido</Text>
+                            <Text style={styles.dailyVal}>{fmt(dailySafeSpend)}</Text>
+                        </View>
+                    </View>
+                    <View style={styles.summaryBarBg}>
+                        <View style={[styles.summaryBarFill, { width: `${Math.min(100, (totalSpent / (totalLimit || 1)) * 100)}%` }]} />
+                    </View>
+                    <Text style={styles.summaryHint}>
+                         {totalRemaining > 0 
+                            ? `Te quedan ${fmt(totalRemaining)} para los próximos ${remainingDays} días.`
+                            : "¡Has alcanzado tu límite total mensual! Evita gastos innecesarios."}
+                    </Text>
                 </View>
 
                 {/* Categorías */}
@@ -134,13 +159,12 @@ export default function BudgetsScreen() {
                     const pct = limit > 0 ? Math.min(100, (spent / limit) * 100) : 0;
                     const isOver = limit > 0 && spent > limit;
                     const isNear = limit > 0 && pct >= 85 && !isOver;
-
                     const statusColor = isOver ? '#EF4444' : isNear ? '#F59E0B' : colors.accent;
 
                     return (
                         <TouchableOpacity 
                             key={cat.name} 
-                            style={[styles.budgetCard, { backgroundColor: colors.card }, isOver && { borderColor: '#EF444420', borderWidth: 1 }]}
+                            style={[styles.budgetCard, { backgroundColor: colors.card }, isOver && { borderColor: '#EF444430', borderWidth: 1 }]}
                             onPress={() => openModal(cat, budget)}
                         >
                             <View style={styles.cardTop}>
@@ -148,35 +172,35 @@ export default function BudgetsScreen() {
                                     <MaterialIcons name={cat.icon as any} size={20} color={cat.color} />
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={[styles.catName, { color: colors.text }]}>{cat.name}</Text>
-                                    <Text style={[styles.progressTxt, { color: isOver ? '#EF4444' : colors.sub }]}>
-                                        {fmt(spent)} {limit > 0 ? `de ${fmt(limit)}` : '· Sin límite'}
-                                    </Text>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <Text style={[styles.catName, { color: colors.text }]}>{cat.name}</Text>
+                                        <Text style={[styles.spentNum, { color: isOver ? '#EF4444' : colors.text }]}>{fmt(spent)}</Text>
+                                    </View>
+                                    {limit > 0 && (
+                                        <Text style={[styles.limitNum, { color: colors.sub }]}>de {fmt(limit)} mensuales</Text>
+                                    )}
                                 </View>
-                                {budget && (
-                                    <TouchableOpacity style={styles.miniDel} onPress={(e) => { e.stopPropagation(); handleDelete(budget); }}>
-                                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                                    </TouchableOpacity>
-                                )}
                             </View>
 
-                            {budget && (
+                            {budget ? (
                                 <View style={styles.barCont}>
                                     <View style={[styles.barBg, { backgroundColor: colors.bg }]}>
                                         <View style={[styles.barFill, { width: `${pct}%`, backgroundColor: statusColor }]} />
                                     </View>
                                     <View style={styles.barLabels}>
-                                        <Text style={[styles.pctTxt, { color: statusColor }]}>{pct.toFixed(0)}% Utilizado</Text>
-                                        {isOver && <Text style={styles.alertTxt}>⚠️ Excedido</Text>}
-                                        {isNear && <Text style={[styles.alertTxt, { color: '#F59E0B' }]}>⚡ Cerca</Text>}
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                            <View style={[styles.dot, { backgroundColor: statusColor }]} />
+                                            <Text style={[styles.pctTxt, { color: statusColor }]}>{pct.toFixed(0)}% del límite</Text>
+                                        </View>
+                                        {isOver && <Text style={styles.alertTxt}>Excedido</Text>}
+                                        {isNear && <Text style={[styles.alertTxt, { color: '#F59E0B' }]}>Casi al límite</Text>}
+                                        {!isOver && !isNear && <Text style={[styles.daysTxt, { color: colors.sub }]}>{remainingDays} días rest.</Text>}
                                     </View>
                                 </View>
-                            )}
-                            
-                            {!budget && (
+                            ) : (
                                 <View style={styles.addPlaceholder}>
-                                    <Ionicons name="add-circle-outline" size={16} color={colors.accent} />
-                                    <Text style={[styles.addTxt, { color: colors.accent }]}>Definir presupuesto</Text>
+                                    <Ionicons name="add" size={16} color={colors.accent} />
+                                    <Text style={[styles.addTxt, { color: colors.accent }]}>Definir límite mensual</Text>
                                 </View>
                             )}
                         </TouchableOpacity>
@@ -185,7 +209,7 @@ export default function BudgetsScreen() {
                 <View style={{ height: 100 }} />
             </ScrollView>
 
-            {/* Modal Sanctuary */}
+            {/* Modal */}
             <Modal visible={modalVisible} transparent animationType="fade">
                 <View style={styles.overlay}>
                     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -196,7 +220,7 @@ export default function BudgetsScreen() {
                                 </View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={[styles.modalTitle, { color: colors.text }]}>{selectedCat.name}</Text>
-                                    <Text style={[styles.modalSub, { color: colors.sub }]}>Presupuesto sugerido</Text>
+                                    <Text style={[styles.modalSub, { color: colors.sub }]}>Fijar límite máximo de gasto</Text>
                                 </View>
                                 <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeBtn}>
                                     <Ionicons name="close" size={24} color={colors.sub} />
@@ -214,13 +238,19 @@ export default function BudgetsScreen() {
                             </View>
 
                             <View style={styles.modalFooter}>
-                                <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.bg }]} onPress={() => setModalVisible(false)}>
-                                    <Text style={{ color: colors.text, fontWeight: '800' }}>Cancelar</Text>
+                                <TouchableOpacity style={[styles.mBtnB, { backgroundColor: colors.bg }]} onPress={() => setModalVisible(false)}>
+                                    <Text style={{ color: colors.text, fontWeight: '800' }}>Cerrar</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.accent }]} onPress={handleSaveBudget}>
-                                    <Text style={{ color: '#FFF', fontWeight: '800' }}>Fijar Límite</Text>
+                                <TouchableOpacity style={[styles.mBtnB, { backgroundColor: colors.accent }]} onPress={handleSaveBudget}>
+                                    <Text style={{ color: '#FFF', fontWeight: '800' }}>Confirmar</Text>
                                 </TouchableOpacity>
                             </View>
+                            
+                            {budgets.find(b => b.category === selectedCat.name) && (
+                                <TouchableOpacity style={styles.delOption} onPress={() => { setModalVisible(false); handleDelete(budgets.find(b => b.category === selectedCat.name)); }}>
+                                    <Text style={styles.delOptionTxt}>Eliminar presupuesto para esta categoría</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                     </KeyboardAvoidingView>
                 </View>
@@ -237,24 +267,35 @@ const styles = StyleSheet.create({
     circleBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
     
     scroll: { paddingHorizontal: 24 },
-    banner: { flexDirection: 'row', gap: 12, padding: 16, borderRadius: 20, marginBottom: 24, alignItems: 'center' },
-    bannerTxt: { fontSize: 13, flex: 1, lineHeight: 18, fontWeight: '600' },
+
+    summaryCard: { borderRadius: 32, padding: 24, marginBottom: 24, elevation: 8, shadowColor: '#4A7C59', shadowOpacity: 0.2, shadowRadius: 20 },
+    summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    summaryLab: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '700' },
+    summaryVal: { color: '#FFF', fontSize: 28, fontWeight: '900' },
+    dailyBox: { alignItems: 'flex-end' },
+    dailyLab: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '700' },
+    dailyVal: { color: '#FFF', fontSize: 18, fontWeight: '800' },
+    summaryBarBg: { height: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 4, overflow: 'hidden', marginBottom: 16 },
+    summaryBarFill: { height: '100%', backgroundColor: '#FFF', borderRadius: 4 },
+    summaryHint: { color: '#FFF', fontSize: 12, fontWeight: '600', opacity: 0.9, lineHeight: 18 },
 
     budgetCard: { borderRadius: 28, padding: 20, marginBottom: 16, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
     cardTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
     iconBox: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
     catName: { fontSize: 16, fontWeight: '800' },
-    progressTxt: { fontSize: 13, fontWeight: '600', marginTop: 2 },
-    miniDel: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+    spentNum: { fontSize: 16, fontWeight: '800' },
+    limitNum: { fontSize: 11, fontWeight: '600', marginTop: 2 },
 
     barCont: { marginTop: 16 },
     barBg: { height: 10, borderRadius: 5, overflow: 'hidden' },
     barFill: { height: '100%', borderRadius: 5 },
-    barLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+    barLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, alignItems: 'center' },
+    dot: { width: 6, height: 6, borderRadius: 3 },
     pctTxt: { fontSize: 11, fontWeight: '800' },
-    alertTxt: { fontSize: 11, fontWeight: '800', color: '#EF4444' },
+    daysTxt: { fontSize: 11, fontWeight: '700' },
+    alertTxt: { fontSize: 11, fontWeight: '900', color: '#EF4444' },
 
-    addPlaceholder: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, opacity: 0.8 },
+    addPlaceholder: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, opacity: 0.8 },
     addTxt: { fontSize: 13, fontWeight: '800' },
 
     // Modal
@@ -271,5 +312,7 @@ const styles = StyleSheet.create({
     amountInput: { fontSize: 40, fontWeight: '900', minWidth: 150, textAlign: 'center' },
 
     modalFooter: { flexDirection: 'row', gap: 12 },
-    mBtn: { flex: 1, paddingVertical: 18, borderRadius: 20, alignItems: 'center' },
+    mBtnB: { flex: 1, paddingVertical: 18, borderRadius: 20, alignItems: 'center' },
+    delOption: { marginTop: 24, alignItems: 'center' },
+    delOptionTxt: { color: '#EF4444', fontSize: 12, fontWeight: '800' }
 });
