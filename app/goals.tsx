@@ -21,6 +21,7 @@ import {
     TouchableWithoutFeedback,
     View,
 } from 'react-native';
+import { uploadImage } from '@/utils/storage';
 
 export default function GoalsScreen() {
     const isFocused = useIsFocused();
@@ -78,11 +79,29 @@ export default function GoalsScreen() {
         const val = parseFloat(newGoalTarget.replace(/\./g, '').replace(',', '.'));
         if (!newGoalName.trim() || isNaN(val) || val <= 0) return;
         try {
-            const { error } = await supabase.from('goals').insert([{ user_id: user?.id, name: newGoalName.trim(), target_amount: val, current_amount: 0, image_uri: newGoalImage }]);
+            let finalImageUri = newGoalImage;
+            
+            // Subir a la nube si hay una imagen seleccionada
+            if (newGoalImage && (newGoalImage.startsWith('file:') || newGoalImage.startsWith('blob:') || newGoalImage.startsWith('content:'))) {
+                const fileName = `goal_${Date.now()}.jpg`;
+                const uploadedUrl = await uploadImage(newGoalImage, 'media', `goals/${user?.id}/${fileName}`);
+                if (uploadedUrl) {
+                    finalImageUri = uploadedUrl;
+                }
+            }
+
+            const { error } = await supabase.from('goals').insert([{ 
+                user_id: user?.id, 
+                name: newGoalName.trim(), 
+                target_amount: val, 
+                current_amount: 0, 
+                image_uri: finalImageUri 
+            }]);
+            
             if (error) throw error;
             setNewGoalName(''); setNewGoalTarget(''); setNewGoalImage(null); setAddModalVisible(false);
             loadData();
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error('Error al crear meta con imagen:', e); }
     };
 
     const handleAddMoney = async () => {
