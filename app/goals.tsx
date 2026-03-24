@@ -245,10 +245,12 @@ export default function GoalsScreen() {
                 <View style={{ height: 100 }} />
             </ScrollView>
 
-            {/* ── Modales ── */}
             <Modal visible={addModalVisible} animationType="slide" transparent>
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                    <View style={styles.modalOverlay}>
+                <View style={styles.modalOverlay}>
+                    <TouchableWithoutFeedback onPress={() => setAddModalVisible(false)}>
+                        <View style={StyleSheet.absoluteFill} />
+                    </TouchableWithoutFeedback>
+                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%' }}>
                         <View style={[styles.modalBox, { backgroundColor: colors.card }]}>
                             <View style={styles.modalHeaderInner}>
                                 <Text style={[styles.modalTitle, { color: colors.text }]}>Nueva Meta</Text>
@@ -283,8 +285,8 @@ export default function GoalsScreen() {
                                 <Text style={styles.mPrimaryBtnTxt}>Comenzar a ahorrar</Text>
                             </TouchableOpacity>
                         </View>
-                    </View>
-                </TouchableWithoutFeedback>
+                    </KeyboardAvoidingView>
+                </View>
             </Modal>
 
             {/* Modal Asignar */}
