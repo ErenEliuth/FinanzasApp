@@ -1,0 +1,26 @@
+{
+  "short_name": "FinanzasApp",
+  "name": "Finanzas App - Tu Paz Financiera",
+  "icons": [
+    {
+      "src": "/FinanzasApp/favicon.png",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/FinanzasApp/assets/images/icon.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/FinanzasApp/assets/images/icon.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/FinanzasApp/",
+  "display": "standalone",
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
+  "scope": "/FinanzasApp/"
+}
