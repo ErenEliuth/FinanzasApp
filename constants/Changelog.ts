@@ -7,9 +7,9 @@ export const CHANGELOG_UPDATES = [
     icon: 'calendar-today'
   },
   {
-    title: '⚙️ Mejoras en Gastos Fijos',
-    description: 'Ahora puedes elegir solo el día (1 a 31) para tus gastos fijos. Se reiniciarán solos cada mes.',
-    icon: 'repeat'
+    title: '💜 Nuevo Tema Lila',
+    description: 'Hemos añadido un color lila elegante y suave para que personalices tu Sanctuary. ¡Pruébalo en el Perfil!',
+    icon: 'palette'
   },
   {
     title: '🧠 Inicio Inteligente',

@@ -127,43 +127,7 @@ function MonthHeatmap({ activeDays, colorsNav }: {
     );
 }
 
-const ThemeSelector = ({ current, onSelect, colorsNav }: { current: ThemeName; onSelect: (t: ThemeName) => void; colorsNav: any }) => {
-    const options: { id: ThemeName; color: string; label: string }[] = [
-        { id: 'light', color: '#FFF8F0', label: 'Claro' },
-        { id: 'dark', color: '#1A1A2E', label: 'Oscuro' },
-        { id: 'forest', color: '#0D1A10', label: 'Naturaleza' },
-        { id: 'lavender', color: '#F8F7FF', label: 'Lila' },
-    ];
 
-    return (
-        <View style={[mSt.card, { backgroundColor: colorsNav.card }]}>
-            <Text style={[mSt.monthName, { color: colorsNav.text, marginBottom: 16 }]}>Apariencia</Text>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                {options.map((opt) => (
-                    <TouchableOpacity 
-                        key={opt.id} 
-                        style={{ alignItems: 'center', gap: 6 }} 
-                        onPress={() => onSelect(opt.id)}
-                    >
-                        <View style={{ 
-                            width: 50, 
-                            height: 50, 
-                            borderRadius: 25, 
-                            backgroundColor: opt.color,
-                            borderWidth: 3,
-                            borderColor: current === opt.id ? colorsNav.accent : colorsNav.border,
-                            justifyContent: 'center',
-                            alignItems: 'center'
-                        }}>
-                             {current === opt.id && <Ionicons name="checkmark" size={24} color={opt.id === 'light' || opt.id === 'lavender' ? '#2D2D2D' : '#FFF'} />}
-                        </View>
-                        <Text style={{ fontSize: 11, fontWeight: '700', color: colorsNav.sub }}>{opt.label}</Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
-        </View>
-    );
-};
 
 const mSt = StyleSheet.create({
     card: { borderRadius: 24, padding: 20, marginBottom: 16 },
@@ -412,9 +376,14 @@ export default function ProfileScreen() {
                 {/* ── Header ── */}
                 <View style={styles.header}>
                     <Text style={[styles.headerTitle, { color: colorsNav.text }]}>Perfil</Text>
+                    <TouchableOpacity style={[styles.themeBtn, { backgroundColor: isDark ? colorsNav.card : (theme === 'lavender' ? '#EBE7F5' : '#F5EDE0') }]} onPress={toggleTheme}>
+                        <Ionicons 
+                            name={theme === 'light' ? 'sunny' : theme === 'dark' ? 'moon' : 'sparkles'} 
+                            size={20} 
+                            color={colorsNav.accent} 
+                        />
+                    </TouchableOpacity>
                 </View>
-
-                <ThemeSelector current={theme} onSelect={setThemeConfig} colorsNav={colorsNav} />
 
                 {/* ── Perfil Card ── */}
                 <View style={[styles.profileCard, { backgroundColor: colorsNav.card }]}>

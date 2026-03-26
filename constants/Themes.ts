@@ -1,4 +1,4 @@
-export type ThemeName = 'light' | 'dark' | 'forest' | 'lavender';
+export type ThemeName = 'light' | 'dark' | 'lavender';
 
 export const THEMES: Record<ThemeName, any> = {
   light: {
@@ -27,20 +27,6 @@ export const THEMES: Record<ThemeName, any> = {
     greenCard: '#2D5A3D',
     cream: '#25253D',
     input: '#1A1A2E',
-    isDark: true,
-  },
-  forest: {
-    bg: '#0D1A10',
-    card: '#162B1D',
-    text: '#E8F5E9',
-    sub: '#81C784',
-    border: '#2E4B38',
-    accent: '#388E3C',
-    cardBg: '#112217',
-    warmBg: '#0D1A10',
-    greenCard: '#0A1F0D',
-    cream: '#162B1D',
-    input: '#112217',
     isDark: true,
   },
   lavender: {

@@ -40,6 +40,20 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-26 — Tema Lila y Ciclo de Apariencia
+
+**Archivos modificados:**
+- `constants/Themes.ts` — Ajuste de paletas disponibles (Claro, Oscuro, Lila).
+- `utils/auth.tsx` — Actualización del ciclo de cambio de tema (Sol → Luna → Chispas).
+- `app/(tabs)/profile.tsx` — Restauración del icono de cambio rápido en el header.
+
+**Cambios realizados:**
+- ✅ **Tema Lila (Lavender)**: Añadido un nuevo tema elegante basado en tonos violetas suaves.
+- ✅ **Toggle de Tema Mejorado**: El icono en el perfil ahora alterna cíclicamente entre Claro, Oscuro y Lila. Cada tema tiene su propio icono representativo (Sol, Luna y Chispas ✨).
+- ✅ **Simplificación UI**: Se eliminó el selector de burbujas para mantener la interfaz limpia y minimalista, volviendo al icono único en la parte superior.
+
+---
+
 ### 2026-03-26 — Sistema de Temas Multi-Color
 
 **Archivos modificados:**
