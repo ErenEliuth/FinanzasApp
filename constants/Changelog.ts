@@ -1,15 +1,15 @@
-export const LATEST_VERSION = '2026-03-26-v4';
+export const LATEST_VERSION = '2026-03-26-v5';
 
 export const CHANGELOG_UPDATES = [
+  {
+    title: '🔔 Recordatorios Diarios',
+    description: 'Activa los recordatorios en tu Perfil para que no olvides anotar tus gastos al final del día.',
+    icon: 'notifications'
+  },
   {
     title: '🌊 Nuevo Tema Ocean',
     description: 'Añadido el tema Océano con tonos turquesas y cian pálidos para mayor serenidad.',
     icon: 'water'
-  },
-  {
-    title: '❄️ Tema Blanco Nieve',
-    description: 'Restaurado el tema blanco puro (Snow) con acentos verdes Sanctuary.',
-    icon: 'contrast'
   },
   {
     title: '💜 Nuevo Tema Lila',

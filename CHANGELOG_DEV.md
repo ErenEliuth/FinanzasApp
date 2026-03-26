@@ -40,6 +40,20 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-26 — Recordatorios Diarios y Notificaciones
+
+**Archivos modificados:**
+- `app/(tabs)/profile.tsx` — Nueva sección de "Configuración" con toggle de avisos.
+- `utils/notifications.ts` — Lógica de programación de notificaciones locales.
+- `constants/Changelog.ts` — Versión **v5** lanzada.
+
+**Cambios realizados:**
+- ✅ **Recordatorio Automático**: Implementado un sistema de recordatorio diario a las 8:30 PM.
+- ✅ **Toggle en Perfil**: Los usuarios pueden activar o desactivar los avisos directamente desde su perfil con un solo toque.
+- ✅ **Integración con Sistema**: La app ahora solicita permisos de notificación de forma elegante al activar el servicio.
+
+---
+
 ### 2026-03-26 — Temas Océano (Ocean) y Blanco Puro (Snow)
 
 **Archivos modificados:**

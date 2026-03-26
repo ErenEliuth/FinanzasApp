@@ -3,6 +3,7 @@ import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
+import * as Notifications from '@/utils/notifications';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
@@ -272,12 +273,41 @@ export default function ProfileScreen() {
     const [weeklyTopCat, setWeeklyTopCat] = useState('');
     const [weeklyTopAmt, setWeeklyTopAmt] = useState(0);
     const [weeklySummaryData, setWeeklySummaryData] = useState<[string, number][]>([]);
+    const [reminders, setReminders] = useState(false);
 
     useEffect(() => { if (isFocused) loadData(); }, [isFocused]);
 
     useEffect(() => {
         AsyncStorage.getItem(`@avatar_${user?.id}`).then(uri => { if (uri) setAvatarUri(uri); });
+        loadReminders();
     }, [user]);
+
+    const loadReminders = async () => {
+        const val = await AsyncStorage.getItem('user_reminders');
+        setReminders(val === 'true');
+    };
+
+    const toggleReminders = async () => {
+        const newVal = !reminders;
+        setReminders(newVal);
+        await AsyncStorage.setItem('user_reminders', newVal ? 'true' : 'false');
+
+        if (newVal) {
+            const granted = await Notifications.registerForPushNotificationsAsync();
+            if (granted) {
+                // Programar recordatorio diario a las 8:30 PM (20:30)
+                await Notifications.scheduleDailyReminder(20, 30);
+                Alert.alert("✅ Recordatorio activado", "Te avisaremos todas las noches para que no olvides tus finanzas.");
+            } else {
+                setReminders(false);
+                await AsyncStorage.setItem('user_reminders', 'false');
+                Alert.alert("⚠️ Permiso denegado", "Necesitas activar las notificaciones en los ajustes de tu celular.");
+            }
+        } else {
+            await Notifications.cancelReminders();
+            Alert.alert("🔕 Recordatorios desactivados", "Ya no recibirás avisos diarios.");
+        }
+    };
 
     const loadData = async () => {
         if (!user) return;
@@ -451,6 +481,26 @@ export default function ProfileScreen() {
                     </TouchableOpacity>
                 </View>
 
+                {/* ── Configuración ── */}
+                <View style={{ marginTop: 8 }}>
+                    <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>CONFIGURACIÓN</Text>
+                    
+                    <TouchableOpacity 
+                        style={[styles.listItem, { backgroundColor: colorsNav.card }]} 
+                        onPress={toggleReminders}
+                        activeOpacity={0.8}
+                    >
+                        <View style={[styles.listIcon, { backgroundColor: reminders ? '#E3F0FF' : (isDark ? '#3A3A52' : '#F1F5F9') }]}>
+                            <Ionicons name="notifications" size={20} color={reminders ? '#3B82F6' : colorsNav.sub} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.listTitle, { color: colorsNav.text }]}>Recordatorio Diario</Text>
+                            <Text style={[styles.listSub, { color: colorsNav.sub }]}>{reminders ? 'Activado: 8:30 PM' : 'Desactivado'}</Text>
+                        </View>
+                        <Ionicons name={reminders ? "toggle" : "toggle-outline"} size={32} color={reminders ? colorsNav.accent : colorsNav.sub} />
+                    </TouchableOpacity>
+                </View>
+
                 <View style={{ height: 120 }} />
             </ScrollView>
 
@@ -605,4 +655,10 @@ const styles = StyleSheet.create({
     weekCatAmt: { fontSize: 14, fontWeight: '800' },
     closeModalBtn: { padding: 18, borderRadius: 20, alignItems: 'center', marginTop: 24 },
     closeModalBtnTxt: { color: '#FFF', fontWeight: '800', fontSize: 16 },
+
+    sectionTitle: { fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginLeft: 6, marginBottom: 12, opacity: 0.8 },
+    listItem: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 24, gap: 14 },
+    listIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+    listTitle: { fontSize: 15, fontWeight: '700' },
+    listSub: { fontSize: 12, marginTop: 2 },
 });
