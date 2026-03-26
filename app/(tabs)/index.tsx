@@ -731,11 +731,10 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   desktopScrollContainer: {
-    maxWidth: 1100,
     width: '100%',
     alignSelf: 'center',
-    paddingHorizontal: 40,
-    paddingTop: 40,
+    paddingHorizontal: 30,
+    paddingTop: 30,
   },
   desktopMainRow: {
     flexDirection: 'row',

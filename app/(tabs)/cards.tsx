@@ -369,50 +369,51 @@ export default function CardsScreen() {
             {/* ADDCARD MODAL */}
             <Modal visible={addModalVisible} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
-                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%', alignItems: 'center' }}>
-                        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                            <View style={[styles.modalSheet, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
-                                <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Nueva Tarjeta de Crédito</Text>
-                                <Text style={[styles.modalSub, { color: colorsNav.sub }]}>Configura los límites y fechas de tu tarjeta</Text>
-                                
-                                <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border }]}
-                                    placeholder="Nombre de la tarjeta" placeholderTextColor={colorsNav.sub}
-                                    value={newName} onChangeText={setNewName} />
+                    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                        <View style={StyleSheet.absoluteFill} />
+                    </TouchableWithoutFeedback>
+                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%', alignItems: 'center' }} pointerEvents="box-none">
+                        <View style={[styles.modalSheet, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
+                            <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Nueva Tarjeta de Crédito</Text>
+                            <Text style={[styles.modalSub, { color: colorsNav.sub }]}>Configura los límites y fechas de tu tarjeta</Text>
+                            
+                            <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border }]}
+                                placeholder="Nombre de la tarjeta" placeholderTextColor={colorsNav.sub}
+                                value={newName} onChangeText={setNewName} />
 
-                                <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border }]}
-                                    placeholder="Cupo Total ($)" placeholderTextColor={colorsNav.sub}
-                                    keyboardType="decimal-pad" value={newLimit} onChangeText={(text) => setNewLimit(formatInput(text))} />
+                            <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border }]}
+                                placeholder="Cupo Total ($)" placeholderTextColor={colorsNav.sub}
+                                keyboardType="decimal-pad" value={newLimit} onChangeText={(text) => setNewLimit(formatInput(text))} />
 
-                                <View style={{ flexDirection: 'row', gap: 12 }}>
-                                    <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border, flex: 1 }]}
-                                        placeholder="Día Corte" placeholderTextColor={colorsNav.sub}
-                                        keyboardType="number-pad" value={newCutDay} onChangeText={setNewCutDay} />
-                                    <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border, flex: 1 }]}
-                                        placeholder="Día Pago" placeholderTextColor={colorsNav.sub}
-                                        keyboardType="number-pad" value={newDueDay} onChangeText={setNewDueDay} />
-                                </View>
-
-                                <Text style={[styles.labelSection, { color: colorsNav.sub }]}>COLOR DEL PLÁSTICO</Text>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
-                                    {CARD_COLORS.map(c => (
-                                        <TouchableOpacity 
-                                            key={c} 
-                                            style={[styles.colorCircle, { backgroundColor: c }, newColor === c && { borderColor: isDark ? '#FFF' : '#2D5A3D', borderWidth: 3 }]} 
-                                            onPress={() => setNewColor(c)} 
-                                        />
-                                    ))}
-                                </ScrollView>
-
-                                <View style={styles.modalBtns}>
-                                    <TouchableOpacity style={[styles.modalBtnCancel, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }]} onPress={() => setAddModalVisible(false)}>
-                                        <Text style={[styles.modalBtnCancelText, { color: colorsNav.text }]}>Cancelar</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity style={[styles.modalBtnConfirm, { backgroundColor: colorsNav.accent }]} onPress={handleAddCard}>
-                                        <Text style={styles.modalBtnConfirmText}>Crear Tarjeta</Text>
-                                    </TouchableOpacity>
-                                </View>
+                            <View style={{ flexDirection: 'row', gap: 12 }}>
+                                <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border, flex: 1 }]}
+                                    placeholder="Día Corte" placeholderTextColor={colorsNav.sub}
+                                    keyboardType="number-pad" value={newCutDay} onChangeText={setNewCutDay} />
+                                <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border, flex: 1 }]}
+                                    placeholder="Día Pago" placeholderTextColor={colorsNav.sub}
+                                    keyboardType="number-pad" value={newDueDay} onChangeText={setNewDueDay} />
                             </View>
-                        </TouchableWithoutFeedback>
+
+                            <Text style={[styles.labelSection, { color: colorsNav.sub }]}>COLOR DEL PLÁSTICO</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+                                {CARD_COLORS.map(c => (
+                                    <TouchableOpacity 
+                                        key={c} 
+                                        style={[styles.colorCircle, { backgroundColor: c }, newColor === c && { borderColor: isDark ? '#FFF' : '#2D5A3D', borderWidth: 3 }]} 
+                                        onPress={() => setNewColor(c)} 
+                                    />
+                                ))}
+                            </ScrollView>
+
+                            <View style={styles.modalBtns}>
+                                <TouchableOpacity style={[styles.modalBtnCancel, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }]} onPress={() => setAddModalVisible(false)}>
+                                    <Text style={[styles.modalBtnCancelText, { color: colorsNav.text }]}>Cancelar</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={[styles.modalBtnConfirm, { backgroundColor: colorsNav.accent }]} onPress={handleAddCard}>
+                                    <Text style={styles.modalBtnConfirmText}>Crear Tarjeta</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
                     </KeyboardAvoidingView>
                 </View>
             </Modal>
@@ -420,46 +421,47 @@ export default function CardsScreen() {
             {/* PAY MODAL */}
             <Modal visible={payModalVisible} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
-                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%', alignItems: 'center' }}>
-                        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                            <View style={[styles.modalSheet, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
-                                <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Pagar {selectedCard?.name}</Text>
-                                <Text style={[styles.modalSub, { color: colorsNav.sub }]}>Deuda actual: {fmt(cardBalances[selectedCard?.name || ''] || 0)}</Text>
+                    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                        <View style={StyleSheet.absoluteFill} />
+                    </TouchableWithoutFeedback>
+                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%', alignItems: 'center' }} pointerEvents="box-none">
+                        <View style={[styles.modalSheet, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
+                            <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Pagar {selectedCard?.name}</Text>
+                            <Text style={[styles.modalSub, { color: colorsNav.sub }]}>Deuda actual: {fmt(cardBalances[selectedCard?.name || ''] || 0)}</Text>
 
-                                <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border, fontSize: 24, fontWeight: '800' }]}
-                                    placeholder="$ 0" placeholderTextColor={colorsNav.sub}
-                                    keyboardType="decimal-pad" value={payAmount} onChangeText={(text) => setPayAmount(formatInput(text))}
-                                    autoFocus />
+                            <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border, fontSize: 24, fontWeight: '800' }]}
+                                placeholder="$ 0" placeholderTextColor={colorsNav.sub}
+                                keyboardType="decimal-pad" value={payAmount} onChangeText={(text) => setPayAmount(formatInput(text))}
+                                autoFocus />
 
-                                <Text style={[styles.labelSection, { color: colorsNav.sub, marginTop: 10 }]}>¿DESDE DÓNDE PAGAS?</Text>
-                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
-                                    {accounts.map(acc => (
-                                        <TouchableOpacity 
-                                            key={acc} 
-                                            style={[
-                                                styles.accPill, 
-                                                { borderColor: colorsNav.border, backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2' },
-                                                selectedAccount === acc && { borderColor: colorsNav.accent, backgroundColor: isDark ? '#4A7C5930' : '#E8F5E9' }
-                                            ]}
-                                            onPress={() => setSelectedAccount(acc)}
-                                        >
-                                            <Text style={{ fontWeight: '700', color: selectedAccount === acc ? colorsNav.accent : colorsNav.sub }}>
-                                                {acc}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-
-                                <View style={styles.modalBtns}>
-                                    <TouchableOpacity style={[styles.modalBtnCancel, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }]} onPress={() => setPayModalVisible(false)}>
-                                        <Text style={[styles.modalBtnCancelText, { color: colorsNav.text }]}>Cancelar</Text>
+                            <Text style={[styles.labelSection, { color: colorsNav.sub, marginTop: 10 }]}>¿DESDE DÓNDE PAGAS?</Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
+                                {accounts.map(acc => (
+                                    <TouchableOpacity 
+                                        key={acc} 
+                                        style={[
+                                            styles.accPill, 
+                                            { borderColor: colorsNav.border, backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2' },
+                                            selectedAccount === acc && { borderColor: colorsNav.accent, backgroundColor: isDark ? '#4A7C5930' : '#E8F5E9' }
+                                        ]}
+                                        onPress={() => setSelectedAccount(acc)}
+                                    >
+                                        <Text style={{ fontWeight: '700', color: selectedAccount === acc ? colorsNav.accent : colorsNav.sub }}>
+                                            {acc}
+                                        </Text>
                                     </TouchableOpacity>
-                                    <TouchableOpacity style={[styles.modalBtnConfirm, { backgroundColor: colorsNav.accent }]} onPress={handlePayCard}>
-                                        <Text style={styles.modalBtnConfirmText}>Confirmar Pago</Text>
-                                    </TouchableOpacity>
-                                </View>
+                                ))}
                             </View>
-                        </TouchableWithoutFeedback>
+
+                            <View style={styles.modalBtns}>
+                                <TouchableOpacity style={[styles.modalBtnCancel, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }]} onPress={() => setPayModalVisible(false)}>
+                                    <Text style={[styles.modalBtnCancelText, { color: colorsNav.text }]}>Cancelar</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={[styles.modalBtnConfirm, { backgroundColor: colorsNav.accent }]} onPress={handlePayCard}>
+                                    <Text style={styles.modalBtnConfirmText}>Confirmar Pago</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
                     </KeyboardAvoidingView>
                 </View>
             </Modal>

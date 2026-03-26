@@ -316,8 +316,8 @@ export default function DebtsScreen() {
                                 </View>
                             </TouchableOpacity>
 
-                            {showDatePicker && (
-                                <DateTimePicker value={dueDate} mode="date" display="default" onChange={(e, d) => { setShowDatePicker(false); if (d) setDueDate(d); }} />
+                            {Platform.OS === 'ios' && showDatePicker && (
+                                <DateTimePicker value={dueDate} mode="date" display="spinner" onChange={(e, d) => { setShowDatePicker(false); if (d) setDueDate(d); }} />
                             )}
 
                             <TouchableOpacity style={[styles.mBtnPrimary, { backgroundColor: colors.accent }]} onPress={handleSave}>
@@ -327,6 +327,10 @@ export default function DebtsScreen() {
                     </KeyboardAvoidingView>
                 </View>
             </Modal>
+
+            {Platform.OS === 'android' && showDatePicker && (
+                <DateTimePicker value={dueDate} mode="date" display="default" onChange={(e, d) => { setShowDatePicker(false); if (d) setDueDate(d); }} />
+            )}
 
             {/* Modal Pago */}
             <Modal visible={payModalVisible} animationType="fade" transparent>
