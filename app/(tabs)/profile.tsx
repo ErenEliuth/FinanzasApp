@@ -300,30 +300,6 @@ export default function ProfileScreen() {
         }
     };
 
-    const handleTestNotif = async () => {
-        const granted = await NotificationsUtils.registerForPushNotificationsAsync();
-        if (!granted) {
-            Alert.alert("❌ Error", "No tienes permisos de notificación permitidos en este navegador/celular.");
-            return;
-        }
-
-        if (Platform.OS === 'web' && "Notification" in window) {
-            new Notification("🎉 Sanctuary: ¡Prueba!", {
-                body: "Si ves esto, tus notificaciones web están funcionando.",
-                icon: "/favicon.png"
-            });
-        } else {
-            await Notifications.scheduleNotificationAsync({
-                content: {
-                    title: "🎉 Sanctuary: ¡Prueba!",
-                    body: "Si ves esto, las notificaciones nativas funcionan.",
-                },
-                trigger: null,
-            });
-        }
-        Alert.alert("✅ Prueba enviada", "Deberías ver una notificación ahora mismo.");
-    };
-
     const onTimeChange = async (event: any, selectedDate?: Date) => {
         setShowTimer(false);
         if (selectedDate) {
@@ -605,15 +581,6 @@ export default function ProfileScreen() {
                         </Modal>
                     )}
 
-                    {/* Diagnóstico */}
-                    <TouchableOpacity 
-                        style={{ marginTop: 12, padding: 16, borderRadius: 20, backgroundColor: isDark ? colorsNav.card : '#F8FAFC', flexDirection: 'row', alignItems: 'center', gap: 12, borderStyle: 'dashed', borderWidth: 1, borderColor: colorsNav.border }}
-                        onPress={handleTestNotif}
-                    >
-                        <MaterialIcons name="bug-report" size={20} color={colorsNav.sub} />
-                        <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: colorsNav.text }}>Prueba de Notificaciones</Text>
-                        <MaterialIcons name="chevron-right" size={18} color={colorsNav.sub} />
-                    </TouchableOpacity>
                 </View>
 
                 {/* ── Heatmap ── */}
