@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Cargar tema
         const loadTheme = async () => {
             const storedTheme = await AsyncStorage.getItem('user_theme');
-            const validThemes: ThemeName[] = ['light', 'dark', 'lavender'];
+            const validThemes: ThemeName[] = ['light', 'dark', 'lavender', 'ocean', 'snow'];
             if (validThemes.includes(storedTheme as ThemeName)) {
                 setTheme(storedTheme as ThemeName);
             }
@@ -76,9 +76,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const toggleTheme = async () => {
         let nextTheme: ThemeName = 'light';
-        if (theme === 'light') nextTheme = 'dark';
+        if (theme === 'snow') nextTheme = 'light';
+        else if (theme === 'light') nextTheme = 'dark';
         else if (theme === 'dark') nextTheme = 'lavender';
-        else if (theme === 'lavender') nextTheme = 'light';
+        else if (theme === 'lavender') nextTheme = 'ocean';
+        else if (theme === 'ocean') nextTheme = 'snow';
         
         setTheme(nextTheme);
         await AsyncStorage.setItem('user_theme', nextTheme);

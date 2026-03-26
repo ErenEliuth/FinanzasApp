@@ -1,10 +1,15 @@
-export const LATEST_VERSION = '2026-03-26-v3';
+export const LATEST_VERSION = '2026-03-26-v4';
 
 export const CHANGELOG_UPDATES = [
   {
-    title: '📅 Selector de Fecha Arreglado',
-    description: 'El selector de fecha ahora funciona perfectamente en Web, iPhone y Android sin errores de visualización.',
-    icon: 'calendar-today'
+    title: '🌊 Nuevo Tema Ocean',
+    description: 'Añadido el tema Océano con tonos turquesas y cian pálidos para mayor serenidad.',
+    icon: 'water'
+  },
+  {
+    title: '❄️ Tema Blanco Nieve',
+    description: 'Restaurado el tema blanco puro (Snow) con acentos verdes Sanctuary.',
+    icon: 'contrast'
   },
   {
     title: '💜 Nuevo Tema Lila',

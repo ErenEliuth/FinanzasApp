@@ -376,9 +376,9 @@ export default function ProfileScreen() {
                 {/* ── Header ── */}
                 <View style={styles.header}>
                     <Text style={[styles.headerTitle, { color: colorsNav.text }]}>Perfil</Text>
-                    <TouchableOpacity style={[styles.themeBtn, { backgroundColor: isDark ? colorsNav.card : (theme === 'lavender' ? '#EBE7F5' : '#F5EDE0') }]} onPress={toggleTheme}>
+                    <TouchableOpacity style={[styles.themeBtn, { backgroundColor: isDark ? colorsNav.card : (theme === 'lavender' ? '#EBE7F5' : (theme === 'ocean' ? '#E0F2F3' : '#F5EDE0')) }]} onPress={toggleTheme}>
                         <Ionicons 
-                            name={theme === 'light' ? 'sunny' : theme === 'dark' ? 'moon' : 'sparkles'} 
+                            name={theme === 'snow' ? 'contrast' : (theme === 'light' ? 'sunny' : (theme === 'dark' ? 'moon' : (theme === 'lavender' ? 'sparkles' : 'water')))} 
                             size={20} 
                             color={colorsNav.accent} 
                         />

@@ -1,4 +1,4 @@
-export type ThemeName = 'light' | 'dark' | 'lavender';
+export type ThemeName = 'light' | 'dark' | 'lavender' | 'ocean' | 'snow';
 
 export const THEMES: Record<ThemeName, any> = {
   light: {
@@ -41,6 +41,34 @@ export const THEMES: Record<ThemeName, any> = {
     greenCard: '#4D3C6E',
     cream: '#F2F0FF',
     input: '#F2F0FF',
+    isDark: false,
+  },
+  ocean: {
+    bg: '#F0F9FA',
+    card: '#FFFFFF',
+    text: '#1A3A3A',
+    sub: '#648E8E',
+    border: '#E0F2F3',
+    accent: '#008080',
+    cardBg: '#F5FCFD',
+    warmBg: '#F0F9FA',
+    greenCard: '#004D40',
+    cream: '#E0F2F3',
+    input: '#E0F2F3',
+    isDark: false,
+  },
+  snow: {
+    bg: '#FFFFFF',
+    card: '#FFFFFF',
+    text: '#1E293B',
+    sub: '#64748B',
+    border: '#F1F5F9',
+    accent: '#4A7C59',
+    cardBg: '#F8FAFC',
+    warmBg: '#FFFFFF',
+    greenCard: '#0F172A',
+    cream: '#F1F5F9',
+    input: '#F1F5F9',
     isDark: false,
   }
 };
