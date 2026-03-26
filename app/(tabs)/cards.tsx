@@ -385,13 +385,17 @@ export default function CardsScreen() {
                                 placeholder="Cupo Total ($)" placeholderTextColor={colorsNav.sub}
                                 keyboardType="decimal-pad" value={newLimit} onChangeText={(text) => setNewLimit(formatInput(text))} />
 
-                            <View style={{ flexDirection: 'row', gap: 12 }}>
-                                <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border, flex: 1 }]}
-                                    placeholder="Día Corte" placeholderTextColor={colorsNav.sub}
-                                    keyboardType="number-pad" value={newCutDay} onChangeText={setNewCutDay} />
-                                <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border, flex: 1 }]}
-                                    placeholder="Día Pago" placeholderTextColor={colorsNav.sub}
-                                    keyboardType="number-pad" value={newDueDay} onChangeText={setNewDueDay} />
+                            <View style={{ flexDirection: 'row', width: '100%', justifyContent: 'space-between' }}>
+                                <View style={{ flex: 1, marginRight: 6 }}>
+                                    <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border, width: '100%' }]}
+                                        placeholder="Día Corte" placeholderTextColor={colorsNav.sub}
+                                        keyboardType="number-pad" value={newCutDay} onChangeText={setNewCutDay} />
+                                </View>
+                                <View style={{ flex: 1, marginLeft: 6 }}>
+                                    <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border, width: '100%' }]}
+                                        placeholder="Día Pago" placeholderTextColor={colorsNav.sub}
+                                        keyboardType="number-pad" value={newDueDay} onChangeText={setNewDueDay} />
+                                </View>
                             </View>
 
                             <Text style={[styles.labelSection, { color: colorsNav.sub }]}>COLOR DEL PLÁSTICO</Text>

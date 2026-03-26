@@ -529,9 +529,9 @@ export default function AddTransactionScreen() {
                 </View>
                 <Text style={[styles.modalTitle, { color: colors.text, textAlign: 'center' }]}>Sugerencia Inteligente</Text>
                 <Text style={[styles.modalSub, { color: colors.sub, textAlign: 'center' }]}>{savingsMessage}</Text>
-                <View style={styles.suggestionPill}>
-                  <Text style={styles.suggestionAmt}>{fmtCOP(savingsSuggestion)}</Text>
-                  <Text style={styles.suggestionLab}>Ahorro ({savingsPercentage}%)</Text>
+                <View style={[styles.suggestionPill, { backgroundColor: colors.accent }]}>
+                  <Text style={[styles.suggestionAmt, { color: '#FFF' }]}>{fmtCOP(savingsSuggestion)}</Text>
+                  <Text style={[styles.suggestionLab, { color: 'rgba(255,255,255,0.8)' }]}>Ahorro ({savingsPercentage}%)</Text>
                 </View>
                 <View style={styles.modalBtns}>
                   <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.bg }]} onPress={() => confirmSaveWithSavings(false)}>
@@ -590,8 +590,8 @@ const styles = StyleSheet.create({
   modalBtns: { flexDirection: 'row', gap: 12, width: '100%', marginTop: 10 },
   mBtn: { flex: 1, padding: 18, borderRadius: 18, alignItems: 'center' },
 
-  aiIcon: { width: 64, height: 64, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
-  suggestionPill: { backgroundColor: '#4A7C5915', padding: 20, borderRadius: 24, alignItems: 'center', width: '100%' },
-  suggestionAmt: { fontSize: 28, fontWeight: '900', color: '#4A7C59' },
-  suggestionLab: { fontSize: 12, color: '#4A7C59', fontWeight: '800', marginTop: 4 },
+  aiIcon: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
+  suggestionPill: { padding: 24, borderRadius: 28, alignItems: 'center', width: '100%', elevation: 4, shadowColor: '#4A7C59', shadowOpacity: 0.3, shadowRadius: 15, marginVertical: 12 },
+  suggestionAmt: { fontSize: 32, fontWeight: '900', letterSpacing: -0.5 },
+  suggestionLab: { fontSize: 13, fontWeight: '800', marginTop: 4, letterSpacing: 0.5 },
 });

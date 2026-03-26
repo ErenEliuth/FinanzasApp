@@ -317,7 +317,18 @@ export default function DebtsScreen() {
                             </TouchableOpacity>
 
                             {Platform.OS === 'ios' && showDatePicker && (
-                                <DateTimePicker value={dueDate} mode="date" display="spinner" onChange={(e, d) => { setShowDatePicker(false); if (d) setDueDate(d); }} />
+                                <View style={{ backgroundColor: colors.bg, borderRadius: 20, padding: 10, marginVertical: 10 }}>
+                                    <DateTimePicker 
+                                        value={dueDate} 
+                                        mode="date" 
+                                        display="spinner"
+                                        themeVariant={isDark ? "dark" : "light"}
+                                        onChange={(e, d) => { if (d) setDueDate(d); }} 
+                                    />
+                                    <TouchableOpacity style={{ backgroundColor: colors.accent, padding: 12, borderRadius: 14, alignItems: 'center', marginTop: 10 }} onPress={() => setShowDatePicker(false)}>
+                                        <Text style={{ color: '#FFF', fontWeight: '800' }}>Confirmar Fecha</Text>
+                                    </TouchableOpacity>
+                                </View>
                             )}
 
                             <TouchableOpacity style={[styles.mBtnPrimary, { backgroundColor: colors.accent }]} onPress={handleSave}>
