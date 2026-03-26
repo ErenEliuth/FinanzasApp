@@ -1,15 +1,15 @@
-export const LATEST_VERSION = '2026-03-26-v10';
+export const LATEST_VERSION = '2026-03-26-v11';
 
 export const CHANGELOG_UPDATES = [
   {
-    title: '🔔 Recordatorios Corregidos',
-    description: 'Hemos mejorado la entrega de avisos en Web (PWA). Asegúrate de tener la app abierta o en segundo plano.',
+    title: '🔔 Recordatorios Inteligentes',
+    description: 'Si cierras la app y se te pasa la hora, Sanctuary te avisará en cuanto la abras para que no olvides nada.',
     icon: 'notifications_active'
   },
   {
-    title: '🚀 Estabilidad',
-    description: 'Correcciones internas para asegurar que tus recordatorios lleguen puntuales.',
-    icon: 'bolt'
+    title: '✅ Registro Proactivo',
+    description: 'Nuevos recordatorios que te invitan a anotar tus gastos tan pronto entres a la app.',
+    icon: 'check_circle'
   },
   {
     title: '💜 Nuevo Tema Lila',

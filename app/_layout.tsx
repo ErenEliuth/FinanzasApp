@@ -92,6 +92,52 @@ function RootStack() {
     return () => clearInterval(interval);
   }, [user]);
 
+  // Chequeo de Recordatorio Pendiente al entrar (v11)
+  useEffect(() => {
+    if (!user) return;
+
+    const checkMissedReminders = async () => {
+      try {
+        const enabled = await AsyncStorage.getItem('user_reminders');
+        if (enabled !== 'true') return;
+
+        const h = parseInt(await AsyncStorage.getItem('user_reminders_h') || '20');
+        const m = parseInt(await AsyncStorage.getItem('user_reminders_m') || '30');
+
+        const now = new Date();
+        const currentH = now.getHours();
+        const currentM = now.getMinutes();
+        const todayKey = now.toDateString();
+
+        const lastShown = await AsyncStorage.getItem('@last_rem_entry_today');
+        
+        // Si ha pasado la hora Y aún no hemos avisado hoy
+        const currentTimeInMins = currentH * 60 + currentM;
+        const targetTimeInMins = h * 60 + m;
+
+        if (currentTimeInMins > targetTimeInMins && lastShown !== todayKey) {
+            await AsyncStorage.setItem('@last_rem_entry_today', todayKey);
+            
+            // Un pequeño delay para que la app cargue
+            setTimeout(() => {
+                 import('react-native').then(({ Alert }) => {
+                  Alert.alert(
+                    "💰 ¡Hola de nuevo!",
+                    "Notamos que se pasó tu recordatorio hoy. ¿Quieres anotar tus gastos ahora?",
+                    [
+                      { text: "Ahora no", style: "cancel" },
+                      { text: "¡Sí, anotar!", onPress: () => router.push('/explore') }
+                    ]
+                  );
+                });
+            }, 2000);
+        }
+      } catch (e) { }
+    };
+
+    checkMissedReminders();
+  }, [user]);
+
   if (loading || (!fontsLoaded && !fontError)) return null;
 
   return (

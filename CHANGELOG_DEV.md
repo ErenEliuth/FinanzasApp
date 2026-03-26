@@ -40,6 +40,19 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-26 — Recordatorio de Retraso al Entrar
+
+**Archivos modificados:**
+- `app/_layout.tsx` — Nueva lógica de chequeo `checkMissedReminders` al inicio.
+- `constants/Changelog.ts` — Salto a la versión **v11**.
+
+**Cambios realizados:**
+- ✅ **Aviso proactivo**: Si el usuario abre la app después de su hora configurada y no recibió el aviso (porque la app estaba cerrada), Sanctuary le mostrará una alerta inmediata con opción de ir directo a "Nuevo Movimiento".
+- ✅ **Control de Duplicados**: El aviso solo se muestra una vez al día para no ser intrusivo.
+- ✅ **Sincronización**: Utiliza el mismo horario guardado en el Perfil para el chequeo.
+
+---
+
 ### 2026-03-26 — Heartbeat de Notificaciones para PWA
 
 **Archivos modificados:**
