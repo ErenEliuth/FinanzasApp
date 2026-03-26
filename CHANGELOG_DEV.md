@@ -40,6 +40,18 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-26 — Modal de Confirmación Personalizado para Gastos Fijos
+
+**Archivos modificados:**
+- `app/(tabs)/debts.tsx` — Creación de modal de selección de mes de inicio.
+
+**Cambios realizados:**
+- ✅ **Interfaz de Selección Mejorada**: Reemplazado el `Alert.alert` y `window.confirm` por un modal personalizado dentro de la app.
+- ✅ **Botones Personalizados**: Ahora se muestran exactamente las opciones **"Este Mes"** y **"Próximo Mes"**, tal como solicitó el usuario.
+- ✅ **Consistencia Multiplataforma**: El nuevo modal garantiza que la experiencia sea idéntica en Web, iOS y Android, evitando las limitaciones de los diálogos nativos del sistema.
+
+---
+
 ### 2026-03-26 — Lógica Avanzada de Gastos Fijos y Reinicio Mensual
 
 **Archivos modificados:**

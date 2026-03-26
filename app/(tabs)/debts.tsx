@@ -62,6 +62,8 @@ export default function DebtsScreen() {
     const [showDatePicker, setShowDatePicker] = useState(false);
 
     const [payModalVisible, setPayModalVisible] = useState(false);
+    const [confirmMonthModal, setConfirmMonthModal] = useState(false);
+    const [pendingItem, setPendingItem] = useState<{ val: number; dateStr: string } | null>(null);
     const [selectedDebt, setSelectedDebt] = useState<DebtItem | null>(null);
     const [payAmount, setPayAmount] = useState('');
     const [accounts, setAccounts] = useState<string[]>(['Efectivo']);
@@ -129,8 +131,6 @@ export default function DebtsScreen() {
         }
 
         let dateStr = '';
-        let initialPaid = 0;
-
         if (viewMode === 'fixed') {
             const day = parseInt(selectedDay, 10);
             if (isNaN(day) || day < 1 || day > 31) {
@@ -139,38 +139,28 @@ export default function DebtsScreen() {
                 return;
             }
             const today = new Date();
-            const todayDay = today.getDate();
-            
-            if (day < todayDay) {
-                const msg = '¿Este gasto empieza a funcionar desde el otro mes?';
-                let startNext = false;
-                if (Platform.OS === 'web') {
-                    startNext = window.confirm(msg);
-                } else {
-                    startNext = await new Promise((resolve) => {
-                        Alert.alert('Gasto Fijo', msg, [
-                            { text: 'No, este mes', onPress: () => resolve(false) },
-                            { text: 'Sí, próximo mes', onPress: () => resolve(true) }
-                        ]);
-                    });
-                }
-
-                if (startNext) {
-                    initialPaid = val; // Se marca como pagado para este mes sin afectar balances
-                }
-            }
             dateStr = new Date(today.getFullYear(), today.getMonth(), day).toISOString().split('T')[0];
+
+            if (day < today.getDate() && !isEditing) {
+                setPendingItem({ val, dateStr });
+                setConfirmMonthModal(true);
+                return;
+            }
         } else {
             dateStr = dueDate.toISOString().split('T')[0];
         }
 
+        await executeSave(val, dateStr, 0);
+    };
+
+    const executeSave = async (val: number, dateStr: string, initialPaid: number) => {
         try {
             if (isEditing && editId) {
                 await supabase.from('debts').update({ client: name.trim(), value: val, due_date: dateStr }).eq('id', editId);
             } else {
                 await supabase.from('debts').insert([{ user_id: user?.id, client: name.trim(), value: val, paid: initialPaid, due_date: dateStr, debt_type: viewMode, created_date: new Date().toISOString() }]);
             }
-            setModalVisible(false); resetForm(); loadData();
+            setModalVisible(false); setConfirmMonthModal(false); setPendingItem(null); resetForm(); loadData();
         } catch (e) { console.error(e); }
     };
 
@@ -448,6 +438,37 @@ export default function DebtsScreen() {
                             </TouchableOpacity>
                         </View>
                     </KeyboardAvoidingView>
+                </View>
+            </Modal>
+
+            {/* Modal Confirmación Mes Inicia (Gasto Fijo) */}
+            <Modal visible={confirmMonthModal} animationType="fade" transparent>
+                <View style={[styles.overlayCenter, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
+                    <View style={[styles.miniModal, { backgroundColor: colors.card, paddingVertical: 32 }]}>
+                        <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: colors.accent + '20', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
+                            <Ionicons name="calendar" size={32} color={colors.accent} />
+                        </View>
+                        <Text style={[styles.miniTitle, { color: colors.text, marginBottom: 8 }]}>¿Cuándo inicia este gasto?</Text>
+                        <Text style={[styles.miniSub, { color: colors.sub, marginBottom: 32, paddingHorizontal: 10 }]}>El día elegido ya pasó este mes. ¿Deseas que empiece ahora o el próximo mes?</Text>
+                        
+                        <View style={styles.miniActions}>
+                            <TouchableOpacity 
+                                style={[styles.mBtnB, { backgroundColor: colors.bg, height: 56 }]} 
+                                onPress={() => executeSave(pendingItem?.val || 0, pendingItem?.dateStr || '', 0)}
+                            >
+                                <Text style={{ color: colors.text, fontWeight: '800' }}>Este Mes</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.mBtnB, { backgroundColor: colors.accent, height: 56 }]} 
+                                onPress={() => executeSave(pendingItem?.val || 0, pendingItem?.dateStr || '', pendingItem?.val || 0)}
+                            >
+                                <Text style={{ color: '#FFF', fontWeight: '800' }}>Próximo Mes</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <TouchableOpacity style={{ marginTop: 20 }} onPress={() => setConfirmMonthModal(false)}>
+                            <Text style={{ color: colors.sub, fontWeight: '700', fontSize: 13 }}>Cancelar registro</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </Modal>
 
