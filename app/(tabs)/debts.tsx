@@ -309,12 +309,28 @@ export default function DebtsScreen() {
                                 <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} value={amount} onChangeText={t => setAmount(formatInput(t))} placeholder="$ 0" placeholderTextColor={colors.sub + '60'} keyboardType="decimal-pad" />
                             </View>
 
-                            <TouchableOpacity style={styles.mField} onPress={() => setShowDatePicker(true)}>
-                                <Text style={[styles.mLabel, { color: colors.sub }]}>FECHA LÍMITE</Text>
-                                <View style={[styles.mInput, { borderBottomColor: colors.border, justifyContent: 'center' }]}>
-                                    <Text style={{ color: colors.text, fontSize: 16 }}>{dueDate.toLocaleDateString('es-CO')}</Text>
+                            {Platform.OS === 'web' ? (
+                                <View style={styles.mField}>
+                                    <Text style={[styles.mLabel, { color: colors.sub }]}>FECHA LÍMITE</Text>
+                                    <TextInput 
+                                        style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
+                                        value={dueDate.toISOString().split('T')[0]} 
+                                        onChangeText={t => {
+                                            const d = new Date(t + 'T12:00:00');
+                                            if (!isNaN(d.getTime())) setDueDate(d);
+                                        }}
+                                        // @ts-ignore
+                                        type="date"
+                                    />
                                 </View>
-                            </TouchableOpacity>
+                            ) : (
+                                <TouchableOpacity style={styles.mField} onPress={() => setShowDatePicker(true)}>
+                                    <Text style={[styles.mLabel, { color: colors.sub }]}>FECHA LÍMITE</Text>
+                                    <View style={[styles.mInput, { borderBottomColor: colors.border, justifyContent: 'center' }]}>
+                                        <Text style={{ color: colors.text, fontSize: 16 }}>{dueDate.toLocaleDateString('es-CO')}</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            )}
 
                             {Platform.OS === 'ios' && showDatePicker && (
                                 <View style={{ backgroundColor: colors.bg, borderRadius: 20, padding: 10, marginVertical: 10 }}>
@@ -331,6 +347,18 @@ export default function DebtsScreen() {
                                 </View>
                             )}
 
+                            {Platform.OS === 'android' && showDatePicker && (
+                                <DateTimePicker 
+                                    value={dueDate} 
+                                    mode="date" 
+                                    display="default" 
+                                    onChange={(e, d) => { 
+                                        setShowDatePicker(false); 
+                                        if (d) setDueDate(d); 
+                                    }} 
+                                />
+                            )}
+
                             <TouchableOpacity style={[styles.mBtnPrimary, { backgroundColor: colors.accent }]} onPress={handleSave}>
                                 <Text style={styles.mBtnText}>{isEditing ? 'Actualizar' : 'Registrar'}</Text>
                             </TouchableOpacity>
@@ -339,9 +367,7 @@ export default function DebtsScreen() {
                 </View>
             </Modal>
 
-            {Platform.OS === 'android' && showDatePicker && (
-                <DateTimePicker value={dueDate} mode="date" display="default" onChange={(e, d) => { setShowDatePicker(false); if (d) setDueDate(d); }} />
-            )}
+
 
             {/* Modal Pago */}
             <Modal visible={payModalVisible} animationType="fade" transparent>

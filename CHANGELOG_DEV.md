@@ -2,6 +2,13 @@
 
 > Este archivo documenta todos los cambios realizados, fallos encontrados y decisiones de diseño.
 > **Léelo antes de tocar el código** para evitar repetir errores o perder contexto.
+> 
+> ### 🛑 REGLA OBLIGATORIA PARA LA IA:
+> **Cada que realices un cambio en el código, DEBES:**
+> 1. **Subir los cambios a Git** (commit y push).
+> 2. **Desplegar la aplicación** (`npm run deploy`).
+> 3. **Documentar el cambio** en este archivo.
+
 
 ---
 
@@ -32,6 +39,19 @@
 ---
 
 ## 📅 Historial de Cambios
+
+### 2026-03-26 — Fix de Fecha Límite y Regla de Despliegue
+
+**Archivos modificados:**
+- `app/(tabs)/debts.tsx` — Fix de selector de fecha para Web y Android
+- `CHANGELOG_DEV.md` — Adición de regla obligatoria de Git + Deploy
+
+**Cambios realizados:**
+- ✅ **Soporte Web**: Implementado `TextInput type="date"` para que en navegadores aparezca el calendario nativo.
+- ✅ **Fix Android**: Movido `DateTimePicker` dentro del Modal para evitar problemas de visibilidad.
+- ✅ **Regla de Proceso**: Añadida instrucción obligatoria para que la IA realice commit y deploy tras cada cambio.
+
+---
 
 ### 2026-03-24 — Integración "Todo en una Ventana" para PC / Desktop
 
