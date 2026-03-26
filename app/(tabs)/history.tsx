@@ -2,6 +2,7 @@ import { useAuth } from '@/utils/auth';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
+import { MagicAuraButton } from '@/components/MagicAuraButton';
 import React, { useEffect, useState } from 'react';
 import { ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -164,15 +165,18 @@ export default function HistoryScreen() {
                     <Text style={[styles.headerTitle, { color: colorsNav.text }]}>Historial</Text>
                     <Text style={[styles.headerSub, { color: colorsNav.sub }]}>{transactions.length} transacciones registradas</Text>
                 </View>
-                <TouchableOpacity
-                    style={[styles.chartToggleBtn, { backgroundColor: showChart ? colorsNav.accent : (isDark ? '#3A3A52' : '#F5EDE0') }]}
-                    onPress={() => setShowChart(!showChart)}
-                >
-                    <Ionicons name="pie-chart" size={16} color={showChart ? '#FFF' : colorsNav.accent} />
-                    <Text style={[styles.chartToggleText, { color: showChart ? '#FFF' : colorsNav.accent }]}>
-                        {showChart ? 'Ver Lista' : 'Gráfico'}
-                    </Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                    <TouchableOpacity
+                        style={[styles.chartToggleBtn, { backgroundColor: showChart ? colorsNav.accent : (isDark ? '#3A3A52' : '#F5EDE0') }]}
+                        onPress={() => setShowChart(!showChart)}
+                    >
+                        <Ionicons name="pie-chart" size={16} color={showChart ? '#FFF' : colorsNav.accent} />
+                        <Text style={[styles.chartToggleText, { color: showChart ? '#FFF' : colorsNav.accent }]}>
+                            {showChart ? 'Ver Lista' : 'Gráfico'}
+                        </Text>
+                    </TouchableOpacity>
+                    <MagicAuraButton />
+                </View>
             </View>
 
             {/* ── Resumen Rápido Sanctuary ──────────────────────────────── */}

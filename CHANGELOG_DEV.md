@@ -40,18 +40,20 @@
 
 ## 📅 Historial de Cambios
 
-### 2026-03-26 — Panel de Diagnóstico de Notificaciones
+### 2026-03-26 — Aura AI: Tu Asesora Financiera (v13)
 
-**Archivos modificados:**
-- `app/(tabs)/profile.tsx` — Implementación de `handleTestNotif` y botón de diagnóstico.
-- `constants/Changelog.ts` — Salto a la versión **v12**.
+**Nuevos componentes:**
+- `components/AuraAI.tsx` — Corazón de la IA con chat interactivo.
+- `components/MagicAuraButton.tsx` — El botón mágico ✨ reutilizable.
 
 **Cambios realizados:**
-- ✅ **Prueba Empírica**: Se añadió un botón de diagnóstico en el Perfil que envía una notificación instantánea (vía Web API en PWA o Nativa en app). Esto permite al usuario confirmar si tiene los permisos bien configurados.
-- ✅ **Refactor de Utilidades**: Se corrigieron las referencias a las utilidades de notificación para evitar conflictos entre el SDK de Expo y el wrap personalizado de la app.
-- ✅ **Transparencia**: El resultado de la prueba ayuda a determinar si el fallo es de permisos de navegador o de "congelamiento" del sistema operativo.
+- ✅ **Omnipresencia Intelectual**: Se añadió el **Botón Mágico ✨** en la esquina superior derecha de **Inicio, Historial, Perfil y Nueva Transacción**.
+- ✅ **Aura Advisor**: Implementación de un chat modal con "Aura", quien analiza tu presupuesto y te da consejos en tiempo real (ej: si te alcanza para sushi 🍣 o cómo vas con tus ahorros 💰).
+- ✅ **Diseño Premium**: Interfaz tipo burbuja con efectos de *glassmorphism* y animaciones suaves para una experiencia lujosa.
 
 ---
+
+### 2026-03-26 — Panel de Diagnóstico de Notificaciones (v12)
 
 ### 2026-03-26 — Recordatorio de Retraso al Entrar
 

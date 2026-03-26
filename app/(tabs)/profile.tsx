@@ -12,8 +12,10 @@ import React, { useEffect, useState } from 'react';
 import { THEMES, ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { MagicAuraButton } from '@/components/MagicAuraButton';
 import {
     Alert,
+    Dimensions,
     Image,
     Modal,
     Platform,
@@ -468,13 +470,16 @@ export default function ProfileScreen() {
                 {/* ── Header ── */}
                 <View style={styles.header}>
                     <Text style={[styles.headerTitle, { color: colorsNav.text }]}>Perfil</Text>
-                    <TouchableOpacity style={[styles.themeBtn, { backgroundColor: isDark ? colorsNav.card : (theme === 'lavender' ? '#EBE7F5' : (theme === 'ocean' ? '#E0F2F3' : '#F5EDE0')) }]} onPress={toggleTheme}>
-                        <Ionicons 
-                            name={theme === 'snow' ? 'contrast' : (theme === 'light' ? 'sunny' : (theme === 'dark' ? 'moon' : (theme === 'lavender' ? 'sparkles' : 'water')))} 
-                            size={20} 
-                            color={colorsNav.accent} 
-                        />
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                        <TouchableOpacity style={[styles.themeBtn, { backgroundColor: isDark ? colorsNav.card : (theme === 'lavender' ? '#EBE7F5' : (theme === 'ocean' ? '#E0F2F3' : '#F5EDE0')) }]} onPress={toggleTheme}>
+                            <Ionicons 
+                                name={theme === 'snow' ? 'contrast' : (theme === 'light' ? 'sunny' : (theme === 'dark' ? 'moon' : (theme === 'lavender' ? 'sparkles' : 'water')))} 
+                                size={20} 
+                                color={colorsNav.accent} 
+                            />
+                        </TouchableOpacity>
+                        <MagicAuraButton />
+                    </View>
                 </View>
 
                 {/* ── Perfil Card ── */}

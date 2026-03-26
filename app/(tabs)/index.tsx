@@ -9,6 +9,7 @@ import { THEMES, ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LATEST_VERSION, CHANGELOG_UPDATES } from '@/constants/Changelog';
+import { MagicAuraButton } from '@/components/MagicAuraButton';
 import {
   Alert,
   Modal,
@@ -438,6 +439,7 @@ export default function HomeScreen() {
               <Ionicons name={isHidden ? 'eye-off' : 'eye'} size={18} color={isDark ? '#D4C5A9' : '#8B7355'} />
             </TouchableOpacity>
 
+            <MagicAuraButton />
             {isDesktop && (
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <TouchableOpacity
@@ -821,6 +823,8 @@ export default function HomeScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+
     </SafeAreaView>
   );
 }

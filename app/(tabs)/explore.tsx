@@ -4,6 +4,7 @@ import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { MagicAuraButton } from '@/components/MagicAuraButton';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -321,12 +322,14 @@ export default function AddTransactionScreen() {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-            {/* ── Header ── */}
             <View style={styles.header}>
               <Text style={[styles.title, { color: colors.text }]}>Nueva Transacción</Text>
-              <TouchableOpacity onPress={() => router.back()} style={[styles.closeBtn, { backgroundColor: colors.card }]}>
-                <Ionicons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                <MagicAuraButton />
+                <TouchableOpacity onPress={() => router.back()} style={[styles.closeBtn, { backgroundColor: colors.card }]}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* ── Selector de Tipo: Sanctuary Cards ─────────────── */}

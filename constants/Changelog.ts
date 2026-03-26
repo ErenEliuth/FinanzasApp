@@ -1,6 +1,13 @@
-export const LATEST_VERSION = '2026-03-26-v12';
+export const LATEST_VERSION = '2026-03-26-v13';
 
 export const CHANGELOG_UPDATES = [
+  {
+    title: '✨ Aura AI Advisor',
+    titleEn: 'Aura AI Advisor',
+    description: 'Hemos añadido a Aura, tu asesora financiera personal. Busca el botón mágico ✨ en la esquina superior de cada pantalla.',
+    descriptionEn: 'Meet Aura, your personal financial advisor. Look for the magic button ✨ at the top corner of every screen.',
+    icon: 'auto_awesome'
+  },
   {
     title: '🔍 Prueba de Diagnóstico',
     description: 'Hemos añadido un botón en Perfil para que pruebes si tus notificaciones funcionan ahora mismo.',
