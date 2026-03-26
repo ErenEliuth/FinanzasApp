@@ -35,6 +35,13 @@ export async function scheduleDailyReminder(hour: number, minute: number) {
     // Cancelar previos para no duplicar
     await Notifications.cancelAllScheduledNotificationsAsync();
 
+    if (Platform.OS === 'web') {
+        // En Web no existe programación nativa diaria en local
+        // Usamos un pequeño hack: agendamos una alarma en memoria si el app está abierta
+        console.log(`[Web] Agendado para las ${hour}:${minute}`);
+        return;
+    }
+
     await Notifications.scheduleNotificationAsync({
         content: {
             title: "💰 ¡No olvides tus finanzas!",

@@ -40,6 +40,20 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-26 — Heartbeat de Notificaciones para PWA
+
+**Archivos modificados:**
+- `app/_layout.tsx` — Implementación de "latido" cada 30 segundos para chequear la hora de aviso.
+- `utils/notifications.ts` — Ajuste de lógica de programación para plataformas web.
+- `constants/Changelog.ts` — Salto a la versión **v10**.
+
+**Cambios realizados:**
+- ✅ **Monitoreo Activo**: El PWA ahora chequea constantemente la hora del sistema. Si coincide con tu preferencia y la app está abierta (o en segundo plano gestionada por el navegador), disparará el aviso.
+- ✅ **Fallback de Navegador**: Se intenta usar la API de Notificaciones estándar del navegador. Si no hay permiso, se muestra una alerta visual dentro de Sanctuary.
+- ✅ **Optimización**: El chequeo se detiene si cierras sesión o apagas los recordatorios.
+
+---
+
 ### 2026-03-26 — Reloj Propio y Ajuste de Layout
 
 **Archivos modificados:**

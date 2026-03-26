@@ -2,6 +2,8 @@ import { AuthProvider, useAuth } from '@/utils/auth';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
@@ -42,6 +44,53 @@ function RootStack() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
+
+  // HACK: Heartbeat para recordatorios en PWA (Web)
+  useEffect(() => {
+    if (!user) return;
+
+    let lastNotifDate = '';
+
+    const checkNotif = async () => {
+      try {
+        const enabled = await AsyncStorage.getItem('user_reminders');
+        if (enabled !== 'true') return;
+
+        const h = await AsyncStorage.getItem('user_reminders_h') || '20';
+        const m = await AsyncStorage.getItem('user_reminders_m') || '30';
+        
+        const now = new Date();
+        const currentH = now.getHours();
+        const currentM = now.getMinutes();
+        const todayKey = now.toDateString();
+
+        if (currentH === parseInt(h) && currentM === parseInt(m)) {
+          if (lastNotifDate !== todayKey) {
+            lastNotifDate = todayKey;
+            
+            // Mostrar notificación o alerta
+            if (Platform.OS === 'web') {
+              // Intentar notificación nativa del navegador
+              if ("Notification" in window && Notification.permission === "granted") {
+                new Notification("💰 Sanctuary: ¡Es hora!", {
+                  body: "¿Ya anotaste tus gastos de hoy?",
+                  icon: "/favicon.png"
+                });
+              } else {
+                // Fallback: Alerta interna
+                import('react-native').then(({ Alert }) => {
+                  Alert.alert("🔔 Recordatorio", "¿Ya anotaste tus gastos de hoy? Mantén tus finanzas al día.");
+                });
+              }
+            }
+          }
+        }
+      } catch (e) { }
+    };
+
+    const interval = setInterval(checkNotif, 30000); // Cada 30 segs
+    return () => clearInterval(interval);
+  }, [user]);
 
   if (loading || (!fontsLoaded && !fontError)) return null;
 

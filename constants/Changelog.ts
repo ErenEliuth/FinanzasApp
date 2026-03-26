@@ -1,15 +1,15 @@
-export const LATEST_VERSION = '2026-03-26-v9';
+export const LATEST_VERSION = '2026-03-26-v10';
 
 export const CHANGELOG_UPDATES = [
   {
-    title: '⏰ Reloj Sanctuary Propio',
-    description: 'Hemos creado un selector de hora manual para que nunca falle, sin importar tu dispositivo o navegador.',
-    icon: 'schedule'
+    title: '🔔 Recordatorios Corregidos',
+    description: 'Hemos mejorado la entrega de avisos en Web (PWA). Asegúrate de tener la app abierta o en segundo plano.',
+    icon: 'notifications_active'
   },
   {
-    title: '🔧 Diseño Ajustado',
-    description: 'Corregidos errores visuales en el Perfil para que todo quepa perfectamente en pantallas pequeñas.',
-    icon: 'build'
+    title: '🚀 Estabilidad',
+    description: 'Correcciones internas para asegurar que tus recordatorios lleguen puntuales.',
+    icon: 'bolt'
   },
   {
     title: '💜 Nuevo Tema Lila',

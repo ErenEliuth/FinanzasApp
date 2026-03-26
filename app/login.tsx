@@ -215,7 +215,7 @@ export default function LoginScreen() {
     );
 
     if (Platform.OS === 'web') return content;
-    return <TouchableWithoutFeedback onPress={Platform.OS === 'web' ? undefined : Keyboard.dismiss}>{content}</TouchableWithoutFeedback>;
+    return <TouchableWithoutFeedback onPress={Keyboard.dismiss}>{content}</TouchableWithoutFeedback>;
 }
 
 const styles = StyleSheet.create({
