@@ -1,14 +1,14 @@
-export const LATEST_VERSION = '2026-03-26-v7';
+export const LATEST_VERSION = '2026-03-26-v8';
 
 export const CHANGELOG_UPDATES = [
   {
-    title: '⏰ Hora Personalizada',
-    description: 'Ahora puedes elegir exactamente a qué hora quieres recibir tu recordatorio diario en el Perfil.',
+    title: '⏰ Arreglado Selector Hora',
+    description: 'Hemos corregido el botón de editar hora para que funcione correctamente en todos los dispositivos.',
     icon: 'schedule'
   },
   {
-    title: '🔔 Invitación a Recordatorios',
-    description: 'Ahora verás una invitación en el inicio para activar tus avisos diarios. Toca "Sí" para no olvidar tus gastos.',
+    title: '🔔 Mejora de Recordatorios',
+    description: 'La lógica de los avisos ahora es más sólida y fácil de configurar.',
     icon: 'notifications'
   },
   {

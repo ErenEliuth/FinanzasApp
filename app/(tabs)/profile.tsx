@@ -478,10 +478,8 @@ export default function ProfileScreen() {
                 <View style={{ marginTop: 8 }}>
                     <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>CONFIGURACIÓN</Text>
                     
-                    <TouchableOpacity 
+                    <View 
                         style={[styles.listItem, { backgroundColor: colorsNav.card }]} 
-                        onPress={toggleReminders}
-                        activeOpacity={0.8}
                     >
                         <View style={[styles.listIcon, { backgroundColor: reminders ? '#E3F0FF' : (isDark ? '#3A3A52' : '#F1F5F9') }]}>
                             <Ionicons name="notifications" size={20} color={reminders ? '#3B82F6' : colorsNav.sub} />
@@ -502,17 +500,17 @@ export default function ProfileScreen() {
                             </TouchableOpacity>
                         )}
 
-                        <TouchableOpacity onPress={toggleReminders}>
-                             <Ionicons name={reminders ? "toggle" : "toggle-outline"} size={32} color={reminders ? colorsNav.accent : colorsNav.sub} />
+                        <TouchableOpacity onPress={toggleReminders} style={{ padding: 4 }}>
+                             <Ionicons name={reminders ? "toggle" : "toggle-outline"} size={36} color={reminders ? colorsNav.accent : colorsNav.sub} />
                         </TouchableOpacity>
-                    </TouchableOpacity>
+                    </View>
 
                     {showTimer && (
                         <DateTimePicker
                             value={reminderTime}
                             mode="time"
                             is24Hour={true}
-                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                            display={Platform.OS === 'ios' ? 'spinner' : (Platform.OS === 'web' ? 'calendar' : 'default')}
                             onChange={onTimeChange}
                         />
                     )}

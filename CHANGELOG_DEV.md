@@ -40,6 +40,19 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-26 — Corrección Crítica: Selector de Hora y Nesting UI
+
+**Archivos modificados:**
+- `app/(tabs)/profile.tsx` — Separación de acciones en la fila de configuración y corrección de compatibilidad web para el picker.
+- `constants/Changelog.ts` — Salto a la versión **v8**.
+
+**Cambios realizados:**
+- ✅ **Separación de Eventos**: Corregido un conflicto donde el botón de "Editar Hora" no funcionaba porque el contenedor padre lo bloqueaba.
+- ✅ **Compatibilidad PWA**: Ajustado el comportamiento del selector de hora para que se muestre correctamente en navegadores web y dispositivos móviles.
+- ✅ **Mejora del Toggle**: El switch de activación ahora es independiente de la edición de hora, evitando confusiones táctiles.
+
+---
+
 ### 2026-03-26 — Hora Personalizada para Recordatorios
 
 **Archivos modificados:**
