@@ -312,16 +312,27 @@ export default function DebtsScreen() {
                             {Platform.OS === 'web' ? (
                                 <View style={styles.mField}>
                                     <Text style={[styles.mLabel, { color: colors.sub }]}>FECHA LÍMITE</Text>
-                                    <TextInput 
-                                        style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
-                                        value={dueDate.toISOString().split('T')[0]} 
-                                        onChangeText={t => {
-                                            const d = new Date(t + 'T12:00:00');
-                                            if (!isNaN(d.getTime())) setDueDate(d);
-                                        }}
-                                        // @ts-ignore
-                                        type="date"
-                                    />
+                                    <View style={{ borderBottomWidth: 2, borderBottomColor: colors.border }}>
+                                        {React.createElement('input', {
+                                            type: 'date',
+                                            value: dueDate.toISOString().split('T')[0],
+                                            onChange: (e: any) => {
+                                                const d = new Date(e.target.value + 'T12:00:00');
+                                                if (!isNaN(d.getTime())) setDueDate(d);
+                                            },
+                                            style: {
+                                                background: 'transparent',
+                                                border: 'none',
+                                                color: isDark ? '#F5F0E8' : '#2D2D2D',
+                                                fontSize: '18px',
+                                                fontWeight: '700',
+                                                padding: '12px 0',
+                                                width: '100%',
+                                                outline: 'none',
+                                                fontFamily: 'inherit',
+                                            }
+                                        })}
+                                    </View>
                                 </View>
                             ) : (
                                 <TouchableOpacity style={styles.mField} onPress={() => setShowDatePicker(true)}>

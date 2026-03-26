@@ -40,14 +40,14 @@
 
 ## 📅 Historial de Cambios
 
-### 2026-03-26 — Fix de Fecha Límite y Regla de Despliegue
+### 2026-03-26 — Fix de Fecha Límite (Mobile Web) y Regla de Despliegue
 
 **Archivos modificados:**
-- `app/(tabs)/debts.tsx` — Fix de selector de fecha para Web y Android
-- `CHANGELOG_DEV.md` — Adición de regla obligatoria de Git + Deploy
+- `app/(tabs)/debts.tsx` — Mejora del selector de fecha usando HTML5 nativo en Web.
+- `CHANGELOG_DEV.md` — Adición de regla obligatoria de Git + Deploy.
 
 **Cambios realizados:**
-- ✅ **Soporte Web**: Implementado `TextInput type="date"` para que en navegadores aparezca el calendario nativo.
+- ✅ **Soporte Web/Móvil Real**: Forzado el uso de `<input type="date">` mediante `React.createElement` para asegurar que iOS Safari y Chrome Android muestren el calendario nativo.
 - ✅ **Fix Android**: Movido `DateTimePicker` dentro del Modal para evitar problemas de visibilidad.
 - ✅ **Regla de Proceso**: Añadida instrucción obligatoria para que la IA realice commit y deploy tras cada cambio.
 
