@@ -3,7 +3,8 @@ import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
-import * as Notifications from '@/utils/notifications';
+import * as NotificationsUtils from '@/utils/notifications';
+import * as Notifications from 'expo-notifications';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
@@ -299,6 +300,30 @@ export default function ProfileScreen() {
         }
     };
 
+    const handleTestNotif = async () => {
+        const granted = await NotificationsUtils.registerForPushNotificationsAsync();
+        if (!granted) {
+            Alert.alert("❌ Error", "No tienes permisos de notificación permitidos en este navegador/celular.");
+            return;
+        }
+
+        if (Platform.OS === 'web' && "Notification" in window) {
+            new Notification("🎉 Sanctuary: ¡Prueba!", {
+                body: "Si ves esto, tus notificaciones web están funcionando.",
+                icon: "/favicon.png"
+            });
+        } else {
+            await Notifications.scheduleNotificationAsync({
+                content: {
+                    title: "🎉 Sanctuary: ¡Prueba!",
+                    body: "Si ves esto, las notificaciones nativas funcionan.",
+                },
+                trigger: null,
+            });
+        }
+        Alert.alert("✅ Prueba enviada", "Deberías ver una notificación ahora mismo.");
+    };
+
     const onTimeChange = async (event: any, selectedDate?: Date) => {
         setShowTimer(false);
         if (selectedDate) {
@@ -309,7 +334,7 @@ export default function ProfileScreen() {
             await AsyncStorage.setItem('user_reminders_m', m.toString());
             
             if (reminders) {
-                await Notifications.scheduleDailyReminder(h, m);
+                await NotificationsUtils.scheduleDailyReminder(h, m);
                 Alert.alert("✅ Hora actualizada", `Te avisaremos a las ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
             }
         }
@@ -342,7 +367,7 @@ export default function ProfileScreen() {
         await AsyncStorage.setItem('user_reminders_m', m.toString());
 
         if (reminders) {
-            await Notifications.scheduleDailyReminder(h, m);
+            await NotificationsUtils.scheduleDailyReminder(h, m);
             Alert.alert("✅ Hora guardada", `Aviso configurado para las ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
         }
     };
@@ -353,11 +378,11 @@ export default function ProfileScreen() {
         await AsyncStorage.setItem('user_reminders', newVal ? 'true' : 'false');
 
         if (newVal) {
-            const granted = await Notifications.registerForPushNotificationsAsync();
+            const granted = await NotificationsUtils.registerForPushNotificationsAsync();
             if (granted) {
                 const h = reminderTime.getHours();
                 const m = reminderTime.getMinutes();
-                await Notifications.scheduleDailyReminder(h, m);
+                await NotificationsUtils.scheduleDailyReminder(h, m);
                 Alert.alert("✅ Recordatorio activado", `Te avisaremos a las ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
             } else {
                 setReminders(false);
@@ -365,7 +390,7 @@ export default function ProfileScreen() {
                 Alert.alert("⚠️ Permiso denegado", "Necesitas activar las notificaciones en ajustes.");
             }
         } else {
-            await Notifications.cancelReminders();
+            await NotificationsUtils.cancelReminders();
             Alert.alert("🔕 Recordatorios desactivados", "Ya no recibirás avisos.");
         }
     };
@@ -579,6 +604,16 @@ export default function ProfileScreen() {
                             </View>
                         </Modal>
                     )}
+
+                    {/* Diagnóstico */}
+                    <TouchableOpacity 
+                        style={{ marginTop: 12, padding: 16, borderRadius: 20, backgroundColor: isDark ? colorsNav.card : '#F8FAFC', flexDirection: 'row', alignItems: 'center', gap: 12, borderStyle: 'dashed', borderWidth: 1, borderColor: colorsNav.border }}
+                        onPress={handleTestNotif}
+                    >
+                        <MaterialIcons name="bug-report" size={20} color={colorsNav.sub} />
+                        <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: colorsNav.text }}>Prueba de Notificaciones</Text>
+                        <MaterialIcons name="chevron-right" size={18} color={colorsNav.sub} />
+                    </TouchableOpacity>
                 </View>
 
                 {/* ── Heatmap ── */}

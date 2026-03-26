@@ -40,6 +40,19 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-26 — Panel de Diagnóstico de Notificaciones
+
+**Archivos modificados:**
+- `app/(tabs)/profile.tsx` — Implementación de `handleTestNotif` y botón de diagnóstico.
+- `constants/Changelog.ts` — Salto a la versión **v12**.
+
+**Cambios realizados:**
+- ✅ **Prueba Empírica**: Se añadió un botón de diagnóstico en el Perfil que envía una notificación instantánea (vía Web API en PWA o Nativa en app). Esto permite al usuario confirmar si tiene los permisos bien configurados.
+- ✅ **Refactor de Utilidades**: Se corrigieron las referencias a las utilidades de notificación para evitar conflictos entre el SDK de Expo y el wrap personalizado de la app.
+- ✅ **Transparencia**: El resultado de la prueba ayuda a determinar si el fallo es de permisos de navegador o de "congelamiento" del sistema operativo.
+
+---
+
 ### 2026-03-26 — Recordatorio de Retraso al Entrar
 
 **Archivos modificados:**
