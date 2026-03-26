@@ -40,6 +40,24 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-26 — Sistema de Temas Multi-Color
+
+**Archivos modificados:**
+- `constants/Themes.ts` — Centralización de paletas de colores.
+- `hooks/useThemeColors.ts` — Hook para facilitar el uso de colores en toda la app.
+- `utils/auth.tsx` — Soporte para nombres de temas extendidos.
+- `app/(tabs)/profile.tsx` — Selector visual de temas en el perfil.
+- Múltiples pantallas actualizadas para usar el nuevo sistema centralizado.
+
+**Cambios realizados:**
+- ✅ **Centralización de Diseño**: Se eliminaron las definiciones de colores locales en cada pantalla, centralizándolas en un solo lugar. Esto permite añadir nuevos temas en minutos.
+- ✅ **Nuevos Temas Premium**:
+    - 🌲 **Forest (Naturaleza)**: Un tema oscuro profundo basado en verdes bosque para un descanso visual total.
+    - 🍇 **Lavender (Lila)**: Una paleta suave y clara basada en tonos violetas y lavanda, muy elegante.
+- ✅ **Selector en Perfil**: Los usuarios ahora pueden cambiar entre 4 temas (Claro, Oscuro, Naturaleza, Lila) desde los ajustes de su perfil con una vista previa de color.
+
+---
+
 ### 2026-03-26 — Panel de "Novedades" (What's New)
 
 **Archivos modificados:**

@@ -5,6 +5,7 @@ import React from 'react';
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { useAuth } from '@/utils/auth';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 export default function TabLayout() {
   const pathname = usePathname();
@@ -12,16 +13,17 @@ export default function TabLayout() {
   const { theme } = useAuth();
   const { width } = useWindowDimensions();
   const isDesktop = width > 768;
-  const isDark = theme === 'dark';
+  const colorsNav = useThemeColors();
+  const isDark = colorsNav.isDark;
 
   const isDebtsOrRestricted = (segments as string[]).some(s => ['debts', 'goals', 'cards', 'budgets'].includes(s));
 
   const colors = {
-    bg: isDark ? '#1A1A2E' : '#FFFFFF',
-    text: isDark ? '#F5F0E8' : '#2D2D2D',
+    bg: colorsNav.card,
+    text: colorsNav.text,
     inactive: isDark ? '#64748B' : '#B0A89C',
-    active: isDark ? '#7CC68E' : '#4A7C59',
-    border: isDark ? '#3A3A52' : '#F0E8DC',
+    active: colorsNav.accent,
+    border: colorsNav.border,
   };
 
   return (
@@ -97,7 +99,7 @@ export default function TabLayout() {
                 style={[
                   styles.fabButton, 
                   isDebtsOrRestricted && styles.fabButtonDisabled, 
-                  isDark && !isDebtsOrRestricted && { backgroundColor: '#3D8B53' }
+                  { backgroundColor: colorsNav.accent }
                 ]}
               >
                 <MaterialIcons name="add" size={28} color="#FFFFFF" />
@@ -174,7 +176,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 32,
     borderRadius: 10,
-    backgroundColor: 'rgba(74, 124, 89, 0.12)',
+    backgroundColor: 'rgba(74, 124, 89, 0.08)',
   },
   fabButton: {
     width: 56,

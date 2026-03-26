@@ -4,6 +4,8 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { THEMES, ThemeName } from '@/constants/Themes';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LATEST_VERSION, CHANGELOG_UPDATES } from '@/constants/Changelog';
 import {
@@ -33,20 +35,7 @@ type CreditCard = {
 };
 
 // ─── Sanctuary Theme Colors ───────────────────────────────────────────
-const getColors = (t: string) => {
-  if (t === 'dark') {
-    return {
-      bg: '#1A1A2E', card: '#25253D', text: '#F5F0E8', sub: '#A09B8C',
-      border: '#3A3A52', accent: '#4A7C59', cardBg: '#2A2A42',
-      warmBg: '#1A1A2E', greenCard: '#2D5A3D', cream: '#25253D',
-    };
-  }
-  return {
-    bg: '#FFF8F0', card: '#FFFFFF', text: '#2D2D2D', sub: '#8B8680',
-    border: '#F0E8DC', accent: '#4A7C59', cardBg: '#FFF5EB',
-    warmBg: '#FFF8F0', greenCard: '#2D5A3D', cream: '#F5EDE0',
-  };
-};
+
 
 // ─── Circular Progress Component ──────────────────────────────────────
 const CircularProgress = ({ percentage, size = 80, strokeWidth = 8, color = '#4A7C59' }: {
@@ -80,8 +69,8 @@ export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const isDesktop = width > 768;
   const { user, logout, theme, toggleTheme, isHidden, toggleHiddenMode } = useAuth();
-  const isDark = theme === 'dark';
-  const colorsNav = getColors(theme);
+  const colorsNav = useThemeColors();
+  const isDark = colorsNav.isDark;
 
   const [ingresos, setIngresos] = useState(0);
   const [gastos, setGastos] = useState(0);

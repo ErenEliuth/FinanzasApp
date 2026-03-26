@@ -3,6 +3,8 @@ import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
+import { ThemeName } from '@/constants/Themes';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import {
     Alert,
     Dimensions,
@@ -19,29 +21,15 @@ import { PieChart } from 'react-native-chart-kit';
 
 const screenWidth = Dimensions.get('window').width;
 
-// ─── Sanctuary Theme Colors ───────────────────────────────────────────
-const getColors = (t: string) => {
-    if (t === 'dark') {
-        return {
-            bg: '#1A1A2E', card: '#25253D', text: '#F5F0E8', sub: '#A09B8C',
-            border: '#3A3A52', accent: '#4A7C59', cardBg: '#2A2A42',
-            warmBg: '#1A1A2E',
-        };
-    }
-    return {
-        bg: '#FFF8F0', card: '#FFFFFF', text: '#2D2D2D', sub: '#8B8680',
-        border: '#F0E8DC', accent: '#4A7C59', cardBg: '#FFF5EB',
-        warmBg: '#FFF8F0',
-    };
-};
+
 
 const PIE_COLORS = ['#4A7C59', '#8B5CF6', '#F59E0B', '#3B82F6', '#EF4444', '#00BCD4', '#E91E63'];
 
 export default function HistoryScreen() {
     const isFocused = useIsFocused();
     const { user, theme, isHidden } = useAuth();
-    const isDark = theme === 'dark';
-    const colorsNav = getColors(theme);
+    const colorsNav = useThemeColors();
+    const isDark = colorsNav.isDark;
 
     const [transactions, setTransactions] = useState<any[]>([]);
     const [refreshing, setRefreshing] = useState(false);

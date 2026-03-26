@@ -7,6 +7,8 @@ import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { THEMES, ThemeName } from '@/constants/Themes';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import {
     Alert,
     Image,
@@ -37,21 +39,7 @@ const fmtCOP = (n: number, isHidden: boolean) =>
             style: 'currency', currency: 'COP', minimumFractionDigits: 0
           }).format(n);
 
-// ─── Sanctuary Theme Colors ───────────────────────────────────────────
-const getColors = (t: string) => {
-    if (t === 'dark') {
-        return {
-            bg: '#1A1A2E', card: '#25253D', text: '#F5F0E8', sub: '#A09B8C',
-            border: '#3A3A52', accent: '#4A7C59', cardBg: '#2A2A42',
-            warmBg: '#1A1A2E',
-        };
-    }
-    return {
-        bg: '#FFF8F0', card: '#FFFFFF', text: '#2D2D2D', sub: '#8B8680',
-        border: '#F0E8DC', accent: '#4A7C59', cardBg: '#FFF5EB',
-        warmBg: '#FFF8F0',
-    };
-};
+
 
 function MonthHeatmap({ activeDays, colorsNav }: {
     activeDays: Map<string, number>;
@@ -138,6 +126,44 @@ function MonthHeatmap({ activeDays, colorsNav }: {
         </View>
     );
 }
+
+const ThemeSelector = ({ current, onSelect, colorsNav }: { current: ThemeName; onSelect: (t: ThemeName) => void; colorsNav: any }) => {
+    const options: { id: ThemeName; color: string; label: string }[] = [
+        { id: 'light', color: '#FFF8F0', label: 'Claro' },
+        { id: 'dark', color: '#1A1A2E', label: 'Oscuro' },
+        { id: 'forest', color: '#0D1A10', label: 'Naturaleza' },
+        { id: 'lavender', color: '#F8F7FF', label: 'Lila' },
+    ];
+
+    return (
+        <View style={[mSt.card, { backgroundColor: colorsNav.card }]}>
+            <Text style={[mSt.monthName, { color: colorsNav.text, marginBottom: 16 }]}>Apariencia</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                {options.map((opt) => (
+                    <TouchableOpacity 
+                        key={opt.id} 
+                        style={{ alignItems: 'center', gap: 6 }} 
+                        onPress={() => onSelect(opt.id)}
+                    >
+                        <View style={{ 
+                            width: 50, 
+                            height: 50, 
+                            borderRadius: 25, 
+                            backgroundColor: opt.color,
+                            borderWidth: 3,
+                            borderColor: current === opt.id ? colorsNav.accent : colorsNav.border,
+                            justifyContent: 'center',
+                            alignItems: 'center'
+                        }}>
+                             {current === opt.id && <Ionicons name="checkmark" size={24} color={opt.id === 'light' || opt.id === 'lavender' ? '#2D2D2D' : '#FFF'} />}
+                        </View>
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: colorsNav.sub }}>{opt.label}</Text>
+                    </TouchableOpacity>
+                ))}
+            </View>
+        </View>
+    );
+};
 
 const mSt = StyleSheet.create({
     card: { borderRadius: 24, padding: 20, marginBottom: 16 },
@@ -265,10 +291,10 @@ const statStyle = StyleSheet.create({
 // ─── Pantalla principal ────────────────────────────────────────────────────────
 export default function ProfileScreen() {
     const router = useRouter();
-    const { user, logout, theme, isHidden, toggleTheme } = useAuth();
+    const { user, logout, theme, isHidden, toggleTheme, setThemeConfig } = useAuth();
     const isFocused = useIsFocused();
-    const isDark = theme === 'dark';
-    const colorsNav = getColors(theme);
+    const colorsNav = useThemeColors();
+    const isDark = colorsNav.isDark;
 
     const [transactions, setTransactions] = useState<any[]>([]);
     const [activeDays, setActiveDays] = useState<Map<string, number>>(new Map());
@@ -386,10 +412,9 @@ export default function ProfileScreen() {
                 {/* ── Header ── */}
                 <View style={styles.header}>
                     <Text style={[styles.headerTitle, { color: colorsNav.text }]}>Perfil</Text>
-                    <TouchableOpacity style={[styles.themeBtn, { backgroundColor: isDark ? colorsNav.card : '#F5EDE0' }]} onPress={toggleTheme}>
-                        <Ionicons name={isDark ? 'moon' : 'sunny'} size={20} color={colorsNav.accent} />
-                    </TouchableOpacity>
                 </View>
+
+                <ThemeSelector current={theme} onSelect={setThemeConfig} colorsNav={colorsNav} />
 
                 {/* ── Perfil Card ── */}
                 <View style={[styles.profileCard, { backgroundColor: colorsNav.card }]}>

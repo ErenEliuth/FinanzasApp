@@ -5,6 +5,7 @@ import * as WebBrowser from 'expo-web-browser';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { syncDown } from './sync';
+import { ThemeName } from '@/constants/Themes';
 
 WebBrowser.maybeCompleteAuthSession(); // Necesario para que el navegador se cierre tras el login
 
@@ -14,9 +15,9 @@ interface AuthContextType {
     user: User | null;
     session: Session | null;
     loading: boolean;
-    theme: 'light' | 'dark';
+    theme: ThemeName;
     toggleTheme: () => Promise<void>;
-    setThemeConfig: (theme: 'light' | 'dark') => Promise<void>;
+    setThemeConfig: (theme: ThemeName) => Promise<void>;
     isHidden: boolean;
     toggleHiddenMode: () => Promise<void>;
     login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
@@ -33,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
-    const [theme, setTheme] = useState<'light' | 'dark'>('light');
+    const [theme, setTheme] = useState<ThemeName>('light');
     const [isHidden, setIsHidden] = useState(false);
     useEffect(() => {
         // Cargar sesión inicial de Supabase
@@ -59,8 +60,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Cargar tema
         const loadTheme = async () => {
             const storedTheme = await AsyncStorage.getItem('user_theme');
-            if (['light', 'dark'].includes(storedTheme || '')) {
-                setTheme(storedTheme as any);
+            const validThemes: ThemeName[] = ['light', 'dark', 'forest', 'lavender'];
+            if (validThemes.includes(storedTheme as ThemeName)) {
+                setTheme(storedTheme as ThemeName);
             }
             const storedHidden = await AsyncStorage.getItem('user_hidden_mode');
             if (storedHidden === 'true') {
@@ -78,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await AsyncStorage.setItem('user_theme', nextTheme);
     };
 
-    const setThemeConfig = async (newTheme: 'light' | 'dark') => {
+    const setThemeConfig = async (newTheme: ThemeName) => {
         setTheme(newTheme);
         await AsyncStorage.setItem('user_theme', newTheme);
     };
