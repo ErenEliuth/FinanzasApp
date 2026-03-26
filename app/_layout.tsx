@@ -10,6 +10,7 @@ import 'react-native-reanimated';
 import { useFonts } from 'expo-font';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as SplashScreen from 'expo-splash-screen';
+import SanctuaryLock from '@/components/SanctuaryLock';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -142,13 +143,15 @@ function RootStack() {
 
   return (
     <ThemeProvider value={theme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
-        <Stack.Screen name="login" options={{ gestureEnabled: false }} />
-        <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
-        <Stack.Screen name="goals" options={{ presentation: 'modal' }} />
-      </Stack>
+      <SanctuaryLock userName={user?.user_metadata?.name || 'Eliuth'}>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="login" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="goals" options={{ presentation: 'modal' }} />
+        </Stack>
+      </SanctuaryLock>
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>
   );

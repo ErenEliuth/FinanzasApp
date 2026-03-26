@@ -4,6 +4,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
 import * as NotificationsUtils from '@/utils/notifications';
+import * as LocalAuthentication from 'expo-local-authentication';
 import * as Notifications from 'expo-notifications';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
@@ -26,6 +27,7 @@ import {
     TextInput,
     TouchableOpacity,
     View,
+    Switch,
 } from 'react-native';
 
 const MONTH_NAMES_FULL = [
@@ -264,6 +266,63 @@ export default function ProfileScreen() {
     const isFocused = useIsFocused();
     const colorsNav = useThemeColors();
     const isDark = colorsNav.isDark;
+
+    const [lockEnabled, setLockEnabled] = useState(false);
+    const [lockMethod, setLockMethod] = useState<'pin' | 'biometric'>('pin');
+    const [lockPin, setLockPin] = useState('');
+    const [pinModalVisible, setPinModalVisible] = useState(false);
+    const [tempPin, setTempPin] = useState('');
+
+    useEffect(() => {
+        loadLockSettings();
+    }, [isFocused]);
+
+    const loadLockSettings = async () => {
+        try {
+            const enabled = await AsyncStorage.getItem('@lock_enabled');
+            const method = await AsyncStorage.getItem('@lock_method') || 'pin';
+            const pin = await AsyncStorage.getItem('@lock_pin') || '';
+            setLockEnabled(enabled === 'true');
+            setLockMethod(method as any);
+            setLockPin(pin);
+        } catch (e) {}
+    };
+
+    const toggleLock = async (val: boolean) => {
+        if (val && !lockPin) {
+            Alert.alert("Configuración Requerida", "Primero debes establecer un PIN de seguridad.");
+            setPinModalVisible(true);
+            return;
+        }
+        setLockEnabled(val);
+        await AsyncStorage.setItem('@lock_enabled', val ? 'true' : 'false');
+    };
+
+    const toggleLockMethod = async () => {
+        const next = lockMethod === 'pin' ? 'biometric' : 'pin';
+        if (next === 'biometric') {
+             const hasHardware = await LocalAuthentication.hasHardwareAsync();
+             const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+             if (!hasHardware || !isEnrolled) {
+                 Alert.alert("No Disponible", "Tu dispositivo no soporta biometría o no tiene huellas registradas.");
+                 return;
+             }
+        }
+        setLockMethod(next);
+        await AsyncStorage.setItem('@lock_method', next);
+    };
+
+    const saveNewPin = async () => {
+        if (tempPin.length !== 4) {
+            Alert.alert("Error", "El PIN debe tener exactamente 4 números.");
+            return;
+        }
+        setLockPin(tempPin);
+        await AsyncStorage.setItem('@lock_pin', tempPin);
+        setPinModalVisible(false);
+        setTempPin('');
+        Alert.alert("Éxito", "Tu PIN de Sanctuary ha sido actualizado.");
+    };
 
     const [transactions, setTransactions] = useState<any[]>([]);
     const [activeDays, setActiveDays] = useState<Map<string, number>>(new Map());
@@ -512,8 +571,57 @@ export default function ProfileScreen() {
                     </View>
                 </View>
 
+                {/* ── Seguridad ── */}
+                <View style={[styles.profileCard, { backgroundColor: colorsNav.card, marginTop: 16 }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                        <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: '#FFD54F20', justifyContent: 'center', alignItems: 'center' }}>
+                            <MaterialIcons name="security" size={24} color="#FFD54F" />
+                        </View>
+                        <Text style={{ fontSize: 18, fontWeight: '800', color: colorsNav.text }}>Seguridad</Text>
+                    </View>
+
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 15, fontWeight: '800', color: colorsNav.text }}>Sanctuary Lock</Text>
+                            <Text style={{ fontSize: 12, color: colorsNav.sub, marginTop: 2 }}>Protege la app con PIN o Biometría</Text>
+                        </View>
+                        <Switch 
+                            value={lockEnabled} 
+                            onValueChange={toggleLock}
+                            trackColor={{ false: '#767577', true: colorsNav.accent }}
+                            thumbColor={lockEnabled ? '#FFF' : '#f4f3f4'}
+                        />
+                    </View>
+
+                    {lockEnabled && (
+                        <>
+                            <View style={{ height: 1, backgroundColor: colorsNav.border, marginVertical: 16 }} />
+                            <TouchableOpacity style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={() => setPinModalVisible(true)}>
+                                <View>
+                                    <Text style={{ fontSize: 15, fontWeight: '800', color: colorsNav.text }}>Configurar PIN</Text>
+                                    <Text style={{ fontSize: 12, color: colorsNav.sub, marginTop: 2 }}>
+                                        {lockPin ? 'Actualizar código actual' : 'Establecer código secreto'}
+                                    </Text>
+                                </View>
+                                <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
+                            </TouchableOpacity>
+
+                            <View style={{ height: 1, backgroundColor: colorsNav.border, marginVertical: 16 }} />
+                            <TouchableOpacity style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={toggleLockMethod}>
+                                <View>
+                                    <Text style={{ fontSize: 15, fontWeight: '800', color: colorsNav.text }}>Método de Entrada</Text>
+                                    <Text style={{ fontSize: 12, color: colorsNav.sub, marginTop: 2 }}>
+                                        Actual: {lockMethod === 'biometric' ? 'Huella / FaceID' : 'Solo PIN'}
+                                    </Text>
+                                </View>
+                                <MaterialIcons name="sync" size={20} color={colorsNav.accent} />
+                            </TouchableOpacity>
+                        </>
+                    )}
+                </View>
+
                 {/* ── Configuración ── */}
-                <View style={{ marginTop: 8 }}>
+                <View style={{ marginTop: 24 }}>
                     <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>CONFIGURACIÓN</Text>
                     
                     <View 
@@ -715,6 +823,37 @@ export default function ProfileScreen() {
                         <TouchableOpacity style={[styles.closeModalBtn, { backgroundColor: colorsNav.accent }]} onPress={() => setWeeklyModalVisible(false)}>
                             <Text style={styles.closeModalBtnTxt}>Entendido</Text>
                         </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Modal para configurar PIN */}
+            <Modal visible={pinModalVisible} animationType="fade" transparent>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }}>
+                    <View style={{ width: '85%', backgroundColor: colorsNav.card, borderRadius: 32, padding: 30, alignItems: 'center' }}>
+                         <Text style={{ fontSize: 20, fontWeight: '900', color: colorsNav.text, marginBottom: 10 }}>Nuevo PIN</Text>
+                         <Text style={{ fontSize: 14, color: colorsNav.sub, textAlign: 'center', marginBottom: 30 }}>Escribe 4 números que no olvides, Eliuth.</Text>
+                         
+                         <TextInput 
+                             style={{ width: '100%', height: 60, borderRadius: 16, backgroundColor: isDark ? '#1A1A2E' : '#F5EDE0', textAlign: 'center', fontSize: 24, letterSpacing: 10, fontWeight: '900', color: colorsNav.text }}
+                             keyboardType="numeric"
+                             maxLength={4}
+                             secureTextEntry
+                             value={tempPin}
+                             onChangeText={setTempPin}
+                             placeholder="0000"
+                             placeholderTextColor={colorsNav.sub}
+                             autoFocus
+                         />
+
+                         <View style={{ flexDirection: 'row', gap: 15, marginTop: 30 }}>
+                             <TouchableOpacity style={{ padding: 15, flex: 1, alignItems: 'center' }} onPress={() => setPinModalVisible(false)}>
+                                 <Text style={{ color: colorsNav.sub, fontWeight: '700' }}>Cancelar</Text>
+                             </TouchableOpacity>
+                             <TouchableOpacity style={{ padding: 15, flex: 1, backgroundColor: colorsNav.accent, borderRadius: 16, alignItems: 'center' }} onPress={saveNewPin}>
+                                 <Text style={{ color: '#FFF', fontWeight: '800' }}>Guardar</Text>
+                             </TouchableOpacity>
+                         </View>
                     </View>
                 </View>
             </Modal>

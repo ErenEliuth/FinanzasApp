@@ -1,6 +1,13 @@
-export const LATEST_VERSION = '2026-03-26-v15';
+export const LATEST_VERSION = '2026-03-26-v16';
 
 export const CHANGELOG_UPDATES = [
+  {
+    title: '🛡️ Sanctuary Lock: Biometría',
+    titleEn: 'Sanctuary Lock: Biometry',
+    description: 'Protege tu privacidad con Huella, FaceID o PIN de 4 dígitos. Configúralo en tu Perfil.',
+    descriptionEn: 'Protect your privacy with Fingerprint, FaceID or 4-digit PIN. Set it up in your Profile.',
+    icon: 'lock'
+  },
   {
     title: '🎙️ Sanctuary: Modo Ejecutivo',
     titleEn: 'Sanctuary: Executive Mode',
