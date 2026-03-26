@@ -1,4 +1,4 @@
-export const LATEST_VERSION = '2026-03-26-v2';
+export const LATEST_VERSION = '2026-03-26-v3';
 
 export const CHANGELOG_UPDATES = [
   {
