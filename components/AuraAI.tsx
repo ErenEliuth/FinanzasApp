@@ -45,19 +45,14 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
   }, [visible]);
 
   const handleVoiceInput = () => {
-    if (Platform.OS !== 'web') {
-      Alert.alert("Próximamente", "El dictado por voz nativo estará disponible en la próxima versión.");
-      return;
-    }
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     
     if (!SpeechRecognition) {
-      Alert.alert('No compatible', 'Tu navegador no soporta dictado por voz.');
+      Alert.alert('No compatible', 'El navegador no soporta voz.');
       return;
     }
 
     if (isListening) {
-      // Intentar detener si ya está escuchando
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -71,29 +66,19 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
     recognitionRef.current = recog;
     recog.lang = 'es-ES';
     recog.interimResults = false;
-    recog.continuous = false; // Importante para que se detenga al terminar de hablar
 
     recog.onstart = () => setIsListening(true);
-    
     recog.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       setInput(transcript);
       setIsListening(false);
     };
-
-    recog.onerror = (event: any) => {
-      console.error('Speech Error:', event.error);
-      setIsListening(false);
-    };
-
-    recog.onend = () => {
-      setIsListening(false);
-    };
+    recog.onerror = () => setIsListening(false);
+    recog.onend = () => setIsListening(false);
 
     try {
       recog.start();
     } catch (e) {
-      console.error('Start error:', e);
       setIsListening(false);
     }
   };
@@ -174,22 +159,33 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
           </View>
           <ScrollView ref={scrollRef} style={styles.chatArea} contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
             {messages.map((m) => (
-              <View key={m.id} style={[styles.msgRow, m.sender === 'user' ? styles.userRow : styles.auraRow]}>
-                {m.sender === 'sanctuary' && <View style={[styles.miniAvatar, { backgroundColor: colorsNav.accent }]}><Text style={{ fontSize: 10 }}>✨</Text></View>}
-                <View style={{ alignItems: m.sender === 'user' ? 'flex-end' : 'flex-start' }}>
-                  <View style={[styles.bubble, m.sender === 'user' ? [styles.userBubble, { backgroundColor: colorsNav.accent }] : [styles.auraBubble, { backgroundColor: isDark ? '#2A2A42' : '#F1F5F9' }]]}>
-                    <Text style={[styles.msgText, { color: m.sender === 'user' ? '#FFF' : colorsNav.text }]}>{m.text}</Text>
-                    <Text style={[styles.timeText, { color: m.sender === 'user' ? 'rgba(255,255,255,0.7)' : colorsNav.sub }]}>{m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</Text>
-                  </View>
-                  {m.actionData && (
-                    <View style={styles.actionCard}>
-                       <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colorsNav.accent }]} onPress={() => confirmTx(m.actionData)}>
-                          <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 13 }}>Confirmar Registro</Text>
-                       </TouchableOpacity>
+                  <View key={m.id} style={[styles.msgRow, m.sender === 'user' ? styles.userRow : styles.auraRow]}>
+                    {m.sender === 'sanctuary' && (
+                       <View style={[styles.miniAvatar, { backgroundColor: colorsNav.accent }]}>
+                          <Ionicons name="sparkles" size={12} color="#FFF" />
+                       </View>
+                    )}
+                    <View style={{ flexShrink: 1, maxWidth: '100%', alignItems: m.sender === 'user' ? 'flex-end' : 'flex-start' }}>
+                      <View style={[
+                        styles.bubble, 
+                        m.sender === 'user' ? [styles.userBubble, { backgroundColor: colorsNav.accent }] : [styles.auraBubble, { backgroundColor: isDark ? '#2A2A3E' : '#F0F4F8' }]
+                      ]}>
+                        <Text style={[styles.msgText, { color: m.sender === 'user' ? '#FFF' : colorsNav.text }]}>
+                          {m.text}
+                        </Text>
+                        <Text style={[styles.timeText, { color: m.sender === 'user' ? 'rgba(255,255,255,0.7)' : colorsNav.sub }]}>
+                          {m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                        </Text>
+                      </View>
+                      {m.actionData && (
+                        <View style={styles.actionCard}>
+                           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colorsNav.accent }]} onPress={() => confirmTx(m.actionData)}>
+                              <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 13 }}>Confirmar Registro</Text>
+                           </TouchableOpacity>
+                        </View>
+                      )}
                     </View>
-                  )}
-                </View>
-              </View>
+                  </View>
             ))}
             {isTyping && <ActivityIndicator style={{ marginTop: 10 }} color={colorsNav.accent} />}
           </ScrollView>
@@ -214,7 +210,7 @@ const styles = StyleSheet.create({
   headerSub: { fontSize: 12, fontWeight: '600' },
   closeBtn: { padding: 8 },
   chatArea: { flex: 1 },
-  msgRow: { flexDirection: 'row', marginBottom: 20, maxWidth: '85%' },
+  msgRow: { flexDirection: 'row', marginBottom: 15, maxWidth: '90%' },
   userRow: { alignSelf: 'flex-end', justifyContent: 'flex-end' },
   auraRow: { alignSelf: 'flex-start', alignItems: 'flex-end', gap: 8 },
   miniAvatar: { width: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
@@ -226,6 +222,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 5,
     flexShrink: 1,
+    maxWidth: '100%',
   },
   auraBubble: { borderBottomLeftRadius: 4 },
   userBubble: { borderBottomRightRadius: 4 },
