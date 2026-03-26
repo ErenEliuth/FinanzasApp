@@ -40,6 +40,19 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-26 — Prompt de Sugerencia y Mejora de Perfil
+
+**Archivos modificados:**
+- `app/(tabs)/index.tsx` — Nueva tarjeta interactiva para activar recordatorios.
+- `app/(tabs)/profile.tsx` — Reubicación de la sección de Configuración arriba del Heatmap.
+- `constants/Changelog.ts` — Subida a **v6**.
+
+**Cambios realizados:**
+- ✅ **Invitación Inteligente**: Si el usuario no tiene recordatorios, aparece una tarjeta elegante en el inicio sugiriendo activarlos. Desaparece al aceptar o rechazar.
+- ✅ **UX de Perfil**: Se movió la configuración de notificaciones a la parte superior (antes del calendario) para que sea lo primero que se vea tras la tarjeta de perfil.
+
+---
+
 ### 2026-03-26 — Recordatorios Diarios y Notificaciones
 
 **Archivos modificados:**

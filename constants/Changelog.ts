@@ -1,15 +1,15 @@
-export const LATEST_VERSION = '2026-03-26-v5';
+export const LATEST_VERSION = '2026-03-26-v6';
 
 export const CHANGELOG_UPDATES = [
   {
-    title: '🔔 Recordatorios Diarios',
-    description: 'Activa los recordatorios en tu Perfil para que no olvides anotar tus gastos al final del día.',
+    title: '🔔 Invitación a Recordatorios',
+    description: 'Ahora verás una invitación en el inicio para activar tus avisos diarios. Toca "Sí" para no olvidar tus gastos.',
     icon: 'notifications'
   },
   {
-    title: '🌊 Nuevo Tema Ocean',
-    description: 'Añadido el tema Océano con tonos turquesas y cian pálidos para mayor serenidad.',
-    icon: 'water'
+    title: '⚙️ Perfil Reorganizado',
+    description: 'Hemos movido el panel de Configuración arriba del calendario para que sea más fácil de encontrar.',
+    icon: 'settings'
   },
   {
     title: '💜 Nuevo Tema Lila',

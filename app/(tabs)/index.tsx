@@ -4,6 +4,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import * as Notifications from '@/utils/notifications';
 import { THEMES, ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -89,13 +90,42 @@ export default function HomeScreen() {
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const [isRealBalanceCollapsed, setIsRealBalanceCollapsed] = useState(true);
   const [changelogVisible, setChangelogVisible] = useState(false);
+  const [showReminderPrompt, setShowReminderPrompt] = useState(false);
 
   useEffect(() => {
     if (isFocused) {
       loadData();
       checkChangelog();
+      checkReminderPrompt();
     }
   }, [isFocused]);
+
+  const checkReminderPrompt = async () => {
+    try {
+      const isEnabled = await AsyncStorage.getItem('user_reminders');
+      const isDismissed = await AsyncStorage.getItem('@dismissed_reminder_prompt');
+      if (isEnabled !== 'true' && isDismissed !== 'true') {
+        setShowReminderPrompt(true);
+      }
+    } catch (e) { }
+  };
+
+  const handleAcceptReminders = async () => {
+    const granted = await Notifications.registerForPushNotificationsAsync();
+    if (granted) {
+      await Notifications.scheduleDailyReminder(20, 30);
+      await AsyncStorage.setItem('user_reminders', 'true');
+      setShowReminderPrompt(false);
+      Alert.alert("✅ ¡Activado!", "Te avisaremos a las 8:30 PM.");
+    } else {
+      Alert.alert("⚠️ Permiso denegado", "Activa las notificaciones en ajustes.");
+    }
+  };
+
+  const handleDismissReminders = async () => {
+    await AsyncStorage.setItem('@dismissed_reminder_prompt', 'true');
+    setShowReminderPrompt(false);
+  };
 
   const checkChangelog = async () => {
     try {
@@ -485,6 +515,32 @@ export default function HomeScreen() {
                 <Text style={[styles.widgetValueAlert, { color: '#EF4444' }]}>{fmt(debtTotal)}</Text>
               </TouchableOpacity>
             </View>
+
+            {/* Prompt Recordatorios */}
+            {showReminderPrompt && (
+              <View style={[styles.reminderPrompt, { backgroundColor: isDark ? colorsNav.card : '#FFF', borderColor: isDark ? colorsNav.border : '#F0E8DC', borderWidth: 1 }]}>
+                <View style={styles.reminderHeader}>
+                  <View style={[styles.reminderIcon, { backgroundColor: colorsNav.accent + '20' }]}>
+                    <Ionicons name="notifications" size={24} color={colorsNav.accent} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.reminderTitle, { color: colorsNav.text }]}>¿Activar recordatorios?</Text>
+                    <Text style={[styles.reminderSub, { color: colorsNav.sub }]}>Te avisaremos suavemente cada noche para anotar tus gastos.</Text>
+                  </View>
+                  <TouchableOpacity onPress={handleDismissReminders} style={{ padding: 4 }}>
+                    <Ionicons name="close" size={20} color={colorsNav.sub} />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.reminderActions}>
+                  <TouchableOpacity style={[styles.remBtnNo, { backgroundColor: isDark ? '#2A2A42' : '#F5F5F7' }]} onPress={handleDismissReminders}>
+                    <Text style={[styles.remBtnTextNo, { color: colorsNav.sub }]}>Ahora no</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.remBtnYes, { backgroundColor: colorsNav.accent }]} onPress={handleAcceptReminders}>
+                    <Text style={styles.remBtnTextYes}>¡Sí, claro!</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
 
             {/* ── Salud Financiera ──────────────────────────────────────── */}
             <View style={[styles.healthCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
@@ -1199,4 +1255,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+
+  // Reminder Prompt
+  reminderPrompt: {
+    marginHorizontal: 0, borderRadius: 28, padding: 22, marginBottom: 20,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3,
+  },
+  reminderHeader: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 18 },
+  reminderIcon: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  reminderTitle: { fontSize: 16, fontWeight: '800' },
+  reminderSub: { fontSize: 12, marginTop: 2, lineHeight: 16 },
+  reminderActions: { flexDirection: 'row', gap: 10 },
+  remBtnNo: { flex: 1, paddingVertical: 14, borderRadius: 16, alignItems: 'center' },
+  remBtnTextNo: { fontSize: 13, fontWeight: '700' },
+  remBtnYes: { flex: 1.5, paddingVertical: 14, borderRadius: 16, alignItems: 'center' },
+  remBtnTextYes: { color: '#FFF', fontSize: 13, fontWeight: '800' },
 });

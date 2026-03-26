@@ -445,6 +445,26 @@ export default function ProfileScreen() {
                     </View>
                 </View>
 
+                {/* ── Configuración ── */}
+                <View style={{ marginTop: 8 }}>
+                    <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>CONFIGURACIÓN</Text>
+                    
+                    <TouchableOpacity 
+                        style={[styles.listItem, { backgroundColor: colorsNav.card }]} 
+                        onPress={toggleReminders}
+                        activeOpacity={0.8}
+                    >
+                        <View style={[styles.listIcon, { backgroundColor: reminders ? '#E3F0FF' : (isDark ? '#3A3A52' : '#F1F5F9') }]}>
+                            <Ionicons name="notifications" size={20} color={reminders ? '#3B82F6' : colorsNav.sub} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.listTitle, { color: colorsNav.text }]}>Recordatorio Diario</Text>
+                            <Text style={[styles.listSub, { color: colorsNav.sub }]}>{reminders ? 'Activado: 8:30 PM' : 'Desactivado'}</Text>
+                        </View>
+                        <Ionicons name={reminders ? "toggle" : "toggle-outline"} size={32} color={reminders ? colorsNav.accent : colorsNav.sub} />
+                    </TouchableOpacity>
+                </View>
+
                 {/* ── Heatmap ── */}
                 <MonthHeatmap activeDays={activeDays} colorsNav={colorsNav} />
 
@@ -478,26 +498,6 @@ export default function ProfileScreen() {
                                 </View>
                             ) : null}
                         </View>
-                    </TouchableOpacity>
-                </View>
-
-                {/* ── Configuración ── */}
-                <View style={{ marginTop: 8 }}>
-                    <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>CONFIGURACIÓN</Text>
-                    
-                    <TouchableOpacity 
-                        style={[styles.listItem, { backgroundColor: colorsNav.card }]} 
-                        onPress={toggleReminders}
-                        activeOpacity={0.8}
-                    >
-                        <View style={[styles.listIcon, { backgroundColor: reminders ? '#E3F0FF' : (isDark ? '#3A3A52' : '#F1F5F9') }]}>
-                            <Ionicons name="notifications" size={20} color={reminders ? '#3B82F6' : colorsNav.sub} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                            <Text style={[styles.listTitle, { color: colorsNav.text }]}>Recordatorio Diario</Text>
-                            <Text style={[styles.listSub, { color: colorsNav.sub }]}>{reminders ? 'Activado: 8:30 PM' : 'Desactivado'}</Text>
-                        </View>
-                        <Ionicons name={reminders ? "toggle" : "toggle-outline"} size={32} color={reminders ? colorsNav.accent : colorsNav.sub} />
                     </TouchableOpacity>
                 </View>
 
