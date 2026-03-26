@@ -40,6 +40,19 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-26 — Panel de "Novedades" (What's New)
+
+**Archivos modificados:**
+- `app/(tabs)/index.tsx` — Integración del panel de novedades en el dashboard.
+- `constants/Changelog.ts` — Nueva base de datos de cambios para el usuario final.
+
+**Cambios realizados:**
+- ✅ **Panel Informativo**: Ahora aparece un modal elegante al entrar a la app cuando hay una actualización importante.
+- ✅ **Memoria de Lectura**: El panel usa `AsyncStorage` para aparecer **solo una vez** por cada versión o actualización realizada.
+- ✅ **Resumen de Mejoras**: Informa al usuario sobre los arreglos en el selector de fecha, la lógica de gastos fijos y otras optimizaciones.
+
+---
+
 ### 2026-03-26 — Modal de Confirmación Personalizado para Gastos Fijos
 
 **Archivos modificados:**

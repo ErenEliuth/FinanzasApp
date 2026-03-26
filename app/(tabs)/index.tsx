@@ -5,6 +5,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LATEST_VERSION, CHANGELOG_UPDATES } from '@/constants/Changelog';
 import {
   Alert,
   Modal,
@@ -98,10 +99,30 @@ export default function HomeScreen() {
   const [cardBalances, setCardBalances] = useState<Record<string, number>>({});
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const [isRealBalanceCollapsed, setIsRealBalanceCollapsed] = useState(true);
+  const [changelogVisible, setChangelogVisible] = useState(false);
 
   useEffect(() => {
-    if (isFocused) loadData();
+    if (isFocused) {
+      loadData();
+      checkChangelog();
+    }
   }, [isFocused]);
+
+  const checkChangelog = async () => {
+    try {
+      const lastSeen = await AsyncStorage.getItem('@last_seen_changelog');
+      if (lastSeen !== LATEST_VERSION) {
+        setChangelogVisible(true);
+      }
+    } catch (e) { }
+  };
+
+  const markChangelogSeen = async () => {
+    try {
+      await AsyncStorage.setItem('@last_seen_changelog', LATEST_VERSION);
+      setChangelogVisible(false);
+    } catch (e) { }
+  };
 
   const loadData = async () => {
     if (!user) return;
@@ -686,6 +707,42 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
+      {/* ── Modal de Novedades (What's New) ────────────────────────── */}
+      <Modal visible={changelogVisible} transparent animationType="fade" onRequestClose={markChangelogSeen}>
+        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
+          <View style={[styles.modalCard, { backgroundColor: isDark ? colorsNav.card : '#FFF', paddingBottom: 24, width: '90%', maxWidth: 450 }]}>
+            <View style={{ alignItems: 'center', marginBottom: 24 }}>
+              <View style={{ width: 64, height: 64, borderRadius: 24, backgroundColor: colorsNav.accent + '20', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                <MaterialIcons name="auto-awesome" size={32} color={colorsNav.accent} />
+              </View>
+              <Text style={[styles.modalTitle, { color: colorsNav.text, fontSize: 24 }]}>¡Novedades en Sanctuary!</Text>
+              <Text style={[styles.modalSub, { color: colorsNav.sub, marginTop: 4 }]}>Descubre lo último que hemos mejorado</Text>
+            </View>
+
+            <ScrollView style={{ maxHeight: 350 }} showsVerticalScrollIndicator={false}>
+              {CHANGELOG_UPDATES.map((update, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', gap: 16, marginBottom: 20, paddingHorizontal: 4 }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: isDark ? colorsNav.border : '#F5EDE0', justifyContent: 'center', alignItems: 'center' }}>
+                    <MaterialIcons name={update.icon as any} size={20} color={colorsNav.accent} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 16, fontWeight: '800', color: colorsNav.text, marginBottom: 4 }}>{update.title}</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: colorsNav.sub, lineHeight: 18 }}>{update.description}</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity 
+              style={[styles.modalCloseBtn, { backgroundColor: colorsNav.accent, marginTop: 20, borderTopWidth: 0 }]} 
+              onPress={markChangelogSeen}
+            >
+              <Text style={[styles.modalCloseBtnText, { color: '#FFF', fontWeight: '900' }]}>¡Entendido!</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* ── Breakdown Modal ────────────────────────────────────── */}
       <Modal visible={breakdownVisible} transparent animationType="fade" onRequestClose={() => setBreakdownVisible(false)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setBreakdownVisible(false)}>
@@ -1104,6 +1161,11 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '800',
+  },
+  modalSub: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
   },
   modalCloseBtn: {
     height: 50,
