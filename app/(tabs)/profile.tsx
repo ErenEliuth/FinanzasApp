@@ -10,6 +10,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { THEMES, ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import {
     Alert,
     Image,
@@ -21,7 +22,7 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
 } from 'react-native';
 
 const MONTH_NAMES_FULL = [
@@ -274,6 +275,8 @@ export default function ProfileScreen() {
     const [weeklyTopAmt, setWeeklyTopAmt] = useState(0);
     const [weeklySummaryData, setWeeklySummaryData] = useState<[string, number][]>([]);
     const [reminders, setReminders] = useState(false);
+    const [reminderTime, setReminderTime] = useState(new Date(0, 0, 0, 20, 30));
+    const [showTimer, setShowTimer] = useState(false);
 
     useEffect(() => { if (isFocused) loadData(); }, [isFocused]);
 
@@ -285,6 +288,31 @@ export default function ProfileScreen() {
     const loadReminders = async () => {
         const val = await AsyncStorage.getItem('user_reminders');
         setReminders(val === 'true');
+        
+        const h = await AsyncStorage.getItem('user_reminders_h');
+        const m = await AsyncStorage.getItem('user_reminders_m');
+        if (h && m) {
+            const d = new Date();
+            d.setHours(parseInt(h));
+            d.setMinutes(parseInt(m));
+            setReminderTime(d);
+        }
+    };
+
+    const onTimeChange = async (event: any, selectedDate?: Date) => {
+        setShowTimer(false);
+        if (selectedDate) {
+            setReminderTime(selectedDate);
+            const h = selectedDate.getHours();
+            const m = selectedDate.getMinutes();
+            await AsyncStorage.setItem('user_reminders_h', h.toString());
+            await AsyncStorage.setItem('user_reminders_m', m.toString());
+            
+            if (reminders) {
+                await Notifications.scheduleDailyReminder(h, m);
+                Alert.alert("✅ Hora actualizada", `Te avisaremos a las ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+            }
+        }
     };
 
     const toggleReminders = async () => {
@@ -295,17 +323,18 @@ export default function ProfileScreen() {
         if (newVal) {
             const granted = await Notifications.registerForPushNotificationsAsync();
             if (granted) {
-                // Programar recordatorio diario a las 8:30 PM (20:30)
-                await Notifications.scheduleDailyReminder(20, 30);
-                Alert.alert("✅ Recordatorio activado", "Te avisaremos todas las noches para que no olvides tus finanzas.");
+                const h = reminderTime.getHours();
+                const m = reminderTime.getMinutes();
+                await Notifications.scheduleDailyReminder(h, m);
+                Alert.alert("✅ Recordatorio activado", `Te avisaremos a las ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
             } else {
                 setReminders(false);
                 await AsyncStorage.setItem('user_reminders', 'false');
-                Alert.alert("⚠️ Permiso denegado", "Necesitas activar las notificaciones en los ajustes de tu celular.");
+                Alert.alert("⚠️ Permiso denegado", "Necesitas activar las notificaciones en ajustes.");
             }
         } else {
             await Notifications.cancelReminders();
-            Alert.alert("🔕 Recordatorios desactivados", "Ya no recibirás avisos diarios.");
+            Alert.alert("🔕 Recordatorios desactivados", "Ya no recibirás avisos.");
         }
     };
 
@@ -459,10 +488,34 @@ export default function ProfileScreen() {
                         </View>
                         <View style={{ flex: 1 }}>
                             <Text style={[styles.listTitle, { color: colorsNav.text }]}>Recordatorio Diario</Text>
-                            <Text style={[styles.listSub, { color: colorsNav.sub }]}>{reminders ? 'Activado: 8:30 PM' : 'Desactivado'}</Text>
+                            <Text style={[styles.listSub, { color: colorsNav.sub }]}>
+                                {reminders ? `Activado: ${reminderTime.getHours().toString().padStart(2, '0')}:${reminderTime.getMinutes().toString().padStart(2, '0')}` : 'Desactivado'}
+                            </Text>
                         </View>
-                        <Ionicons name={reminders ? "toggle" : "toggle-outline"} size={32} color={reminders ? colorsNav.accent : colorsNav.sub} />
+                        
+                        {reminders && (
+                            <TouchableOpacity 
+                                style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: isDark ? '#2A2A42' : '#F1F5F9', marginRight: 10 }}
+                                onPress={() => setShowTimer(true)}
+                            >
+                                <Text style={{ color: colorsNav.accent, fontWeight: '800', fontSize: 12 }}>Editar Hora</Text>
+                            </TouchableOpacity>
+                        )}
+
+                        <TouchableOpacity onPress={toggleReminders}>
+                             <Ionicons name={reminders ? "toggle" : "toggle-outline"} size={32} color={reminders ? colorsNav.accent : colorsNav.sub} />
+                        </TouchableOpacity>
                     </TouchableOpacity>
+
+                    {showTimer && (
+                        <DateTimePicker
+                            value={reminderTime}
+                            mode="time"
+                            is24Hour={true}
+                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                            onChange={onTimeChange}
+                        />
+                    )}
                 </View>
 
                 {/* ── Heatmap ── */}

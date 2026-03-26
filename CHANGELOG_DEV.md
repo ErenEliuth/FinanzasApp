@@ -40,6 +40,19 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-26 — Hora Personalizada para Recordatorios
+
+**Archivos modificados:**
+- `app/(tabs)/profile.tsx` — Integración de `DateTimePicker` y lógica de persistencia de hora.
+- `constants/Changelog.ts` — Salto a la versión **v7**.
+
+**Cambios realizados:**
+- ✅ **Selector de Hora**: Se añadió un botón "Editar Hora" en la configuración de recordatorios del perfil.
+- ✅ **Flexibilidad Total**: El usuario ahora puede elegir exactamente a qué hora recibir su aviso diario (ej. 7:00 AM, 9:00 PM, etc.).
+- ✅ **Persistencia**: La hora elegida se guarda localmente y se usa para reprogramar la notificación automáticamente.
+
+---
+
 ### 2026-03-26 — Prompt de Sugerencia y Mejora de Perfil
 
 **Archivos modificados:**

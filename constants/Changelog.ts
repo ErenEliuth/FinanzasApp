@@ -1,15 +1,15 @@
-export const LATEST_VERSION = '2026-03-26-v6';
+export const LATEST_VERSION = '2026-03-26-v7';
 
 export const CHANGELOG_UPDATES = [
+  {
+    title: '⏰ Hora Personalizada',
+    description: 'Ahora puedes elegir exactamente a qué hora quieres recibir tu recordatorio diario en el Perfil.',
+    icon: 'schedule'
+  },
   {
     title: '🔔 Invitación a Recordatorios',
     description: 'Ahora verás una invitación en el inicio para activar tus avisos diarios. Toca "Sí" para no olvidar tus gastos.',
     icon: 'notifications'
-  },
-  {
-    title: '⚙️ Perfil Reorganizado',
-    description: 'Hemos movido el panel de Configuración arriba del calendario para que sea más fácil de encontrar.',
-    icon: 'settings'
   },
   {
     title: '💜 Nuevo Tema Lila',
