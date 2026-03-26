@@ -40,6 +40,22 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-26 — Temas Océano (Ocean) y Blanco Puro (Snow)
+
+**Archivos modificados:**
+- `constants/Themes.ts` — Incorporación de temas `ocean` y `snow`.
+- `utils/auth.tsx` — Ciclo de temas ampliado a 5 opciones.
+- `app/(tabs)/profile.tsx` — Actualización del icono de alternancia de tema.
+- `constants/Changelog.ts` — Incremento a **v4** para forzar el panel de novedades.
+
+**Cambios realizados:**
+- ✅ **Tema Ocean**: Un tono azul cian pálido con acentos Teal. Calma y fluidez absoluta.
+- ✅ **Tema Blanco Puro (Snow)**: Restaurado el fondo blanco puro (`#FFFFFF`) con acentos verdes para máxima claridad.
+- ✅ **Ciclo de Color**: Se renovó el botón superior del perfil para navegar ahora entre los 5 temas (Nieve, Arena, Noche, Lila, Océano).
+- ✅ **Panel Automático**: Al ser versión v4, los usuarios verán el anuncio de estos nuevos temas al abrir la app.
+
+---
+
 ### 2026-03-26 — Tema Lila y Ciclo de Apariencia
 
 **Archivos modificados:**
