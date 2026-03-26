@@ -1,6 +1,13 @@
-export const LATEST_VERSION = '2026-03-26-v14';
+export const LATEST_VERSION = '2026-03-26-v15';
 
 export const CHANGELOG_UPDATES = [
+  {
+    title: '🎙️ Sanctuary: Modo Ejecutivo',
+    titleEn: 'Sanctuary: Executive Mode',
+    description: '¡Ahora Sanctuary puede trabajar por ti! Dile "Gasté 50 en comida" y ella lo anotará. Soporta dictado por voz.',
+    descriptionEn: 'Now Sanctuary can work for you! Say "Spent 50 on food" and she will log it. Voice dictation supported.',
+    icon: 'mic'
+  },
   {
     title: '💬 Sanctuary AI: Más Humana',
     titleEn: 'Sanctuary AI: More Human',

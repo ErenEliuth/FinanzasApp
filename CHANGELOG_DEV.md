@@ -40,6 +40,21 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-26 — Sanctuary: Cerebro Ejecutivo (v15)
+
+**Archivos modificados:**
+- `components/AuraAI.tsx` — Implementación de dictado por voz, NLP y acciones de registro.
+- `constants/Changelog.ts` — Salto a la versión **v15**.
+
+**Cambios realizados:**
+- ✅ **Comandos de Voz**: Se añadió un icono de micrófono que permite dictar transacciones en tiempo real usando el motor de voz del navegador.
+- ✅ **Procesamiento de Lenguaje (NLP)**: Sanctuary ahora puede "entender" intenciones. Si dices *"Gasté 50 mil en comida"*, ella extrae el monto, la categoría y el tipo.
+- ✅ **Registro Directo**: Se implementaron **Tarjetas de Acción** dentro del chat. Sanctuary te propone el registro y tú solo le das a **[Confirmar]** para guardar la transacción en la base de datos sin salir del chat.
+
+---
+
+### 2026-03-26 — Sanctuary AI: Más Humana (v14)
+
 ### 2026-03-26 — Aura AI: Tu Asesora Financiera (v13)
 
 **Nuevos componentes:**
