@@ -22,7 +22,7 @@ export const MagicAuraButton = () => {
       <AuraAI 
         visible={visible}
         onClose={() => setVisible(false)}
-        userName={user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'Eliuth'}
+        userName={user?.user_metadata?.name || user?.email?.split('@')[0] || 'Amigo'}
       />
     </>
   );

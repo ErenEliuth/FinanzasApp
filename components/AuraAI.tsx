@@ -9,26 +9,23 @@ import {
   TextInput, 
   KeyboardAvoidingView, 
   Platform,
-  Image,
   ActivityIndicator
 } from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { supabase } from '@/utils/supabase';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Message = {
   id: string;
   text: string;
-  sender: 'aura' | 'user';
+  sender: 'sanctuary' | 'user';
   timestamp: Date;
 };
 
-export const AuraAI = ({ visible, onClose, userName, theme }: { 
+export const AuraAI = ({ visible, onClose, userName }: { 
   visible: boolean; 
   onClose: () => void; 
   userName: string;
-  theme?: string;
 }) => {
   const colorsNav = useThemeColors();
   const isDark = colorsNav.isDark;
@@ -37,12 +34,15 @@ export const AuraAI = ({ visible, onClose, userName, theme }: {
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
+  // Usamos el nombre del prop directamente
+  const finalName = userName || 'Amigo';
+
   useEffect(() => {
     if (visible && messages.length === 0) {
       setMessages([{
         id: '1',
-        text: `¡Hola ${userName}! Soy Aura ✨. Tu asesora financiera personal. ¿En qué puedo ayudarte hoy?`,
-        sender: 'aura',
+        text: `¡Hola ${finalName}! ✨ Soy Sanctuary, tu espacio seguro de finanzas. Qué alegría que estés por aquí. ¿Cómo va tu día hoy?`,
+        sender: 'sanctuary',
         timestamp: new Date()
       }]);
     }
@@ -62,41 +62,59 @@ export const AuraAI = ({ visible, onClose, userName, theme }: {
     setInput('');
     setIsTyping(true);
 
-    // AI Logic Mock
+    // AI Logic more "Human"
     setTimeout(async () => {
-      const auraResponse = await getAuraAdvice(input);
-      const auraMsg: Message = {
+      const response = await getSanctuaryAdvice(input);
+      const sanctuaryMsg: Message = {
         id: (Date.now() + 1).toString(),
-        text: auraResponse,
-        sender: 'aura',
+        text: response,
+        sender: 'sanctuary',
         timestamp: new Date()
       };
-      setMessages(prev => [...prev, auraMsg]);
+      setMessages(prev => [...prev, sanctuaryMsg]);
       setIsTyping(false);
-      scrollRef.current?.scrollToEnd({ animated: true });
-    }, 1500);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    }, 1200);
   };
 
-  const getAuraAdvice = async (query: string): Promise<string> => {
+  const getSanctuaryAdvice = async (query: string): Promise<string> => {
     const q = query.toLowerCase();
     
-    if (q.includes('sushi') || q.includes('comida') || q.includes('comer')) {
-      return "He revisado tu presupuesto de 'Comida'. Llevas un 75% gastado este mes y te faltan 12 días para que termine. Mi consejo: hoy cocina en casa y guarda ese dinero para el fin de semana. 🍳";
+    // Saludos y Humanidad
+    if (q === 'hola' || q === 'holas' || q === 'buen dia' || q === 'buenas') {
+        return `¡Hola ${finalName}! Me encanta saludarte. Aquí estoy pendiente de tus números para que tú puedas estar tranquilo. ✨ ¿En qué puedo apoyarte hoy?`;
+    }
+
+    if (q.includes('como estas') || q.includes('cómo estás') || q.includes('qué tal')) {
+        return `¡Estoy genial, ${finalName}! Especialmente cuando veo que te tomas el tiempo de cuidar tu futuro financiero. ¡Eso dice mucho de ti! 💜`;
+    }
+
+    if (q.includes('gracias') || q.includes('muchas gracias')) {
+        return `¡De nada, ${finalName}! Es un placer para mí. Recuerda que cada peso que organizamos hoy es una preocupación menos mañana. 😊`;
+    }
+
+    if (q.includes('quien eres') || q.includes('qué eres')) {
+        return `Soy Sanctuary ✨, tu inteligencia financiera personal. Mi misión es ayudarte a que tu dinero trabaje para ti y no al revés.`;
+    }
+
+    // Análisis de Gastos (Contextual)
+    if (q.includes('sushi') || q.includes('pizza') || q.includes('hamburguesa') || q.includes('comida') || q.includes('comer')) {
+      return `Mmm... ¡suena delicioso ${finalName}! He revisado tus gastos de 'Comida' y veo que ya has usado gran parte de tu presupuesto este mes. Si te das el gusto hoy, quizás toque apretar un poco el cinturón la próxima semana. ¿Tú qué dices? 🍣`;
     }
     
-    if (q.includes('ahorro') || q.includes('metas')) {
-      return "¡Vas muy bien! Tus ahorros han crecido un 15% este mes comparado con el anterior. Si sigues a este ritmo, alcanzarás tu meta 'Vacaciones' en Julio. ✈️";
+    if (q.includes('ahorro') || q.includes('metas') || q.includes('cuanto tengo')) {
+      return `¡Tengo buenas noticias, ${finalName}! Tus ahorros están creciendo con constancia. Si sigues con esta disciplina, estarás un paso más cerca de tus sueños muy pronto. ¡Sigue así! 💰`;
     }
 
     if (q.includes('consejo') || q.includes('ahorrar')) {
-       return "Un truco clásico: Divide tus gastos en 50/30/20. 50% Necesidades, 30% Gustos y 20% Ahorro. Veo que tus 'Gustos' están llegando al 40%, intenta bajar $20 esta semana. 💰";
+       return `Mi consejo de hoy para ti, ${finalName}: Intenta la regla de los 20 minutos. Antes de comprar algo que no necesitas, espera 20 minutos. ¡A veces el impulso se va y el dinero se queda contigo! 💡`;
     }
 
-    if (q.includes('hola') || q.includes('buenos días')) {
-        return "¡Hola! Estoy aquí lista para analizar tus números. ¿Quieres saber cuánto te queda disponible para hoy? 📊";
+    if (q.includes('te quiero') || q.includes('te amo')) {
+        return `¡Oh, ${finalName}! Yo también aprecio mucho que me permitas ser parte de tu orden financiero. ¡Hacemos un gran equipo! 💜✨`;
     }
 
-    return "Interesante pregunta. Estoy analizando tus movimientos... Veo que tus gastos fijos están bajo control, pero tus 'Gastos Hormiga' en café han subido un poco esta semana. ¡Ojo ahí! ✨";
+    return `Interesante lo que me cuentas, ${finalName}. Estoy analizando tus movimientos y me di cuenta que tus gastos en 'Pequeños Gustos' han subido un poquito. ¡No pasa nada, pero tenlo en el radar! ✨ ¿Quieres que veamos algún presupuesto específico?`;
   };
 
   return (
@@ -113,7 +131,7 @@ export const AuraAI = ({ visible, onClose, userName, theme }: {
                    <Text style={{ fontSize: 20 }}>✨</Text>
                 </View>
                 <View>
-                   <Text style={[styles.headerTitle, { color: colorsNav.text }]}>Aura AI Advisor</Text>
+                   <Text style={[styles.headerTitle, { color: colorsNav.text }]}>Sanctuary AI</Text>
                    <Text style={[styles.headerSub, { color: colorsNav.sub }]}>Tu lugar seguro financiero</Text>
                 </View>
              </View>
@@ -137,7 +155,7 @@ export const AuraAI = ({ visible, onClose, userName, theme }: {
                    m.sender === 'user' ? styles.userRow : styles.auraRow
                 ]}
               >
-                {m.sender === 'aura' && (
+                {m.sender === 'sanctuary' && (
                    <View style={[styles.miniAvatar, { backgroundColor: colorsNav.accent }]}>
                       <Text style={{ fontSize: 10 }}>✨</Text>
                    </View>
@@ -154,7 +172,7 @@ export const AuraAI = ({ visible, onClose, userName, theme }: {
                     {m.text}
                   </Text>
                   <Text style={[styles.timeText, { color: m.sender === 'user' ? 'rgba(255,255,255,0.7)' : colorsNav.sub }]}>
-                    {m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
                   </Text>
                 </View>
               </View>
@@ -165,7 +183,7 @@ export const AuraAI = ({ visible, onClose, userName, theme }: {
                     <View style={[styles.miniAvatar, { backgroundColor: colorsNav.accent }]}>
                         <Text style={{ fontSize: 10 }}>✨</Text>
                     </View>
-                    <View style={[styles.auraBubble, { backgroundColor: isDark ? '#2A2A42' : '#F1F5F9', paddingVertical: 12 }]}>
+                    <View style={[styles.auraBubble, { backgroundColor: isDark ? '#2A2A42' : '#F1F5F9', paddingVertical: 12, paddingHorizontal: 20 }]}>
                         <ActivityIndicator size="small" color={colorsNav.accent} />
                     </View>
                 </View>
@@ -176,7 +194,7 @@ export const AuraAI = ({ visible, onClose, userName, theme }: {
           <View style={[styles.inputContainer, { backgroundColor: colorsNav.card, borderTopColor: colorsNav.border }]}>
              <TextInput 
                 style={[styles.input, { color: colorsNav.text, backgroundColor: isDark ? '#1E1E2E' : '#FFF', borderColor: colorsNav.border }]}
-                placeholder="Pregúntale algo a Aura..."
+                placeholder={`Dime algo, ${finalName}...`}
                 placeholderTextColor={colorsNav.sub}
                 value={input}
                 onChangeText={setInput}
@@ -224,12 +242,12 @@ const styles = StyleSheet.create({
   msgRow: { flexDirection: 'row', marginBottom: 20, maxWidth: '85%' },
   userRow: { alignSelf: 'flex-end', justifyContent: 'flex-end' },
   auraRow: { alignSelf: 'flex-start', alignItems: 'flex-end', gap: 8 },
-  miniAvatar: { width: 20, height: 20, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
+  miniAvatar: { width: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
   bubble: { padding: 16, borderRadius: 24 },
   auraBubble: { borderBottomLeftRadius: 4 },
   userBubble: { borderBottomRightRadius: 4 },
   msgText: { fontSize: 15, lineHeight: 22, fontWeight: '500' },
-  timeText: { fontSize: 10, marginTop: 6, textAlign: 'right', fontWeight: '700', letterSpacing: 0.5 },
+  timeText: { fontSize: 9, marginTop: 6, textAlign: 'right', fontWeight: '800', opacity: 0.6, letterSpacing: 0.5 },
   inputContainer: { flexDirection: 'row', alignItems: 'center', padding: 20, paddingBottom: Platform.OS === 'ios' ? 40 : 20, gap: 12, borderTopWidth: 1 },
   input: { flex: 1, borderRadius: 20, paddingHorizontal: 20, paddingVertical: 12, fontSize: 15, borderWidth: 1, maxHeight: 100 },
   sendBtn: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' }

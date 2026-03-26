@@ -1,6 +1,13 @@
-export const LATEST_VERSION = '2026-03-26-v13';
+export const LATEST_VERSION = '2026-03-26-v14';
 
 export const CHANGELOG_UPDATES = [
+  {
+    title: '💬 Sanctuary AI: Más Humana',
+    titleEn: 'Sanctuary AI: More Human',
+    description: 'Nuestra IA ahora se llama Sanctuary ✨, es más humana y te llamará por tu nombre: Eliuth.',
+    descriptionEn: 'Our AI is now called Sanctuary ✨, it is more human and will call you by your name: Eliuth.',
+    icon: 'emoji_people'
+  },
   {
     title: '✨ Aura AI Advisor',
     titleEn: 'Aura AI Advisor',
