@@ -571,57 +571,8 @@ export default function ProfileScreen() {
                     </View>
                 </View>
 
-                {/* ── Seguridad ── */}
-                <View style={[styles.profileCard, { backgroundColor: colorsNav.card, marginTop: 16 }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-                        <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: '#FFD54F20', justifyContent: 'center', alignItems: 'center' }}>
-                            <MaterialIcons name="security" size={24} color="#FFD54F" />
-                        </View>
-                        <Text style={{ fontSize: 18, fontWeight: '800', color: colorsNav.text }}>Seguridad</Text>
-                    </View>
-
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 15, fontWeight: '800', color: colorsNav.text }}>Sanctuary Lock</Text>
-                            <Text style={{ fontSize: 12, color: colorsNav.sub, marginTop: 2 }}>Protege la app con PIN o Biometría</Text>
-                        </View>
-                        <Switch 
-                            value={lockEnabled} 
-                            onValueChange={toggleLock}
-                            trackColor={{ false: '#767577', true: colorsNav.accent }}
-                            thumbColor={lockEnabled ? '#FFF' : '#f4f3f4'}
-                        />
-                    </View>
-
-                    {lockEnabled && (
-                        <>
-                            <View style={{ height: 1, backgroundColor: colorsNav.border, marginVertical: 16 }} />
-                            <TouchableOpacity style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={() => setPinModalVisible(true)}>
-                                <View>
-                                    <Text style={{ fontSize: 15, fontWeight: '800', color: colorsNav.text }}>Configurar PIN</Text>
-                                    <Text style={{ fontSize: 12, color: colorsNav.sub, marginTop: 2 }}>
-                                        {lockPin ? 'Actualizar código actual' : 'Establecer código secreto'}
-                                    </Text>
-                                </View>
-                                <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
-                            </TouchableOpacity>
-
-                            <View style={{ height: 1, backgroundColor: colorsNav.border, marginVertical: 16 }} />
-                            <TouchableOpacity style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={toggleLockMethod}>
-                                <View>
-                                    <Text style={{ fontSize: 15, fontWeight: '800', color: colorsNav.text }}>Método de Entrada</Text>
-                                    <Text style={{ fontSize: 12, color: colorsNav.sub, marginTop: 2 }}>
-                                        Actual: {lockMethod === 'biometric' ? 'Huella / FaceID' : 'Solo PIN'}
-                                    </Text>
-                                </View>
-                                <MaterialIcons name="sync" size={20} color={colorsNav.accent} />
-                            </TouchableOpacity>
-                        </>
-                    )}
-                </View>
-
                 {/* ── Configuración ── */}
-                <View style={{ marginTop: 24 }}>
+                <View style={{ marginTop: 8 }}>
                     <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>CONFIGURACIÓN</Text>
                     
                     <View 
@@ -730,6 +681,55 @@ export default function ProfileScreen() {
                             ) : null}
                         </View>
                     </TouchableOpacity>
+                </View>
+                
+                {/* ── Seguridad ── */}
+                <View style={[styles.profileCard, { backgroundColor: colorsNav.card, marginTop: 16 }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                        <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: '#FFD54F20', justifyContent: 'center', alignItems: 'center' }}>
+                            <MaterialIcons name="security" size={24} color="#FFD54F" />
+                        </View>
+                        <Text style={{ fontSize: 18, fontWeight: '800', color: colorsNav.text }}>Seguridad</Text>
+                    </View>
+
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 15, fontWeight: '800', color: colorsNav.text }}>Sanctuary Lock</Text>
+                            <Text style={{ fontSize: 12, color: colorsNav.sub, marginTop: 2 }}>Protege la app con PIN o Biometría</Text>
+                        </View>
+                        <Switch 
+                            value={lockEnabled} 
+                            onValueChange={toggleLock}
+                            trackColor={{ false: '#767577', true: colorsNav.accent }}
+                            thumbColor={lockEnabled ? '#FFF' : '#f4f3f4'}
+                        />
+                    </View>
+
+                    {lockEnabled && (
+                        <>
+                            <View style={{ height: 1, backgroundColor: colorsNav.border, marginVertical: 16 }} />
+                            <TouchableOpacity style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={() => setPinModalVisible(true)}>
+                                <View>
+                                    <Text style={{ fontSize: 15, fontWeight: '800', color: colorsNav.text }}>Configurar PIN</Text>
+                                    <Text style={{ fontSize: 12, color: colorsNav.sub, marginTop: 2 }}>
+                                        {lockPin ? 'Actualizar código actual' : 'Establecer código secreto'}
+                                    </Text>
+                                </View>
+                                <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
+                            </TouchableOpacity>
+
+                            <View style={{ height: 1, backgroundColor: colorsNav.border, marginVertical: 16 }} />
+                            <TouchableOpacity style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={toggleLockMethod}>
+                                <View>
+                                    <Text style={{ fontSize: 15, fontWeight: '800', color: colorsNav.text }}>Método de Entrada</Text>
+                                    <Text style={{ fontSize: 12, color: colorsNav.sub, marginTop: 2 }}>
+                                        Actual: {lockMethod === 'biometric' ? 'Huella / FaceID' : 'Solo PIN'}
+                                    </Text>
+                                </View>
+                                <MaterialIcons name="sync" size={20} color={colorsNav.accent} />
+                            </TouchableOpacity>
+                        </>
+                    )}
                 </View>
 
                 <View style={{ height: 120 }} />
