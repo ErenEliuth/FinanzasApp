@@ -1,15 +1,15 @@
-export const LATEST_VERSION = '2026-03-26-v8';
+export const LATEST_VERSION = '2026-03-26-v9';
 
 export const CHANGELOG_UPDATES = [
   {
-    title: '⏰ Arreglado Selector Hora',
-    description: 'Hemos corregido el botón de editar hora para que funcione correctamente en todos los dispositivos.',
+    title: '⏰ Reloj Sanctuary Propio',
+    description: 'Hemos creado un selector de hora manual para que nunca falle, sin importar tu dispositivo o navegador.',
     icon: 'schedule'
   },
   {
-    title: '🔔 Mejora de Recordatorios',
-    description: 'La lógica de los avisos ahora es más sólida y fácil de configurar.',
-    icon: 'notifications'
+    title: '🔧 Diseño Ajustado',
+    description: 'Corregidos errores visuales en el Perfil para que todo quepa perfectamente en pantallas pequeñas.',
+    icon: 'build'
   },
   {
     title: '💜 Nuevo Tema Lila',

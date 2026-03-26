@@ -315,6 +315,38 @@ export default function ProfileScreen() {
         }
     };
 
+    const [tempH, setTempH] = useState('');
+    const [tempM, setTempM] = useState('');
+
+    const openTimer = () => {
+        setTempH(reminderTime.getHours().toString().padStart(2, '0'));
+        setTempM(reminderTime.getMinutes().toString().padStart(2, '0'));
+        setShowTimer(true);
+    };
+
+    const saveManualTime = async () => {
+        let h = parseInt(tempH);
+        let m = parseInt(tempM);
+        
+        if (isNaN(h) || h < 0 || h > 23) h = 20;
+        if (isNaN(m) || m < 0 || m > 59) m = 30;
+
+        const newDate = new Date();
+        newDate.setHours(h);
+        newDate.setMinutes(m);
+        
+        setReminderTime(newDate);
+        setShowTimer(false);
+        
+        await AsyncStorage.setItem('user_reminders_h', h.toString());
+        await AsyncStorage.setItem('user_reminders_m', m.toString());
+
+        if (reminders) {
+            await Notifications.scheduleDailyReminder(h, m);
+            Alert.alert("✅ Hora guardada", `Aviso configurado para las ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+        }
+    };
+
     const toggleReminders = async () => {
         const newVal = !reminders;
         setReminders(newVal);
@@ -484,8 +516,8 @@ export default function ProfileScreen() {
                         <View style={[styles.listIcon, { backgroundColor: reminders ? '#E3F0FF' : (isDark ? '#3A3A52' : '#F1F5F9') }]}>
                             <Ionicons name="notifications" size={20} color={reminders ? '#3B82F6' : colorsNav.sub} />
                         </View>
-                        <View style={{ flex: 1 }}>
-                            <Text style={[styles.listTitle, { color: colorsNav.text }]}>Recordatorio Diario</Text>
+                        <View style={{ flex: 1, marginRight: 8 }}>
+                            <Text style={[styles.listTitle, { color: colorsNav.text }]} numberOfLines={1}>Recordatorio Diario</Text>
                             <Text style={[styles.listSub, { color: colorsNav.sub }]}>
                                 {reminders ? `Activado: ${reminderTime.getHours().toString().padStart(2, '0')}:${reminderTime.getMinutes().toString().padStart(2, '0')}` : 'Desactivado'}
                             </Text>
@@ -493,26 +525,59 @@ export default function ProfileScreen() {
                         
                         {reminders && (
                             <TouchableOpacity 
-                                style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: isDark ? '#2A2A42' : '#F1F5F9', marginRight: 10 }}
-                                onPress={() => setShowTimer(true)}
+                                style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: isDark ? '#2A2A42' : '#F1F5F9', marginRight: 6 }}
+                                onPress={openTimer}
                             >
-                                <Text style={{ color: colorsNav.accent, fontWeight: '800', fontSize: 12 }}>Editar Hora</Text>
+                                <Text style={{ color: colorsNav.accent, fontWeight: '800', fontSize: 11 }}>Editar Hora</Text>
                             </TouchableOpacity>
                         )}
 
                         <TouchableOpacity onPress={toggleReminders} style={{ padding: 4 }}>
-                             <Ionicons name={reminders ? "toggle" : "toggle-outline"} size={36} color={reminders ? colorsNav.accent : colorsNav.sub} />
+                             <Ionicons name={reminders ? "toggle" : "toggle-outline"} size={32} color={reminders ? colorsNav.accent : colorsNav.sub} />
                         </TouchableOpacity>
                     </View>
 
                     {showTimer && (
-                        <DateTimePicker
-                            value={reminderTime}
-                            mode="time"
-                            is24Hour={true}
-                            display={Platform.OS === 'ios' ? 'spinner' : (Platform.OS === 'web' ? 'calendar' : 'default')}
-                            onChange={onTimeChange}
-                        />
+                        <Modal visible={showTimer} transparent animationType="fade">
+                            <View style={styles.overlay}>
+                                <View style={[styles.modalBox, { backgroundColor: colorsNav.card, width: '85%', maxWidth: 300, alignSelf: 'center' }]}>
+                                    <Text style={[styles.modalTitle, { color: colorsNav.text, textAlign: 'center' }]}>Elegir Hora</Text>
+                                    
+                                    <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10, marginBottom: 25 }}>
+                                        <View style={{ alignItems: 'center' }}>
+                                            <Text style={{ fontSize: 10, fontWeight: '800', color: colorsNav.sub, marginBottom: 5 }}>HORA</Text>
+                                            <TextInput 
+                                                style={[styles.timeInput, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border, textAlign: 'center' }]}
+                                                value={tempH}
+                                                onChangeText={setTempH}
+                                                keyboardType="number-pad"
+                                                maxLength={2}
+                                            />
+                                        </View>
+                                        <Text style={{ fontSize: 24, fontWeight: '900', color: colorsNav.sub, marginTop: 15 }}>:</Text>
+                                        <View style={{ alignItems: 'center' }}>
+                                            <Text style={{ fontSize: 10, fontWeight: '800', color: colorsNav.sub, marginBottom: 5 }}>MIN</Text>
+                                            <TextInput 
+                                                style={[styles.timeInput, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border, textAlign: 'center' }]}
+                                                value={tempM}
+                                                onChangeText={setTempM}
+                                                keyboardType="number-pad"
+                                                maxLength={2}
+                                            />
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.modalBtns}>
+                                        <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.bg, flex: 1, padding: 12, borderRadius: 12, alignItems: 'center' }]} onPress={() => setShowTimer(false)}>
+                                            <Text style={[styles.mBtnTxt, { color: colorsNav.text }]}>Cancelar</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.accent, flex: 1, padding: 12, borderRadius: 12, alignItems: 'center' }]} onPress={saveManualTime}>
+                                            <Text style={[styles.mBtnTxt, { color: '#FFF' }]}>Listo</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            </View>
+                        </Modal>
                     )}
                 </View>
 
@@ -712,4 +777,5 @@ const styles = StyleSheet.create({
     listIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
     listTitle: { fontSize: 15, fontWeight: '700' },
     listSub: { fontSize: 12, marginTop: 2 },
+    timeInput: { width: 60, height: 60, borderRadius: 16, borderWidth: 1, fontSize: 24, fontWeight: '900' },
 });

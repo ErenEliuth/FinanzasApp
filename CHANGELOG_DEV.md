@@ -40,6 +40,19 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-26 — Reloj Propio y Ajuste de Layout
+
+**Archivos modificados:**
+- `app/(tabs)/profile.tsx` — Implementación de `ManualTimeModal` y ajuste de `flex` en el item de configuración.
+- `constants/Changelog.ts` — Salto a la versión **v9**.
+
+**Cambios realizados:**
+- ✅ **Reloj Universal**: Se reemplazó el `DateTimePicker` nativo (que fallaba en algunos navegadores) por un modal interno de Sanctuary para elegir hora y minuto. 100% fiable.
+- ✅ **Corrección de TextWrap**: Se limitó el título a una sola línea con elipsis y se dio más espacio a los botones laterales para evitar que la palabra "Recordatorio" se rompa.
+- ✅ **UX Refined**: Botones de "Editar Hora" con mejor espaciado y contraste.
+
+---
+
 ### 2026-03-26 — Corrección Crítica: Selector de Hora y Nesting UI
 
 **Archivos modificados:**
