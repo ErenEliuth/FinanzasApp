@@ -40,6 +40,20 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-26 — Lógica Avanzada de Gastos Fijos y Reinicio Mensual
+
+**Archivos modificados:**
+- `app/(tabs)/debts.tsx` — Implementación de reinicio mensual y selección por día para gastos fijos.
+
+**Cambios realizados:**
+- ✅ **Diferenciación de Fecha**: Categoría "Deudas" conserva selector de fecha completo; "Gastos Fijos" ahora solo permite elegir el día del mes (1-31).
+- ✅ **Reinicio Mensual Automático**: Al cargar la pantalla, los gastos fijos de meses anteriores se actualizan al mes actual y vuelven a estado "Pendiente" (`paid: 0`).
+- ✅ **Lógica de Inicio Diferido**: Al crear un gasto fijo con un día anterior al actual, la app pregunta si inicia este mes o el próximo.
+    - Si inicia el próximo mes: Se marca como "Pagado" automáticamente para el mes actual sin generar transacciones ni restar dinero.
+- ✅ **Soporte Web/Móvil**: Sincronización de prompts nativos y de navegador para la nueva lógica.
+
+---
+
 ### 2026-03-26 — Fix de Fecha Límite (Mobile Web) y Regla de Despliegue
 
 **Archivos modificados:**

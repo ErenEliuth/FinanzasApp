@@ -58,6 +58,7 @@ export default function DebtsScreen() {
     const [name, setName] = useState('');
     const [amount, setAmount] = useState('');
     const [dueDate, setDueDate] = useState(new Date());
+    const [selectedDay, setSelectedDay] = useState(new Date().getDate().toString());
     const [showDatePicker, setShowDatePicker] = useState(false);
 
     const [payModalVisible, setPayModalVisible] = useState(false);
@@ -72,9 +73,28 @@ export default function DebtsScreen() {
         if (!user) return;
         setLoading(true);
         try {
-            const { data, error } = await supabase.from('debts').select('*').eq('user_id', user.id).order('due_date', { ascending: true });
+            const { data, error } = await supabase.from('debts').select('*').eq('user_id', user.id);
             if (error) throw error;
-            const sorted = (data || []).sort((a, b) => {
+            
+            const today = new Date();
+            const currM = today.getMonth();
+            const currY = today.getFullYear();
+
+            // Sincronizar gastos fijos con el mes actual
+            const synced = await Promise.all((data || []).map(async (item) => {
+                if (item.debt_type === 'fixed') {
+                    const itemDate = new Date(item.due_date + 'T12:00:00');
+                    if (itemDate.getMonth() !== currM || itemDate.getFullYear() !== currY) {
+                        // Es de un mes pasado, reiniciar a pendiente para el mes actual
+                        const newD = new Date(currY, currM, itemDate.getDate()).toISOString().split('T')[0];
+                        await supabase.from('debts').update({ paid: 0, due_date: newD }).eq('id', item.id);
+                        return { ...item, paid: 0, due_date: newD };
+                    }
+                }
+                return item;
+            }));
+
+            const sorted = (synced || []).sort((a, b) => {
                 const isPaidA = a.paid >= a.value;
                 const isPaidB = b.paid >= b.value;
                 if (isPaidA !== isPaidB) return isPaidA ? 1 : -1;
@@ -107,23 +127,61 @@ export default function DebtsScreen() {
             else Alert.alert('Error', 'Completa todos los campos');
             return;
         }
-        const dateStr = dueDate.toISOString().split('T')[0];
+
+        let dateStr = '';
+        let initialPaid = 0;
+
+        if (viewMode === 'fixed') {
+            const day = parseInt(selectedDay, 10);
+            if (isNaN(day) || day < 1 || day > 31) {
+                if (Platform.OS === 'web') window.alert('Día inválido (1-31)');
+                else Alert.alert('Error', 'Ingresa un día válido (1-31)');
+                return;
+            }
+            const today = new Date();
+            const todayDay = today.getDate();
+            
+            if (day < todayDay) {
+                const msg = '¿Este gasto empieza a funcionar desde el otro mes?';
+                let startNext = false;
+                if (Platform.OS === 'web') {
+                    startNext = window.confirm(msg);
+                } else {
+                    startNext = await new Promise((resolve) => {
+                        Alert.alert('Gasto Fijo', msg, [
+                            { text: 'No, este mes', onPress: () => resolve(false) },
+                            { text: 'Sí, próximo mes', onPress: () => resolve(true) }
+                        ]);
+                    });
+                }
+
+                if (startNext) {
+                    initialPaid = val; // Se marca como pagado para este mes sin afectar balances
+                }
+            }
+            dateStr = new Date(today.getFullYear(), today.getMonth(), day).toISOString().split('T')[0];
+        } else {
+            dateStr = dueDate.toISOString().split('T')[0];
+        }
+
         try {
             if (isEditing && editId) {
                 await supabase.from('debts').update({ client: name.trim(), value: val, due_date: dateStr }).eq('id', editId);
             } else {
-                await supabase.from('debts').insert([{ user_id: user?.id, client: name.trim(), value: val, paid: 0, due_date: dateStr, debt_type: viewMode, created_date: new Date().toISOString() }]);
+                await supabase.from('debts').insert([{ user_id: user?.id, client: name.trim(), value: val, paid: initialPaid, due_date: dateStr, debt_type: viewMode, created_date: new Date().toISOString() }]);
             }
             setModalVisible(false); resetForm(); loadData();
         } catch (e) { console.error(e); }
     };
 
-    const resetForm = () => { setName(''); setAmount(''); setDueDate(new Date()); setIsEditing(false); setEditId(null); };
+    const resetForm = () => { setName(''); setAmount(''); setDueDate(new Date()); setSelectedDay(new Date().getDate().toString()); setIsEditing(false); setEditId(null); };
 
     const handleEditStart = (item: DebtItem) => {
         setName(item.client);
         setAmount(item.value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
-        setDueDate(new Date(item.due_date + 'T12:00:00'));
+        const d = new Date(item.due_date + 'T12:00:00');
+        setDueDate(d);
+        setSelectedDay(d.getDate().toString());
         setEditId(item.id); setIsEditing(true); setModalVisible(true);
     };
 
@@ -309,38 +367,53 @@ export default function DebtsScreen() {
                                 <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} value={amount} onChangeText={t => setAmount(formatInput(t))} placeholder="$ 0" placeholderTextColor={colors.sub + '60'} keyboardType="decimal-pad" />
                             </View>
 
-                            {Platform.OS === 'web' ? (
-                                <View style={styles.mField}>
-                                    <Text style={[styles.mLabel, { color: colors.sub }]}>FECHA LÍMITE</Text>
-                                    <View style={{ borderBottomWidth: 2, borderBottomColor: colors.border }}>
-                                        {React.createElement('input', {
-                                            type: 'date',
-                                            value: dueDate.toISOString().split('T')[0],
-                                            onChange: (e: any) => {
-                                                const d = new Date(e.target.value + 'T12:00:00');
-                                                if (!isNaN(d.getTime())) setDueDate(d);
-                                            },
-                                            style: {
-                                                background: 'transparent',
-                                                border: 'none',
-                                                color: isDark ? '#F5F0E8' : '#2D2D2D',
-                                                fontSize: '18px',
-                                                fontWeight: '700',
-                                                padding: '12px 0',
-                                                width: '100%',
-                                                outline: 'none',
-                                                fontFamily: 'inherit',
-                                            }
-                                        })}
+                             {viewMode === 'debt' ? (
+                                Platform.OS === 'web' ? (
+                                    <View style={styles.mField}>
+                                        <Text style={[styles.mLabel, { color: colors.sub }]}>FECHA LÍMITE</Text>
+                                        <View style={{ borderBottomWidth: 2, borderBottomColor: colors.border }}>
+                                            {React.createElement('input', {
+                                                type: 'date',
+                                                value: dueDate.toISOString().split('T')[0],
+                                                onChange: (e: any) => {
+                                                    const d = new Date(e.target.value + 'T12:00:00');
+                                                    if (!isNaN(d.getTime())) setDueDate(d);
+                                                },
+                                                style: {
+                                                    background: 'transparent',
+                                                    border: 'none',
+                                                    color: isDark ? '#F5F0E8' : '#2D2D2D',
+                                                    fontSize: '18px',
+                                                    fontWeight: '700',
+                                                    padding: '12px 0',
+                                                    width: '100%',
+                                                    outline: 'none',
+                                                    fontFamily: 'inherit',
+                                                }
+                                            })}
+                                        </View>
                                     </View>
-                                </View>
+                                ) : (
+                                    <TouchableOpacity style={styles.mField} onPress={() => setShowDatePicker(true)}>
+                                        <Text style={[styles.mLabel, { color: colors.sub }]}>FECHA LÍMITE</Text>
+                                        <View style={[styles.mInput, { borderBottomColor: colors.border, justifyContent: 'center' }]}>
+                                            <Text style={{ color: colors.text, fontSize: 16 }}>{dueDate.toLocaleDateString('es-CO')}</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                )
                             ) : (
-                                <TouchableOpacity style={styles.mField} onPress={() => setShowDatePicker(true)}>
-                                    <Text style={[styles.mLabel, { color: colors.sub }]}>FECHA LÍMITE</Text>
-                                    <View style={[styles.mInput, { borderBottomColor: colors.border, justifyContent: 'center' }]}>
-                                        <Text style={{ color: colors.text, fontSize: 16 }}>{dueDate.toLocaleDateString('es-CO')}</Text>
-                                    </View>
-                                </TouchableOpacity>
+                                <View style={styles.mField}>
+                                    <Text style={[styles.mLabel, { color: colors.sub }]}>DÍA DE PAGO (1 - 31)</Text>
+                                    <TextInput 
+                                        style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
+                                        value={selectedDay} 
+                                        onChangeText={setSelectedDay}
+                                        placeholder="Ej. 15"
+                                        placeholderTextColor={colors.sub + '60'}
+                                        keyboardType="number-pad"
+                                        maxLength={2}
+                                    />
+                                </View>
                             )}
 
                             {Platform.OS === 'ios' && showDatePicker && (
