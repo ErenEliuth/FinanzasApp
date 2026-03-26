@@ -29,7 +29,8 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
+  const recognitionRef = React.useRef<any>(null);
+  const scrollRef = React.useRef<ScrollView>(null);
   const finalName = userName || 'Amigo';
 
   useEffect(() => {
@@ -43,25 +44,58 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
     }
   }, [visible]);
 
-  const handleVoice = () => {
+  const handleVoiceInput = () => {
     if (Platform.OS !== 'web') {
       Alert.alert("Próximamente", "El dictado por voz nativo estará disponible en la próxima versión.");
       return;
     }
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    
     if (!SpeechRecognition) {
-      Alert.alert("No compatible", "Tu navegador no soporta dictado por voz.");
+      Alert.alert('No compatible', 'Tu navegador no soporta dictado por voz.');
       return;
     }
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'es-ES';
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onresult = (event: any) => {
+
+    if (isListening) {
+      // Intentar detener si ya está escuchando
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {}
+      }
+      setIsListening(false);
+      return;
+    }
+
+    const recog = new SpeechRecognition();
+    recognitionRef.current = recog;
+    recog.lang = 'es-ES';
+    recog.interimResults = false;
+    recog.continuous = false; // Importante para que se detenga al terminar de hablar
+
+    recog.onstart = () => setIsListening(true);
+    
+    recog.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       setInput(transcript);
+      setIsListening(false);
     };
-    recognition.start();
+
+    recog.onerror = (event: any) => {
+      console.error('Speech Error:', event.error);
+      setIsListening(false);
+    };
+
+    recog.onend = () => {
+      setIsListening(false);
+    };
+
+    try {
+      recog.start();
+    } catch (e) {
+      console.error('Start error:', e);
+      setIsListening(false);
+    }
   };
 
   const handleSend = async (textOverride?: string) => {
@@ -160,7 +194,7 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
             {isTyping && <ActivityIndicator style={{ marginTop: 10 }} color={colorsNav.accent} />}
           </ScrollView>
           <View style={[styles.inputContainer, { backgroundColor: colorsNav.card, borderTopColor: colorsNav.border }]}>
-             <TouchableOpacity style={[styles.micBtn, isListening && { backgroundColor: '#EF4444' }]} onPress={handleVoice}>
+             <TouchableOpacity style={[styles.micBtn, isListening && { backgroundColor: '#EF4444' }]} onPress={handleVoiceInput}>
                 <Ionicons name={isListening ? "mic" : "mic-outline"} size={22} color={isListening ? "#FFF" : colorsNav.sub} />
              </TouchableOpacity>
              <TextInput style={[styles.input, { color: colorsNav.text, backgroundColor: isDark ? '#1E1E2E' : '#FFF', borderColor: colorsNav.border }]} placeholder={`Dime algo, ${finalName}...`} placeholderTextColor={colorsNav.sub} value={input} onChangeText={setInput} multiline />
@@ -184,15 +218,34 @@ const styles = StyleSheet.create({
   userRow: { alignSelf: 'flex-end', justifyContent: 'flex-end' },
   auraRow: { alignSelf: 'flex-start', alignItems: 'flex-end', gap: 8 },
   miniAvatar: { width: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
-  bubble: { padding: 15, borderRadius: 22 },
+  bubble: {
+    padding: 15,
+    borderRadius: 22,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    flexShrink: 1,
+  },
   auraBubble: { borderBottomLeftRadius: 4 },
   userBubble: { borderBottomRightRadius: 4 },
-  msgText: { fontSize: 15, lineHeight: 22, fontWeight: '500' },
+  msgText: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '500',
+    flexShrink: 1,
+  },
   timeText: { fontSize: 9, marginTop: 4, textAlign: 'right', fontWeight: '700', opacity: 0.6 },
   inputContainer: { flexDirection: 'row', alignItems: 'center', padding: 15, paddingBottom: Platform.OS === 'ios' ? 35 : 15, gap: 10, borderTopWidth: 1 },
   input: { flex: 1, borderRadius: 18, paddingHorizontal: 15, paddingVertical: 10, fontSize: 15, borderWidth: 1, maxHeight: 80 },
   sendBtn: { width: 45, height: 45, borderRadius: 23, justifyContent: 'center', alignItems: 'center' },
   micBtn: { width: 45, height: 45, borderRadius: 23, justifyContent: 'center', alignItems: 'center', backgroundColor: 'transparent' },
-  actionCard: { marginTop: 10, alignSelf: 'flex-start', paddingLeft: 10 },
+  actionCard: {
+    marginTop: 12,
+    padding: 20,
+    borderRadius: 24,
+    width: '90%',
+    flexShrink: 1,
+  },
   actionBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 15, shadowColor: '#000', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 }
 });
