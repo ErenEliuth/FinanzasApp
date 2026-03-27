@@ -230,6 +230,7 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
       const part1 = process.env.EXPO_PUBLIC_GEMINI_P1;
       const part2 = process.env.EXPO_PUBLIC_GEMINI_P2;
       let apiKey = (part1 && part2) ? (part1 + part2).trim() : null;
+      if (apiKey)
       
       // 2. Si no hay llave global, buscamos si el usuario puso una personal localmente (Legacy)
       if (!apiKey) {
