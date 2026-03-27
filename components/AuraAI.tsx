@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { supabase } from '@/utils/supabase';
 import { useAuth } from '@/utils/auth';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 type Message = {
   id: string;
@@ -199,33 +200,20 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
     setIsTyping(true);
 
     try {
-      // Primero intentar responder preguntas con datos reales
-      const queryReply = await handleQuery(text);
+      const { reply, action } = await askSanty(text);
       
-      if (queryReply) {
-        const sanctuaryMsg: Message = {
-          id: (Date.now() + 1).toString(),
-          text: queryReply,
-          sender: 'sanctuary',
-          timestamp: new Date(),
-        };
-        setMessages(prev => [...prev, sanctuaryMsg]);
-      } else {
-        // Si no es una pregunta, intentar parsear como transacción
-        const { reply, action } = parseIntent(text);
-        const sanctuaryMsg: Message = {
-          id: (Date.now() + 1).toString(),
-          text: reply,
-          sender: 'sanctuary',
-          timestamp: new Date(),
-          actionData: action
-        };
-        setMessages(prev => [...prev, sanctuaryMsg]);
-      }
+      const sanctuaryMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        text: reply,
+        sender: 'sanctuary',
+        timestamp: new Date(),
+        actionData: action
+      };
+      setMessages(prev => [...prev, sanctuaryMsg]);
     } catch (e) {
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
-        text: `Ups, tuve un problema procesando eso. ¿Puedes intentar de nuevo? 😅`,
+        text: `Ups, mi conexión cerebral falló. ¿Puedes intentarlo de nuevo? 😅`,
         sender: 'sanctuary',
         timestamp: new Date(),
       }]);
@@ -235,290 +223,87 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   };
 
-  // Manejar preguntas que requieren consultar datos reales
-  const handleQuery = async (text: string): Promise<string | null> => {
-    const q = text.toLowerCase().trim();
-    
-    // Detectar si es una pregunta (NO un comando de transacción)
-    const isQuestion = q.includes('cuánto') || q.includes('cuanto') || q.includes('cuáles') || q.includes('cuales') ||
-      q.includes('muéstrame') || q.includes('muestrame') || q.includes('dime') || q.includes('qué he') || q.includes('que he') ||
-      q.includes('mis transacciones') || q.includes('mi historial') || q.includes('mis gastos') || q.includes('mis ingresos') ||
-      q.includes('he gastado') || q.includes('he ganado') || q.includes('resumen') || q.includes('balance') ||
-      q.includes('últimas') || q.includes('ultimas') || q.includes('último') || q.includes('ultimo') ||
-      q.includes('en qué gasto') || q.includes('en que gasto') || q.includes('qué gasté') || q.includes('que gaste') ||
-      q.includes('hoy') || q.includes('este mes') || q.includes('mes pasado') || q.includes('semana') ||
-      q.includes('consejo') || q.includes('tip') || q.includes('recomienda') ||
-      q.includes('debo') || q.includes('deuda') || q.includes('deudas') ||
-      q.includes('meta') || q.includes('metas') || q.includes('objetivo') ||
-      q.includes('cómo estoy') || q.includes('como estoy') || q.includes('cómo voy') || q.includes('como voy');
-
-    if (!isQuestion) return null;
-
-    // === CONSEJOS FINANCIEROS (no requiere DB) ===
-    if (q.includes('consejo') || q.includes('tip') || q.includes('recomienda')) {
-      const tips = [
-        `💡 Intenta ahorrar al menos el 10% de cada ingreso que recibas, ${finalName}. Aunque sea poco, la constancia hace la diferencia.`,
-        `💡 Antes de comprar algo, pregúntate: "¿Lo necesito o lo quiero?" Si puedes esperar 24h y sigues queriéndolo, cómpralo.`,
-        `💡 Registra TODOS tus gastos, incluso los pequeños. Los gastos hormiga ($2 aquí, $5 allá) son los que más se comen tu dinero.`,
-        `💡 Crea un fondo de emergencia de al menos 3 meses de tus gastos fijos. Es tu colchón de seguridad.`,
-        `💡 Si tienes deudas, paga primero la que tenga la tasa de interés más alta. Eso te ahorra dinero a largo plazo.`,
-        `💡 Usa la regla 50/30/20: 50% necesidades, 30% deseos, 20% ahorro. Es simple pero muy efectiva.`,
-        `💡 Evita las compras impulsivas. Haz una lista antes de ir al supermercado y cúmplela.`,
-        `💡 Revisa tus suscripciones mensuales. Seguro hay alguna que ya no usas y puedes cancelar.`,
-      ];
-      return tips[Math.floor(Math.random() * tips.length)];
-    }
-
+  const askSanty = async (text: string): Promise<{reply: string, action?: any}> => {
     try {
+      const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+      if (!apiKey) {
+        return { reply: "Uy, me falta algo para pensar (falta la llave API de Gemini en .env)." };
+      }
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+      // Build context
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
-      const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0).toISOString();
-      const today = now.toISOString().split('T')[0];
-
-      // === GASTOS DE HOY ===
-      if (q.includes('hoy')) {
-        const { data } = await supabase.from('transactions').select('*')
-          .eq('user_id', user?.id).gte('date', today).order('date', { ascending: false });
+      const { data: monthTx } = await supabase.from('transactions')
+        .select('*').eq('user_id', user?.id).gte('date', startOfMonth).order('date', { ascending: false });
         
-        if (!data || data.length === 0) return `No tienes movimientos registrados hoy, ${finalName}. ¡Día limpio! 🎉`;
-        
-        const gastos = data.filter((t: any) => t.type === 'expense');
-        const ingresos = data.filter((t: any) => t.type === 'income');
-        const totalG = gastos.reduce((s: number, t: any) => s + t.amount, 0);
-        const totalI = ingresos.reduce((s: number, t: any) => s + t.amount, 0);
-        
-        let reply = `Hoy llevas ${data.length} movimiento(s), ${finalName}:\n\n`;
-        if (totalI > 0) reply += `💰 Ingresos: $${totalI.toLocaleString()}\n`;
-        if (totalG > 0) reply += `💸 Gastos: $${totalG.toLocaleString()}\n`;
-        reply += `\n📝 Detalle:\n`;
-        data.slice(0, 5).forEach((t: any) => {
-          reply += `• ${t.type === 'income' ? '💰' : '💸'} ${t.category}: $${t.amount.toLocaleString()}\n`;
-        });
-        return reply;
-      }
-
-      // === ÚLTIMO GASTO / ÚLTIMA TRANSACCIÓN ===
-      if (q.includes('último') || q.includes('ultimo') || q.includes('última') || q.includes('ultima')) {
-        const { data } = await supabase.from('transactions').select('*')
-          .eq('user_id', user?.id).order('date', { ascending: false }).limit(1);
-        
-        if (!data || data.length === 0) return `No tienes transacciones aún, ${finalName}. 📝`;
-        
-        const t = data[0];
-        const fecha = new Date(t.date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
-        return `Tu última transacción fue un ${t.type === 'income' ? 'ingreso' : 'gasto'} de $${t.amount.toLocaleString()} en "${t.category}" el ${fecha}. ${t.type === 'income' ? '💰' : '💸'}`;
-      }
-
-      // === DEUDAS ===
-      if (q.includes('debo') || q.includes('deuda') || q.includes('deudas')) {
-        const { data } = await supabase.from('debts').select('*').eq('user_id', user?.id);
-        
-        if (!data || data.length === 0) return `¡No tienes deudas registradas, ${finalName}! Eso es genial. 🎉`;
-        
-        const totalDeuda = data.reduce((s: number, d: any) => s + (d.total_amount - (d.paid_amount || 0)), 0);
-        let reply = `Tienes ${data.length} deuda(s) activa(s), ${finalName}.\n\n💳 Total pendiente: $${totalDeuda.toLocaleString()}\n\n`;
-        data.slice(0, 5).forEach((d: any) => {
-          const pendiente = d.total_amount - (d.paid_amount || 0);
-          reply += `• ${d.name || d.description}: $${pendiente.toLocaleString()}\n`;
-        });
-        return reply;
-      }
-
-      // === METAS ===
-      if (q.includes('meta') || q.includes('metas') || q.includes('objetivo')) {
-        const { data } = await supabase.from('goals').select('*').eq('user_id', user?.id);
-        
-        if (!data || data.length === 0) return `No tienes metas de ahorro registradas, ${finalName}. ¿Quieres crear una desde la sección de Metas? 🎯`;
-        
-        let reply = `Tus metas de ahorro, ${finalName}:\n\n`;
-        data.forEach((g: any) => {
-          const pct = g.target_amount > 0 ? Math.round((g.current_amount / g.target_amount) * 100) : 0;
-          const falta = g.target_amount - g.current_amount;
-          reply += `🎯 ${g.name}: $${g.current_amount.toLocaleString()} / $${g.target_amount.toLocaleString()} (${pct}%)\n   Faltan: $${falta.toLocaleString()}\n\n`;
-        });
-        return reply;
-      }
-
-      // === CONSULTAS CON DATOS DEL MES ===
-      const { data: monthTx } = await supabase.from('transactions').select('*')
-        .eq('user_id', user?.id).gte('date', startOfMonth).order('date', { ascending: false });
-      
       const txs = monthTx || [];
       const gastosM = txs.filter((t: any) => t.type === 'expense');
       const ingresosM = txs.filter((t: any) => t.type === 'income');
       const totalGastos = gastosM.reduce((s: number, t: any) => s + t.amount, 0);
       const totalIngresos = ingresosM.reduce((s: number, t: any) => s + t.amount, 0);
 
-      // === COMPARACIÓN CON MES ANTERIOR ===
-      if (q.includes('mes pasado') || q.includes('mes anterior') || q.includes('comparar') || q.includes('más que')) {
-        const { data: lastMonthTx } = await supabase.from('transactions').select('*')
-          .eq('user_id', user?.id).gte('date', startOfLastMonth).lte('date', endOfLastMonth);
-        
-        const lastGastos = (lastMonthTx || []).filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + t.amount, 0);
-        const diff = totalGastos - lastGastos;
-        const emoji = diff > 0 ? '📈' : '📉';
-        
-        return `Comparación mensual, ${finalName}:\n\n💸 Este mes: $${totalGastos.toLocaleString()}\n💸 Mes pasado: $${lastGastos.toLocaleString()}\n${emoji} Diferencia: ${diff > 0 ? '+' : ''}$${diff.toLocaleString()}\n\n${diff > 0 ? '¡Ojo! Estás gastando más que el mes pasado. 👀' : '¡Bien! Estás gastando menos que el mes anterior. 💪'}`;
+      const allTxs = await supabase.from('transactions').select('*').eq('user_id', user?.id).order('date', { ascending: false }).limit(8);
+      const txHistory = (allTxs.data || []).map(t => `${t.type === 'income' ? '+' : '-'}$${t.amount} en ${t.category} (${new Date(t.date).toLocaleDateString()})`).join(', ');
+
+      const prompt = `
+Eres Santy, la asistente financiera personal y ejecutiva de ${finalName}.
+Eres muy inteligente, sutilmente cómica y amable. Usas algo de jerga bogotana/colombiana (solo cuando es natural, como 'barras', 'lucas', 'palos'). 
+Tratas de empoderar a ${finalName} con sus finanzas.
+
+Aquí tienes el contexto financiero A TIEMPO REAL de este mes de ${finalName}:
+- Ingresos logrados en este mes: $${totalIngresos}
+- Gastos de este mes: ${gastosM.length} pagos por un total de $${totalGastos}
+- Balance total calculado de este mes: $${totalIngresos - totalGastos}
+- Sus últimas 8 transacciones registradas son: ${txHistory || 'Ninguna'}
+
+El usuario te dirá algo. Revisa la oración. Tu objetivo general:
+1. Si hace una pregunta sobre sus datos (ej. "¿cuánto gasté?", "¿cuál fue mi último gasto?"), respóndele mirando su contexto y saca cálculos si es necesario.
+2. Si quiere registrar o anotar una transacción (ej. "me comí una empanada de 5 lucas", "me entraron 2 palos del sueldo", "anota 20k"), detecta y estructura la acción.
+
+EXTREMADAMENTE IMPORTANTE: Solo debes responder en formato JSON crudo, nada de markdown ni saludos por fuera del JSON. La estructura del objeto DEBE ser exactamente:
+{
+  "reply": "Tu mensaje de respuesta conversacional (si vas a registrar algo, confirma lo que vas a registrar).",
+  "action": null
+}
+
+Nota de action: Si solo charlaban o respondías pregunta, déjalo "action": null. PERO si detectas un registro, usa esta estructura:
+  "action": {
+    "amount": 20000, 
+    "category": "Comida",
+    "type": "expense",
+    "description": "Empanada"
+  }
+Las categorías soportadas para action son EXACTAMENTE UNA DE LAS SIGUIENTES: Comida, Transporte, Sueldo, Arriendo, Servicios, Salud, Educación, Entretenimiento, Ropa, Tecnología, Mascotas, Deudas, General.
+El "type" debe ser 'expense' o 'income'.
+
+Mensaje del usuario: "${text}"
+      `.trim();
+
+      const result = await model.generateContent(prompt);
+      let responseText = result.response.text();
+      
+      responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+      
+      let parsed;
+      try {
+        parsed = JSON.parse(responseText);
+      } catch (err) {
+        console.error("Gemini returned invalid JSON:", responseText);
+        return { reply: "Uy, procesé mal la información en mi cabeza. Hablame más claro por favor." };
       }
 
-      // === EN QUÉ GASTO MÁS / TOP GASTOS ===
-      if (q.includes('en qué gasto') || q.includes('en que gasto') || q.includes('más gasto') || q.includes('mas gasto') || q.includes('top')) {
-        const catMap = gastosM.reduce((acc: any, t: any) => {
-          acc[t.category] = (acc[t.category] || 0) + t.amount;
-          return acc;
-        }, {});
-        
-        const sorted = Object.entries(catMap).sort(([,a]: any, [,b]: any) => b - a);
-        if (sorted.length === 0) return `No tienes gastos este mes, ${finalName}. ¡Impresionante! 🎉`;
-        
-        let reply = `Tus categorías con más gasto este mes, ${finalName}:\n\n`;
-        sorted.slice(0, 5).forEach(([cat, amt]: any, i: number) => {
-          const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
-          reply += `${medals[i]} ${cat}: $${amt.toLocaleString()}\n`;
-        });
-        return reply;
-      }
-
-      // === GASTO POR CATEGORÍA ESPECÍFICA ===
-      const categories = ['comida', 'transporte', 'sueldo', 'arriendo', 'servicios', 'salud', 'educación', 'entretenimiento', 'ropa', 'tecnología', 'mascotas', 'deudas'];
-      const mentionedCat = categories.find(c => q.includes(c));
-      if (mentionedCat && (q.includes('cuánto') || q.includes('cuanto') || q.includes('gasté') || q.includes('gaste'))) {
-        const catName = mentionedCat.charAt(0).toUpperCase() + mentionedCat.slice(1);
-        const catTotal = gastosM.filter((t: any) => t.category.toLowerCase() === mentionedCat).reduce((s: number, t: any) => s + t.amount, 0);
-        return `Este mes llevas $${catTotal.toLocaleString()} gastado en ${catName}, ${finalName}. ${catTotal > 0 ? '💸' : '¡Nada! 🎉'}`;
-      }
-
-      // === CUÁNTO HE GASTADO ESTE MES ===
-      if (q.includes('gastado') || q.includes('gastos') || q.includes('gasto')) {
-        return `Este mes llevas $${totalGastos.toLocaleString()} en gastos, ${finalName}. Tienes ${gastosM.length} transacciones de gasto registradas. 📊`;
-      }
-
-      // === CUÁNTO HE GANADO ===
-      if (q.includes('ganado') || q.includes('ingresos') || q.includes('ingreso') || q.includes('recibido')) {
-        return `Este mes has recibido $${totalIngresos.toLocaleString()} en ingresos, ${finalName}. 💰`;
-      }
-
-      // === LISTAR ÚLTIMAS TRANSACCIONES ===
-      if (q.includes('transacciones') || q.includes('historial') || q.includes('lista')) {
-        if (txs.length === 0) return `No tienes transacciones este mes, ${finalName}. 📝`;
-        
-        let reply = `Tus últimas transacciones, ${finalName}:\n\n`;
-        txs.slice(0, 7).forEach((t: any) => {
-          const fecha = new Date(t.date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
-          reply += `${t.type === 'income' ? '💰' : '💸'} ${t.category} — $${t.amount.toLocaleString()} (${fecha})\n`;
-        });
-        return reply;
-      }
-
-      // === BALANCE / RESUMEN / CÓMO ESTOY ===
-      return `Tu resumen de este mes, ${finalName}:\n\n💰 Ingresos: $${totalIngresos.toLocaleString()}\n💸 Gastos: $${totalGastos.toLocaleString()}\n📊 Balance: $${(totalIngresos - totalGastos).toLocaleString()}\n\n${totalIngresos > totalGastos ? '¡Vas bien! Estás en positivo. 💪' : 'Ojo, estás gastando más de lo que recibes. 👀'}`;
+      return {
+        reply: parsed.reply || "No te entendí bien, ¿qué me decías?",
+        action: parsed.action
+      };
 
     } catch (e) {
-      return `No pude consultar tus datos ahora, ${finalName}. Intenta de nuevo en un momento. 😅`;
+      console.error('Gemini Error:', e);
+      return { reply: "Tuve un cortocircuito en mi cerebro (servidor Gemini). Intenta de nuevo más tardecito." };
     }
-  };
-
-  const parseAmount = (text: string): number | null => {
-    const q = text.toLowerCase().replace(/,/g, '').trim();
-    
-    // "20mil", "20 mil", "20.000", "20000"
-    // "100 barras" = 100,000, "20 barras" = 20,000
-    // "1 palo" = 1,000,000, "2 palos" = 2,000,000
-    // "50k" = 50,000
-    
-    // Palos (millones)
-    const paloMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:palo|palos|melón|melones)/);
-    if (paloMatch) return parseFloat(paloMatch[1]) * 1000000;
-    
-    // Barras (miles)
-    const barraMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:barra|barras|lucas|luca)/);
-    if (barraMatch) return parseFloat(barraMatch[1]) * 1000;
-    
-    // "20k", "50K"
-    const kMatch = q.match(/(\d+(?:\.\d+)?)\s*k\b/);
-    if (kMatch) return parseFloat(kMatch[1]) * 1000;
-    
-    // "20mil", "20 mil", "100mil"
-    const milMatch = q.match(/(\d+(?:\.\d+)?)\s*mil\b/);
-    if (milMatch) return parseFloat(milMatch[1]) * 1000;
-    
-    // "1 millón", "2 millones"
-    const millonMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:millón|millon|millones)/);
-    if (millonMatch) return parseFloat(millonMatch[1]) * 1000000;
-    
-    // Formato con puntos como separadores: "20.000", "100.000"
-    const dotFormatMatch = q.match(/(\d{1,3}(?:\.\d{3})+)/);
-    if (dotFormatMatch) return parseFloat(dotFormatMatch[0].replace(/\./g, ''));
-    
-    // Número plano: "20000", "5000"
-    const plainMatch = q.match(/(\d+)/);
-    if (plainMatch) return parseFloat(plainMatch[0]);
-    
-    return null;
-  };
-
-  const parseIntent = (text: string) => {
-    const q = text.toLowerCase().trim();
-
-    // Manejo de saludos (Humanización)
-    if (['hola', 'hey', 'buenas', 'saludos', 'hola hola', 'buenos dias', 'buenas tardes', 'buenas noches', 'qué tal', 'que tal'].some(s => q === s || q.startsWith(s + ' ') || q.startsWith(s + ','))) {
-      const greetings = [
-        `¡Hola ${finalName}! 👋 Qué bueno saludarte. ¿En qué te ayudo hoy?`,
-        `¡Hey ${finalName}! ✨ ¿Cómo va tu día? Estoy lista para lo que necesites.`,
-        `¡Buenas ${finalName}! 👋 ¿Quieres anotar algún gasto o ingreso?`,
-      ];
-      return { reply: greetings[Math.floor(Math.random() * greetings.length)] };
-    }
-
-    // Agradecimientos y confirmaciones
-    if (['gracias', 'vale', 'listo', 'ok', 'bueno', 'genial', 'perfecto', 'dale'].some(s => q === s)) {
-      return { reply: `¡Con gusto, ${finalName}! Estaré aquí si necesitas registrar algo más. ✨` };
-    }
-
-    // Despedidas
-    if (['chao', 'adiós', 'adios', 'nos vemos', 'hasta luego', 'bye'].some(s => q === s || q.startsWith(s))) {
-      return { reply: `¡Hasta pronto, ${finalName}! 👋 Cuida esas finanzas. Aquí te espero. 💚` };
-    }
-
-    // Preguntas sobre qué puede hacer
-    if (q.includes('qué puedes hacer') || q.includes('que puedes hacer') || q.includes('ayuda') || q.includes('cómo funciona') || q.includes('como funciona')) {
-      return { reply: `Puedo ayudarte a registrar gastos e ingresos, ${finalName}. Solo dime algo como:\n\n• "Gasté 20mil en comida"\n• "Recibí 1 palo de sueldo"\n• "Taxi 15 barras"\n\n¡Y yo lo anoto por ti! 📝` };
-    }
-
-    // Extraer monto
-    const amount = parseAmount(q);
-    
-    // Detectar categoría
-    let category = 'General';
-    if (q.includes('comida') || q.includes('almuerzo') || q.includes('cena') || q.includes('desayuno') || q.includes('restaurante') || q.includes('mercado') || q.includes('supermercado')) category = 'Comida';
-    else if (q.includes('bus') || q.includes('transporte') || q.includes('taxi') || q.includes('uber') || q.includes('gasolin') || q.includes('pasaje') || q.includes('peaje')) category = 'Transporte';
-    else if (q.includes('sueldo') || q.includes('nómina') || q.includes('nomina') || q.includes('salario') || q.includes('quincena')) category = 'Sueldo';
-    else if (q.includes('regalo') || q.includes('sorpresa')) category = 'Regalo';
-    else if (q.includes('ahorro') || q.includes('ahorr')) category = 'Ahorro';
-    else if (q.includes('ropa') || q.includes('zapato') || q.includes('camisa') || q.includes('pantalón')) category = 'Ropa';
-    else if (q.includes('arriendo') || q.includes('alquiler') || q.includes('renta')) category = 'Arriendo';
-    else if (q.includes('luz') || q.includes('agua') || q.includes('internet') || q.includes('gas') || q.includes('servicio')) category = 'Servicios';
-    else if (q.includes('médico') || q.includes('medico') || q.includes('salud') || q.includes('medicina') || q.includes('farmacia') || q.includes('doctor')) category = 'Salud';
-    else if (q.includes('universidad') || q.includes('colegio') || q.includes('curso') || q.includes('estudio') || q.includes('educación')) category = 'Educación';
-    else if (q.includes('cine') || q.includes('fiesta') || q.includes('entretenimiento') || q.includes('salida') || q.includes('bar') || q.includes('trago')) category = 'Entretenimiento';
-    else if (q.includes('celular') || q.includes('teléfono') || q.includes('tecnología') || q.includes('computador')) category = 'Tecnología';
-    else if (q.includes('mascota') || q.includes('perro') || q.includes('gato') || q.includes('veterinari')) category = 'Mascotas';
-    else if (q.includes('deuda') || q.includes('préstamo') || q.includes('prestamo') || q.includes('cuota')) category = 'Deudas';
-
-    const isIncome = q.includes('gané') || q.includes('gane') || q.includes('recibí') || q.includes('recibi') || q.includes('ingreso') || q.includes('sueldo') || q.includes('me pagaron') || q.includes('me entró') || q.includes('me entro') || q.includes('me entraron') || q.includes('me llegaron') || q.includes('me llego') || q.includes('me lleg') || q.includes('cobré') || q.includes('cobre') || q.includes('nómina') || q.includes('quincena') || q.includes('salario') || q.includes('venta') || q.includes('vendí') || q.includes('vendi');
-    const isExpense = q.includes('gasté') || q.includes('gaste') || q.includes('pagué') || q.includes('pague') || q.includes('compré') || q.includes('compre') || q.includes('di') || q.includes('metí') || q.includes('meti') || q.includes('pagar') || q.includes('comprar');
-    
-    // Si contiene palabras de gasto, priorizar gasto a menos que sea muy claro que es ingreso
-    const type: 'income' | 'expense' = (isIncome && !isExpense) ? 'income' : 'expense';
-
-    if (amount) {
-      return {
-        reply: `Entendido, ${finalName}. He detectado un ${isIncome ? 'ingreso' : 'gasto'} de $${amount.toLocaleString()} en "${category}". ¿Lo registro?`,
-        action: { amount, category, type, description: category }
-      };
-    }
-    return { reply: `Cuéntame más detalles, ${finalName}. Dime cuánto y en qué gastaste. Por ejemplo: "Gasté 20mil en comida" o "Me llegaron 50 barras". 😊` };
   };
 
   const confirmTx = async (data: any) => {
