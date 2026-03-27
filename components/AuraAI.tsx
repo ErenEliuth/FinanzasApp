@@ -166,40 +166,103 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
     }, 1000);
   };
 
+  const parseAmount = (text: string): number | null => {
+    const q = text.toLowerCase().replace(/,/g, '').trim();
+    
+    // "20mil", "20 mil", "20.000", "20000"
+    // "100 barras" = 100,000, "20 barras" = 20,000
+    // "1 palo" = 1,000,000, "2 palos" = 2,000,000
+    // "50k" = 50,000
+    
+    // Palos (millones)
+    const paloMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:palo|palos|melón|melones)/);
+    if (paloMatch) return parseFloat(paloMatch[1]) * 1000000;
+    
+    // Barras (miles)
+    const barraMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:barra|barras|lucas|luca)/);
+    if (barraMatch) return parseFloat(barraMatch[1]) * 1000;
+    
+    // "20k", "50K"
+    const kMatch = q.match(/(\d+(?:\.\d+)?)\s*k\b/);
+    if (kMatch) return parseFloat(kMatch[1]) * 1000;
+    
+    // "20mil", "20 mil", "100mil"
+    const milMatch = q.match(/(\d+(?:\.\d+)?)\s*mil\b/);
+    if (milMatch) return parseFloat(milMatch[1]) * 1000;
+    
+    // "1 millón", "2 millones"
+    const millonMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:millón|millon|millones)/);
+    if (millonMatch) return parseFloat(millonMatch[1]) * 1000000;
+    
+    // Formato con puntos como separadores: "20.000", "100.000"
+    const dotFormatMatch = q.match(/(\d{1,3}(?:\.\d{3})+)/);
+    if (dotFormatMatch) return parseFloat(dotFormatMatch[0].replace(/\./g, ''));
+    
+    // Número plano: "20000", "5000"
+    const plainMatch = q.match(/(\d+)/);
+    if (plainMatch) return parseFloat(plainMatch[0]);
+    
+    return null;
+  };
+
   const parseIntent = (text: string) => {
     const q = text.toLowerCase().trim();
 
     // Manejo de saludos (Humanización)
-    if (['hola', 'hey', 'buenas', 'saludos', 'hola hola'].some(s => q === s || q.startsWith(s + ' '))) {
-      return { 
-        reply: `¡Hola ${finalName}! 👋 Qué bueno saludarte. Aquí estoy, lista para ayudarte con tus cuentas o simplemente para charlar. ¿Qué tienes en mente?` 
-      };
+    if (['hola', 'hey', 'buenas', 'saludos', 'hola hola', 'buenos dias', 'buenas tardes', 'buenas noches', 'qué tal', 'que tal'].some(s => q === s || q.startsWith(s + ' ') || q.startsWith(s + ','))) {
+      const greetings = [
+        `¡Hola ${finalName}! 👋 Qué bueno saludarte. ¿En qué te ayudo hoy?`,
+        `¡Hey ${finalName}! ✨ ¿Cómo va tu día? Estoy lista para lo que necesites.`,
+        `¡Buenas ${finalName}! 👋 ¿Quieres anotar algún gasto o ingreso?`,
+      ];
+      return { reply: greetings[Math.floor(Math.random() * greetings.length)] };
     }
 
-    if (['gracias', 'vale', 'listo', 'ok', 'bueno'].some(s => q === s)) {
+    // Agradecimientos y confirmaciones
+    if (['gracias', 'vale', 'listo', 'ok', 'bueno', 'genial', 'perfecto', 'dale'].some(s => q === s)) {
       return { reply: `¡Con gusto, ${finalName}! Estaré aquí si necesitas registrar algo más. ✨` };
     }
 
-    const amountMatch = q.match(/(\d+[\d\.]*)/);
-    const amount = amountMatch ? parseFloat(amountMatch[0].replace(/\./g, '')) : null;
-    
-    let category = 'General';
-    if (q.includes('comida') || q.includes('almuerzo') || q.includes('cena')) category = 'Comida';
-    if (q.includes('bus') || q.includes('transporte') || q.includes('taxi') || q.includes('gasolin')) category = 'Transporte';
-    if (q.includes('sueldo') || q.includes('pago') || q.includes('nómina')) category = 'Sueldo';
-    if (q.includes('regalo') || q.includes('sorpresa')) category = 'Regalo';
-    if (q.includes('ahorro')) category = 'Ahorro';
+    // Despedidas
+    if (['chao', 'adiós', 'adios', 'nos vemos', 'hasta luego', 'bye'].some(s => q === s || q.startsWith(s))) {
+      return { reply: `¡Hasta pronto, ${finalName}! 👋 Cuida esas finanzas. Aquí te espero. 💚` };
+    }
 
-    const isIncome = q.includes('gané') || q.includes('recibí') || q.includes('ingreso') || q.includes('sueldo');
+    // Preguntas sobre qué puede hacer
+    if (q.includes('qué puedes hacer') || q.includes('que puedes hacer') || q.includes('ayuda') || q.includes('cómo funciona') || q.includes('como funciona')) {
+      return { reply: `Puedo ayudarte a registrar gastos e ingresos, ${finalName}. Solo dime algo como:\n\n• "Gasté 20mil en comida"\n• "Recibí 1 palo de sueldo"\n• "Taxi 15 barras"\n\n¡Y yo lo anoto por ti! 📝` };
+    }
+
+    // Extraer monto
+    const amount = parseAmount(q);
+    
+    // Detectar categoría
+    let category = 'General';
+    if (q.includes('comida') || q.includes('almuerzo') || q.includes('cena') || q.includes('desayuno') || q.includes('restaurante') || q.includes('mercado') || q.includes('supermercado')) category = 'Comida';
+    else if (q.includes('bus') || q.includes('transporte') || q.includes('taxi') || q.includes('uber') || q.includes('gasolin') || q.includes('pasaje') || q.includes('peaje')) category = 'Transporte';
+    else if (q.includes('sueldo') || q.includes('nómina') || q.includes('nomina') || q.includes('salario') || q.includes('quincena')) category = 'Sueldo';
+    else if (q.includes('regalo') || q.includes('sorpresa')) category = 'Regalo';
+    else if (q.includes('ahorro') || q.includes('ahorr')) category = 'Ahorro';
+    else if (q.includes('ropa') || q.includes('zapato') || q.includes('camisa') || q.includes('pantalón')) category = 'Ropa';
+    else if (q.includes('arriendo') || q.includes('alquiler') || q.includes('renta')) category = 'Arriendo';
+    else if (q.includes('luz') || q.includes('agua') || q.includes('internet') || q.includes('gas') || q.includes('servicio')) category = 'Servicios';
+    else if (q.includes('médico') || q.includes('medico') || q.includes('salud') || q.includes('medicina') || q.includes('farmacia') || q.includes('doctor')) category = 'Salud';
+    else if (q.includes('universidad') || q.includes('colegio') || q.includes('curso') || q.includes('estudio') || q.includes('educación')) category = 'Educación';
+    else if (q.includes('cine') || q.includes('fiesta') || q.includes('entretenimiento') || q.includes('salida') || q.includes('bar') || q.includes('trago')) category = 'Entretenimiento';
+    else if (q.includes('celular') || q.includes('teléfono') || q.includes('tecnología') || q.includes('computador')) category = 'Tecnología';
+    else if (q.includes('mascota') || q.includes('perro') || q.includes('gato') || q.includes('veterinari')) category = 'Mascotas';
+    else if (q.includes('deuda') || q.includes('préstamo') || q.includes('prestamo') || q.includes('cuota')) category = 'Deudas';
+
+    const isIncome = q.includes('gané') || q.includes('gane') || q.includes('recibí') || q.includes('recibi') || q.includes('ingreso') || q.includes('sueldo') || q.includes('me pagaron') || q.includes('me lleg') || q.includes('cobré') || q.includes('cobre') || q.includes('nómina') || q.includes('quincena') || q.includes('salario');
     const type: 'income' | 'expense' = isIncome ? 'income' : 'expense';
 
     if (amount) {
       return {
-        reply: `Entendido ${finalName}. He detectado un ${isIncome ? 'ingreso' : 'gasto'} de $${amount.toLocaleString()} en la categoría ${category}. ¿Quieres que lo registre oficialmente?`,
-        action: { amount, category, type, description: text }
+        reply: `Entendido, ${finalName}. He detectado un ${isIncome ? 'ingreso' : 'gasto'} de $${amount.toLocaleString()} en "${category}". ¿Lo registro?`,
+        action: { amount, category, type, description: category }
       };
     }
-    return { reply: `Cuéntame más detalles, ${finalName}. Si me dices cuánto gastaste (ej: "Gasté 50 mil en comida"), podré ayudarte a anotarlo.` };
+    return { reply: `Cuéntame más detalles, ${finalName}. Dime cuánto y en qué gastaste. Por ejemplo: "Gasté 20mil en comida" o "Me llegaron 50 barras". 😊` };
   };
 
   const confirmTx = async (data: any) => {
