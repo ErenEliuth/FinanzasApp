@@ -225,9 +225,10 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
 
   const askSanty = async (text: string): Promise<{reply: string, action?: any}> => {
     try {
-      const apiKey = "AIzaSyDpoRIiMz7uswXT1omgioDmaipOphyOZI4";
+      // Leemos la llave segura desde el archivo .env oculto, NUNCA HARCODER LA LLAVE
+      const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
       if (!apiKey) {
-        return { reply: "Uy, me falta algo para pensar (falta la llave API de Gemini en .env)." };
+        return { reply: "La llave de Gemini ya no está en el código. ¡El bot de Google la dio de baja por ponerla pública!" };
       }
 
       const genAI = new GoogleGenerativeAI(apiKey);
@@ -300,9 +301,9 @@ Mensaje del usuario: "${text}"
         action: parsed.action
       };
 
-    } catch (e) {
+    } catch (e: any) {
       console.error('Gemini Error:', e);
-      return { reply: "Tuve un cortocircuito en mi cerebro (servidor Gemini). Intenta de nuevo más tardecito." };
+      return { reply: `Error Gemini: ${e?.message || String(e)}` };
     }
   };
 

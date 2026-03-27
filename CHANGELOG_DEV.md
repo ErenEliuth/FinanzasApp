@@ -238,6 +238,19 @@
 
 ---
 
+### 2026-03-26 — Inteligencia Artificial Real (Google Gemini 1.5 Flash)
+
+**Archivos modificados:**
+- `components/AuraAI.tsx` — Reemplazo total del motor de NLP heurístico por SDK oficial.
+
+**Cambios realizados:**
+- ✅ **Cerebro Inteligente**: Santy ya no usa reglas "if/else" para adivinar intenciones. Ahora usa el supermodelo **Gemini 1.5 Flash** de Google.
+- ✅ **Inyección de Contexto en Tiempo Real**: Gemini recibe tras bambalinas los saldos actualizados, gastos procesados e historial del mes para responder preguntas con datos precisos.
+- ✅ **Respuesta Funcional Estructurada**: La IA es obligada mediante *Prompt Engineering* avanzado a devolver sus decisiones en formato JSON crudo, permitiendo que la App ejecute transacciones con cero clics.
+- ✅ **Comprensión de Lenguaje Natural**: "Me comí una empanada de 5 lucas", "Tirame un consejo" o "Ayer me gasté 50 barras" son interpretados perfectamente y categorizados con la respectiva conversión numérica.
+
+---
+
 ### 2026-03-26 — Lógica Avanzada de Gastos Fijos y Reinicio Mensual
 
 **Archivos modificados:**
