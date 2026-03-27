@@ -14,6 +14,7 @@ Deno.serve(async (req) => {
 
   try {
     const { text, userName } = await req.json()
+    const finalUserName = userName || 'Amigo';
     
     // Inicializar cliente de Supabase con el token del usuario
     const authHeader = req.headers.get('Authorization')
@@ -34,17 +35,19 @@ Deno.serve(async (req) => {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     
-    const { data: txs } = await supabaseClient
+    const { data: txs, error: dbError } = await supabaseClient
       .from('transactions')
       .select('*')
       .eq('user_id', user.id)
       .gte('date', startOfMonth)
       .order('date', { ascending: false });
 
-    const totalGastos = (txs || []).filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + t.amount, 0);
-    const totalIngresos = (txs || []).filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + t.amount, 0);
-    const txHistory = (txs || []).slice(0, 8).map((t: any) => 
-      `${t.type === 'income' ? '+' : '-'}$${t.amount} en ${t.category}`
+    if (dbError) console.error('Error fetching txs:', dbError);
+
+    const totalGastos = (txs || []).filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + (Number(t.amount) || 0), 0);
+    const totalIngresos = (txs || []).filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + (Number(t.amount) || 0), 0);
+    const txHistory = (txs || []).slice(0, 10).map((t: any) => 
+      `${t.type === 'income' ? '+' : '-'}$${t.amount} en ${t.category} (${t.description || ''})`
     ).join(', ');
 
     // Configuración de Gemini
@@ -55,23 +58,29 @@ Deno.serve(async (req) => {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    // Usamos JSON mode para asegurar una respuesta parseable
     const model = genAI.getGenerativeModel({ 
       model: "gemini-1.5-flash",
       generationConfig: { responseMimeType: "application/json" }
     });
 
     const prompt = `
-      Eres Santy, la asistente financiera de ${userName}.
-      Contexto de este mes:
-      - Ingresos: $${totalIngresos} | Gastos: $${totalGastos}
-      - Balance Actual: $${totalIngresos - totalGastos}
-      - Últimas transacciones: ${txHistory || 'Sin movimientos aún'}
+      Eres Santy, la asistente financiera inteligente de ${finalUserName}.
+      
+      CONTEXTO DEL MES ACTUAL:
+      - Ingresos totales: $${totalIngresos}
+      - Gastos totales: $${totalGastos}
+      - Balance: $${totalIngresos - totalGastos}
+      - Últimos movimientos: ${txHistory || 'Sin movimientos aún'}
 
-      Objetivo: Ayudar a registrar gastos/ingresos o responder dudas financieras.
-      REGLA CRÍTICA: Responde SIEMPRE en formato JSON con esta estructura exacta:
+      INSTRUCCIONES:
+      1. Ayuda al usuario a registrar gastos o ingresos detectando montos, categorías y descripciones.
+      2. Responde dudas sobre sus finanzas basándote en el contexto proporcionado.
+      3. Sé amable, breve y profesional.
+
+      REGLA DE FORMATO (OBLIGATORIO):
+      Responde EXCLUSIVAMENTE en formato JSON con esta estructura:
       {
-        "reply": "Tu mensaje amable aquí",
+        "reply": "Tu mensaje aquí",
         "action": null o {"amount": número, "category": "Nombre", "type": "expense" o "income", "description": "detalle"}
       }
       
@@ -80,16 +89,23 @@ Deno.serve(async (req) => {
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const responseText = response.text();
+    let responseText = response.text();
     
-    console.log('Gemini raw response:', responseText);
+    // Limpieza de posible formato markdown sobrante
+    responseText = responseText.replace(/```json|```/g, '').trim();
+    
+    console.log('Gemini processed response:', responseText);
 
-    // Validamos que sea un JSON válido antes de enviarlo
+    // Validamos que sea un JSON válido
     try {
       JSON.parse(responseText);
     } catch (e) {
-      console.error('Error parsing Gemini JSON:', responseText);
-      throw new Error('La IA generó una respuesta inválida');
+      console.error('JSON Parse Error:', e, 'Raw text:', responseText);
+      // Fallback si la IA falla el formato
+      responseText = JSON.stringify({
+        reply: "Lo siento, tuve un pequeño error al procesar tu solicitud. ¿Podrías repetirlo?",
+        action: null
+      });
     }
     
     return new Response(responseText, {
@@ -97,11 +113,12 @@ Deno.serve(async (req) => {
     })
 
   } catch (error) {
-    console.error('Error en Edge Function:', error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('Edge Function Main Catch:', error);
+    return new Response(JSON.stringify({ error: error.message || 'Error interno' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
 })
+
 

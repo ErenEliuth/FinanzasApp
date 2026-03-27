@@ -225,21 +225,38 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
 
   const askSanty = async (text: string): Promise<{reply: string, action?: any}> => {
     try {
-      // Llamamos a la Edge Function segura en lugar de usar la llave local
+      // Llamamos a la Edge Function segura
       const { data, error } = await supabase.functions.invoke('ask-santy', {
         body: { text, userName: finalName }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase Function Error:', error);
+        throw error;
+      }
+
+      // Si data es un string (a veces sucede si no se parsea bien), intentamos parsearlo
+      let result = data;
+      if (typeof data === 'string') {
+        try {
+          result = JSON.parse(data);
+        } catch (e) {
+          console.error('Failed to parse string data:', data);
+        }
+      }
 
       return {
-        reply: data.reply || "No te entendí bien, ¿qué me decías?",
-        action: data.action
+        reply: result?.reply || "No te entendí bien, ¿qué me decías?",
+        action: result?.action || null
       };
 
     } catch (e: any) {
-      console.error('Santy/Supabase Error (Detalles):', JSON.stringify(e, null, 2));
-      return { reply: `Ups, mi conexión cerebral falló. Intenta de nuevo. 😅` };
+      console.error('Santy Integration Error:', e);
+      // Extraer mensaje de error más legible
+      const errorMsg = e.message || 'Error desconocido';
+      return { 
+        reply: `Ups, mi conexión cerebral falló (${errorMsg}). ¿Podrías intentar de nuevo? 😅` 
+      };
     }
   };
 
