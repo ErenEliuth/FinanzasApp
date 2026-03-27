@@ -432,12 +432,8 @@ export default function HomeScreen() {
               {pendingItems.length > 0 && <View style={styles.notifBadge} />}
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.headerIconBtn, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }]}
-              onPress={toggleHiddenMode}
-            >
-              <Ionicons name={isHidden ? 'eye-off' : 'eye'} size={18} color={isDark ? '#D4C5A9' : '#8B7355'} />
-            </TouchableOpacity>
+
+            <MagicAuraButton />
 
             {isDesktop && (
               <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -480,9 +476,13 @@ export default function HomeScreen() {
               activeOpacity={0.9}
               onPress={() => setBreakdownVisible(true)}
             >
-              <View style={{ position: 'absolute', top: 20, right: 20, zIndex: 999, elevation: 10 }}>
-                <MagicAuraButton />
-              </View>
+              <TouchableOpacity 
+                style={{ position: 'absolute', top: 20, right: 20, zIndex: 999, elevation: 10, padding: 8, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20 }}
+                onPress={toggleHiddenMode}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name={isHidden ? 'eye-off' : 'eye'} size={18} color="#FFF" />
+              </TouchableOpacity>
               <Text style={styles.balanceLabel}>DINERO ACTIVO</Text>
               <Text style={styles.balanceAmount}>{fmt(dineroActivo)}</Text>
               <View style={styles.balanceBadge}>
