@@ -760,37 +760,38 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      {/* ── Modal de Novedades (What's New) ────────────────────────── */}
+      {/* ── Modal de Novedades (Changelog) ────────────────────────── */}
       <Modal visible={changelogVisible} transparent animationType="fade" onRequestClose={markChangelogSeen}>
-        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
-          <View style={[styles.modalCard, { backgroundColor: isDark ? colorsNav.card : '#FFF', paddingBottom: 24, width: '90%', maxWidth: 450 }]}>
-            <View style={{ alignItems: 'center', marginBottom: 24 }}>
-              <View style={{ width: 64, height: 64, borderRadius: 24, backgroundColor: colorsNav.accent + '20', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
-                <MaterialIcons name="auto-awesome" size={32} color={colorsNav.accent} />
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: isDark ? colorsNav.card : '#FFF', maxWidth: 450 }]}>
+            <View style={{ alignItems: 'center', marginBottom: 24, marginTop: 8 }}>
+              <View style={[styles.changelogIconWrap, { backgroundColor: colorsNav.accent + '15', width: 64, height: 64, borderRadius: 24, marginBottom: 16 }]}>
+                <Ionicons name="sparkles" size={32} color={colorsNav.accent} />
               </View>
-              <Text style={[styles.modalTitle, { color: colorsNav.text, fontSize: 24 }]}>¡Novedades en Sanctuary!</Text>
-              <Text style={[styles.modalSub, { color: colorsNav.sub, marginTop: 4 }]}>Descubre lo último que hemos mejorado</Text>
+              <Text style={[styles.modalTitle, { color: colorsNav.text, textAlign: 'center' }]}>¡Novedades en Sanctuary!</Text>
+              <Text style={[styles.modalSub, { color: colorsNav.sub, textAlign: 'center', marginTop: 4 }]}>Hemos mejorado tu experiencia financiera</Text>
             </View>
 
-            <ScrollView style={{ maxHeight: 350 }} showsVerticalScrollIndicator={false}>
+            <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
               {CHANGELOG_UPDATES.map((update, idx) => (
-                <View key={idx} style={{ flexDirection: 'row', gap: 16, marginBottom: 20, paddingHorizontal: 4 }}>
-                  <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: isDark ? colorsNav.border : '#F5EDE0', justifyContent: 'center', alignItems: 'center' }}>
-                    <MaterialIcons name={update.icon as any} size={20} color={colorsNav.accent} />
+                <View key={idx} style={[styles.changelogItem, { backgroundColor: isDark ? colorsNav.bg : '#F8F5F0' }]}>
+                  <View style={[styles.changelogIconWrap, { backgroundColor: colorsNav.accent + (isDark ? '15' : '10') }]}>
+                    <MaterialIcons name={update.icon as any} size={22} color={colorsNav.accent} />
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 16, fontWeight: '800', color: colorsNav.text, marginBottom: 4 }}>{update.title}</Text>
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: colorsNav.sub, lineHeight: 18 }}>{update.description}</Text>
+                  <View style={styles.changelogTextWrap}>
+                    <Text style={[styles.changelogItemTitle, { color: colorsNav.text }]}>{update.title}</Text>
+                    <Text style={[styles.changelogItemDesc, { color: colorsNav.sub }]}>{update.description}</Text>
                   </View>
                 </View>
               ))}
             </ScrollView>
 
             <TouchableOpacity 
-              style={[styles.modalCloseBtn, { backgroundColor: colorsNav.accent, marginTop: 20, borderTopWidth: 0 }]} 
+              style={[styles.modalCloseBtn, { backgroundColor: colorsNav.accent, borderTopWidth: 0 }]} 
               onPress={markChangelogSeen}
+              activeOpacity={0.8}
             >
-              <Text style={[styles.modalCloseBtnText, { color: '#FFF', fontWeight: '900' }]}>¡Entendido!</Text>
+              <Text style={[styles.modalCloseBtnText, { color: '#FFF' }]}>¡Explorar Sanctuary!</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1198,40 +1199,74 @@ const styles = StyleSheet.create({
   // ── Modals ──────────────────────────────────────────────────
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 24,
   },
   modalCard: {
     width: '100%',
-    borderRadius: 24,
+    borderRadius: 32,
     padding: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 8,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: -0.5,
   },
   modalSub: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
-    textAlign: 'center',
   },
   modalCloseBtn: {
-    height: 50,
-    borderRadius: 16,
+    height: 56,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   modalCloseBtnText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+
+  // ── Changelog Specific ──────────────────────────────────────
+  changelogItem: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 20,
+    padding: 16,
+    borderRadius: 20,
+  },
+  changelogIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  changelogTextWrap: {
+    flex: 1,
+  },
+  changelogItemTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  changelogItemDesc: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '500',
   },
 
   // ── Breakdown ───────────────────────────────────────────────
