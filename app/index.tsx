@@ -30,15 +30,11 @@ export default function WelcomeScreen() {
             Animated.timing(slideUp, { toValue: 0, duration: 800, useNativeDriver: true }),
         ]).start();
 
-        const timer = setTimeout(async () => {
-            if (user) {
-                router.replace('/(tabs)');
-            } else {
-                router.replace('/login');
-            }
-        }, 800);
-
-        return () => clearTimeout(timer);
+        if (user) {
+            router.replace('/(tabs)');
+        } else {
+            router.replace('/login');
+        }
     }, [loading, user]);
 
     const bgColor = '#0F172A';
