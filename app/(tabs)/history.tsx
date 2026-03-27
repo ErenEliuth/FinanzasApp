@@ -2,7 +2,7 @@ import { useAuth } from '@/utils/auth';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
-import { MagicAuraButton } from '@/components/MagicAuraButton';
+// Eliminado: MagicAuraButton
 import React, { useEffect, useState } from 'react';
 import { ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -175,7 +175,7 @@ export default function HistoryScreen() {
                             {showChart ? 'Ver Lista' : 'Gráfico'}
                         </Text>
                     </TouchableOpacity>
-                    <MagicAuraButton />
+{/* Eliminado: MagicAuraButton */}
                 </View>
             </View>
 

@@ -14,7 +14,7 @@ import { THEMES, ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LineChart } from 'react-native-chart-kit';
-import { MagicAuraButton } from '@/components/MagicAuraButton';
+// Eliminado: MagicAuraButton
 import {
     Alert,
     Dimensions,
@@ -592,7 +592,7 @@ export default function ProfileScreen() {
                                 color={colorsNav.accent} 
                             />
                         </TouchableOpacity>
-                        <MagicAuraButton />
+{/* Eliminado: MagicAuraButton */}
                     </View>
                 </View>
 

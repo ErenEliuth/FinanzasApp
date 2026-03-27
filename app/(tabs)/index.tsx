@@ -9,7 +9,7 @@ import { THEMES, ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LATEST_VERSION, CHANGELOG_UPDATES } from '@/constants/Changelog';
-import { MagicAuraButton } from '@/components/MagicAuraButton';
+// Eliminado: MagicAuraButton
 import {
   Alert,
   Modal,
@@ -433,7 +433,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
 
 
-            <MagicAuraButton />
+{/* Eliminado: MagicAuraButton */}
 
             {isDesktop && (
               <View style={{ flexDirection: 'row', gap: 10 }}>

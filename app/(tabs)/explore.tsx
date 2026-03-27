@@ -4,7 +4,7 @@ import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { MagicAuraButton } from '@/components/MagicAuraButton';
+// Eliminado: MagicAuraButton
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -56,11 +56,7 @@ export default function AddTransactionScreen() {
   const [accountModalVisible, setAccountModalVisible] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newAccountName, setNewAccountName] = useState('');
-  const [savingsModalVisible, setSavingsModalVisible] = useState(false);
-  const [incomeToSave, setIncomeToSave] = useState(0);
-  const [savingsSuggestion, setSavingsSuggestion] = useState(0);
-  const [savingsMessage, setSavingsMessage] = useState('');
-  const [savingsPercentage, setSavingsPercentage] = useState(15);
+  // Eliminado: estados de sugerencia inteligente de ahorro
 
   const router = useRouter();
   const { user, theme } = useAuth();
@@ -216,49 +212,6 @@ export default function AddTransactionScreen() {
     const parsed = parseFloat(amount.replace(/\./g, '').replace(',', '.'));
     if (isNaN(parsed) || parsed <= 0) return;
 
-    if (type === 'income') {
-      const calculateSmartSaving = async () => {
-        try {
-          const today = new Date();
-          const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
-          const { data: txData } = await supabase
-            .from('transactions')
-            .select('type, amount, category')
-            .eq('user_id', user?.id)
-            .gte('date', startOfMonth);
-
-          const monthInc = (txData?.filter(t => t.type === 'income' && t.category !== 'Transferencia').reduce((s, t) => s + t.amount, 0) || 0) + parsed;
-          const monthExp = txData?.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia').reduce((s, t) => s + t.amount, 0) || 0;
-          const { data: debtData } = await supabase.from('debts').select('value, paid').eq('user_id', user?.id);
-          const totalDebt = debtData?.reduce((s, d) => s + (d.value - (d.paid || 0)), 0) || 0;
-
-          let pct = 15;
-          let msg = "Es un buen momento para separar una parte.";
-          const debtToIncome = totalDebt / (monthInc || 1);
-          const surplusRatio = (monthInc - monthExp) / (monthInc || 1);
-
-          if (debtToIncome > 1.2) { pct = 5; msg = "Tus deudas son altas este mes. Sugerimos un ahorro pequeño del 5%."; }
-          else if (surplusRatio > 0.4) { pct = 20; msg = "¡Vas muy bien! Podrías ahorrar un 20% sin problemas."; }
-          else if (surplusRatio < 0.1) { pct = 10; msg = "Este mes tu presupuesto está ajustado. Ahorra un 10%."; }
-          else { pct = 15; msg = "Basado en tus finanzas, un 15% es lo ideal ahora."; }
-
-          setIncomeToSave(parsed);
-          setSavingsPercentage(pct);
-          setSavingsSuggestion(Math.round(parsed * (pct / 100)));
-          setSavingsMessage(msg);
-          setSavingsModalVisible(true);
-        } catch (e) {
-          setIncomeToSave(parsed);
-          setSavingsPercentage(15);
-          setSavingsSuggestion(Math.round(parsed * 0.15));
-          setSavingsMessage("Conserva el hábito y separa un poco para el futuro.");
-          setSavingsModalVisible(true);
-        }
-      };
-      calculateSmartSaving();
-      return;
-    }
-
     if (type === 'transfer') {
       if (!destAccount || destAccount === account) {
         Alert.alert('Error', 'Selecciona una cuenta de destino diferente.');
@@ -273,13 +226,13 @@ export default function AddTransactionScreen() {
           user_id: user?.id, type: 'income', amount: parsed, description: desc, category: 'Transferencia', account: destAccount, date: new Date().toISOString(),
         }]);
         setAmount(''); setDescription(''); setDestAccount('');
-        router.push('/(tabs)');
+        if (router.canGoBack()) router.back(); else router.replace('/(tabs)');
       } catch (e) { console.error('Error transfiriendo:', e); }
       return;
     }
 
-    const dbType = 'expense';
-    const dbCategory = type === 'ahorro' ? 'Ahorro' : (category || 'General');
+    const dbType = type === 'income' ? 'income' : 'expense';
+    const dbCategory = type === 'ahorro' ? 'Ahorro' : (category || (type === 'income' ? 'Ingreso' : 'General'));
     const desc = description.trim() || dbCategory;
 
     try {
@@ -288,27 +241,11 @@ export default function AddTransactionScreen() {
       }]);
       if (error) throw error;
       setAmount(''); setDescription(''); setCategory('');
-      router.push('/(tabs)');
+      if (router.canGoBack()) router.back(); else router.replace('/(tabs)');
     } catch (e) { console.error('Error guardando transacción:', e); }
   };
 
-  const confirmSaveWithSavings = async (shouldSave15: boolean) => {
-    const parsed = incomeToSave;
-    const savings = savingsSuggestion;
-    const desc = description.trim() || (category || 'Sueldo');
-    try {
-      await supabase.from('transactions').insert([{
-        user_id: user?.id, type: 'income', amount: parsed, description: desc, category: category || 'Sueldo', account: account, date: new Date().toISOString(),
-      }]);
-      if (shouldSave15) {
-        await supabase.from('transactions').insert([{
-          user_id: user?.id, type: 'expense', amount: savings, description: `Ahorro (${savingsPercentage}%) de: ${desc}`, category: 'Ahorro', account: account, date: new Date().toISOString(),
-        }]);
-      }
-      setSavingsModalVisible(false); setAmount(''); setDescription(''); setCategory('');
-      router.push('/(tabs)');
-    } catch (e) { Alert.alert('Error', 'No se pudo guardar la transacción.'); }
-  };
+// Eliminado: confirmSaveWithSavings
 
   const allCategories = type === 'income'
     ? [...DEFAULT_INCOME_CATS, ...customCategories]
@@ -325,7 +262,7 @@ export default function AddTransactionScreen() {
             <View style={styles.header}>
               <Text style={[styles.title, { color: colors.text }]}>Nueva Transacción</Text>
               <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                <MagicAuraButton />
+{/* Eliminado: MagicAuraButton */}
                 <TouchableOpacity onPress={() => router.back()} style={[styles.closeBtn, { backgroundColor: colors.card }]}>
                   <Ionicons name="close" size={24} color={colors.text} />
                 </TouchableOpacity>
@@ -524,29 +461,7 @@ export default function AddTransactionScreen() {
           </View>
         </Modal>
 
-        <Modal visible={savingsModalVisible} transparent animationType="fade">
-          <View style={[styles.overlay, { backgroundColor: 'rgba(0,0,0,0.8)' }]}>
-             <View style={[styles.modalBox, { backgroundColor: colors.card, alignItems: 'center' }]}>
-                <View style={[styles.aiIcon, { backgroundColor: colors.accent + '15' }]}>
-                  <MaterialIcons name="auto-awesome" size={32} color={colors.accent} />
-                </View>
-                <Text style={[styles.modalTitle, { color: colors.text, textAlign: 'center' }]}>Sugerencia Inteligente</Text>
-                <Text style={[styles.modalSub, { color: colors.sub, textAlign: 'center' }]}>{savingsMessage}</Text>
-                <View style={[styles.suggestionPill, { backgroundColor: colors.accent }]}>
-                  <Text style={[styles.suggestionAmt, { color: '#FFF' }]}>{fmtCOP(savingsSuggestion)}</Text>
-                  <Text style={[styles.suggestionLab, { color: 'rgba(255,255,255,0.8)' }]}>Ahorro ({savingsPercentage}%)</Text>
-                </View>
-                <View style={styles.modalBtns}>
-                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.bg }]} onPress={() => confirmSaveWithSavings(false)}>
-                    <Text style={{ color: colors.text }}>Solo guardar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.accent }]} onPress={() => confirmSaveWithSavings(true)}>
-                    <Text style={{ color: '#FFF', fontWeight: '800' }}>Sí, ahorrar</Text>
-                  </TouchableOpacity>
-                </View>
-             </View>
-          </View>
-        </Modal>
+{/* Eliminado: Modal de Sugerencia Inteligente */}
       </SafeAreaView>
     </TouchableWithoutFeedback>
   );
