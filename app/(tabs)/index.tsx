@@ -439,7 +439,6 @@ export default function HomeScreen() {
               <Ionicons name={isHidden ? 'eye-off' : 'eye'} size={18} color={isDark ? '#D4C5A9' : '#8B7355'} />
             </TouchableOpacity>
 
-            <MagicAuraButton />
             {isDesktop && (
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <TouchableOpacity
@@ -477,10 +476,13 @@ export default function HomeScreen() {
 
             {/* ── Balance Card (Green) ─────────────────────────────────── */}
             <TouchableOpacity
-              style={[styles.balanceCard, { backgroundColor: colorsNav.greenCard }]}
+              style={[styles.balanceCard, { backgroundColor: colorsNav.greenCard, position: 'relative' }]}
               activeOpacity={0.9}
               onPress={() => setBreakdownVisible(true)}
             >
+              <View style={{ position: 'absolute', top: 20, right: 20, zIndex: 10 }}>
+                <MagicAuraButton />
+              </View>
               <Text style={styles.balanceLabel}>DINERO ACTIVO</Text>
               <Text style={styles.balanceAmount}>{fmt(dineroActivo)}</Text>
               <View style={styles.balanceBadge}>
