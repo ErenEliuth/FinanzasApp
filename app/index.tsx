@@ -50,7 +50,7 @@ export default function WelcomeScreen() {
             <SafeAreaView style={styles.content}>
                 <Animated.View style={[styles.brandContainer, { opacity: fade, transform: [{ translateY: slideUp }] }]}>
                     <View style={styles.logoRow}>
-                        <Text style={styles.logoText}>Sanctuary</Text>
+                        <Text style={styles.logoText}>Zenly</Text>
                         <View style={styles.accentDot} />
                     </View>
                     <View style={styles.taglineWrapper}>

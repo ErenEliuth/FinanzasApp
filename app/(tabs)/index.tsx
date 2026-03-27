@@ -421,7 +421,7 @@ export default function HomeScreen() {
             <View style={[styles.logoIcon, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }]}>
               <MaterialIcons name="shield" size={20} color={isDark ? '#A09B8C' : '#8B7355'} />
             </View>
-            <Text style={[styles.logoText, { color: isDark ? '#D4C5A9' : '#8B7355' }]}>Sanctuary</Text>
+            <Text style={[styles.logoText, { color: isDark ? '#D4C5A9' : '#8B7355' }]}>Zenly</Text>
           </View>
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
             <TouchableOpacity
@@ -761,7 +761,7 @@ export default function HomeScreen() {
               <View style={[styles.changelogIconWrap, { backgroundColor: colorsNav.accent + '15', width: 64, height: 64, borderRadius: 24, marginBottom: 16 }]}>
                 <Ionicons name="sparkles" size={32} color={colorsNav.accent} />
               </View>
-              <Text style={[styles.modalTitle, { color: colorsNav.text, textAlign: 'center' }]}>¡Novedades en Sanctuary!</Text>
+              <Text style={[styles.modalTitle, { color: colorsNav.text, textAlign: 'center' }]}>¡Novedades en Zenly!</Text>
               <Text style={[styles.modalSub, { color: colorsNav.sub, textAlign: 'center', marginTop: 4 }]}>Hemos mejorado tu experiencia financiera</Text>
             </View>
 
@@ -784,7 +784,7 @@ export default function HomeScreen() {
               onPress={markChangelogSeen}
               activeOpacity={0.8}
             >
-              <Text style={[styles.modalCloseBtnText, { color: '#FFF' }]}>¡Explorar Sanctuary!</Text>
+              <Text style={[styles.modalCloseBtnText, { color: '#FFF' }]}>¡Explorar Zenly!</Text>
             </TouchableOpacity>
           </View>
         </View>

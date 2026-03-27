@@ -1,16 +1,16 @@
-export const LATEST_VERSION = '2026-03-27-v18';
+export const LATEST_VERSION = '2026-03-27-v19'; // Incremento para re-mostrar a Eliuth con nuevo diseño Zenly
 
 export const CHANGELOG_UPDATES = [
   {
-    title: '🌿 Sanctuary: Esencial y Rápido',
-    titleEn: 'Sanctuary: Essential & Quick',
+    title: '🌿 Zenly: Esencial y Rápido',
+    titleEn: 'Zenly: Essential & Quick',
     description: 'Hemos simplificado la experiencia eliminando la IA para que la app sea más ligera, privada y se enfoque en lo que importa: tus cuentas.',
     descriptionEn: 'We simplified the experience by removing the AI to make the app lighter, more private, and focused on what matters: your accounts.',
     icon: 'speed'
   },
   {
-    title: '🛡️ Sanctuary Lock: Biometría',
-    titleEn: 'Sanctuary Lock: Biometry',
+    title: '🛡️ Zenly Lock: Biometría',
+    titleEn: 'Zenly Lock: Biometry',
     description: 'Protege tu privacidad con Huella, FaceID o PIN de 4 dígitos. Configúralo en tu Perfil.',
     descriptionEn: 'Protect your privacy with Fingerprint, FaceID or 4-digit PIN. Set it up in your Profile.',
     icon: 'lock'
@@ -24,12 +24,12 @@ export const CHANGELOG_UPDATES = [
   },
   {
     title: '🔔 Recordatorios Inteligentes',
-    description: 'Si cierras la app y se te pasa la hora, Sanctuary te avisará en cuanto la abras para que no olvides nada.',
+    description: 'Si cierras la app y se te pasa la hora, Zenly te avisará en cuanto la abras para que no olvides nada.',
     icon: 'notifications_active'
   },
   {
     title: '💜 Nuevos Temas Elegantes',
-    description: 'Hemos refinado los temas Lila y Océano para que personalices tu Sanctuary con un toque premium. ¡Pruébalo en el Perfil!',
+    description: 'Hemos refinado los temas Lila y Océano para que personalices tu Zenly con un toque premium. ¡Pruébalo en el Perfil!',
     icon: 'palette'
   },
   {
@@ -39,7 +39,7 @@ export const CHANGELOG_UPDATES = [
   },
   {
     title: '✨ Interfaz Pulida',
-    description: 'Rediseñamos este panel de novedades y otros detalles visuales para que todo se sienta más Sanctuary.',
+    description: 'Rediseñamos este panel de novedades y otros detalles visuales para que todo se sienta más Zenly.',
     icon: 'auto_awesome'
   }
 ];
