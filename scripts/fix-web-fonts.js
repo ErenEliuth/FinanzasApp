@@ -126,12 +126,25 @@ console.log(`\n📄 Found ${htmlFiles.length} HTML files to patch`);
 for (const htmlPath of htmlFiles) {
   let html = fs.readFileSync(htmlPath, 'utf-8');
   
-  // Insertar antes de </head>
+  // Insertar fuentes antes de </head>
   if (html.includes('</head>') && !html.includes('expo-vector-icons-fix')) {
     html = html.replace('</head>', `${styleTag}\n</head>`);
-    fs.writeFileSync(htmlPath, html, 'utf-8');
-    console.log(`  ✅ Patched ${path.relative(DIST_DIR, htmlPath)}`);
   }
+  
+  // Fix iOS Safari zoom: forzar maximum-scale=1
+  if (html.includes('name="viewport"')) {
+    // Reemplazar el viewport existente para incluir maximum-scale=1
+    html = html.replace(
+      /(<meta\s+name="viewport"\s+content=")([^"]*)(">)/,
+      '$1width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no$3'
+    );
+  } else if (html.includes('</head>')) {
+    // Si no hay viewport, añadir uno
+    html = html.replace('</head>', '  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">\n</head>');
+  }
+  
+  fs.writeFileSync(htmlPath, html, 'utf-8');
+  console.log(`  ✅ Patched ${path.relative(DIST_DIR, htmlPath)}`);
 }
 
 console.log('\n🎉 Web fonts fix complete!\n');
