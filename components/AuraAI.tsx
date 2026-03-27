@@ -52,12 +52,17 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
       body.style.overflow = 'hidden';
       html.style.overflow = 'hidden';
       
-      // Prevenir el touchmove en el overlay
+      // Prevenir el touchmove SOLO en el overlay de fondo
       const preventScroll = (e: TouchEvent) => {
-        // Solo permitir scroll dentro del chat area
+        // Buscar si el toque está dentro del modal content
         const target = e.target as HTMLElement;
-        const chatArea = document.querySelector('[data-chat-scroll="true"]');
-        if (chatArea && chatArea.contains(target)) return;
+        let el: HTMLElement | null = target;
+        while (el) {
+          // Si encontramos el contenido del modal, permitir scroll
+          if (el.getAttribute && el.getAttribute('data-modal-content') === 'true') return;
+          el = el.parentElement;
+        }
+        // Si no está dentro del modal, bloquear
         e.preventDefault();
       };
       
@@ -100,45 +105,87 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     
     if (!SpeechRecognition) {
-      Alert.alert('No compatible', 'El navegador no soporta voz.');
+      Alert.alert('No compatible', 'El navegador no soporta reconocimiento de voz.');
       return;
     }
 
+    // Si ya está escuchando, detener
     if (isListening) {
       if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch (e) {}
+        try { recognitionRef.current.stop(); } catch (e) {}
+        recognitionRef.current = null;
       }
       setIsListening(false);
       return;
     }
 
+    // SIEMPRE destruir la instancia anterior antes de crear una nueva
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch (e) {}
+      recognitionRef.current = null;
+    }
+
     const recog = new SpeechRecognition();
     recognitionRef.current = recog;
-    recog.lang = 'es-ES';
-    recog.interimResults = true;
+    recog.lang = 'es-CO'; // Español colombiano para mejor reconocimiento
+    recog.continuous = false; // Una sola frase (más fiable en iOS)
+    recog.interimResults = true; // Mostrar texto mientras habla
+    recog.maxAlternatives = 1;
 
-    recog.onstart = () => setIsListening(true);
+    let lastTranscript = '';
+
+    recog.onstart = () => {
+      setIsListening(true);
+      lastTranscript = '';
+    };
+
     recog.onresult = (event: any) => {
-      let finalTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
+      let interim = '';
+      let final_ = '';
+      
+      for (let i = 0; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
+          final_ += transcript;
+        } else {
+          interim += transcript;
         }
       }
-      if (finalTranscript) {
-        setInput(finalTranscript);
-        setIsListening(false);
+      
+      // Mostrar en tiempo real lo que va escuchando
+      if (final_) {
+        lastTranscript = final_;
+        setInput(final_);
+      } else if (interim) {
+        lastTranscript = interim;
+        setInput(interim); // Mostrar texto parcial mientras habla
       }
     };
-    recog.onerror = () => setIsListening(false);
-    recog.onend = () => setIsListening(false);
+
+    recog.onerror = (event: any) => {
+      console.log('Speech error:', event.error);
+      setIsListening(false);
+      recognitionRef.current = null;
+      // Si hubo un resultado parcial, mantenerlo
+      if (lastTranscript) {
+        setInput(lastTranscript);
+      }
+    };
+
+    recog.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+      // Si hay texto capturado, asegurarse de que se muestre
+      if (lastTranscript) {
+        setInput(lastTranscript);
+      }
+    };
 
     try {
       recog.start();
     } catch (e) {
       setIsListening(false);
+      recognitionRef.current = null;
     }
   };
 
@@ -459,8 +506,11 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
     else if (q.includes('mascota') || q.includes('perro') || q.includes('gato') || q.includes('veterinari')) category = 'Mascotas';
     else if (q.includes('deuda') || q.includes('préstamo') || q.includes('prestamo') || q.includes('cuota')) category = 'Deudas';
 
-    const isIncome = q.includes('gané') || q.includes('gane') || q.includes('recibí') || q.includes('recibi') || q.includes('ingreso') || q.includes('sueldo') || q.includes('me pagaron') || q.includes('me lleg') || q.includes('cobré') || q.includes('cobre') || q.includes('nómina') || q.includes('quincena') || q.includes('salario');
-    const type: 'income' | 'expense' = isIncome ? 'income' : 'expense';
+    const isIncome = q.includes('gané') || q.includes('gane') || q.includes('recibí') || q.includes('recibi') || q.includes('ingreso') || q.includes('sueldo') || q.includes('me pagaron') || q.includes('me entró') || q.includes('me entro') || q.includes('me entraron') || q.includes('me llegaron') || q.includes('me llego') || q.includes('me lleg') || q.includes('cobré') || q.includes('cobre') || q.includes('nómina') || q.includes('quincena') || q.includes('salario') || q.includes('venta') || q.includes('vendí') || q.includes('vendi');
+    const isExpense = q.includes('gasté') || q.includes('gaste') || q.includes('pagué') || q.includes('pague') || q.includes('compré') || q.includes('compre') || q.includes('di') || q.includes('metí') || q.includes('meti') || q.includes('pagar') || q.includes('comprar');
+    
+    // Si contiene palabras de gasto, priorizar gasto a menos que sea muy claro que es ingreso
+    const type: 'income' | 'expense' = (isIncome && !isExpense) ? 'income' : 'expense';
 
     if (amount) {
       return {
@@ -489,7 +539,11 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
   return (
     <Modal visible={visible} animationType="fade" transparent statusBarTranslucent={true}>
       <View style={[styles.overlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.modalContent, { backgroundColor: colorsNav.bg }]}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+          style={[styles.modalContent, { backgroundColor: colorsNav.bg }]}
+          {...(Platform.OS === 'web' ? { 'data-modal-content': 'true' } as any : {})}
+        >
           <View style={[styles.header, { borderBottomColor: colorsNav.border }]}>
              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <View style={[styles.auraIcon, { backgroundColor: colorsNav.accent }]}><Text style={{ fontSize: 20 }}>✨</Text></View>
