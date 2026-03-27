@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useAuth } from '@/utils/auth';
 import { AuraAI } from './AuraAI';
@@ -13,10 +13,13 @@ export const MagicAuraButton = () => {
   return (
     <>
       <TouchableOpacity
-        style={[styles.headerIconBtn, { backgroundColor: colorsNav.accent, borderColor: colorsNav.accent + '33', borderWidth: 1 }]}
+        style={[styles.headerIconBtn, { backgroundColor: colorsNav.accent, borderColor: colorsNav.accent + '33', borderWidth: 1, overflow: 'hidden' }]}
         onPress={() => setVisible(true)}
       >
-        <Text style={{ fontSize: 18 }}>✨</Text>
+        <Image 
+          source={require('../assets/images/santy_eye.png')} 
+          style={{ width: '100%', height: '100%', resizeMode: 'cover' }} 
+        />
       </TouchableOpacity>
 
       <AuraAI 

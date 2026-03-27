@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, 
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -546,7 +546,9 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
         >
           <View style={[styles.header, { borderBottomColor: colorsNav.border }]}>
              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <View style={[styles.auraIcon, { backgroundColor: colorsNav.accent }]}><Text style={{ fontSize: 20 }}>✨</Text></View>
+                <View style={[styles.auraIcon, { backgroundColor: colorsNav.accent, overflow: 'hidden' }]}>
+                  <Image source={require('../assets/images/santy_eye.png')} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
+                </View>
                 <View><Text style={[styles.headerTitle, { color: colorsNav.text }]}>Sanctuary AI</Text><Text style={[styles.headerSub, { color: colorsNav.sub }]}>Ejecutor financiero</Text></View>
              </View>
              <TouchableOpacity onPress={onClose} style={styles.closeBtn}><Ionicons name="close" size={24} color={colorsNav.sub} /></TouchableOpacity>
@@ -561,11 +563,11 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
           >
             {messages.map((m) => (
                   <View key={m.id} style={[styles.msgRow, m.sender === 'user' ? styles.userRow : styles.auraRow]}>
-                    {m.sender === 'sanctuary' && (
-                       <View style={[styles.miniAvatar, { backgroundColor: colorsNav.accent }]}>
-                          <Ionicons name="sparkles" size={12} color="#FFF" />
-                       </View>
-                    )}
+                     {m.sender === 'sanctuary' && (
+                        <View style={[styles.miniAvatar, { backgroundColor: colorsNav.accent, overflow: 'hidden' }]}>
+                           <Image source={require('../assets/images/santy_eye.png')} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
+                        </View>
+                     )}
                     <View style={{ flexShrink: 1, maxWidth: '100%', alignItems: m.sender === 'user' ? 'flex-end' : 'flex-start' }}>
                       <View style={[
                         styles.bubble, 
