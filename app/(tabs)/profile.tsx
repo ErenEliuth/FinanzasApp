@@ -20,6 +20,7 @@ import {
     Image,
     Modal,
     Platform,
+    KeyboardAvoidingView,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -272,6 +273,9 @@ export default function ProfileScreen() {
     const [lockPin, setLockPin] = useState('');
     const [pinModalVisible, setPinModalVisible] = useState(false);
     const [tempPin, setTempPin] = useState('');
+    const [geminiKey, setGeminiKey] = useState('');
+    const [showGeminiCnf, setShowGeminiCnf] = useState(false);
+    const [tempGemini, setTempGemini] = useState('');
 
     useEffect(() => {
         loadLockSettings();
@@ -282,10 +286,20 @@ export default function ProfileScreen() {
             const enabled = await AsyncStorage.getItem('@lock_enabled');
             const method = await AsyncStorage.getItem('@lock_method') || 'pin';
             const pin = await AsyncStorage.getItem('@lock_pin') || '';
+            const gKey = await AsyncStorage.getItem('@gemini_key') || '';
             setLockEnabled(enabled === 'true');
             setLockMethod(method as any);
             setLockPin(pin);
+            setGeminiKey(gKey);
+            setTempGemini(gKey);
         } catch (e) {}
+    };
+
+    const saveGeminiAPI = async () => {
+        await AsyncStorage.setItem('@gemini_key', tempGemini.trim());
+        setGeminiKey(tempGemini.trim());
+        setShowGeminiCnf(false);
+        Alert.alert("¡Cerebro Conectado!", "La llave de Inteligencia Artificial se ha guardado de forma segura en tu dispositivo.");
     };
 
     const toggleLock = async (val: boolean) => {
@@ -645,6 +659,65 @@ export default function ProfileScreen() {
                         </Modal>
                     )}
 
+                </View>
+
+                {/* ── Configuración de IA ── */}
+                <View style={{ marginTop: 12 }}>
+                    <View style={[styles.listItem, { backgroundColor: colorsNav.card, flexDirection: 'column', alignItems: 'flex-start', padding: 14 }]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
+                            <View style={[styles.listIcon, { backgroundColor: geminiKey ? '#E8F5E9' : '#FFF0E0' }]}>
+                                <MaterialIcons name="psychology" size={20} color={geminiKey ? '#4A7C59' : '#F59E0B'} />
+                            </View>
+                            <View style={{ flex: 1, paddingHorizontal: 8 }}>
+                                <Text style={[styles.listTitle, { color: colorsNav.text }]} numberOfLines={1}>Cerebro IA (Santy)</Text>
+                                <Text style={[styles.listSub, { color: colorsNav.sub }]}>
+                                    {geminiKey ? 'Conectado (Llave Local Segura)' : 'Desconectado'}
+                                </Text>
+                            </View>
+                            <TouchableOpacity 
+                                style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: isDark ? '#2A2A42' : '#F1F5F9' }}
+                                onPress={() => setShowGeminiCnf(true)}
+                            >
+                                <Text style={{ color: colorsNav.accent, fontWeight: '800', fontSize: 11 }}>Configurar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
+                    {showGeminiCnf && (
+                        <Modal visible={showGeminiCnf} transparent animationType="fade">
+                            <View style={styles.overlay}>
+                                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.modalBox, { backgroundColor: colorsNav.card, width: '90%', maxWidth: 400, alignSelf: 'center', padding: 24 }]}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 }}>
+                                        <MaterialIcons name="lock" size={16} color="#4CAF50" />
+                                        <Text style={[styles.modalTitle, { color: colorsNav.text, margin: 0 }]}>Conectar Gemini</Text>
+                                    </View>
+                                    <Text style={{ color: colorsNav.sub, fontSize: 13, marginBottom: 20, lineHeight: 20 }}>
+                                        Pega aquí tu llave API de Google AI Studio.{"\n"}
+                                        <Text style={{ fontWeight: 'bold' }}>Se guardará únicamente en local</Text> dentro de la memoria temporal de tu celular. Nunca se enviará ni se subirá al código de GitHub. Seguro al 100%.
+                                    </Text>
+                                    
+                                    <TextInput
+                                        style={[{ backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border, borderWidth: 1, height: 48, borderRadius: 12, paddingHorizontal: 16 }]}
+                                        placeholder="AIzaSy..."
+                                        placeholderTextColor={colorsNav.sub}
+                                        value={tempGemini}
+                                        onChangeText={setTempGemini}
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                    />
+                                    
+                                    <View style={[styles.modalBtns, { marginTop: 24, flexDirection: 'row', gap: 12 }]}>
+                                        <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.bg, flex: 1, padding: 14, borderRadius: 12, alignItems: 'center' }]} onPress={() => setShowGeminiCnf(false)}>
+                                            <Text style={[styles.mBtnTxt, { color: colorsNav.text }]}>Cancelar</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.accent, flex: 1, padding: 14, borderRadius: 12, alignItems: 'center' }]} onPress={saveGeminiAPI}>
+                                            <Text style={[styles.mBtnTxt, { color: '#FFF' }]}>Guardar Segura</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </KeyboardAvoidingView>
+                            </View>
+                        </Modal>
+                    )}
                 </View>
 
                 {/* ── Heatmap ── */}

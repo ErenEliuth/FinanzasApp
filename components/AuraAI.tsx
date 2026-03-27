@@ -8,6 +8,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { supabase } from '@/utils/supabase';
 import { useAuth } from '@/utils/auth';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Message = {
   id: string;
@@ -225,10 +226,10 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
 
   const askSanty = async (text: string): Promise<{reply: string, action?: any}> => {
     try {
-      // Leemos la llave segura desde el archivo .env oculto, NUNCA HARCODER LA LLAVE
-      const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+      // Leemos la llave segura desde la memoria del teléfono en vez del código
+      const apiKey = await AsyncStorage.getItem('@gemini_key');
       if (!apiKey) {
-        return { reply: "La llave de Gemini ya no está en el código. ¡El bot de Google la dio de baja por ponerla pública!" };
+        return { reply: "Me falta mi cerebro 🧠. Ve a tu Perfil, entra en 'Configurar' bajo 'Cerebro IA (Santy)' y pon tu llave de Gemini validada." };
       }
 
       const genAI = new GoogleGenerativeAI(apiKey);
