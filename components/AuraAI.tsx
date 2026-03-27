@@ -197,58 +197,175 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
       q.includes('muéstrame') || q.includes('muestrame') || q.includes('dime') || q.includes('qué he') || q.includes('que he') ||
       q.includes('mis transacciones') || q.includes('mi historial') || q.includes('mis gastos') || q.includes('mis ingresos') ||
       q.includes('he gastado') || q.includes('he ganado') || q.includes('resumen') || q.includes('balance') ||
-      q.includes('últimas') || q.includes('ultimas') || q.includes('último') || q.includes('ultimo');
+      q.includes('últimas') || q.includes('ultimas') || q.includes('último') || q.includes('ultimo') ||
+      q.includes('en qué gasto') || q.includes('en que gasto') || q.includes('qué gasté') || q.includes('que gaste') ||
+      q.includes('hoy') || q.includes('este mes') || q.includes('mes pasado') || q.includes('semana') ||
+      q.includes('consejo') || q.includes('tip') || q.includes('recomienda') ||
+      q.includes('debo') || q.includes('deuda') || q.includes('deudas') ||
+      q.includes('meta') || q.includes('metas') || q.includes('objetivo') ||
+      q.includes('cómo estoy') || q.includes('como estoy') || q.includes('cómo voy') || q.includes('como voy');
 
     if (!isQuestion) return null;
 
+    // === CONSEJOS FINANCIEROS (no requiere DB) ===
+    if (q.includes('consejo') || q.includes('tip') || q.includes('recomienda')) {
+      const tips = [
+        `💡 Intenta ahorrar al menos el 10% de cada ingreso que recibas, ${finalName}. Aunque sea poco, la constancia hace la diferencia.`,
+        `💡 Antes de comprar algo, pregúntate: "¿Lo necesito o lo quiero?" Si puedes esperar 24h y sigues queriéndolo, cómpralo.`,
+        `💡 Registra TODOS tus gastos, incluso los pequeños. Los gastos hormiga ($2 aquí, $5 allá) son los que más se comen tu dinero.`,
+        `💡 Crea un fondo de emergencia de al menos 3 meses de tus gastos fijos. Es tu colchón de seguridad.`,
+        `💡 Si tienes deudas, paga primero la que tenga la tasa de interés más alta. Eso te ahorra dinero a largo plazo.`,
+        `💡 Usa la regla 50/30/20: 50% necesidades, 30% deseos, 20% ahorro. Es simple pero muy efectiva.`,
+        `💡 Evita las compras impulsivas. Haz una lista antes de ir al supermercado y cúmplela.`,
+        `💡 Revisa tus suscripciones mensuales. Seguro hay alguna que ya no usas y puedes cancelar.`,
+      ];
+      return tips[Math.floor(Math.random() * tips.length)];
+    }
+
     try {
-      // Consultar las últimas transacciones del usuario
-      const { data: transactions, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('date', { ascending: false })
-        .limit(10);
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+      const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0).toISOString();
+      const today = now.toISOString().split('T')[0];
 
-      if (error || !transactions || transactions.length === 0) {
-        return `No encontré transacciones recientes, ${finalName}. ¿Quieres registrar una nueva? 📝`;
+      // === GASTOS DE HOY ===
+      if (q.includes('hoy')) {
+        const { data } = await supabase.from('transactions').select('*')
+          .eq('user_id', user?.id).gte('date', today).order('date', { ascending: false });
+        
+        if (!data || data.length === 0) return `No tienes movimientos registrados hoy, ${finalName}. ¡Día limpio! 🎉`;
+        
+        const gastos = data.filter((t: any) => t.type === 'expense');
+        const ingresos = data.filter((t: any) => t.type === 'income');
+        const totalG = gastos.reduce((s: number, t: any) => s + t.amount, 0);
+        const totalI = ingresos.reduce((s: number, t: any) => s + t.amount, 0);
+        
+        let reply = `Hoy llevas ${data.length} movimiento(s), ${finalName}:\n\n`;
+        if (totalI > 0) reply += `💰 Ingresos: $${totalI.toLocaleString()}\n`;
+        if (totalG > 0) reply += `💸 Gastos: $${totalG.toLocaleString()}\n`;
+        reply += `\n📝 Detalle:\n`;
+        data.slice(0, 5).forEach((t: any) => {
+          reply += `• ${t.type === 'income' ? '💰' : '💸'} ${t.category}: $${t.amount.toLocaleString()}\n`;
+        });
+        return reply;
       }
 
-      // Calcular totales
-      const totalGastos = transactions.filter((t: any) => t.type === 'expense').reduce((sum: number, t: any) => sum + t.amount, 0);
-      const totalIngresos = transactions.filter((t: any) => t.type === 'income').reduce((sum: number, t: any) => sum + t.amount, 0);
-      const count = transactions.length;
-
-      // Si pregunta por cuánto ha gastado
-      if (q.includes('gastado') || q.includes('gastos') || q.includes('gasto')) {
-        return `En tus últimas ${count} transacciones has gastado $${totalGastos.toLocaleString()}, ${finalName}. 📊`;
+      // === ÚLTIMO GASTO / ÚLTIMA TRANSACCIÓN ===
+      if (q.includes('último') || q.includes('ultimo') || q.includes('última') || q.includes('ultima')) {
+        const { data } = await supabase.from('transactions').select('*')
+          .eq('user_id', user?.id).order('date', { ascending: false }).limit(1);
+        
+        if (!data || data.length === 0) return `No tienes transacciones aún, ${finalName}. 📝`;
+        
+        const t = data[0];
+        const fecha = new Date(t.date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+        return `Tu última transacción fue un ${t.type === 'income' ? 'ingreso' : 'gasto'} de $${t.amount.toLocaleString()} en "${t.category}" el ${fecha}. ${t.type === 'income' ? '💰' : '💸'}`;
       }
 
-      // Si pregunta por ingresos
-      if (q.includes('ganado') || q.includes('ingresos') || q.includes('ingreso') || q.includes('recibido')) {
-        return `En tus últimas ${count} transacciones has recibido $${totalIngresos.toLocaleString()}, ${finalName}. 💰`;
+      // === DEUDAS ===
+      if (q.includes('debo') || q.includes('deuda') || q.includes('deudas')) {
+        const { data } = await supabase.from('debts').select('*').eq('user_id', user?.id);
+        
+        if (!data || data.length === 0) return `¡No tienes deudas registradas, ${finalName}! Eso es genial. 🎉`;
+        
+        const totalDeuda = data.reduce((s: number, d: any) => s + (d.total_amount - (d.paid_amount || 0)), 0);
+        let reply = `Tienes ${data.length} deuda(s) activa(s), ${finalName}.\n\n💳 Total pendiente: $${totalDeuda.toLocaleString()}\n\n`;
+        data.slice(0, 5).forEach((d: any) => {
+          const pendiente = d.total_amount - (d.paid_amount || 0);
+          reply += `• ${d.name || d.description}: $${pendiente.toLocaleString()}\n`;
+        });
+        return reply;
       }
 
-      // Si pregunta por resumen o balance
-      if (q.includes('resumen') || q.includes('balance')) {
-        return `Tu resumen reciente, ${finalName}:\n\n💰 Ingresos: $${totalIngresos.toLocaleString()}\n💸 Gastos: $${totalGastos.toLocaleString()}\n📊 Balance: $${(totalIngresos - totalGastos).toLocaleString()}`;
+      // === METAS ===
+      if (q.includes('meta') || q.includes('metas') || q.includes('objetivo')) {
+        const { data } = await supabase.from('goals').select('*').eq('user_id', user?.id);
+        
+        if (!data || data.length === 0) return `No tienes metas de ahorro registradas, ${finalName}. ¿Quieres crear una desde la sección de Metas? 🎯`;
+        
+        let reply = `Tus metas de ahorro, ${finalName}:\n\n`;
+        data.forEach((g: any) => {
+          const pct = g.target_amount > 0 ? Math.round((g.current_amount / g.target_amount) * 100) : 0;
+          const falta = g.target_amount - g.current_amount;
+          reply += `🎯 ${g.name}: $${g.current_amount.toLocaleString()} / $${g.target_amount.toLocaleString()} (${pct}%)\n   Faltan: $${falta.toLocaleString()}\n\n`;
+        });
+        return reply;
       }
 
-      // Resumen general para cualquier otra pregunta
-      const topCategories = transactions.reduce((acc: any, t: any) => {
-        if (t.type === 'expense') {
-          acc[t.category] = (acc[t.category] || 0) + t.amount;
-        }
-        return acc;
-      }, {});
+      // === CONSULTAS CON DATOS DEL MES ===
+      const { data: monthTx } = await supabase.from('transactions').select('*')
+        .eq('user_id', user?.id).gte('date', startOfMonth).order('date', { ascending: false });
       
-      const categorySummary = Object.entries(topCategories)
-        .sort(([,a]: any, [,b]: any) => b - a)
-        .slice(0, 3)
-        .map(([cat, amt]: any) => `• ${cat}: $${amt.toLocaleString()}`)
-        .join('\n');
+      const txs = monthTx || [];
+      const gastosM = txs.filter((t: any) => t.type === 'expense');
+      const ingresosM = txs.filter((t: any) => t.type === 'income');
+      const totalGastos = gastosM.reduce((s: number, t: any) => s + t.amount, 0);
+      const totalIngresos = ingresosM.reduce((s: number, t: any) => s + t.amount, 0);
 
-      return `Aquí va tu resumen de las últimas ${count} transacciones, ${finalName}:\n\n💰 Ingresos: $${totalIngresos.toLocaleString()}\n💸 Gastos: $${totalGastos.toLocaleString()}\n\n📊 Top gastos:\n${categorySummary || '• Sin gastos registrados'}`;
+      // === COMPARACIÓN CON MES ANTERIOR ===
+      if (q.includes('mes pasado') || q.includes('mes anterior') || q.includes('comparar') || q.includes('más que')) {
+        const { data: lastMonthTx } = await supabase.from('transactions').select('*')
+          .eq('user_id', user?.id).gte('date', startOfLastMonth).lte('date', endOfLastMonth);
+        
+        const lastGastos = (lastMonthTx || []).filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + t.amount, 0);
+        const diff = totalGastos - lastGastos;
+        const emoji = diff > 0 ? '📈' : '📉';
+        
+        return `Comparación mensual, ${finalName}:\n\n💸 Este mes: $${totalGastos.toLocaleString()}\n💸 Mes pasado: $${lastGastos.toLocaleString()}\n${emoji} Diferencia: ${diff > 0 ? '+' : ''}$${diff.toLocaleString()}\n\n${diff > 0 ? '¡Ojo! Estás gastando más que el mes pasado. 👀' : '¡Bien! Estás gastando menos que el mes anterior. 💪'}`;
+      }
+
+      // === EN QUÉ GASTO MÁS / TOP GASTOS ===
+      if (q.includes('en qué gasto') || q.includes('en que gasto') || q.includes('más gasto') || q.includes('mas gasto') || q.includes('top')) {
+        const catMap = gastosM.reduce((acc: any, t: any) => {
+          acc[t.category] = (acc[t.category] || 0) + t.amount;
+          return acc;
+        }, {});
+        
+        const sorted = Object.entries(catMap).sort(([,a]: any, [,b]: any) => b - a);
+        if (sorted.length === 0) return `No tienes gastos este mes, ${finalName}. ¡Impresionante! 🎉`;
+        
+        let reply = `Tus categorías con más gasto este mes, ${finalName}:\n\n`;
+        sorted.slice(0, 5).forEach(([cat, amt]: any, i: number) => {
+          const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+          reply += `${medals[i]} ${cat}: $${amt.toLocaleString()}\n`;
+        });
+        return reply;
+      }
+
+      // === GASTO POR CATEGORÍA ESPECÍFICA ===
+      const categories = ['comida', 'transporte', 'sueldo', 'arriendo', 'servicios', 'salud', 'educación', 'entretenimiento', 'ropa', 'tecnología', 'mascotas', 'deudas'];
+      const mentionedCat = categories.find(c => q.includes(c));
+      if (mentionedCat && (q.includes('cuánto') || q.includes('cuanto') || q.includes('gasté') || q.includes('gaste'))) {
+        const catName = mentionedCat.charAt(0).toUpperCase() + mentionedCat.slice(1);
+        const catTotal = gastosM.filter((t: any) => t.category.toLowerCase() === mentionedCat).reduce((s: number, t: any) => s + t.amount, 0);
+        return `Este mes llevas $${catTotal.toLocaleString()} gastado en ${catName}, ${finalName}. ${catTotal > 0 ? '💸' : '¡Nada! 🎉'}`;
+      }
+
+      // === CUÁNTO HE GASTADO ESTE MES ===
+      if (q.includes('gastado') || q.includes('gastos') || q.includes('gasto')) {
+        return `Este mes llevas $${totalGastos.toLocaleString()} en gastos, ${finalName}. Tienes ${gastosM.length} transacciones de gasto registradas. 📊`;
+      }
+
+      // === CUÁNTO HE GANADO ===
+      if (q.includes('ganado') || q.includes('ingresos') || q.includes('ingreso') || q.includes('recibido')) {
+        return `Este mes has recibido $${totalIngresos.toLocaleString()} en ingresos, ${finalName}. 💰`;
+      }
+
+      // === LISTAR ÚLTIMAS TRANSACCIONES ===
+      if (q.includes('transacciones') || q.includes('historial') || q.includes('lista')) {
+        if (txs.length === 0) return `No tienes transacciones este mes, ${finalName}. 📝`;
+        
+        let reply = `Tus últimas transacciones, ${finalName}:\n\n`;
+        txs.slice(0, 7).forEach((t: any) => {
+          const fecha = new Date(t.date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+          reply += `${t.type === 'income' ? '💰' : '💸'} ${t.category} — $${t.amount.toLocaleString()} (${fecha})\n`;
+        });
+        return reply;
+      }
+
+      // === BALANCE / RESUMEN / CÓMO ESTOY ===
+      return `Tu resumen de este mes, ${finalName}:\n\n💰 Ingresos: $${totalIngresos.toLocaleString()}\n💸 Gastos: $${totalGastos.toLocaleString()}\n📊 Balance: $${(totalIngresos - totalGastos).toLocaleString()}\n\n${totalIngresos > totalGastos ? '¡Vas bien! Estás en positivo. 💪' : 'Ojo, estás gastando más de lo que recibes. 👀'}`;
 
     } catch (e) {
       return `No pude consultar tus datos ahora, ${finalName}. Intenta de nuevo en un momento. 😅`;
