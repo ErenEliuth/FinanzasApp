@@ -1,6 +1,13 @@
-export const LATEST_VERSION = '2026-03-26-v16';
+export const LATEST_VERSION = '2026-03-27-v17';
 
 export const CHANGELOG_UPDATES = [
+  {
+    title: '🧠 Cerebro Seguro (Supabase)',
+    titleEn: 'Secure Brain (Supabase)',
+    description: 'Hemos movido la inteligencia de Sanctuary a un servidor seguro. Ahora es más rápida, privada y eficiente.',
+    descriptionEn: 'We moved Sanctuary\'s intelligence to a secure server. Now it\'s faster, more private, and efficient.',
+    icon: 'security'
+  },
   {
     title: '🛡️ Sanctuary Lock: Biometría',
     titleEn: 'Sanctuary Lock: Biometry',

@@ -40,6 +40,22 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-27 — Sanctuary: Cerebro Seguro (v17)
+
+**Archivos modificados:**
+- `supabase/functions/ask-santy/index.ts` — Nueva Edge Function segura para Gemini.
+- `components/AuraAI.tsx` — Migración del frontend para usar `supabase.functions.invoke`.
+- `app/(tabs)/profile.tsx` — Eliminación definitiva de configuración local de API Key.
+- `constants/Changelog.ts` — Salto a la versión **v17**.
+
+**Cambios realizados:**
+- ✅ **Seguridad Centralizada**: La API Key de Gemini ya no vive en el dispositivo del usuario ni en el código. Ahora reside de forma segura en los "Secrets" de Supabase.
+- ✅ **SDK Actualizado**: Migración a `@google/generative-ai@0.21.0` en el backend para mejor rendimiento con **Gemini 1.5 Flash**.
+- ✅ **Optimización de App**: El bundle de la aplicación es más ligero al eliminar dependencias de IA del frontend.
+- ✅ **Privacidad Total**: Las peticiones ahora pasan por un servidor seguro, protegiendo las credenciales del desarrollador.
+
+---
+
 ### 2026-03-26 — Sanctuary Lock: Privacidad Total (v16)
 
 **Nuevos componentes:**

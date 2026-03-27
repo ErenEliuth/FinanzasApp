@@ -7,7 +7,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { supabase } from '@/utils/supabase';
 import { useAuth } from '@/utils/auth';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Message = {
@@ -226,94 +225,21 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
 
   const askSanty = async (text: string): Promise<{reply: string, action?: any}> => {
     try {
-      // 1. Fallback GLOBAL: Priorizamos la llave del .env (la central)
-      const part1 = process.env.EXPO_PUBLIC_GEMINI_P1;
-      const part2 = process.env.EXPO_PUBLIC_GEMINI_P2;
-      let apiKey = (part1 && part2) ? (part1 + part2).trim() : null;
-      if (apiKey)
-      
-      // 2. Si no hay llave global, buscamos si el usuario puso una personal localmente (Legacy)
-      if (!apiKey) {
-        apiKey = await AsyncStorage.getItem('@gemini_key');
-      }
+      // Llamamos a la Edge Function segura en lugar de usar la llave local
+      const { data, error } = await supabase.functions.invoke('ask-santy', {
+        body: { text, userName: finalName }
+      });
 
-      if (!apiKey) {
-        return { reply: "Lo siento, mi conexión cerebral no está disponible en este momento. Por favor contacta al administrador." };
-      }
-
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-      // Build context
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const { data: monthTx } = await supabase.from('transactions')
-        .select('*').eq('user_id', user?.id).gte('date', startOfMonth).order('date', { ascending: false });
-        
-      const txs = monthTx || [];
-      const gastosM = txs.filter((t: any) => t.type === 'expense');
-      const ingresosM = txs.filter((t: any) => t.type === 'income');
-      const totalGastos = gastosM.reduce((s: number, t: any) => s + t.amount, 0);
-      const totalIngresos = ingresosM.reduce((s: number, t: any) => s + t.amount, 0);
-
-      const allTxs = await supabase.from('transactions').select('*').eq('user_id', user?.id).order('date', { ascending: false }).limit(8);
-      const txHistory = (allTxs.data || []).map(t => `${t.type === 'income' ? '+' : '-'}$${t.amount} en ${t.category} (${new Date(t.date).toLocaleDateString()})`).join(', ');
-
-      const prompt = `
-Eres Santy, la asistente financiera personal y ejecutiva de ${finalName}.
-Eres muy inteligente, sutilmente cómica y amable. Usas algo de jerga bogotana/colombiana (solo cuando es natural, como 'barras', 'lucas', 'palos'). 
-Tratas de empoderar a ${finalName} con sus finanzas.
-
-Aquí tienes el contexto financiero A TIEMPO REAL de este mes de ${finalName}:
-- Ingresos logrados en este mes: $${totalIngresos}
-- Gastos de este mes: ${gastosM.length} pagos por un total de $${totalGastos}
-- Balance total calculado de este mes: $${totalIngresos - totalGastos}
-- Sus últimas 8 transacciones registradas son: ${txHistory || 'Ninguna'}
-
-El usuario te dirá algo. Revisa la oración. Tu objetivo general:
-1. Si hace una pregunta sobre sus datos (ej. "¿cuánto gasté?", "¿cuál fue mi último gasto?"), respóndele mirando su contexto y saca cálculos si es necesario.
-2. Si quiere registrar o anotar una transacción (ej. "me comí una empanada de 5 lucas", "me entraron 2 palos del sueldo", "anota 20k"), detecta y estructura la acción.
-
-EXTREMADAMENTE IMPORTANTE: Solo debes responder en formato JSON crudo, nada de markdown ni saludos por fuera del JSON. La estructura del objeto DEBE ser exactamente:
-{
-  "reply": "Tu mensaje de respuesta conversacional (si vas a registrar algo, confirma lo que vas a registrar).",
-  "action": null
-}
-
-Nota de action: Si solo charlaban o respondías pregunta, déjalo "action": null. PERO si detectas un registro, usa esta estructura:
-  "action": {
-    "amount": 20000, 
-    "category": "Comida",
-    "type": "expense",
-    "description": "Empanada"
-  }
-Las categorías soportadas para action son EXACTAMENTE UNA DE LAS SIGUIENTES: Comida, Transporte, Sueldo, Arriendo, Servicios, Salud, Educación, Entretenimiento, Ropa, Tecnología, Mascotas, Deudas, General.
-El "type" debe ser 'expense' o 'income'.
-
-Mensaje del usuario: "${text}"
-      `.trim();
-
-      const result = await model.generateContent(prompt);
-      let responseText = result.response.text();
-      
-      responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-      
-      let parsed;
-      try {
-        parsed = JSON.parse(responseText);
-      } catch (err) {
-        console.error("Gemini returned invalid JSON:", responseText);
-        return { reply: "Uy, procesé mal la información en mi cabeza. Hablame más claro por favor." };
-      }
+      if (error) throw error;
 
       return {
-        reply: parsed.reply || "No te entendí bien, ¿qué me decías?",
-        action: parsed.action
+        reply: data.reply || "No te entendí bien, ¿qué me decías?",
+        action: data.action
       };
 
     } catch (e: any) {
-      console.error('Gemini Error:', e);
-      return { reply: `Error Gemini: ${e?.message || String(e)}` };
+      console.error('Santy/Supabase Error:', e);
+      return { reply: `Ups, mi conexión cerebral falló. Intenta de nuevo. 😅` };
     }
   };
 
