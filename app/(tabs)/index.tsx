@@ -425,15 +425,19 @@ export default function HomeScreen() {
           </View>
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
             <TouchableOpacity
-              style={[styles.headerIconBtn, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }]}
+              style={[styles.headerIconBtn, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0', width: 44, height: 44 }]}
+              onPress={toggleHiddenMode}
+            >
+              <Ionicons name={isHidden ? "eye-off-outline" : "eye-outline"} size={18} color={isDark ? '#D4C5A9' : '#8B7355'} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.headerIconBtn, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0', width: 44, height: 44 }]}
               onPress={() => setNotificationsVisible(true)}
             >
               <Ionicons name="notifications-outline" size={18} color={isDark ? '#D4C5A9' : '#8B7355'} />
               {pendingItems.length > 0 && <View style={styles.notifBadge} />}
             </TouchableOpacity>
-
-
-{/* Eliminado: MagicAuraButton */}
 
             {isDesktop && (
               <View style={{ flexDirection: 'row', gap: 10 }}>
