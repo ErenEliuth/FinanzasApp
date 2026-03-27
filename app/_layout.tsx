@@ -139,7 +139,7 @@ function RootStack() {
     checkMissedReminders();
   }, [user]);
 
-  if (loading || (!fontsLoaded && !fontError)) return null;
+  if (!fontsLoaded && !fontError) return null;
 
   return (
     <ThemeProvider value={theme === 'dark' ? DarkTheme : DefaultTheme}>
