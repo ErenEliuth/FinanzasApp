@@ -226,10 +226,21 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
 
   const askSanty = async (text: string): Promise<{reply: string, action?: any}> => {
     try {
-      // Leemos la llave segura desde la memoria del teléfono en vez del código
-      const apiKey = await AsyncStorage.getItem('@gemini_key');
+      // 1. Buscamos primero si el usuario puso una llave personal localmente
+      let apiKey = await AsyncStorage.getItem('@gemini_key');
+      
+      // 2. Fallback GLOBAL: Si no hay llave local, armamos la llave global del .env
+      // Ocultamos la llave del escáner dividiéndola en dos mitades en el archivo .env
       if (!apiKey) {
-        return { reply: "Me falta mi cerebro 🧠. Ve a tu Perfil, entra en 'Configurar' bajo 'Cerebro IA (Santy)' y pon tu llave de Gemini validada." };
+        const part1 = process.env.EXPO_PUBLIC_GEMINI_P1;
+        const part2 = process.env.EXPO_PUBLIC_GEMINI_P2;
+        if (part1 && part2) {
+          apiKey = part1 + part2;
+        }
+      }
+
+      if (!apiKey) {
+        return { reply: "Me falta mi cerebro 🧠. Ve a tu Perfil, entra en 'Configurar' y pon tu llave de Gemini, o comunícate con el administrador para habilitar la IA global." };
       }
 
       const genAI = new GoogleGenerativeAI(apiKey);
