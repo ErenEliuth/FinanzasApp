@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0"
+import { GoogleGenerativeAI } from "npm:@google/generative-ai@^0.21.0"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,6 +24,7 @@ serve(async (req) => {
 
     const { data: { user } } = await supabaseClient.auth.getUser()
     if (!user) throw new Error('No autorizado')
+    console.log('User auth ok:', user.id);
 
     // Context
     const now = new Date();
@@ -45,7 +46,12 @@ serve(async (req) => {
     ).join(', ');
 
     // Gemini
-    const genAI = new GoogleGenerativeAI(Deno.env.get('GEMINI_API_KEY')!);
+    const apiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!apiKey) {
+      console.error('ERROR: GEMINI_API_KEY no configurada en Supabase Secrets');
+      throw new Error('Configuración de IA incompleta');
+    }
+    const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = `

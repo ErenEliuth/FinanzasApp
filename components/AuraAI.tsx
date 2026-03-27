@@ -238,7 +238,7 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
       };
 
     } catch (e: any) {
-      console.error('Santy/Supabase Error:', e);
+      console.error('Santy/Supabase Error (Detalles):', JSON.stringify(e, null, 2));
       return { reply: `Ups, mi conexión cerebral falló. Intenta de nuevo. 😅` };
     }
   };
