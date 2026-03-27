@@ -17,7 +17,7 @@ export default function Root({ children }: PropsWithChildren) {
         <link rel="manifest" href="/FinanzasApp/manifest.json" />
         <meta name="theme-color" content="#ffffff" />
         <link rel="apple-touch-icon" href="/FinanzasApp/icon.png" />
-        <meta name="apple-mobile-web-app-title" content="Sanctuary" />
+        <meta name="apple-mobile-web-app-title" content="Zenly" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
