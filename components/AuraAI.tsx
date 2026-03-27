@@ -75,6 +75,12 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
         body.style.overflow = '';
         html.style.overflow = '';
         window.scrollTo(0, savedScrollY);
+        
+        // Resetear zoom de iOS Safari
+        const viewport = document.querySelector('meta[name="viewport"]');
+        if (viewport) {
+          viewport.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no');
+        }
       };
     }
   }, [visible]);
@@ -320,7 +326,7 @@ const styles = StyleSheet.create({
   },
   timeText: { fontSize: 9, marginTop: 4, textAlign: 'right', fontWeight: '700', opacity: 0.6 },
   inputContainer: { flexDirection: 'row', alignItems: 'center', padding: 15, paddingBottom: Platform.OS === 'ios' ? 35 : 15, gap: 10, borderTopWidth: 1 },
-  input: { flex: 1, borderRadius: 18, paddingHorizontal: 15, paddingVertical: 10, fontSize: 15, borderWidth: 1, maxHeight: 80 },
+  input: { flex: 1, borderRadius: 18, paddingHorizontal: 15, paddingVertical: 10, fontSize: 16, borderWidth: 1, maxHeight: 80 },
   sendBtn: { width: 45, height: 45, borderRadius: 23, justifyContent: 'center', alignItems: 'center' },
   micBtn: { width: 45, height: 45, borderRadius: 23, justifyContent: 'center', alignItems: 'center', backgroundColor: 'transparent' },
   actionCard: {
