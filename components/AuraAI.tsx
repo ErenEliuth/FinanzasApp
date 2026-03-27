@@ -65,13 +65,20 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
     const recog = new SpeechRecognition();
     recognitionRef.current = recog;
     recog.lang = 'es-ES';
-    recog.interimResults = false;
+    recog.interimResults = true;
 
     recog.onstart = () => setIsListening(true);
     recog.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setInput(transcript);
-      setIsListening(false);
+      let finalTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        }
+      }
+      if (finalTranscript) {
+        setInput(finalTranscript);
+        setIsListening(false);
+      }
     };
     recog.onerror = () => setIsListening(false);
     recog.onend = () => setIsListening(false);
@@ -108,7 +115,19 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
   };
 
   const parseIntent = (text: string) => {
-    const q = text.toLowerCase();
+    const q = text.toLowerCase().trim();
+
+    // Manejo de saludos (Humanización)
+    if (['hola', 'hey', 'buenas', 'saludos', 'hola hola'].some(s => q === s || q.startsWith(s + ' '))) {
+      return { 
+        reply: `¡Hola ${finalName}! 👋 Qué bueno saludarte. Aquí estoy, lista para ayudarte con tus cuentas o simplemente para charlar. ¿Qué tienes en mente?` 
+      };
+    }
+
+    if (['gracias', 'vale', 'listo', 'ok', 'bueno'].some(s => q === s)) {
+      return { reply: `¡Con gusto, ${finalName}! Estaré aquí si necesitas registrar algo más. ✨` };
+    }
+
     const amountMatch = q.match(/(\d+[\d\.]*)/);
     const amount = amountMatch ? parseFloat(amountMatch[0].replace(/\./g, '')) : null;
     
@@ -128,7 +147,7 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
         action: { amount, category, type, description: text }
       };
     }
-    return { reply: `Cuéntame más, ${finalName}. Si me dices el monto (ej: "Gasté 50 en comida"), te ayudaré a registrarlo en un segundo.` };
+    return { reply: `Cuéntame más detalles, ${finalName}. Si me dices cuánto gastaste (ej: "Gasté 50 mil en comida"), podré ayudarte a anotarlo.` };
   };
 
   const confirmTx = async (data: any) => {
@@ -147,8 +166,8 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={[styles.overlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+    <Modal visible={visible} animationType="fade" transparent statusBarTranslucent={true}>
+      <View style={[styles.overlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.modalContent, { backgroundColor: colorsNav.bg }]}>
           <View style={[styles.header, { borderBottomColor: colorsNav.border }]}>
              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -201,9 +220,23 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
     </Modal>
   );
 };
+
 const styles = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'flex-end' },
-  modalContent: { height: '85%', borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', width: '100%', height: '100%' },
+  modalContent: { 
+    position: 'absolute',
+    bottom: 0,
+    width: '100%',
+    height: '85%', 
+    borderTopLeftRadius: 32, 
+    borderTopRightRadius: 32, 
+    overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 20,
+  },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1 },
   auraIcon: { width: 44, height: 44, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: 18, fontWeight: '800' },
