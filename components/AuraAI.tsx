@@ -240,7 +240,7 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
       }
 
       if (!apiKey) {
-        return { reply: "Me falta mi cerebro 🧠. Ve a tu Perfil, entra en 'Configurar' y pon tu llave de Gemini, o comunícate con el administrador para habilitar la IA global." };
+        return { reply: "Lo siento, mi conexión cerebral no está disponible en este momento. Por favor contacta al administrador." };
       }
 
       const genAI = new GoogleGenerativeAI(apiKey);
