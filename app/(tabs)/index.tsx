@@ -480,7 +480,7 @@ export default function HomeScreen() {
               activeOpacity={0.9}
               onPress={() => setBreakdownVisible(true)}
             >
-              <View style={{ position: 'absolute', top: 20, right: 20, zIndex: 10 }}>
+              <View style={{ position: 'absolute', top: 20, right: 20, zIndex: 999, elevation: 10 }}>
                 <MagicAuraButton />
               </View>
               <Text style={styles.balanceLabel}>DINERO ACTIVO</Text>
