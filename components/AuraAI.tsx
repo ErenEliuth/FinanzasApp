@@ -33,6 +33,52 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
   const scrollRef = React.useRef<ScrollView>(null);
   const finalName = userName || 'Amigo';
 
+  // === BLOQUEO DE SCROLL DEL FONDO (iOS Safari Fix) ===
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    
+    if (visible) {
+      // Guardar posición actual del scroll
+      const scrollY = window.scrollY;
+      const body = document.body;
+      const html = document.documentElement;
+      
+      // Congelar el body completamente
+      body.style.position = 'fixed';
+      body.style.top = `-${scrollY}px`;
+      body.style.left = '0';
+      body.style.right = '0';
+      body.style.width = '100%';
+      body.style.overflow = 'hidden';
+      html.style.overflow = 'hidden';
+      
+      // Prevenir el touchmove en el overlay
+      const preventScroll = (e: TouchEvent) => {
+        // Solo permitir scroll dentro del chat area
+        const target = e.target as HTMLElement;
+        const chatArea = document.querySelector('[data-chat-scroll="true"]');
+        if (chatArea && chatArea.contains(target)) return;
+        e.preventDefault();
+      };
+      
+      document.addEventListener('touchmove', preventScroll, { passive: false });
+      
+      return () => {
+        // Restaurar todo al cerrar
+        document.removeEventListener('touchmove', preventScroll);
+        const savedScrollY = parseInt(body.style.top || '0', 10) * -1;
+        body.style.position = '';
+        body.style.top = '';
+        body.style.left = '';
+        body.style.right = '';
+        body.style.width = '';
+        body.style.overflow = '';
+        html.style.overflow = '';
+        window.scrollTo(0, savedScrollY);
+      };
+    }
+  }, [visible]);
+
   useEffect(() => {
     if (visible && messages.length === 0) {
       setMessages([{
@@ -176,7 +222,14 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
              </View>
              <TouchableOpacity onPress={onClose} style={styles.closeBtn}><Ionicons name="close" size={24} color={colorsNav.sub} /></TouchableOpacity>
           </View>
-          <ScrollView ref={scrollRef} style={styles.chatArea} contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          <ScrollView 
+            ref={scrollRef} 
+            style={styles.chatArea} 
+            contentContainerStyle={{ padding: 20, paddingBottom: 40 }} 
+            showsVerticalScrollIndicator={false}
+            {...(Platform.OS === 'web' ? { 'data-chat-scroll': 'true' } as any : {})}
+            bounces={false}
+          >
             {messages.map((m) => (
                   <View key={m.id} style={[styles.msgRow, m.sender === 'user' ? styles.userRow : styles.auraRow]}>
                     {m.sender === 'sanctuary' && (
