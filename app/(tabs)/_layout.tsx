@@ -143,18 +143,11 @@ export default function TabLayout() {
         }}
       />
 
+
       <Tabs.Screen
         name="debts"
         options={{
           title: 'Deudas',
-          href: null,
-        }}
-      />
-
-      <Tabs.Screen
-        name="budgets"
-        options={{
-          title: 'Presupuestos',
           href: null,
         }}
       />

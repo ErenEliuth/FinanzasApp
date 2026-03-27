@@ -1,4 +1,5 @@
 import { AuthProvider, useAuth } from '@/utils/auth';
+import { TutorialProvider } from '@/components/TutorialContext';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -164,7 +165,9 @@ export const unstable_settings = {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <RootStack />
+      <TutorialProvider>
+        <RootStack />
+      </TutorialProvider>
     </AuthProvider>
   );
 }
