@@ -34,10 +34,9 @@ export default function WelcomeScreen() {
             if (user) {
                 router.replace('/(tabs)');
             } else {
-                // Siempre ir al login, omitir onboarding
                 router.replace('/login');
             }
-        }, 3000);
+        }, 800);
 
         return () => clearTimeout(timer);
     }, [loading, user]);
@@ -51,7 +50,7 @@ export default function WelcomeScreen() {
             <SafeAreaView style={styles.content}>
                 <Animated.View style={[styles.brandContainer, { opacity: fade, transform: [{ translateY: slideUp }] }]}>
                     <View style={styles.logoRow}>
-                        <Text style={styles.logoText}>Zenly</Text>
+                        <Text style={styles.logoText}>Sanctuary</Text>
                         <View style={styles.accentDot} />
                     </View>
                     <View style={styles.taglineWrapper}>
@@ -83,10 +82,10 @@ const styles = StyleSheet.create({
         marginBottom: -10,
     },
     logoText: {
-        fontSize: 84,
+        fontSize: 72,
         fontWeight: '900',
         color: '#FFFFFF',
-        letterSpacing: -4,
+        letterSpacing: -3,
     },
     accentDot: {
         position: 'absolute',

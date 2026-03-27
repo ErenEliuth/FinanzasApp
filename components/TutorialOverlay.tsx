@@ -9,7 +9,7 @@ const { width, height } = Dimensions.get('window');
 
 const TUTORIAL_CONTENT = {
   welcome: {
-    title: '¡Bienvenido a Zenly! 🧘‍♂️',
+    title: '¡Bienvenido a Sanctuary! 🌿',
     desc: 'Vamos a aprender a usar tu paz financiera en 1 minuto. Te enseñaré cómo registrar tus movimientos para que tomes el control.',
     button: '¡Comencemos!',
     icon: 'auto-fix-high' as any,

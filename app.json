@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "AppMobile",
-    "slug": "AppMobile",
+    "name": "Sanctuary",
+    "slug": "Sanctuary",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
