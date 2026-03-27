@@ -225,7 +225,7 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
 
   const askSanty = async (text: string): Promise<{reply: string, action?: any}> => {
     try {
-      const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+      const apiKey = "AIzaSyDpoRIiMz7uswXT1omgioDmaipOphyOZI4";
       if (!apiKey) {
         return { reply: "Uy, me falta algo para pensar (falta la llave API de Gemini en .env)." };
       }
