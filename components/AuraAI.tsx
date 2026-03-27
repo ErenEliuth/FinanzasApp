@@ -151,19 +151,108 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
     setInput('');
     setIsTyping(true);
 
-    setTimeout(async () => {
-      const { reply, action } = parseIntent(text);
-      const sanctuaryMsg: Message = {
+    try {
+      // Primero intentar responder preguntas con datos reales
+      const queryReply = await handleQuery(text);
+      
+      if (queryReply) {
+        const sanctuaryMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          text: queryReply,
+          sender: 'sanctuary',
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, sanctuaryMsg]);
+      } else {
+        // Si no es una pregunta, intentar parsear como transacción
+        const { reply, action } = parseIntent(text);
+        const sanctuaryMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          text: reply,
+          sender: 'sanctuary',
+          timestamp: new Date(),
+          actionData: action
+        };
+        setMessages(prev => [...prev, sanctuaryMsg]);
+      }
+    } catch (e) {
+      setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
-        text: reply,
+        text: `Ups, tuve un problema procesando eso. ¿Puedes intentar de nuevo? 😅`,
         sender: 'sanctuary',
         timestamp: new Date(),
-        actionData: action
-      };
-      setMessages(prev => [...prev, sanctuaryMsg]);
-      setIsTyping(false);
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
-    }, 1000);
+      }]);
+    }
+
+    setIsTyping(false);
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+  };
+
+  // Manejar preguntas que requieren consultar datos reales
+  const handleQuery = async (text: string): Promise<string | null> => {
+    const q = text.toLowerCase().trim();
+    
+    // Detectar si es una pregunta (NO un comando de transacción)
+    const isQuestion = q.includes('cuánto') || q.includes('cuanto') || q.includes('cuáles') || q.includes('cuales') ||
+      q.includes('muéstrame') || q.includes('muestrame') || q.includes('dime') || q.includes('qué he') || q.includes('que he') ||
+      q.includes('mis transacciones') || q.includes('mi historial') || q.includes('mis gastos') || q.includes('mis ingresos') ||
+      q.includes('he gastado') || q.includes('he ganado') || q.includes('resumen') || q.includes('balance') ||
+      q.includes('últimas') || q.includes('ultimas') || q.includes('último') || q.includes('ultimo');
+
+    if (!isQuestion) return null;
+
+    try {
+      // Consultar las últimas transacciones del usuario
+      const { data: transactions, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('date', { ascending: false })
+        .limit(10);
+
+      if (error || !transactions || transactions.length === 0) {
+        return `No encontré transacciones recientes, ${finalName}. ¿Quieres registrar una nueva? 📝`;
+      }
+
+      // Calcular totales
+      const totalGastos = transactions.filter((t: any) => t.type === 'expense').reduce((sum: number, t: any) => sum + t.amount, 0);
+      const totalIngresos = transactions.filter((t: any) => t.type === 'income').reduce((sum: number, t: any) => sum + t.amount, 0);
+      const count = transactions.length;
+
+      // Si pregunta por cuánto ha gastado
+      if (q.includes('gastado') || q.includes('gastos') || q.includes('gasto')) {
+        return `En tus últimas ${count} transacciones has gastado $${totalGastos.toLocaleString()}, ${finalName}. 📊`;
+      }
+
+      // Si pregunta por ingresos
+      if (q.includes('ganado') || q.includes('ingresos') || q.includes('ingreso') || q.includes('recibido')) {
+        return `En tus últimas ${count} transacciones has recibido $${totalIngresos.toLocaleString()}, ${finalName}. 💰`;
+      }
+
+      // Si pregunta por resumen o balance
+      if (q.includes('resumen') || q.includes('balance')) {
+        return `Tu resumen reciente, ${finalName}:\n\n💰 Ingresos: $${totalIngresos.toLocaleString()}\n💸 Gastos: $${totalGastos.toLocaleString()}\n📊 Balance: $${(totalIngresos - totalGastos).toLocaleString()}`;
+      }
+
+      // Resumen general para cualquier otra pregunta
+      const topCategories = transactions.reduce((acc: any, t: any) => {
+        if (t.type === 'expense') {
+          acc[t.category] = (acc[t.category] || 0) + t.amount;
+        }
+        return acc;
+      }, {});
+      
+      const categorySummary = Object.entries(topCategories)
+        .sort(([,a]: any, [,b]: any) => b - a)
+        .slice(0, 3)
+        .map(([cat, amt]: any) => `• ${cat}: $${amt.toLocaleString()}`)
+        .join('\n');
+
+      return `Aquí va tu resumen de las últimas ${count} transacciones, ${finalName}:\n\n💰 Ingresos: $${totalIngresos.toLocaleString()}\n💸 Gastos: $${totalGastos.toLocaleString()}\n\n📊 Top gastos:\n${categorySummary || '• Sin gastos registrados'}`;
+
+    } catch (e) {
+      return `No pude consultar tus datos ahora, ${finalName}. Intenta de nuevo en un momento. 😅`;
+    }
   };
 
   const parseAmount = (text: string): number | null => {
