@@ -226,17 +226,14 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
 
   const askSanty = async (text: string): Promise<{reply: string, action?: any}> => {
     try {
-      // 1. Buscamos primero si el usuario puso una llave personal localmente
-      let apiKey = await AsyncStorage.getItem('@gemini_key');
+      // 1. Fallback GLOBAL: Priorizamos la llave del .env (la central)
+      const part1 = process.env.EXPO_PUBLIC_GEMINI_P1;
+      const part2 = process.env.EXPO_PUBLIC_GEMINI_P2;
+      let apiKey = (part1 && part2) ? (part1 + part2).trim() : null;
       
-      // 2. Fallback GLOBAL: Si no hay llave local, armamos la llave global del .env
-      // Ocultamos la llave del escáner dividiéndola en dos mitades en el archivo .env
+      // 2. Si no hay llave global, buscamos si el usuario puso una personal localmente (Legacy)
       if (!apiKey) {
-        const part1 = process.env.EXPO_PUBLIC_GEMINI_P1;
-        const part2 = process.env.EXPO_PUBLIC_GEMINI_P2;
-        if (part1 && part2) {
-          apiKey = part1 + part2;
-        }
+        apiKey = await AsyncStorage.getItem('@gemini_key');
       }
 
       if (!apiKey) {
