@@ -13,12 +13,12 @@ export const MagicAuraButton = () => {
   return (
     <>
       <TouchableOpacity
-        style={[styles.headerIconBtn, { backgroundColor: colorsNav.accent, borderRadius: 22, justifyContent: 'center', alignItems: 'center' }]}
+        style={[styles.headerIconBtn, { borderRadius: 20, overflow: 'hidden' }]}
         onPress={() => setVisible(true)}
       >
         <Image 
           source={require('../assets/images/santy_eye.png')} 
-          style={{ width: 24, height: 24, resizeMode: 'contain', borderRadius: 12 }} 
+          style={{ width: '100%', height: '100%', resizeMode: 'cover' }} 
         />
       </TouchableOpacity>
 

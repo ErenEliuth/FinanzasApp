@@ -546,8 +546,8 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
         >
           <View style={[styles.header, { borderBottomColor: colorsNav.border }]}>
              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <View style={[styles.auraIcon, { backgroundColor: colorsNav.accent, justifyContent: 'center', alignItems: 'center', borderRadius: 22 }]}>
-                  <Image source={require('../assets/images/santy_eye.png')} style={{ width: 24, height: 24, resizeMode: 'contain', borderRadius: 12 }} />
+                <View style={[styles.auraIcon, { borderRadius: 22, overflow: 'hidden' }]}>
+                  <Image source={require('../assets/images/santy_eye.png')} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
                 </View>
                 <View><Text style={[styles.headerTitle, { color: colorsNav.text }]}>Sanctuary AI</Text><Text style={[styles.headerSub, { color: colorsNav.sub }]}>Ejecutor financiero</Text></View>
              </View>
@@ -564,8 +564,8 @@ export const AuraAI = ({ visible, onClose, userName }: { visible: boolean; onClo
             {messages.map((m) => (
                   <View key={m.id} style={[styles.msgRow, m.sender === 'user' ? styles.userRow : styles.auraRow]}>
                      {m.sender === 'sanctuary' && (
-                        <View style={[styles.miniAvatar, { backgroundColor: colorsNav.accent, justifyContent: 'center', alignItems: 'center' }]}>
-                           <Image source={require('../assets/images/santy_eye.png')} style={{ width: 14, height: 14, resizeMode: 'contain', borderRadius: 7 }} />
+                        <View style={[styles.miniAvatar, { borderRadius: 11, overflow: 'hidden' }]}>
+                           <Image source={require('../assets/images/santy_eye.png')} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
                         </View>
                      )}
                     <View style={{ flexShrink: 1, maxWidth: '100%', alignItems: m.sender === 'user' ? 'flex-end' : 'flex-start' }}>
