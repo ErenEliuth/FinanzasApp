@@ -56,6 +56,7 @@ export default function AddTransactionScreen() {
   const [accountModalVisible, setAccountModalVisible] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newAccountName, setNewAccountName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   // Eliminado: estados de sugerencia inteligente de ahorro
 
   const router = useRouter();
@@ -210,7 +211,9 @@ export default function AddTransactionScreen() {
 
   const handleSave = async () => {
     const parsed = parseFloat(amount.replace(/\./g, '').replace(',', '.'));
-    if (isNaN(parsed) || parsed <= 0) return;
+    if (isNaN(parsed) || parsed <= 0 || isSaving) return;
+
+    setIsSaving(true);
 
     // ─── Validación de Saldo (Solo para Gasto / Ahorro / Transferencia) ──────────
     if (type !== 'income') {
@@ -252,7 +255,11 @@ export default function AddTransactionScreen() {
         }]);
         setAmount(''); setDescription(''); setDestAccount('');
         if (router.canGoBack()) router.back(); else router.replace('/(tabs)');
-      } catch (e) { console.error('Error transfiriendo:', e); }
+      } catch (e) { 
+        console.error('Error transfiriendo:', e); 
+      } finally {
+        setIsSaving(false);
+      }
       return;
     }
 
@@ -267,7 +274,11 @@ export default function AddTransactionScreen() {
       if (error) throw error;
       setAmount(''); setDescription(''); setCategory('');
       if (router.canGoBack()) router.back(); else router.replace('/(tabs)');
-    } catch (e) { console.error('Error guardando transacción:', e); }
+    } catch (e) { 
+      console.error('Error guardando transacción:', e); 
+    } finally {
+      setIsSaving(false);
+    }
   };
 
 // Eliminado: confirmSaveWithSavings
@@ -433,12 +444,12 @@ export default function AddTransactionScreen() {
 
             {/* ── Botón Guardar ──────────────────────────────────────── */}
             <TouchableOpacity
-              style={[styles.saveBtn, { backgroundColor: typeColor }, !amount && { opacity: 0.5 }]}
+              style={[styles.saveBtn, { backgroundColor: typeColor }, (!amount || isSaving) && { opacity: 0.5 }]}
               onPress={handleSave}
-              disabled={!amount}
+              disabled={!amount || isSaving}
             >
-              <Text style={styles.saveBtnText}>Guardar Movimiento</Text>
-              <Ionicons name="arrow-forward" size={20} color="#FFF" />
+              <Text style={styles.saveBtnText}>{isSaving ? 'Guardando...' : 'Guardar Movimiento'}</Text>
+              <Ionicons name={isSaving ? "hourglass-outline" : "arrow-forward"} size={20} color="#FFF" />
             </TouchableOpacity>
 
             <View style={{ height: 100 }} />

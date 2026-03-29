@@ -42,6 +42,7 @@ export default function GoalsScreen() {
     const [newGoalTarget, setNewGoalTarget] = useState('');
     const [newGoalImage, setNewGoalImage] = useState<string | null>(null);
     const [newGoalPriority, setNewGoalPriority] = useState<'high' | 'medium' | 'low'>('medium');
+    const [isProcessing, setIsProcessing] = useState(false);
 
     const [payModalVisible, setPayModalVisible] = useState(false);
     const [withdrawModalVisible, setWithdrawModalVisible] = useState(false);
@@ -78,7 +79,8 @@ export default function GoalsScreen() {
 
     const handleCreateGoal = async () => {
         const val = parseFloat(newGoalTarget.replace(/\./g, '').replace(',', '.'));
-        if (!newGoalName.trim() || isNaN(val) || val <= 0) return;
+        if (!newGoalName.trim() || isNaN(val) || val <= 0 || isProcessing) return;
+        setIsProcessing(true);
         try {
             let finalImageUri = newGoalImage;
             
@@ -108,6 +110,8 @@ export default function GoalsScreen() {
             console.error('Error al crear meta:', e); 
             if (Platform.OS === 'web') window.alert('Error al crear meta. Verifica tu conexión.');
             else Alert.alert('Error', 'No se pudo crear la meta.');
+        } finally {
+            setIsProcessing(false);
         }
     };
 
@@ -138,14 +142,17 @@ export default function GoalsScreen() {
     };
 
     const handleDistributeSavings = async () => {
-        if (availableAhorro <= 0 || goals.length === 0) {
-            Alert.alert('Zenly', 'No hay ahorros disponibles para distribuir.');
+        if (availableAhorro <= 0 || goals.length === 0 || isProcessing) {
+            if (!isProcessing) Alert.alert('Sanctuary', 'No hay ahorros disponibles para distribuir.');
             return;
         }
+        
+        setIsProcessing(true);
 
         const unfinishedGoals = goals.filter(g => g.current_amount < g.target_amount);
         if (unfinishedGoals.length === 0) {
-            Alert.alert('Zenly', '¡Ya todas tus metas están cumplidas! 🎉');
+            Alert.alert('Sanctuary', '¡Ya todas tus metas están cumplidas! 🎉');
+            setIsProcessing(false);
             return;
         }
 
@@ -165,11 +172,13 @@ export default function GoalsScreen() {
             });
 
             await Promise.all(updates);
-            Alert.alert('Zenly ✨', 'Se han distribuido tus ahorros de forma inteligente por prioridad.');
+            Alert.alert('Sanctuary', 'Se han distribuido tus ahorros de forma inteligente por prioridad.');
             loadData();
         } catch (e) {
             console.error('Error al distribuir ahorros:', e);
             Alert.alert('Error', 'No se pudieron distribuir los ahorros.');
+        } finally {
+            setIsProcessing(false);
         }
     };
 
@@ -229,10 +238,11 @@ export default function GoalsScreen() {
                                 <Text style={[styles.footerVal, { color: '#10B981', fontWeight: '900' }]}>{fmt(availableAhorro)}</Text>
                                 {availableAhorro > 0 && (
                                     <TouchableOpacity 
-                                        style={[styles.distBtn, { backgroundColor: colors.accent }]} 
+                                        style={[styles.distBtn, { backgroundColor: colors.accent }, isProcessing && { opacity: 0.6 }]} 
                                         onPress={handleDistributeSavings}
+                                        disabled={isProcessing}
                                     >
-                                        <Text style={styles.distBtnText}>Distribuir ✨</Text>
+                                        <Text style={styles.distBtnText}>{isProcessing ? 'Procesando...' : 'Distribuir'}</Text>
                                     </TouchableOpacity>
                                 )}
                             </View>
@@ -381,8 +391,12 @@ export default function GoalsScreen() {
                                 </View>
                             </View>
 
-                            <TouchableOpacity style={[styles.mPrimaryBtn, { backgroundColor: colors.accent }]} onPress={handleCreateGoal}>
-                                <Text style={styles.mPrimaryBtnTxt}>Comenzar a ahorrar</Text>
+                            <TouchableOpacity 
+                                style={[styles.mPrimaryBtn, { backgroundColor: colors.accent }, isProcessing && { opacity: 0.6 }]} 
+                                onPress={handleCreateGoal}
+                                disabled={isProcessing}
+                            >
+                                <Text style={styles.mPrimaryBtnTxt}>{isProcessing ? 'Guardando...' : 'Comenzar a ahorrar'}</Text>
                             </TouchableOpacity>
                         </View>
                     </KeyboardAvoidingView>

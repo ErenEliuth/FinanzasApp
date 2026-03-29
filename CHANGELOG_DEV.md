@@ -40,6 +40,20 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-29 — Sanctuary: Anti-Duplicados y Estética (v24)
+
+**Archivos modificados:**
+- `app/goals.tsx` — Prevención de clics dobles y eliminación de emoji en botón.
+- `app/(tabs)/explore.tsx` — Prevención de transacciones duplicadas al guardar.
+- `CHANGELOG_DEV.md` — Registro de la v24.
+
+**Cambios realizados:**
+- ✅ **Adiós duplicados**: Se implementó una lógica de bloqueo (`isProcessing`) en los botones de "Crear Meta", "Distribuir" y "Guardar Transacción". Ahora, el botón se deshabilita y muestra un mensaje de "Guardando..." mientras se procesa la solicitud, evitando registros repetidos por clics rápidos.
+- ✅ **Estética Limpia**: Se eliminó el emoji "✨" del botón Distribuir en la sección de ahorros a petición del usuario para un look más sobrio.
+- ✅ **UX Mejorada**: Añadido feedback visual con el icono de reloj de arena en el botón de guardar movimientos durante el procesamiento.
+
+---
+
 ### 2026-03-29 — Sanctuary: Sincronización y Priorización Visual (v23)
 
 **Archivos modificados:**
