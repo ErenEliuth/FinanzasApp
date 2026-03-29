@@ -417,7 +417,10 @@ export default function HomeScreen() {
   };
 
   const formatTxDate = (dateStr: string) => {
-    const txDate = new Date(dateStr);
+    if (!dateStr) return '';
+    // Bugfix 7:00 PM: Normalizar fechas sin tiempo para evitar desfase UTC
+    const normalized = dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`;
+    const txDate = new Date(normalized);
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);

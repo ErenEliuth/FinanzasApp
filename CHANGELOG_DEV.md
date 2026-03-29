@@ -40,6 +40,20 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-29 — Sanctuary: Fix de Fecha y Hora (v27)
+
+**Archivos modificados:**
+- `app/(tabs)/index.tsx` — Corrección del desfase UTC de 5 horas.
+- `app/(tabs)/history.tsx` — Normalización de horas y fechas en el historial.
+- `CHANGELOG_DEV.md` — Registro de la v27.
+
+**Cambios realizados:**
+- ✅ **Adiós a las 7:00 PM**: Se corrigió el famoso error de JavaScript donde las fechas vacías (YYYY-MM-DD) se interpretaban como UTC-0, causando que en Colombia salieran siempre a las 7:00 PM del día anterior.
+- ✅ **Normalización de Tiempos**: Ahora Sanctuary fuerza la interpretación local de todas las transacciones, garantizando que "HOY" y "AYER" sean precisos y reflejen el momento real del gasto.
+- ✅ **Consistencia**: El fix se aplicó tanto al dashboard principal como al historial completo.
+
+---
+
 ### 2026-03-29 — Sanctuary: Sugerencias Inteligentes (v26)
 
 **Archivos modificados:**
