@@ -376,7 +376,7 @@ export default function ProfileScreen() {
         await AsyncStorage.setItem('@lock_pin', tempPin);
         setPinModalVisible(false);
         setTempPin('');
-        Alert.alert("Éxito", "Tu PIN de Sanctuary ha sido actualizado.");
+        Alert.alert("Éxito", "Tu PIN de Zenly ha sido actualizado.");
     };
 
     const [transactions, setTransactions] = useState<any[]>([]);

@@ -421,7 +421,7 @@ export default function HomeScreen() {
             <View style={[styles.logoIcon, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }]}>
               <MaterialIcons name="shield" size={20} color={isDark ? '#A09B8C' : '#8B7355'} />
             </View>
-            <Text style={[styles.logoText, { color: isDark ? '#D4C5A9' : '#8B7355' }]}>Sanctuary</Text>
+            <Text style={[styles.logoText, { color: isDark ? '#D4C5A9' : '#8B7355' }]}>Zenly</Text>
           </View>
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
             <TouchableOpacity

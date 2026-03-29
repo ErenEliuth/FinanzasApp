@@ -153,7 +153,7 @@ export default function GoalsScreen() {
                 <TouchableOpacity onPress={() => router.back()} style={[styles.circleBtn, { backgroundColor: colors.card }]}>
                     <Ionicons name="arrow-back" size={24} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>Mis Ahorros</Text>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>Zenly: Mis Metas</Text>
                 <TouchableOpacity onPress={() => setAddModalVisible(true)} style={[styles.circleBtn, { backgroundColor: colors.accent }]}>
                     <Ionicons name="add" size={24} color="#FFF" />
                 </TouchableOpacity>

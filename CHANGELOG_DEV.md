@@ -40,6 +40,47 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-29 — Zenly: Branding Total y Estabilidad (v20)
+
+**Archivos modificados:**
+- `package.json` — Fix de `expo-secure-store`.
+- `app/(tabs)/index.tsx`, `app/goals.tsx`, `app/(tabs)/profile.tsx`, `app/(tabs)/explore.tsx` — Estandarización de nombre "Zenly".
+- `CHANGELOG_DEV.md` — Sincronización de versiones v18, v19 y v20.
+
+**Cambios realizados:**
+- ✅ **Identidad Consolidada**: Se completó la transición de "Sanctuary" a **"Zenly"** en toda la interfaz de usuario, headers, alertas de sistema y comentarios del código.
+- ✅ **0 Advertencias**: Se resolvió el conflicto de versiones de `expo-secure-store` ajustándolo a la compatibilidad nativa con Expo SDK 54.
+- ✅ **Limpieza Post-IA**: Eliminadas referencias huérfanas al motor de IA Santy para optimizar la legibilidad del código.
+
+---
+
+### 2026-03-29 — Zenly: Esencial y Rápido (v19)
+
+**Archivos modificados:**
+- `app/(tabs)/index.tsx`, `app/(tabs)/profile.tsx` — Eliminación selectiva de Aura/Santy IA.
+- `constants/Changelog.ts` — Incremento a v19 y actualización de novedades.
+- `package.json` — Corrección de versión de `expo-secure-store`.
+
+**Cambios realizados:**
+- ✅ **Adiós Santy (IA)**: Se eliminó el motor de IA para que Zenly sea más ligera, privada y se enfoque en la gestión pura de cuentas.
+- ✅ **Depuración de Dependencias**: Corregido un "warning" crítico de `expo-secure-store` que era incompatible con Expo SDK 54.
+- ✅ **Header Unificado**: Las notificaciones y el modo incógnito (ojo) ahora están juntos arriba para un look más limpio.
+
+---
+
+### 2026-03-28 — Zenly: Estadísticas Visuales (v18)
+
+**Archivos modificados:**
+- `app/(tabs)/profile.tsx` — Integración de `LineChart` para historial de 6 meses.
+- `constants/Themes.ts` — Refinamiento de temas Lila y Océano.
+
+**Cambios realizados:**
+- ✅ **Gráfico de Gastos**: Implementación de un gráfico de líneas que muestra la evolución de los gastos de los últimos 6 meses en el perfil.
+- ✅ **Branding Zenly**: Inicio de la transición visual de "Sanctuary" a "Zenly", con colores más suaves y tipografía refinada.
+- ✅ **Micro-UX**: Mejora en las transiciones de los modales de seguridad y ahorro.
+
+---
+
 ### 2026-03-27 — Sanctuary: Cerebro Seguro (v17)
 
 **Archivos modificados:**
@@ -383,7 +424,7 @@
 
 | # | Descripción | Estado | Archivo |
 |---|-------------|--------|---------|
-| 1 | `expo-secure-store` versión incompatible (warning al iniciar) | ⚠️ Pendiente | `package.json` |
+| 1 | `expo-secure-store` versión incompatible (warning al iniciar) | ✅ Corregido | `package.json` |
 | 2 | En web, `Keyboard.dismiss` no aplica (se usa condicional `Platform.OS`) | ✅ Manejado | `explore.tsx` |
 | 3 | Alerts no funcionan en web (se usa `window.confirm` como fallback) | ✅ Manejado | varios |
 

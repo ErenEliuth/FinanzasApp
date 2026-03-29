@@ -62,7 +62,7 @@ export default function AddTransactionScreen() {
   const { user, theme } = useAuth();
   const isDark = theme === 'dark';
 
-  // ── Sanctuary Palette ──
+  // ── Zenly Palette ──
   const colors = isDark 
     ? {
         bg: '#1A1A2E',
@@ -303,7 +303,7 @@ export default function AddTransactionScreen() {
               />
             </View>
 
-            {/* ── Formulario Sanctuary ────────────────────────────────────── */}
+            {/* ── Formulario Zenly ────────────────────────────────────── */}
             <View style={[styles.form, { backgroundColor: colors.card }]}>
               {/* Descripción */}
               <View style={styles.inputGroup}>
