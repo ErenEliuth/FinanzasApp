@@ -40,7 +40,7 @@ type CreditCard = {
 
 
 // ─── Circular Progress Component ──────────────────────────────────────
-const CircularProgress = ({ percentage, size = 80, strokeWidth = 8, color = '#4A7C59' }: {
+const CircularProgress = React.memo(({ percentage, size = 80, strokeWidth = 8, color = '#4A7C59' }: {
   percentage: number; size?: number; strokeWidth?: number; color?: string;
 }) => {
   const radius = (size - strokeWidth) / 2;
@@ -63,7 +63,7 @@ const CircularProgress = ({ percentage, size = 80, strokeWidth = 8, color = '#4A
       />
     </Svg>
   );
-};
+});
 
 export default function HomeScreen() {
   const isFocused = useIsFocused();
@@ -74,10 +74,6 @@ export default function HomeScreen() {
   const colorsNav = useThemeColors();
   const isDark = colorsNav.isDark;
 
-  const [ingresos, setIngresos] = useState(0);
-  const [gastos, setGastos] = useState(0);
-  const [ahorro, setAhorro] = useState(0);
-  const [ahorroMes, setAhorroMes] = useState(0);
   const [debtTotal, setDebtTotal] = useState(0);
   const [recentTx, setRecentTx] = useState<any[]>([]);
   const [upcomingDebts, setUpcomingDebts] = useState<any[]>([]);
@@ -195,10 +191,6 @@ export default function HomeScreen() {
         }
       });
 
-      setIngresos(inc);
-      setGastos(expGastos);
-      setAhorro(savTotal);
-      setAhorroMes(savMes);
       setAccountTotals(accs);
       setRecentTx(allTx?.slice(0, 5) || []);
       setAllTransactions(allTx || []);
@@ -315,26 +307,63 @@ export default function HomeScreen() {
     } catch (e) { console.error('Error cargando datos de Supabase:', e); }
   };
 
-  const dineroActivo = Object.entries(accountTotals)
-    .filter(([accName]) => !userCards.includes(accName) && accName !== 'Ahorro')
-    .reduce((sum, [_, amt]) => sum + Number(amt), 0);
+  const { dineroActivo, dineroReal, ahorroTotal, ingresosMes, gastosMes, ahorroDelMes, saludPorcentaje, saludLabel, saludColor, porcentajeMes, saldoDisponible } = React.useMemo(() => {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
 
-  const dineroReal = (dineroActivo + ahorro) - debtTotal;
+    let inc = 0, expGastos = 0, savTotal = 0, savMes = 0;
+    let accs: any = {};
 
-  // Salud financiera
-  const saludPorcentaje = (() => {
-    if (dineroActivo <= 0) return 0;
-    const total = dineroActivo + ahorro;
-    if (total <= 0) return 0;
-    const ratio = dineroReal / total;
-    return Math.max(0, Math.min(100, Math.round(ratio * 100)));
-  })();
-  const saludLabel = saludPorcentaje >= 70 ? 'ÓPTIMO' : saludPorcentaje >= 40 ? 'REGULAR' : 'BAJO';
-  const saludColor = saludPorcentaje >= 70 ? '#4A7C59' : saludPorcentaje >= 40 ? '#F59E0B' : '#EF4444';
+    allTransactions.forEach(tx => {
+      const txDate = new Date(tx.date);
+      const isThisMonth = txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
 
-  // Porcentaje de cambio mes
-  const mesAnteriorIngresos = ingresos; // For display
-  const porcentajeMes = ingresos > 0 ? ((ingresos - gastos) / ingresos * 100).toFixed(1) : '0';
+      if (tx.type === 'income') {
+        const acc = tx.account || 'Efectivo';
+        if (!accs[acc]) accs[acc] = 0;
+        if (isThisMonth && tx.category !== 'Transferencia') inc += tx.amount;
+        accs[acc] += tx.amount;
+      } else {
+        if (tx.category === 'Ahorro') {
+          savTotal += tx.amount;
+          if (isThisMonth) savMes += tx.amount;
+        } else if (tx.category !== 'Transferencia') {
+          if (isThisMonth) expGastos += tx.amount;
+        }
+
+        const acc = (tx.account === 'Ahorro' || !tx.account) ? 'Efectivo' : tx.account;
+        if (!accs[acc]) accs[acc] = 0;
+        accs[acc] -= tx.amount;
+      }
+    });
+
+    const activeMoney = Object.entries(accountTotals)
+      .filter(([accName]) => !userCards.includes(accName) && accName !== 'Ahorro')
+      .reduce((sum, [_, amt]) => sum + Number(amt), 0);
+
+    const realMoney = (activeMoney + savTotal) - debtTotal;
+    const available = activeMoney - debtTotal + savTotal;
+
+    const healthPct = activeMoney > 0 ? Math.max(0, Math.min(100, Math.round((realMoney / (activeMoney + savTotal)) * 100))) : 0;
+    const healthLbl = healthPct >= 70 ? 'ÓPTIMO' : healthPct >= 40 ? 'REGULAR' : 'BAJO';
+    const healthClr = healthPct >= 70 ? '#4A7C59' : healthPct >= 40 ? '#F59E0B' : '#EF4444';
+    const monthPct = inc > 0 ? ((inc - expGastos) / inc * 100).toFixed(1) : '0';
+
+    return {
+      dineroActivo: activeMoney,
+      dineroReal: realMoney,
+      ahorroTotal: savTotal,
+      ingresosMes: inc,
+      gastosMes: expGastos,
+      ahorroDelMes: savMes,
+      saludPorcentaje: healthPct,
+      saludLabel: healthLbl,
+      saludColor: healthClr,
+      porcentajeMes: monthPct,
+      saldoDisponible: available
+    };
+  }, [allTransactions, debtTotal, accountTotals, userCards]);
 
   const fmt = (n: number) =>
     isHidden
@@ -371,8 +400,6 @@ export default function HomeScreen() {
   const displayName = user?.user_metadata?.name || 'Usuario';
   const initials = displayName
     .trim().split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
-
-  const saldoDisponible = dineroActivo - debtTotal + ahorro;
 
   // Icon helper for transactions
   const getTxIconInfo = (tx: any) => {
@@ -501,7 +528,7 @@ export default function HomeScreen() {
                   <MaterialIcons name="savings" size={22} color="#4A7C59" />
                 </View>
                 <Text style={[styles.widgetLabel, { color: colorsNav.sub }]}>AHORROS</Text>
-                <Text style={[styles.widgetValue, { color: colorsNav.text }]}>{fmt(ahorro)}</Text>
+                <Text style={[styles.widgetValue, { color: colorsNav.text }]}>{fmt(ahorroTotal)}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -586,7 +613,7 @@ export default function HomeScreen() {
                   <View style={{ width: 1, backgroundColor: isDark ? colorsNav.border : '#E8E0D4', height: '60%', alignSelf: 'center' }} />
                   <View style={styles.healthExpandedItem}>
                     <Text style={[styles.healthExpandedItemLabel, { color: colorsNav.sub }]}>Ahorro</Text>
-                    <Text style={[styles.healthExpandedItemValue, { color: '#8B5CF6' }]}>{fmt(ahorro)}</Text>
+                    <Text style={[styles.healthExpandedItemValue, { color: '#8B5CF6' }]}>{fmt(ahorroTotal)}</Text>
                   </View>
                   <View style={{ width: 1, backgroundColor: isDark ? colorsNav.border : '#E8E0D4', height: '60%', alignSelf: 'center' }} />
                   <View style={styles.healthExpandedItem}>
@@ -649,7 +676,7 @@ export default function HomeScreen() {
               {(isDesktop ? allTransactions : recentTx).length === 0 ? (
                 <Text style={[styles.emptyText, { color: colorsNav.sub }]}>No hay transacciones</Text>
               ) : (
-                (isDesktop ? allTransactions : recentTx).map((tx) => {
+                (isDesktop ? allTransactions.slice(0, 50) : recentTx).map((tx) => {
                   const iconInfo = getTxIconInfo(tx);
                   return (
                     <View key={tx.id} style={[styles.txItem, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>

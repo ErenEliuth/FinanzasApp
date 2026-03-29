@@ -40,6 +40,20 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-29 — Sanctuary: Rendimiento y Fluidez (v25)
+
+**Archivos modificados:**
+- `app/(tabs)/index.tsx` — Optimización masiva de renderizado y cálculos internos.
+- `CHANGELOG_DEV.md` — Registro de la v25.
+
+**Cambios realizados:**
+- ✅ **Memoización Estratégica**: Se implementó `useMemo` para todos los cálculos financieros (Ahorros, Salud, Totales). Esto significa que la app ya no recalcula todo en cada parpadeo, mejorando significativamente la velocidad de respuesta.
+- ✅ **Componentes Ligeros**: El componente de progreso circular ahora usa `React.memo`, evitando que se redibuje innecesariamente si sus datos no han cambiado.
+- ✅ **Carga Inteligente de Historial**: En la versión de escritorio, se limitó el renderizado inicial de transacciones a las últimas 50. Esto reduce el consumo de memoria y hace que el dashboard cargue de forma instantánea.
+- ✅ **Limpieza de Estado**: Eliminados estados redundantes (`useState`) para simplificar el flujo de datos y reducir la huella de memoria de la pantalla principal.
+
+---
+
 ### 2026-03-29 — Sanctuary: Anti-Duplicados y Estética (v24)
 
 **Archivos modificados:**
