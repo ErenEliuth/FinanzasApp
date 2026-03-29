@@ -40,6 +40,20 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-29 — Sanctuary: Reversión de Marca y Bug Fix (v22)
+
+**Archivos modificados:**
+- `app/goals.tsx` — Título cambiado a "Ahorros" y fix de botón de creación.
+- `app/(tabs)/index.tsx` — Volvimos al nombre "Sanctuary" en el header principal.
+- `CHANGELOG_DEV.md` — Registro de la v22.
+
+**Cambios realizados:**
+- ✅ **Reversión de Marca**: A petición del usuario, se restauró el nombre **"Sanctuary"** en el dashboard principal y **"Ahorros"** en la sección de metas.
+- ✅ **Fix de Botón de Metas**: Se corrigió el error donde el botón de "Comenzar a ahorrar" no respondía. El fallo era causado por intentar guardar la prioridad en una columna inexistente en la base de datos.
+- ✅ **Robustez de Datos**: Se implementó un "fallback" inteligente. Si la columna `priority` no existe en Supabase, la meta se guarda de todas formas (sin prioridad) en lugar de fallar silenciosamente.
+
+---
+
 ### 2026-03-29 — Zenly: Ahorro Inteligente y Validación (v21)
 
 **Archivos modificados:**

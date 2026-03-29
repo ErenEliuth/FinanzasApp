@@ -100,10 +100,26 @@ export default function GoalsScreen() {
                 priority: newGoalPriority
             }]);
             
-            if (error) throw error;
+            if (error) {
+                console.error('Error al insertar con prioridad, reintentando básico:', error);
+                // Reintentar sin el campo 'priority' por si no está en la DB
+                const { error: error2 } = await supabase.from('goals').insert([{ 
+                    user_id: user?.id, 
+                    name: newGoalName.trim(), 
+                    target_amount: val, 
+                    current_amount: 0, 
+                    image_uri: finalImageUri 
+                }]);
+                if (error2) throw error2;
+            }
+            
             setNewGoalName(''); setNewGoalTarget(''); setNewGoalImage(null); setAddModalVisible(false);
             loadData();
-        } catch (e) { console.error('Error al crear meta con imagen:', e); }
+        } catch (e) { 
+            console.error('Error al crear meta:', e); 
+            if (Platform.OS === 'web') window.alert('Error al crear meta. Verifica tu conexión.');
+            else Alert.alert('Error', 'No se pudo crear la meta.');
+        }
     };
 
     const handleAddMoney = async () => {
@@ -191,7 +207,7 @@ export default function GoalsScreen() {
                 <TouchableOpacity onPress={() => router.back()} style={[styles.circleBtn, { backgroundColor: colors.card }]}>
                     <Ionicons name="arrow-back" size={24} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>Zenly: Mis Metas</Text>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>Ahorros</Text>
                 <TouchableOpacity onPress={() => setAddModalVisible(true)} style={[styles.circleBtn, { backgroundColor: colors.accent }]}>
                     <Ionicons name="add" size={24} color="#FFF" />
                 </TouchableOpacity>
