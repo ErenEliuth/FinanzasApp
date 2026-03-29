@@ -36,7 +36,8 @@ type CreditCard = {
     cutDay: number;
     dueDay: number;
     color: string;
-    minPaymentPct: number; // Porcentaje del balance para el pago mínimo
+    minPaymentPct: number;
+    manualMinPayment?: number; // Valor manual ingresado por el usuario
 };
 
 const CARD_COLORS = ['#2D5A3D', '#4A7C59', '#1E293B', '#8B5CF6', '#F59E0B', '#EF4444'];
@@ -69,6 +70,11 @@ export default function CardsScreen() {
     const [payAmount, setPayAmount] = useState('');
     const [accounts, setAccounts] = useState<string[]>(['Efectivo']);
     const [selectedAccount, setSelectedAccount] = useState('Efectivo');
+
+    // Manual min payment modal
+    const [minModalVisible, setMinModalVisible] = useState(false);
+    const [selectedCardForMin, setSelectedCardForMin] = useState<CreditCard | null>(null);
+    const [manualMinAmount, setManualMinAmount] = useState('');
 
     const formatInput = (text: string) => {
         const clean = text.replace(/\D/g, '');
@@ -247,6 +253,23 @@ export default function CardsScreen() {
         }
     };
 
+    const handleSaveManualMin = async () => {
+        if (!selectedCardForMin) return;
+        const val = parseFloat(manualMinAmount.replace(/\./g, '')) || 0;
+        
+        const updated = cards.map(c => 
+            c.id === selectedCardForMin.id ? { ...c, manualMinPayment: val } : c
+        );
+        setCards(updated);
+        await AsyncStorage.setItem(`@cards_${user?.id}`, JSON.stringify(updated));
+        if (user?.id) syncUp(user.id);
+        
+        setMinModalVisible(false);
+        setManualMinAmount('');
+        setSelectedCardForMin(null);
+        loadData();
+    };
+
     const getDaysLeft = (targetDay: number) => {
         const today = new Date();
         const currentM = today.getMonth();
@@ -306,12 +329,24 @@ export default function CardsScreen() {
                                         <Text style={styles.cardBrand}>{card.brand.toUpperCase()}</Text>
                                     </View>
                                     
-                                    <View style={styles.cardBody}>
+                                    <TouchableOpacity 
+                                        style={styles.cardBody}
+                                        onPress={() => {
+                                            setSelectedCardForMin(card);
+                                            setManualMinAmount(card.manualMinPayment ? card.manualMinPayment.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : '');
+                                            setMinModalVisible(true);
+                                        }}
+                                    >
                                         <Text style={styles.cardLabel}>DEUDA ACTUAL</Text>
                                         <Text style={styles.cardDebt}>{fmt(debt)}</Text>
-                                        <Text style={[styles.cardLabel, { marginTop: 8 }]}>PAGO MÍNIMO RECOMENDADO ({card.minPaymentPct || 10}%)</Text>
-                                        <Text style={[styles.cardLimit, { fontSize: 20 }]}>{fmt(Math.round(debt * ((card.minPaymentPct || 10) / 100)))}</Text>
-                                    </View>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                                            <Text style={styles.cardLabel}>PAGO MÍNIMO {card.manualMinPayment ? 'MES' : `(${card.minPaymentPct || 10}%)`}</Text>
+                                            <MaterialIcons name="edit" size={12} color="rgba(255,255,255,0.5)" />
+                                        </View>
+                                        <Text style={[styles.cardLimit, { fontSize: 22 }]}>
+                                            {fmt(card.manualMinPayment || Math.round(debt * ((card.minPaymentPct || 10) / 100)))}
+                                        </Text>
+                                    </TouchableOpacity>
                                     
                                     <View style={styles.cardFooter}>
                                         <View>
@@ -461,6 +496,34 @@ export default function CardsScreen() {
                                 </TouchableOpacity>
                                 <TouchableOpacity style={[styles.modalBtnConfirm, { backgroundColor: colorsNav.accent }]} onPress={handlePayCard}>
                                     <Text style={styles.modalBtnConfirmText}>Confirmar Pago</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </KeyboardAvoidingView>
+                </View>
+            </Modal>
+            {/* MANUAL MIN MODAL */}
+            <Modal visible={minModalVisible} transparent animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                        <View style={StyleSheet.absoluteFill} />
+                    </TouchableWithoutFeedback>
+                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%', alignItems: 'center' }} pointerEvents="box-none">
+                        <View style={[styles.modalSheet, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
+                            <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Pago Mínimo del Mes</Text>
+                            <Text style={[styles.modalSub, { color: colorsNav.sub }]}>Ingresa el valor que aparece en tu extracto para {selectedCardForMin?.name}</Text>
+                            
+                            <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border, fontSize: 24, fontWeight: '800' }]}
+                                placeholder="$ 0" placeholderTextColor={colorsNav.sub}
+                                keyboardType="decimal-pad" value={manualMinAmount} onChangeText={(text) => setManualMinAmount(formatInput(text))}
+                                autoFocus />
+
+                            <View style={styles.modalBtns}>
+                                <TouchableOpacity style={[styles.modalBtnCancel, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }]} onPress={() => setMinModalVisible(false)}>
+                                    <Text style={[styles.modalBtnCancelText, { color: colorsNav.text }]}>Cancelar</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={[styles.modalBtnConfirm, { backgroundColor: colorsNav.accent }]} onPress={handleSaveManualMin}>
+                                    <Text style={styles.modalBtnConfirmText}>Guardar</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>

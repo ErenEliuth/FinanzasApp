@@ -35,6 +35,7 @@ type CreditCard = {
   dueDay: number;
   color: string;
   minPaymentPct: number;
+  manualMinPayment?: number;
 };
 
 // ─── Sanctuary Theme Colors ───────────────────────────────────────────
@@ -241,8 +242,12 @@ export default function HomeScreen() {
       let cardObligations = 0;
       parsedCards.forEach(card => {
         const balance = balances[card.name] || 0;
-        const pct = card.minPaymentPct || 10;
-        cardObligations += Math.round(balance * (pct / 100));
+        if (card.manualMinPayment && card.manualMinPayment > 0) {
+          cardObligations += card.manualMinPayment;
+        } else {
+          const pct = card.minPaymentPct || 10;
+          cardObligations += Math.round(balance * (pct / 100));
+        }
       });
 
       const totalDue = remainingDebts.reduce((sum, d) => sum + (Number(d.value) - Number(d.paid || 0)), 0) + cardObligations;
