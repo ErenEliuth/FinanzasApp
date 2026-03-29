@@ -100,18 +100,7 @@ export default function GoalsScreen() {
                 priority: newGoalPriority
             }]);
             
-            if (error) {
-                console.error('Error al insertar con prioridad, reintentando básico:', error);
-                // Reintentar sin el campo 'priority' por si no está en la DB
-                const { error: error2 } = await supabase.from('goals').insert([{ 
-                    user_id: user?.id, 
-                    name: newGoalName.trim(), 
-                    target_amount: val, 
-                    current_amount: 0, 
-                    image_uri: finalImageUri 
-                }]);
-                if (error2) throw error2;
-            }
+            if (error) throw error;
             
             setNewGoalName(''); setNewGoalTarget(''); setNewGoalImage(null); setAddModalVisible(false);
             loadData();
@@ -284,7 +273,16 @@ export default function GoalsScreen() {
                                 </View>
                                 
                                 <View style={styles.goalBody}>
-                                    <Text style={[styles.goalName, { color: colors.text }]}>{goal.name}</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+                                        <Text style={[styles.goalName, { color: colors.text }]}>{goal.name}</Text>
+                                        {goal.priority && (
+                                            <View style={[styles.prioBadge, { backgroundColor: goal.priority === 'high' ? '#EF444420' : goal.priority === 'medium' ? '#F59E0B20' : '#8B868020' }]}>
+                                                <Text style={[styles.prioBadgeText, { color: goal.priority === 'high' ? '#EF4444' : goal.priority === 'medium' ? '#D97706' : '#8B8680' }]}>
+                                                    {goal.priority.toUpperCase()}
+                                                </Text>
+                                            </View>
+                                        )}
+                                    </View>
                                     <View style={styles.goalStats}>
                                         <View style={styles.goalProgressBg}>
                                             <View style={[styles.goalProgressFill, { width: `${pct}%`, backgroundColor: isDone ? '#10B981' : colors.accent }]} />
@@ -502,4 +500,6 @@ const styles = StyleSheet.create({
     priorityRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
     prioItem: { flex: 1, borderWidth: 1, borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
     prioText: { fontSize: 13, fontWeight: '800' },
+    prioBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+    prioBadgeText: { fontSize: 9, fontWeight: '900' },
 });

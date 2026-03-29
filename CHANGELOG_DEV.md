@@ -40,6 +40,19 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-29 — Sanctuary: Sincronización y Priorización Visual (v23)
+
+**Archivos modificados:**
+- `app/goals.tsx` — Sincronización final y visualización de prioridades.
+- `CHANGELOG_DEV.md` — Registro de la v23.
+
+**Cambios realizados:**
+- ✅ **Base de Datos Sincronizada**: Se habilitó el soporte nativo para prioridades tras la actualización de la tabla en Supabase por parte del usuario.
+- ✅ **Badge de Prioridad**: Ahora cada meta muestra su nivel de importancia (Alta, Media, Baja) con un color distintivo en la tarjeta.
+- ✅ **Distribución Refinada**: Código simplificado eliminando el "fallback" temporal al crear metas.
+
+---
+
 ### 2026-03-29 — Sanctuary: Reversión de Marca y Bug Fix (v22)
 
 **Archivos modificados:**
