@@ -34,6 +34,7 @@ type CreditCard = {
   cutDay: number;
   dueDay: number;
   color: string;
+  minPaymentPct: number;
 };
 
 // ─── Sanctuary Theme Colors ───────────────────────────────────────────
@@ -196,20 +197,20 @@ export default function HomeScreen() {
       setAllTransactions(allTx || []);
 
       let parsedCards: CreditCard[] = [];
+      let balances: Record<string, number> = {};
+
       try {
         const storedCards = await AsyncStorage.getItem(`@cards_${user.id}`);
         if (storedCards) {
           parsedCards = JSON.parse(storedCards);
           setCards(parsedCards);
-          const cardNames = parsedCards.map((c: any) => c.name);
-          setUserCards(cardNames);
+          const cNames = parsedCards.map((c: any) => c.name);
+          setUserCards(cNames);
           
-          // Calculate card balances based on allTx
-          const balances: Record<string, number> = {};
           parsedCards.forEach(c => balances[c.name] = 0);
           
           allTx?.forEach(tx => {
-            if (cardNames.includes(tx.account)) {
+            if (cNames.includes(tx.account)) {
               const amt = Number(tx.amount || 0);
               if (tx.type === 'expense') {
                 balances[tx.account] += amt;
@@ -235,13 +236,16 @@ export default function HomeScreen() {
       if (debtError) throw debtError;
 
       const remainingDebts = allDebts?.filter(d => Number(d.paid || 0) < Number(d.value)) || [];
-      let totalDue = remainingDebts.reduce((sum, d) => sum + (Number(d.value) - Number(d.paid || 0)), 0);
 
-      Object.entries(accs).forEach(([accName, balance]) => {
-        if (cardNames.includes(accName) && Number(balance) < 0) {
-          totalDue += Math.abs(Number(balance));
-        }
+      // Calcular Deuda de Tarjetas (Solo el PAGO MÍNIMO)
+      let cardObligations = 0;
+      parsedCards.forEach(card => {
+        const balance = balances[card.name] || 0;
+        const pct = card.minPaymentPct || 10;
+        cardObligations += Math.round(balance * (pct / 100));
       });
+
+      const totalDue = remainingDebts.reduce((sum, d) => sum + (Number(d.value) - Number(d.paid || 0)), 0) + cardObligations;
 
       setDebtTotal(totalDue);
       setUpcomingDebts([]);

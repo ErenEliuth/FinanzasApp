@@ -36,6 +36,7 @@ type CreditCard = {
     cutDay: number;
     dueDay: number;
     color: string;
+    minPaymentPct: number; // Porcentaje del balance para el pago mínimo
 };
 
 const CARD_COLORS = ['#2D5A3D', '#4A7C59', '#1E293B', '#8B5CF6', '#F59E0B', '#EF4444'];
@@ -60,6 +61,7 @@ export default function CardsScreen() {
     const [newDueDay, setNewDueDay] = useState('');
     const [newBrand, setNewBrand] = useState<'visa' | 'mastercard' | 'amex' | 'other'>('visa');
     const [newColor, setNewColor] = useState(CARD_COLORS[0]);
+    const [newMinPct, setNewMinPct] = useState('10'); // Default 10%
 
     // Payment modal state
     const [payModalVisible, setPayModalVisible] = useState(false);
@@ -135,6 +137,7 @@ export default function CardsScreen() {
         const limit = parseFloat(newLimit.replace(/\./g, ''));
         const cut = parseInt(newCutDay, 10);
         const due = parseInt(newDueDay, 10);
+        const minPct = parseFloat(newMinPct) || 10;
 
         if (!newName.trim() || isNaN(limit) || limit <= 0 || isNaN(cut) || isNaN(due)) {
             if (Platform.OS === 'web') {
@@ -153,6 +156,7 @@ export default function CardsScreen() {
             cutDay: cut,
             dueDay: due,
             color: newColor,
+            minPaymentPct: minPct,
         };
 
         const updatedCards = [...cards, newCard];
@@ -170,7 +174,7 @@ export default function CardsScreen() {
         } catch (e) { }
 
         setAddModalVisible(false);
-        setNewName(''); setNewLimit(''); setNewCutDay(''); setNewDueDay(''); setNewBrand('visa');
+        setNewName(''); setNewLimit(''); setNewCutDay(''); setNewDueDay(''); setNewBrand('visa'); setNewMinPct('10');
         loadData();
     };
 
@@ -305,6 +309,8 @@ export default function CardsScreen() {
                                     <View style={styles.cardBody}>
                                         <Text style={styles.cardLabel}>DEUDA ACTUAL</Text>
                                         <Text style={styles.cardDebt}>{fmt(debt)}</Text>
+                                        <Text style={[styles.cardLabel, { marginTop: 8 }]}>PAGO MÍNIMO RECOMENDADO ({card.minPaymentPct || 10}%)</Text>
+                                        <Text style={[styles.cardLimit, { fontSize: 20 }]}>{fmt(Math.round(debt * ((card.minPaymentPct || 10) / 100)))}</Text>
                                     </View>
                                     
                                     <View style={styles.cardFooter}>
@@ -385,6 +391,10 @@ export default function CardsScreen() {
                                         keyboardType="number-pad" value={newDueDay} onChangeText={setNewDueDay} />
                                 </View>
                             </View>
+
+                            <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border }]}
+                                placeholder="Pago Mínimo (%) Ej: 10" placeholderTextColor={colorsNav.sub}
+                                keyboardType="number-pad" value={newMinPct} onChangeText={setNewMinPct} />
 
                             <Text style={[styles.labelSection, { color: colorsNav.sub }]}>COLOR DEL PLÁSTICO</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>

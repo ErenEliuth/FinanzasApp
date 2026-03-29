@@ -39,6 +39,17 @@ type DebtItem = {
     status?: string;
 };
 
+type CreditCard = {
+    id: string;
+    name: string;
+    brand: 'visa' | 'mastercard' | 'amex' | 'other';
+    limit: number;
+    cutDay: number;
+    dueDay: number;
+    color: string;
+    minPaymentPct: number;
+};
+
 export default function DebtsScreen() {
     const isFocused = useIsFocused();
     const router = useRouter();
@@ -48,8 +59,10 @@ export default function DebtsScreen() {
 
 
 
-    const [viewMode, setViewMode] = useState<'debt' | 'fixed'>('debt');
+    const [viewMode, setViewMode] = useState<'debt' | 'fixed' | 'cards'>('debt');
     const [debts, setDebts] = useState<DebtItem[]>([]);
+    const [cards, setCards] = useState<CreditCard[]>([]);
+    const [cardBalances, setCardBalances] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);
     
@@ -103,6 +116,26 @@ export default function DebtsScreen() {
                 return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
             });
             setDebts(sorted);
+
+            // Cargar Tarjetas para el modo 'cards'
+            const storedCards = await AsyncStorage.getItem(`@cards_${user.id}`);
+            if (storedCards) {
+                const parsedC: CreditCard[] = JSON.parse(storedCards);
+                setCards(parsedC);
+                
+                const { data: txs } = await supabase.from('transactions').select('amount, type, account').eq('user_id', user.id);
+                const balances: Record<string, number> = {};
+                parsedC.forEach(c => balances[c.name] = 0);
+                txs?.forEach(tx => {
+                    if (balances[tx.account] !== undefined) {
+                        const amt = Number(tx.amount || 0);
+                        if (tx.type === 'expense') balances[tx.account] += amt;
+                        else balances[tx.account] -= amt;
+                    }
+                });
+                Object.keys(balances).forEach(k => { if (balances[k] < 0) balances[k] = 0; });
+                setCardBalances(balances);
+            }
         } catch (e) { console.error(e); } finally { setLoading(false); }
     };
 
@@ -209,9 +242,20 @@ export default function DebtsScreen() {
         } catch (e) { console.error(e); }
     };
 
-    const currentList = debts.filter(d => d.debt_type === viewMode);
-    const totalValue = currentList.reduce((s, d) => s + d.value, 0);
-    const totalPaid = currentList.reduce((s, d) => s + (d.paid || 0), 0);
+    const currentList = viewMode === 'cards' ? [] : debts.filter(d => d.debt_type === viewMode);
+    
+    let totalValue = 0, totalPaid = 0;
+    if (viewMode === 'cards') {
+        cards.forEach(c => {
+            const bal = cardBalances[c.name] || 0;
+            const min = Math.round(bal * ((c.minPaymentPct || 10) / 100));
+            totalValue += min;
+        });
+        totalPaid = 0; // Por ahora no trackeamos 'pagado' del mínimo aquí
+    } else {
+        totalValue = currentList.reduce((s, d) => s + d.value, 0);
+        totalPaid = currentList.reduce((s, d) => s + (d.paid || 0), 0);
+    }
     const progressPct = totalValue > 0 ? (totalPaid / totalValue) * 100 : 0;
 
     return (
@@ -221,8 +265,10 @@ export default function DebtsScreen() {
                 <TouchableOpacity onPress={() => router.back()} style={[styles.circleBtn, { backgroundColor: colors.card }]}>
                     <Ionicons name="arrow-back" size={24} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>{viewMode === 'debt' ? 'Deudas' : 'Gastos Fijos'}</Text>
-                <TouchableOpacity onPress={() => { resetForm(); setModalVisible(true); }} style={[styles.circleBtn, { backgroundColor: colors.accent }]}>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>
+                    {viewMode === 'debt' ? 'Deudas' : viewMode === 'fixed' ? 'Gastos Fijos' : 'Tarjetas'}
+                </Text>
+                <TouchableOpacity onPress={() => viewMode === 'cards' ? router.push('/cards') : (resetForm(), setModalVisible(true))} style={[styles.circleBtn, { backgroundColor: colors.accent }]}>
                     <Ionicons name="add" size={26} color="#FFF" />
                 </TouchableOpacity>
             </View>
@@ -234,7 +280,10 @@ export default function DebtsScreen() {
                         <Text style={[styles.selTxt, { color: viewMode === 'debt' ? '#FFF' : colors.sub }]}>Deudas</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => setViewMode('fixed')} style={[styles.selBtn, viewMode === 'fixed' && { backgroundColor: colors.accent }]}>
-                        <Text style={[styles.selTxt, { color: viewMode === 'fixed' ? '#FFF' : colors.sub }]}>Gastos Fijos</Text>
+                        <Text style={[styles.selTxt, { color: viewMode === 'fixed' ? '#FFF' : colors.sub }]}>Fijos</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setViewMode('cards')} style={[styles.selBtn, viewMode === 'cards' && { backgroundColor: colors.accent }]}>
+                        <Text style={[styles.selTxt, { color: viewMode === 'cards' ? '#FFF' : colors.sub }]}>Tarjetas</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -244,7 +293,9 @@ export default function DebtsScreen() {
                 <View style={[styles.heroCard, { backgroundColor: colors.accent }]}>
                     <View style={styles.heroRow}>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.heroLab}>Total {viewMode === 'debt' ? 'Pendiente' : 'del Mes'}</Text>
+                            <Text style={styles.heroLab}>
+                                {viewMode === 'cards' ? 'Obligación Mínima' : (viewMode === 'debt' ? 'Total Pendiente' : 'Total del Mes')}
+                            </Text>
                             <Text style={styles.heroVal}>{fmt(totalValue - totalPaid)}</Text>
                         </View>
                         <View style={styles.chartMini}>
@@ -258,7 +309,11 @@ export default function DebtsScreen() {
                         </View>
                     </View>
                     <View style={styles.heroFooter}>
-                        <Text style={styles.heroMsg}>Has cubierto {fmt(totalPaid)} hasta hoy. {totalValue > totalPaid && `Faltan ${fmt(totalValue - totalPaid)}`}</Text>
+                        <Text style={styles.heroMsg}>
+                            {viewMode === 'cards' 
+                                ? 'Suma de los pagos mínimos recomendados para este mes.' 
+                                : `Has cubierto ${fmt(totalPaid)} hasta hoy. ${totalValue > totalPaid ? `Faltan ${fmt(totalValue - totalPaid)}` : ''}`}
+                        </Text>
                     </View>
                 </View>
 
@@ -270,6 +325,34 @@ export default function DebtsScreen() {
                         <Ionicons name="leaf-outline" size={64} color={colors.sub + '40'} />
                         <Text style={[styles.emptyTxt, { color: colors.sub }]}>Todo está en orden por aquí.</Text>
                     </View>
+                ) : viewMode === 'cards' ? (
+                    cards.map(card => {
+                        const bal = cardBalances[card.name] || 0;
+                        const min = Math.round(bal * ((card.minPaymentPct || 10) / 100));
+                        return (
+                            <TouchableOpacity 
+                                key={card.id} 
+                                style={[styles.itemCard, { backgroundColor: colors.card }]}
+                                onPress={() => router.push('/cards')}
+                            >
+                                <View style={styles.cardInfo}>
+                                    <View style={[styles.dateBox, { backgroundColor: card.color }]}>
+                                        <MaterialIcons name="credit-card" size={20} color="#FFF" />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.itemName, { color: colors.text }]}>{card.name}</Text>
+                                        <Text style={[styles.itemSub, { color: colors.sub }]}>Deuda Total: {fmt(bal)}</Text>
+                                    </View>
+                                    <View style={{ alignItems: 'flex-end' }}>
+                                        <Text style={[styles.totalVal, { color: colors.accent, fontSize: 18 }]}>{fmt(min)}</Text>
+                                        <View style={[styles.statusBadge, { backgroundColor: colors.accent + '15' }]}>
+                                            <Text style={[styles.statusTxt, { color: colors.accent }]}>PAGO MÍNIMO</Text>
+                                        </View>
+                                    </View>
+                                </View>
+                            </TouchableOpacity>
+                        );
+                    })
                 ) : (
                     currentList.map(item => {
                         const isPaid = item.paid >= item.value;
