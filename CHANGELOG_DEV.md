@@ -40,6 +40,21 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-29 — Zenly: Ahorro Inteligente y Validación (v21)
+
+**Archivos modificados:**
+- `app/goals.tsx` — Implementación de Prioridades y Distribución Mágica ✨.
+- `app/(tabs)/explore.tsx` — Nueva validación de saldo para gastos, ahorros y transferencias.
+- `CHANGELOG_DEV.md` — Documentación de la versión v21.
+
+**Cambios realizados:**
+- ✅ **Prioridades en Metas**: Al crear una meta, ahora puedes elegir entre prioridad **Baja, Media o Alta**. Esto ayuda a Zenly a entender qué es lo más importante para ti.
+- ✅ **Distribución Mágica ✨**: Se añadió un botón de "Distribuir" en la pantalla de metas que reparte automáticamente el **Ahorro Disponible** entre todas tus metas incompletas, dándole más peso a las de mayor prioridad.
+- ✅ **Validación de Saldo**: Zenly ahora es más inteligente y no te permitirá registrar un gasto, ahorro o transferencia si la cuenta de origen (ej. Efectivo) no tiene suficiente balance.
+- ✅ **Cero Negativos**: Esta lógica previene descuadres financieros al asegurar que siempre tengas fondos antes de mover dinero.
+
+---
+
 ### 2026-03-29 — Zenly: Branding Total y Estabilidad (v20)
 
 **Archivos modificados:**

@@ -212,6 +212,31 @@ export default function AddTransactionScreen() {
     const parsed = parseFloat(amount.replace(/\./g, '').replace(',', '.'));
     if (isNaN(parsed) || parsed <= 0) return;
 
+    // ─── Validación de Saldo (Solo para Gasto / Ahorro / Transferencia) ──────────
+    if (type !== 'income') {
+      try {
+        const { data: txs, error: txErr } = await supabase
+          .from('transactions')
+          .select('amount, type')
+          .eq('user_id', user?.id)
+          .eq('account', account);
+        
+        if (!txErr && txs) {
+          const balance = txs.reduce((acc, curr) => {
+            return curr.type === 'income' ? acc + curr.amount : acc - curr.amount;
+          }, 0);
+
+          if (balance < parsed) {
+            Alert.alert(
+              'Saldo Insuficiente',
+              `No tienes fondos suficientes en "${account}".\n\nDisponible: ${fmtCOP(balance)}\nRequerido: ${fmtCOP(parsed)}`
+            );
+            return;
+          }
+        }
+      } catch (e) { console.error('Error validando saldo:', e); }
+    }
+
     if (type === 'transfer') {
       if (!destAccount || destAccount === account) {
         Alert.alert('Error', 'Selecciona una cuenta de destino diferente.');

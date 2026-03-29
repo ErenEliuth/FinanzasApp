@@ -41,6 +41,7 @@ export default function GoalsScreen() {
     const [newGoalName, setNewGoalName] = useState('');
     const [newGoalTarget, setNewGoalTarget] = useState('');
     const [newGoalImage, setNewGoalImage] = useState<string | null>(null);
+    const [newGoalPriority, setNewGoalPriority] = useState<'high' | 'medium' | 'low'>('medium');
 
     const [payModalVisible, setPayModalVisible] = useState(false);
     const [withdrawModalVisible, setWithdrawModalVisible] = useState(false);
@@ -95,7 +96,8 @@ export default function GoalsScreen() {
                 name: newGoalName.trim(), 
                 target_amount: val, 
                 current_amount: 0, 
-                image_uri: finalImageUri 
+                image_uri: finalImageUri,
+                priority: newGoalPriority
             }]);
             
             if (error) throw error;
@@ -128,6 +130,42 @@ export default function GoalsScreen() {
             await supabase.from('goals').update({ current_amount: selectedGoal.current_amount - val }).eq('id', selectedGoal.id);
             setWithdrawAmount(''); setWithdrawModalVisible(false); loadData();
         } catch (e) { console.error(e); }
+    };
+
+    const handleDistributeSavings = async () => {
+        if (availableAhorro <= 0 || goals.length === 0) {
+            Alert.alert('Zenly', 'No hay ahorros disponibles para distribuir.');
+            return;
+        }
+
+        const unfinishedGoals = goals.filter(g => g.current_amount < g.target_amount);
+        if (unfinishedGoals.length === 0) {
+            Alert.alert('Zenly', '¡Ya todas tus metas están cumplidas! 🎉');
+            return;
+        }
+
+        const priorityWeights = { 'high': 3, 'medium': 2, 'low': 1 };
+        const totalWeight = unfinishedGoals.reduce((sum, g) => sum + (priorityWeights[g.priority as keyof typeof priorityWeights] || 1), 0);
+        
+        try {
+            const updates = unfinishedGoals.map(async (goal) => {
+                const weight = priorityWeights[goal.priority as keyof typeof priorityWeights] || 1;
+                const share = (weight / totalWeight) * availableAhorro;
+                const needed = goal.target_amount - goal.current_amount;
+                const finalAdd = Math.min(share, needed);
+                
+                if (finalAdd > 0) {
+                    return supabase.from('goals').update({ current_amount: goal.current_amount + finalAdd }).eq('id', goal.id);
+                }
+            });
+
+            await Promise.all(updates);
+            Alert.alert('Zenly ✨', 'Se han distribuido tus ahorros de forma inteligente por prioridad.');
+            loadData();
+        } catch (e) {
+            console.error('Error al distribuir ahorros:', e);
+            Alert.alert('Error', 'No se pudieron distribuir los ahorros.');
+        }
     };
 
     const handleDelete = (goal: any) => {
@@ -182,7 +220,17 @@ export default function GoalsScreen() {
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
                             <Text style={[styles.footerLab, { color: colors.sub }]}>Disponible</Text>
-                            <Text style={[styles.footerVal, { color: '#10B981', fontWeight: '900' }]}>{fmt(availableAhorro)}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <Text style={[styles.footerVal, { color: '#10B981', fontWeight: '900' }]}>{fmt(availableAhorro)}</Text>
+                                {availableAhorro > 0 && (
+                                    <TouchableOpacity 
+                                        style={[styles.distBtn, { backgroundColor: colors.accent }]} 
+                                        onPress={handleDistributeSavings}
+                                    >
+                                        <Text style={styles.distBtnText}>Distribuir ✨</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
                         </View>
                     </View>
                 </View>
@@ -300,6 +348,25 @@ export default function GoalsScreen() {
                                     value={newGoalTarget} onChangeText={t => setNewGoalTarget(formatInput(t))} />
                             </View>
 
+                            <View style={styles.mInputCont}>
+                                <Text style={[styles.mLabel, { color: colors.sub }]}>PRIORIDAD</Text>
+                                <View style={styles.priorityRow}>
+                                    {[
+                                        { id: 'low', label: 'Baja', c: '#8B8680' },
+                                        { id: 'medium', label: 'Media', c: '#F59E0B' },
+                                        { id: 'high', label: 'Alta', c: '#EF4444' }
+                                    ].map(p => (
+                                        <TouchableOpacity 
+                                            key={p.id}
+                                            style={[styles.prioItem, { borderColor: p.c }, newGoalPriority === p.id && { backgroundColor: p.c }]}
+                                            onPress={() => setNewGoalPriority(p.id as any)}
+                                        >
+                                            <Text style={[styles.prioText, { color: p.c }, newGoalPriority === p.id && { color: '#FFF' }]}>{p.label}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+
                             <TouchableOpacity style={[styles.mPrimaryBtn, { backgroundColor: colors.accent }]} onPress={handleCreateGoal}>
                                 <Text style={styles.mPrimaryBtnTxt}>Comenzar a ahorrar</Text>
                             </TouchableOpacity>
@@ -414,4 +481,9 @@ const styles = StyleSheet.create({
     miniSub: { fontSize: 14, fontWeight: '600', opacity: 0.6 },
     miniBtns: { flexDirection: 'row', gap: 12, marginTop: 10 },
     miniBtn: { flex: 1, paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
+    distBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, elevation: 3 },
+    distBtnText: { color: '#FFF', fontSize: 11, fontWeight: '900' },
+    priorityRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+    prioItem: { flex: 1, borderWidth: 1, borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
+    prioText: { fontSize: 13, fontWeight: '800' },
 });

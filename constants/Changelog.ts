@@ -1,6 +1,16 @@
-export const LATEST_VERSION = '2026-03-27-v19'; // Incremento para re-mostrar a Eliuth con nuevo diseño Zenly
+export const LATEST_VERSION = '2026-03-29-v21'; // Ahorro Inteligente y Validación de Saldo
 
 export const CHANGELOG_UPDATES = [
+  {
+    title: '✨ Ahorro Inteligente',
+    description: 'Tus metas ahora tienen prioridad (Baja, Media, Alta). Usa el botón "Distribuir" para repartir tus ahorros automáticamente.',
+    icon: 'auto_awesome'
+  },
+  {
+    title: '🛑 Validación de Saldo',
+    description: 'Zenly ahora verifica que tengas fondos suficientes antes de realizar un gasto, ahorro o transferencia.',
+    icon: 'security'
+  },
   {
     title: '🌿 Zenly: Esencial y Rápido',
     titleEn: 'Zenly: Essential & Quick',
