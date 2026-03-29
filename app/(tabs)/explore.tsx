@@ -57,7 +57,12 @@ export default function AddTransactionScreen() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newAccountName, setNewAccountName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  // Eliminado: estados de sugerencia inteligente de ahorro
+  
+  // ─── Sugerencia Inteligente de Ahorro ───
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [suggestedAmount, setSuggestedAmount] = useState(0);
+  const [suggestedPct, setSuggestedPct] = useState(0);
+  const [incomeJustSaved, setIncomeJustSaved] = useState(0);
 
   const router = useRouter();
   const { user, theme } = useAuth();
@@ -272,10 +277,60 @@ export default function AddTransactionScreen() {
         user_id: user?.id, type: dbType, amount: parsed, description: desc, category: dbCategory, account: type === 'ahorro' ? 'Ahorro' : account, date: new Date().toISOString(),
       }]);
       if (error) throw error;
+
+      // ─── Lógica de Sugerencia Inteligente (Solo para ingresos) ───
+      if (type === 'income') {
+        try {
+          // Calculamos salud rápidamente
+          const { data: allTx } = await supabase.from('transactions').select('amount, type, category').eq('user_id', user?.id);
+          const { data: allDebts } = await supabase.from('debts').select('value, paid').eq('user_id', user?.id);
+          
+          let totalActive = 0, totalAhorro = 0;
+          allTx?.forEach(t => {
+            if (t.type === 'income') totalActive += t.amount;
+            else {
+              if (t.category === 'Ahorro') totalAhorro += t.amount;
+              totalActive -= t.amount;
+            }
+          });
+          const debtTotal = allDebts?.reduce((sum, d) => sum + (d.value - d.paid), 0) || 0;
+          const realMoney = (totalActive + totalAhorro) - debtTotal;
+          const healthPct = totalActive > 0 ? (realMoney / (totalActive + totalAhorro)) * 100 : 0;
+
+          // Porcentaje sugerido: 20% si salud > 70, 15% si 40-70, 10% si < 40
+          const pct = healthPct >= 70 ? 20 : healthPct >= 40 ? 15 : 10;
+          const suggest = Math.round(parsed * (pct / 100));
+
+          setSuggestedAmount(suggest);
+          setSuggestedPct(pct);
+          setIncomeJustSaved(parsed);
+          setShowAiModal(true);
+          setIsSaving(false);
+          return; // No salimos de la pantalla aun, mostramos modal
+        } catch (e) { console.error('Error calculando sugerencia:', e); }
+      }
+
       setAmount(''); setDescription(''); setCategory('');
       if (router.canGoBack()) router.back(); else router.replace('/(tabs)');
     } catch (e) { 
       console.error('Error guardando transacción:', e); 
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveSavingSuggestion = async () => {
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.from('transactions').insert([{
+        user_id: user?.id, type: 'expense', amount: suggestedAmount, description: 'Ahorro Sugerido Sanctuary', category: 'Ahorro', account: account, date: new Date().toISOString(),
+      }]);
+      if (error) throw error;
+      setShowAiModal(false);
+      if (router.canGoBack()) router.back(); else router.replace('/(tabs)');
+    } catch (e) {
+      console.error('Error guardando ahorro sugerido:', e);
+      Alert.alert('Error', 'No se pudo guardar el ahorro.');
     } finally {
       setIsSaving(false);
     }
@@ -497,7 +552,34 @@ export default function AddTransactionScreen() {
           </View>
         </Modal>
 
-{/* Eliminado: Modal de Sugerencia Inteligente */}
+        {/* Modal de Sugerencia Inteligente Sanctuary */}
+        <Modal visible={showAiModal} transparent animationType="slide">
+          <View style={styles.overlay}>
+             <View style={[styles.modalBox, { backgroundColor: colors.card, alignItems: 'center' }]}>
+                <View style={[styles.aiIcon, { backgroundColor: colors.accent + '20' }]}>
+                  <MaterialIcons name="auto-awesome" size= {32} color={colors.accent} />
+                </View>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Sugerencia Sanctuary</Text>
+                <Text style={[styles.modalSub, { color: colors.sub, textAlign: 'center' }]}>
+                  ¡Excelente ingreso! Para mantener tu salud financiera, te recomendamos ahorrar un {suggestedPct}% de este ingreso:
+                </Text>
+
+                <View style={[styles.suggestionPill, { backgroundColor: colors.accent }]}>
+                  <Text style={[styles.suggestionAmt, { color: '#FFF' }]}>{fmtCOP(suggestedAmount)}</Text>
+                  <Text style={[styles.suggestionLab, { color: 'rgba(255,255,255,0.8)' }]}>AHORRO RECOMENDADO</Text>
+                </View>
+
+                <View style={styles.modalBtns}>
+                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.bg }]} onPress={() => { setShowAiModal(false); router.replace('/(tabs)'); }}>
+                    <Text style={{ color: colors.text }}>Ahora no</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.accent }]} onPress={handleSaveSavingSuggestion} disabled={isSaving}>
+                    <Text style={{ color: '#FFF', fontWeight: '800' }}>{isSaving ? 'Guardando...' : 'Ahorrar Ahora'}</Text>
+                  </TouchableOpacity>
+                </View>
+             </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </TouchableWithoutFeedback>
   );

@@ -40,6 +40,19 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-03-29 — Sanctuary: Sugerencias Inteligentes (v26)
+
+**Archivos modificados:**
+- `app/(tabs)/explore.tsx` — Re-integración de la lógica de sugerencia de ahorro para ingresos.
+- `CHANGELOG_DEV.md` — Registro de la v26.
+
+**Cambios realizados:**
+- ✅ **Santuario del Ahorro**: Se restauró la función que sugiere ahorrar un porcentaje (10%, 15% o 20%) cada vez que registras un ingreso. 
+- ✅ **Cálculo de Salud en Tiempo Real**: La sugerencia depende de tu salud financiera actual. Si tu salud es óptima (70%+), Sanctuary te retará a ahorrar un 20%. Si es baja (menos de 40%), te sugerirá un 10% mínimo.
+- ✅ **Auto-Ahorro con un Clic**: Al aceptar la sugerencia, Sanctuary genera automáticamente la transacción de ahorro, descontándola de la cuenta donde entró el ingreso.
+
+---
+
 ### 2026-03-29 — Sanctuary: Rendimiento y Fluidez (v25)
 
 **Archivos modificados:**
