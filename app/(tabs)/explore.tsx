@@ -220,26 +220,30 @@ export default function AddTransactionScreen() {
       if (!clean) { setAmount(''); return; }
       setAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
     } else {
-      // Para USD, EUR, DOP: miles con coma, decimal con punto
-      // 1. Quitar las comas (que son miles) para normalizar temporalmente
+      // Dinámica para DOP, USD, EUR (Miles: ',', Decimal: '.')
+      // 1. Quitar comas existentes
       let raw = text.replace(/,/g, '');
       
-      // 2. Filtrar para que solo queden números y máximo un punto
-      let clean = raw.replace(/[^0-9.]/g, '');
-      const parts = clean.split('.');
-      
-      if (parts.length > 2) return; // Ignorar si pulsan un segundo punto
+      // 2. Separar por el punto decimal
+      const parts = raw.split('.');
+      if (parts.length > 2) return; // Bloquear si hay más de un punto
 
-      // Formatear parte entera con comas de miles (US style)
-      const integerPart = parts[0] ? new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10)) : (clean.startsWith('.') ? '0' : '');
+      // 3. Formatear la parte entera
+      const integerRaw = parts[0].replace(/\D/g, '');
+      if (!integerRaw && raw.startsWith('.')) {
+        setAmount('0.' + (parts[1] || '').slice(0, 2));
+        return;
+      }
       
+      const integerFormatted = integerRaw ? new Intl.NumberFormat('en-US').format(parseInt(integerRaw, 10)) : '';
+
+      // 4. Reconstruir el string
       if (parts.length === 2) {
-        // Unir: parte entera + punto + hasta 2 decimales
-        setAmount(`${integerPart}.${parts[1].slice(0, 2)}`);
-      } else if (clean.endsWith('.')) {
-        setAmount(`${integerPart}.`);
+        setAmount(`${integerFormatted}.${parts[1].slice(0, 2)}`);
+      } else if (raw.endsWith('.')) {
+        setAmount(`${integerFormatted}.`);
       } else {
-        setAmount(integerPart);
+        setAmount(integerFormatted);
       }
     }
   };

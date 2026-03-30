@@ -144,13 +144,17 @@ export default function CardsScreen() {
             setNewLimit(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
         } else {
             let raw = text.replace(/,/g, '');
-            let clean = raw.replace(/[^0-9.]/g, '');
-            const parts = clean.split('.');
+            const parts = raw.split('.');
             if (parts.length > 2) return;
-            const integerPart = parts[0] ? new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10)) : (clean.startsWith('.') ? '0' : '');
-            if (parts.length === 2) setNewLimit(`${integerPart}.${parts[1].slice(0, 2)}`);
-            else if (clean.endsWith('.')) setNewLimit(`${integerPart}.`);
-            else setNewLimit(integerPart);
+            const integerRaw = parts[0].replace(/\D/g, '');
+            if (!integerRaw && raw.startsWith('.')) {
+                setNewLimit('0.' + (parts[1] || '').slice(0, 2));
+                return;
+            }
+            const integerFormatted = integerRaw ? new Intl.NumberFormat('en-US').format(parseInt(integerRaw, 10)) : '';
+            if (parts.length === 2) setNewLimit(`${integerFormatted}.${parts[1].slice(0, 2)}`);
+            else if (raw.endsWith('.')) setNewLimit(`${integerFormatted}.`);
+            else setNewLimit(integerFormatted);
         }
     };
 
@@ -162,13 +166,17 @@ export default function CardsScreen() {
             setPayAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
         } else {
             let raw = text.replace(/,/g, '');
-            let clean = raw.replace(/[^0-9.]/g, '');
-            const parts = clean.split('.');
+            const parts = raw.split('.');
             if (parts.length > 2) return;
-            const integerPart = parts[0] ? new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10)) : (clean.startsWith('.') ? '0' : '');
-            if (parts.length === 2) setPayAmount(`${integerPart}.${parts[1].slice(0, 2)}`);
-            else if (clean.endsWith('.')) setPayAmount(`${integerPart}.`);
-            else setPayAmount(integerPart);
+            const integerRaw = parts[0].replace(/\D/g, '');
+            if (!integerRaw && raw.startsWith('.')) {
+                setPayAmount('0.' + (parts[1] || '').slice(0, 2));
+                return;
+            }
+            const integerFormatted = integerRaw ? new Intl.NumberFormat('en-US').format(parseInt(integerRaw, 10)) : '';
+            if (parts.length === 2) setPayAmount(`${integerFormatted}.${parts[1].slice(0, 2)}`);
+            else if (raw.endsWith('.')) setPayAmount(`${integerFormatted}.`);
+            else setPayAmount(integerFormatted);
         }
     };
 
@@ -180,13 +188,17 @@ export default function CardsScreen() {
             setManualMinAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
         } else {
             let raw = text.replace(/,/g, '');
-            let clean = raw.replace(/[^0-9.]/g, '');
-            const parts = clean.split('.');
+            const parts = raw.split('.');
             if (parts.length > 2) return;
-            const integerPart = parts[0] ? new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10)) : (clean.startsWith('.') ? '0' : '');
-            if (parts.length === 2) setManualMinAmount(`${integerPart}.${parts[1].slice(0, 2)}`);
-            else if (clean.endsWith('.')) setManualMinAmount(`${integerPart}.`);
-            else setManualMinAmount(integerPart);
+            const integerRaw = parts[0].replace(/\D/g, '');
+            if (!integerRaw && raw.startsWith('.')) {
+                setManualMinAmount('0.' + (parts[1] || '').slice(0, 2));
+                return;
+            }
+            const integerFormatted = integerRaw ? new Intl.NumberFormat('en-US').format(parseInt(integerRaw, 10)) : '';
+            if (parts.length === 2) setManualMinAmount(`${integerFormatted}.${parts[1].slice(0, 2)}`);
+            else if (raw.endsWith('.')) setManualMinAmount(`${integerFormatted}.`);
+            else setManualMinAmount(integerFormatted);
         }
     };
     const handleAddCard = async () => {

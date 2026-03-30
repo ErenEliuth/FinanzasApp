@@ -124,13 +124,17 @@ export default function DebtsScreen() {
             setAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
         } else {
             let raw = text.replace(/,/g, '');
-            let clean = raw.replace(/[^0-9.]/g, '');
-            const parts = clean.split('.');
+            const parts = raw.split('.');
             if (parts.length > 2) return;
-            const integerPart = parts[0] ? new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10)) : (clean.startsWith('.') ? '0' : '');
-            if (parts.length === 2) setAmount(`${integerPart}.${parts[1].slice(0, 2)}`);
-            else if (clean.endsWith('.')) setAmount(`${integerPart}.`);
-            else setAmount(integerPart);
+            const integerRaw = parts[0].replace(/\D/g, '');
+            if (!integerRaw && raw.startsWith('.')) {
+                setAmount('0.' + (parts[1] || '').slice(0, 2));
+                return;
+            }
+            const integerFormatted = integerRaw ? new Intl.NumberFormat('en-US').format(parseInt(integerRaw, 10)) : '';
+            if (parts.length === 2) setAmount(`${integerFormatted}.${parts[1].slice(0, 2)}`);
+            else if (raw.endsWith('.')) setAmount(`${integerFormatted}.`);
+            else setAmount(integerFormatted);
         }
     };
 
@@ -142,13 +146,17 @@ export default function DebtsScreen() {
             setPayAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
         } else {
             let raw = text.replace(/,/g, '');
-            let clean = raw.replace(/[^0-9.]/g, '');
-            const parts = clean.split('.');
+            const parts = raw.split('.');
             if (parts.length > 2) return;
-            const integerPart = parts[0] ? new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10)) : (clean.startsWith('.') ? '0' : '');
-            if (parts.length === 2) setPayAmount(`${integerPart}.${parts[1].slice(0, 2)}`);
-            else if (clean.endsWith('.')) setPayAmount(`${integerPart}.`);
-            else setPayAmount(integerPart);
+            const integerRaw = parts[0].replace(/\D/g, '');
+            if (!integerRaw && raw.startsWith('.')) {
+                setPayAmount('0.' + (parts[1] || '').slice(0, 2));
+                return;
+            }
+            const integerFormatted = integerRaw ? new Intl.NumberFormat('en-US').format(parseInt(integerRaw, 10)) : '';
+            if (parts.length === 2) setPayAmount(`${integerFormatted}.${parts[1].slice(0, 2)}`);
+            else if (raw.endsWith('.')) setPayAmount(`${integerFormatted}.`);
+            else setPayAmount(integerFormatted);
         }
     };
 
