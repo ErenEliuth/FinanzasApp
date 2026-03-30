@@ -220,27 +220,48 @@ export default function AddTransactionScreen() {
       if (!clean) { setAmount(''); return; }
       setAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
     } else {
-      // Dinámica para DOP, USD, EUR (Miles: ',', Decimal: '.')
-      // 1. Quitar comas existentes
-      let raw = text.replace(/,/g, '');
+      // Para DOP, USD, EUR: separador de miles = ',' y decimal = '.'
+      // Los teclados en español usan ',' como decimal → normalizarlo a '.'
       
-      // 2. Separar por el punto decimal
-      const parts = raw.split('.');
-      if (parts.length > 2) return; // Bloquear si hay más de un punto
+      // Paso 1: Si el texto termina en ',' o tiene una coma seguida de ≤2 dígitos
+      // al final (sin punto previo), la coma es decimal → convertirla a '.'
+      let normalized = text;
+      
+      // Detectar si la coma es separador decimal:
+      // Caso A: termina en ',' → usuario acaba de escribir la coma decimal
+      // Caso B: coma seguida de 1-2 dígitos al final y sin punto → es decimal
+      // Caso C: ya hay un punto en el string → las comas son de miles, quitar
+      const hasDot = text.includes('.');
+      if (!hasDot) {
+        // Reemplazar la última coma por punto si parece ser decimal
+        // (coma seguida de máx 2 dígitos al final, o sola al final)
+        normalized = text.replace(/,(\d{0,2})$/, '.$1');
+        // Si quedaron más comas delante, son de miles → quitarlas
+        normalized = normalized.replace(/,/g, '');
+      } else {
+        // Ya hay punto → las comas son de miles, eliminar
+        normalized = text.replace(/,/g, '');
+      }
 
-      // 3. Formatear la parte entera
+      // Paso 2: Separar por el punto decimal
+      const parts = normalized.split('.');
+      if (parts.length > 2) return; // Más de un punto → ignorar
+
+      // Paso 3: Formatear la parte entera
       const integerRaw = parts[0].replace(/\D/g, '');
-      if (!integerRaw && raw.startsWith('.')) {
+      if (!integerRaw && normalized.startsWith('.')) {
         setAmount('0.' + (parts[1] || '').slice(0, 2));
         return;
       }
-      
-      const integerFormatted = integerRaw ? new Intl.NumberFormat('en-US').format(parseInt(integerRaw, 10)) : '';
 
-      // 4. Reconstruir el string
+      const integerFormatted = integerRaw
+        ? new Intl.NumberFormat('en-US').format(parseInt(integerRaw, 10))
+        : '';
+
+      // Paso 4: Reconstruir el string
       if (parts.length === 2) {
         setAmount(`${integerFormatted}.${parts[1].slice(0, 2)}`);
-      } else if (raw.endsWith('.')) {
+      } else if (normalized.endsWith('.')) {
         setAmount(`${integerFormatted}.`);
       } else {
         setAmount(integerFormatted);
