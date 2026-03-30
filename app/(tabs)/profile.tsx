@@ -923,7 +923,7 @@ export default function ProfileScreen() {
                 <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }}>
                     <View style={{ width: '85%', backgroundColor: colorsNav.card, borderRadius: 32, padding: 30, alignItems: 'center' }}>
                          <Text style={{ fontSize: 20, fontWeight: '900', color: colorsNav.text, marginBottom: 10 }}>Nuevo PIN</Text>
-                         <Text style={{ fontSize: 14, color: colorsNav.sub, textAlign: 'center', marginBottom: 30 }}>Escribe 4 números que no olvides, Eliuth.</Text>
+                         <Text style={{ fontSize: 14, color: colorsNav.sub, textAlign: 'center', marginBottom: 30 }}>Escribe 4 números que no olvides, {user?.user_metadata?.name?.split(' ')[0] || 'Sanctuary User'}.</Text>
                          
                          <TextInput 
                              style={{ width: '100%', height: 60, borderRadius: 16, backgroundColor: isDark ? '#1A1A2E' : '#F5EDE0', textAlign: 'center', fontSize: 24, letterSpacing: 10, fontWeight: '900', color: colorsNav.text }}

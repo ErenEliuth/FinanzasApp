@@ -8,7 +8,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { formatCurrency, getCurrencyInfo, convertCurrency, convertToBase } from '@/utils/currency';
+import { formatCurrency, getCurrencyInfo, convertCurrency, convertToBase, CURRENCIES } from '@/utils/currency';
 import {
     Alert,
     Dimensions,

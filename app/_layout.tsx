@@ -144,7 +144,7 @@ function RootStack() {
 
   return (
     <ThemeProvider value={theme === 'dark' ? DarkTheme : DefaultTheme}>
-      <SanctuaryLock userName={user?.user_metadata?.name || 'Eliuth'}>
+      <SanctuaryLock userName={user?.user_metadata?.name?.split(' ')[0] || 'Usuario'}>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />

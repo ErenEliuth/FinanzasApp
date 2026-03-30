@@ -61,7 +61,7 @@ export default function SanctuaryLock({ children, userName }: { children: React.
     }
 
     const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Identifícate, Sanctuary Eliuth',
+      promptMessage: `Identifícate, Sanctuary ${userName || 'Usuario'}`,
       fallbackLabel: 'Usar PIN',
     });
 
@@ -111,7 +111,7 @@ export default function SanctuaryLock({ children, userName }: { children: React.
               <Text style={{ fontSize: 40 }}>🤖</Text>
            </View>
 
-           <Text style={[styles.title, { color: colorsNav.text }]}>¡Tranquilo {userName || 'Eliuth'}!</Text>
+           <Text style={[styles.title, { color: colorsNav.text }]}>¡Tranquilo {userName || 'Usuario'}!</Text>
            <Text style={[styles.subtitle, { color: colorsNav.sub }]}>Tu santuario financiero está protegido</Text>
 
            {/* PIN Indicators */}

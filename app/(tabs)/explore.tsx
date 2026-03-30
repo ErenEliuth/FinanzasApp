@@ -5,7 +5,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 // Eliminado: MagicAuraButton
-import { formatCurrency, getCurrencyInfo, convertCurrency, convertToBase } from '@/utils/currency';
+import { formatCurrency, getCurrencyInfo, convertCurrency, convertToBase, CURRENCIES } from '@/utils/currency';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -384,7 +384,7 @@ export default function AddTransactionScreen() {
 
             {/* ── Monto ─────────────────────────────────────────────────── */}
             <View style={[styles.amountCard, { backgroundColor: typeColor }]}>
-              <Text style={styles.currSign}>$</Text>
+              <Text style={styles.currSign}>{CURRENCIES.find(c => c.code === currency)?.symbol || '$'}</Text>
               <TextInput
                 style={styles.amountInput}
                 value={amount}
