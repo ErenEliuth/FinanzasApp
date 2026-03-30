@@ -135,9 +135,51 @@ export default function CardsScreen() {
         if (isFocused) loadData();
     }, [isFocused]);
 
+
+    const handleLimitChange = (text: string) => {
+        if (currency === 'COP') {
+            const clean = text.replace(/\D/g, '');
+            if (!clean) setNewLimit('');
+            else setNewLimit(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
+        } else {
+            const filtered = text.replace(/[^0-9.,]/g, '');
+            const dots = (filtered.match(/[.,]/g) || []).length;
+            if (dots <= 1) setNewLimit(filtered);
+        }
+    };
+
+    const handlePayAmountChange = (text: string) => {
+        if (currency === 'COP') {
+            const clean = text.replace(/\D/g, '');
+            if (!clean) setPayAmount('');
+            else setPayAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
+        } else {
+            const filtered = text.replace(/[^0-9.,]/g, '');
+            const dots = (filtered.match(/[.,]/g) || []).length;
+            if (dots <= 1) setPayAmount(filtered);
+        }
+    };
+
+    const handleManualMinChange = (text: string) => {
+        if (currency === 'COP') {
+            const clean = text.replace(/\D/g, '');
+            if (!clean) setManualMinAmount('');
+            else setManualMinAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
+        } else {
+            const filtered = text.replace(/[^0-9.,]/g, '');
+            const dots = (filtered.match(/[.,]/g) || []).length;
+            if (dots <= 1) setManualMinAmount(filtered);
+        }
+    };
     const handleAddCard = async () => {
         Keyboard.dismiss();
-        const limit = convertToBase(parseFloat(newLimit.replace(/\./g, '')), currency, rates);
+        let cleanLim = newLimit;
+        if (currency === 'COP') {
+            cleanLim = newLimit.replace(/\./g, '').replace(',', '.');
+        } else {
+            cleanLim = newLimit.replace(/,/g, '');
+        }
+        const limit = convertToBase(parseFloat(cleanLim), currency, rates);
         const cut = parseInt(newCutDay, 10);
         const due = parseInt(newDueDay, 10);
         const minPct = parseFloat(newMinPct) || 10;
@@ -214,7 +256,13 @@ export default function CardsScreen() {
 
     const handlePayCard = async () => {
         if (!selectedCard) return;
-        const pay = convertToBase(parseFloat(payAmount.replace(/\./g, '')), currency, rates);
+        let cleanPay = payAmount;
+        if (currency === 'COP') {
+            cleanPay = payAmount.replace(/\./g, '').replace(',', '.');
+        } else {
+            cleanPay = payAmount.replace(/,/g, '');
+        }
+        const pay = convertToBase(parseFloat(cleanPay), currency, rates);
         if (isNaN(pay) || pay <= 0) return;
 
         const debt = cardBalances[selectedCard.name] || 0;
@@ -252,7 +300,13 @@ export default function CardsScreen() {
 
     const handleSaveManualMin = async () => {
         if (!selectedCardForMin) return;
-        const val = parseFloat(manualMinAmount.replace(/\./g, '')) || 0;
+        let cleanMin = manualMinAmount;
+        if (currency === 'COP') {
+            cleanMin = manualMinAmount.replace(/\./g, '').replace(',', '.');
+        } else {
+            cleanMin = manualMinAmount.replace(/,/g, '');
+        }
+        const val = convertToBase(parseFloat(cleanMin), currency, rates) || 0;
         
         const updated = cards.map(c => 
             c.id === selectedCardForMin.id ? { ...c, manualMinPayment: val } : c
@@ -512,7 +566,7 @@ export default function CardsScreen() {
                             
                             <TextInput style={[styles.modalInput, { backgroundColor: isDark ? colorsNav.cardBg : '#F9F6F2', color: colorsNav.text, borderColor: colorsNav.border, fontSize: 24, fontWeight: '800' }]}
                                 placeholder="$ 0" placeholderTextColor={colorsNav.sub}
-                                keyboardType="decimal-pad" value={manualMinAmount} onChangeText={(text) => setManualMinAmount(formatInput(text))}
+                                keyboardType="decimal-pad" value={manualMinAmount} onChangeText={handleManualMinChange}
                                 autoFocus />
 
                             <View style={styles.modalBtns}>

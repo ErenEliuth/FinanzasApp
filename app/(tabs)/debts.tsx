@@ -116,16 +116,39 @@ export default function DebtsScreen() {
         } catch (e) { }
     };
 
-    const formatInput = (text: string) => {
-        const clean = text.replace(/\D/g, '');
-        if (!clean) return '';
-        const info = getCurrencyInfo(currency);
-        return new Intl.NumberFormat(info.locale).format(parseInt(clean, 10));
+    const handleAmountChange = (text: string) => {
+        if (currency === 'COP') {
+            const clean = text.replace(/\D/g, '');
+            if (!clean) setAmount('');
+            else setAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
+        } else {
+            const filtered = text.replace(/[^0-9.,]/g, '');
+            const dots = (filtered.match(/[.,]/g) || []).length;
+            if (dots <= 1) setAmount(filtered);
+        }
+    };
+
+    const handlePayAmountChange = (text: string) => {
+        if (currency === 'COP') {
+            const clean = text.replace(/\D/g, '');
+            if (!clean) setPayAmount('');
+            else setPayAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
+        } else {
+            const filtered = text.replace(/[^0-9.,]/g, '');
+            const dots = (filtered.match(/[.,]/g) || []).length;
+            if (dots <= 1) setPayAmount(filtered);
+        }
     };
 
 
     const handleSave = async () => {
-        const typedVal = parseFloat(amount.replace(/\./g, ''));
+        let cleanStr = amount;
+        if (currency === 'COP') {
+            cleanStr = amount.replace(/\./g, '').replace(',', '.');
+        } else {
+            cleanStr = amount.replace(/,/g, '');
+        }
+        const typedVal = parseFloat(cleanStr);
         const val = convertToBase(typedVal, currency, rates);
         if (!name.trim() || isNaN(val) || val <= 0) {
             if (Platform.OS === 'web') window.alert('Completa todos los campos');
@@ -360,7 +383,7 @@ export default function DebtsScreen() {
 
                             <View style={styles.mField}>
                                 <Text style={[styles.mLabel, { color: colors.sub }]}>MONTO</Text>
-                                <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} value={amount} onChangeText={t => setAmount(formatInput(t))} placeholder="$ 0" placeholderTextColor={colors.sub + '60'} keyboardType="decimal-pad" />
+                                <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} value={amount} onChangeText={handleAmountChange} placeholder="$ 0" placeholderTextColor={colors.sub + '60'} keyboardType="decimal-pad" />
                             </View>
 
                              {viewMode === 'debt' ? (
@@ -490,7 +513,7 @@ export default function DebtsScreen() {
                         {selectedDebt?.debt_type === 'debt' && (
                             <TextInput 
                                 style={[styles.miniInput, { color: colors.text, borderBottomColor: colors.border }]}
-                                value={payAmount} onChangeText={t => setPayAmount(formatInput(t))}
+                                value={payAmount} onChangeText={handlePayAmountChange}
                                 placeholder="Monto a pagar" placeholderTextColor={colors.sub + '40'}
                                 keyboardType="decimal-pad" autoFocus
                             />

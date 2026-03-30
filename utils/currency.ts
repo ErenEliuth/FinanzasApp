@@ -38,8 +38,8 @@ export function formatCurrency(amount: number, code: string, isHidden: boolean =
     return new Intl.NumberFormat(info.locale, {
         style: 'currency',
         currency: code,
-        minimumFractionDigits: code === 'COP' || code === 'DOP' ? 0 : 2,
-        maximumFractionDigits: code === 'COP' || code === 'DOP' ? 0 : 2,
+        minimumFractionDigits: code === 'COP' ? 0 : 2,
+        maximumFractionDigits: code === 'COP' ? 0 : 2,
     }).format(amount);
 }
 

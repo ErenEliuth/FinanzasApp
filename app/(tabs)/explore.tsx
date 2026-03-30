@@ -213,11 +213,29 @@ export default function AddTransactionScreen() {
   };
 
   const handleAmountChange = (text: string) => {
-    setAmount(formatInput(text));
+    if (currency === 'COP') {
+      const clean = text.replace(/\D/g, '');
+      if (!clean) { setAmount(''); return; }
+      setAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
+    } else {
+      // Para USD, EUR, DOP permitimos decimales
+      const filtered = text.replace(/[^0-9.,]/g, '');
+      // Asegurar solo un punto o coma decimal
+      const dots = (filtered.match(/[.,]/g) || []).length;
+      if (dots > 1) return; 
+      setAmount(filtered);
+    }
   };
 
   const handleSave = async () => {
-    const typedVal = parseFloat(amount.replace(/\./g, '').replace(',', '.'));
+    let cleanStr = amount;
+    if (currency === 'COP') {
+        cleanStr = amount.replace(/\./g, '').replace(',', '.');
+    } else {
+        // Para USD, EUR, DOP: quitar comas (miles) y usar punto para parseFloat
+        cleanStr = amount.replace(/,/g, '');
+    }
+    const typedVal = parseFloat(cleanStr);
     const parsed = convertToBase(typedVal, currency, rates);
     if (isNaN(parsed) || parsed <= 0 || isSaving) return;
 
