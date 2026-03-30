@@ -660,39 +660,7 @@ export default function ProfileScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    <TouchableOpacity style={[styles.listItem, { backgroundColor: colorsNav.card }]} onPress={() => setCurrencyModalVisible(true)}>
-                        <View style={[styles.listIcon, { backgroundColor: isDark ? '#3A3A52' : '#F1F5F9' }]}>
-                            <MaterialIcons name="payments" size={20} color={colorsNav.sub} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                            <Text style={[styles.listTitle, { color: colorsNav.text }]}>Moneda Principal</Text>
-                            <Text style={[styles.listSub, { color: colorsNav.sub }]}>
-                                Seleccionada: {currency} ({CURRENCIES.find(c => c.code === currency)?.name || currency})
-                            </Text>
-                        </View>
-                        <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
-                    </TouchableOpacity>
 
-                    <TouchableOpacity style={[styles.listItem, { backgroundColor: colorsNav.card }]} onPress={() => { setTempRates({ ...rates }); setRatesModalVisible(true); }}>
-                        <View style={[styles.listIcon, { backgroundColor: isDark ? '#3A3A52' : '#F1F5F9' }]}>
-                            <MaterialIcons name="currency-exchange" size={20} color={colorsNav.sub} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                            <Text style={[styles.listTitle, { color: colorsNav.text }]}>Tipos de Cambio</Text>
-                            <Text style={[styles.listSub, { color: colorsNav.sub }]}>Configurar tasas personalizadas</Text>
-                        </View>
-                        <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={[styles.listItem, { backgroundColor: colorsNav.card }]} onPress={toggleHiddenMode}>
-                        <View style={[styles.listIcon, { backgroundColor: isDark ? '#3A3A52' : '#F1F5F9' }]}>
-                            <MaterialIcons name={isHidden ? "visibility-off" : "visibility"} size={20} color={colorsNav.sub} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                            <Text style={[styles.listTitle, { color: colorsNav.text }]}>Modo Incógnito</Text>
-                            <Text style={[styles.listSub, { color: colorsNav.sub }]}>{isHidden ? 'Activado' : 'Desactivado'}</Text>
-                        </View>
-                    </TouchableOpacity>
 
                     {showTimer && (
                         <Modal visible={showTimer} transparent animationType="fade">
@@ -773,6 +741,23 @@ export default function ProfileScreen() {
                         </View>
                     </TouchableOpacity>
                 </View>
+
+                {/* ── Moneda y Divisas ── */}
+                <TouchableOpacity 
+                    style={[styles.profileCard, { backgroundColor: colorsNav.card, marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }]} 
+                    onPress={() => setCurrencyModalVisible(true)}
+                >
+                    <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: '#E0F2F1', justifyContent: 'center', alignItems: 'center' }}>
+                        <MaterialIcons name="payments" size={24} color="#009688" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 16, fontWeight: '800', color: colorsNav.text }}>Configuración de Moneda</Text>
+                        <Text style={{ fontSize: 12, color: colorsNav.sub, marginTop: 2 }}>
+                            {currency} - {CURRENCIES.find(c => c.code === currency)?.name}
+                        </Text>
+                    </View>
+                    <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
+                </TouchableOpacity>
                 
                 {/* ── Seguridad ── */}
                 <View style={[styles.profileCard, { backgroundColor: colorsNav.card, marginTop: 16 }]}>
@@ -971,7 +956,8 @@ export default function ProfileScreen() {
                                     ]}
                                     onPress={async () => {
                                         await setCurrencyConfig(curr.code);
-                                        setCurrencyModalVisible(false);
+                                        // No cerramos el modal si queremos dar opción de cambio de tasas después?
+                                        // El usuario dijo "cuando uno le unda pos si salga las opciones esas"
                                     }}
                                 >
                                     <View style={[styles.listIcon, { backgroundColor: currency === curr.code ? colorsNav.accent : (isDark ? '#3A3A52' : '#F1F5F9') }]}>
@@ -984,6 +970,26 @@ export default function ProfileScreen() {
                                     {currency === curr.code && <MaterialIcons name="check-circle" size={24} color={colorsNav.accent} />}
                                 </TouchableOpacity>
                             ))}
+
+                            <View style={{ height: 1, backgroundColor: colorsNav.border, marginVertical: 8 }} />
+
+                            <TouchableOpacity 
+                                style={[styles.listItem, { backgroundColor: colorsNav.bg }]} 
+                                onPress={() => {
+                                    setCurrencyModalVisible(false);
+                                    setTempRates({ ...rates });
+                                    setRatesModalVisible(true);
+                                }}
+                            >
+                                <View style={[styles.listIcon, { backgroundColor: '#FFECB3' }]}>
+                                    <MaterialIcons name="currency-exchange" size={20} color="#FFA000" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.listTitle, { color: colorsNav.text }]}>Tipos de Cambio</Text>
+                                    <Text style={[styles.listSub, { color: colorsNav.sub }]}>Editar valores de conversión</Text>
+                                </View>
+                                <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
+                            </TouchableOpacity>
                         </View>
 
                         <TouchableOpacity style={[styles.closeModalBtn, { backgroundColor: colorsNav.bg }]} onPress={() => setCurrencyModalVisible(false)}>
