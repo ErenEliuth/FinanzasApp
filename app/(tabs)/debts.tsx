@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { formatCurrency, convertCurrency, getCurrencyInfo, convertToBase } from '@/utils/currency';
 import {
     ActivityIndicator,
     Alert,
@@ -42,10 +43,11 @@ type DebtItem = {
 export default function DebtsScreen() {
     const isFocused = useIsFocused();
     const router = useRouter();
-    const { user, theme, isHidden } = useAuth();
+    const { user, theme, currency, rates, isHidden } = useAuth();
     const colors = useThemeColors();
     const isDark = colors.isDark;
 
+    const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
 
 
     const [viewMode, setViewMode] = useState<'debt' | 'fixed'>('debt');
@@ -117,13 +119,14 @@ export default function DebtsScreen() {
     const formatInput = (text: string) => {
         const clean = text.replace(/\D/g, '');
         if (!clean) return '';
-        return new Intl.NumberFormat('es-CO').format(parseInt(clean, 10));
+        const info = getCurrencyInfo(currency);
+        return new Intl.NumberFormat(info.locale).format(parseInt(clean, 10));
     };
 
-    const fmt = (n: number) => isHidden ? '****' : new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
 
     const handleSave = async () => {
-        const val = parseFloat(amount.replace(/\./g, ''));
+        const typedVal = parseFloat(amount.replace(/\./g, ''));
+        const val = convertToBase(typedVal, currency, rates);
         if (!name.trim() || isNaN(val) || val <= 0) {
             if (Platform.OS === 'web') window.alert('Completa todos los campos');
             else Alert.alert('Error', 'Completa todos los campos');

@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import * as Notifications from '@/utils/notifications';
 import { THEMES, ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { formatCurrency, convertCurrency } from '@/utils/currency';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LATEST_VERSION, CHANGELOG_UPDATES } from '@/constants/Changelog';
 // Eliminado: MagicAuraButton
@@ -72,9 +73,11 @@ export default function HomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isDesktop = width > 768;
-  const { user, logout, theme, toggleTheme, isHidden, toggleHiddenMode } = useAuth();
+  const { user, theme, currency, rates, isHidden, toggleHiddenMode, logout } = useAuth();
   const colorsNav = useThemeColors();
   const isDark = colorsNav.isDark;
+
+  const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
 
   const [debtTotal, setDebtTotal] = useState(0);
   const [recentTx, setRecentTx] = useState<any[]>([]);
@@ -373,13 +376,6 @@ export default function HomeScreen() {
       saldoDisponible: available
     };
   }, [allTransactions, debtTotal, accountTotals, userCards]);
-
-  const fmt = (n: number) =>
-    isHidden
-      ? '****'
-      : new Intl.NumberFormat('es-CO', {
-        style: 'currency', currency: 'COP', minimumFractionDigits: 0
-      }).format(n);
 
   const handleLogout = async () => {
     if (Platform.OS === 'web') {

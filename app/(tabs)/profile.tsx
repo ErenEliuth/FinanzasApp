@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { THEMES, ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { formatCurrency, convertCurrency, CURRENCIES } from '@/utils/currency';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LineChart } from 'react-native-chart-kit';
 // Eliminado: MagicAuraButton
@@ -42,12 +43,8 @@ const DAY_HEADERS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 const toKey = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-const fmtCOP = (n: number, isHidden: boolean) =>
-    isHidden
-        ? '****'
-        : new Intl.NumberFormat('es-CO', {
-            style: 'currency', currency: 'COP', minimumFractionDigits: 0
-          }).format(n);
+const fmt = (n: number, currency: string, rates: Record<string, number>, isHidden: boolean) => 
+    formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
 
 
 
@@ -166,7 +163,13 @@ const CAT_INFO: Record<string, any> = {
     'Otros': { icon: 'more-horiz', color: '#94A3B8', bg: '#F1F5F9' },
 };
 
-function CategoryStatistics({ transactions, colorsNav, isHidden }: { transactions: any[]; colorsNav: any; isHidden: boolean }) {
+function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates }: { 
+    transactions: any[]; 
+    colorsNav: any; 
+    isHidden: boolean; 
+    currency: string;
+    rates: Record<string, number>;
+}) {
     const today = new Date();
     const currMonth = today.getMonth();
     const currYear = today.getFullYear();
@@ -254,7 +257,7 @@ function CategoryStatistics({ transactions, colorsNav, isHidden }: { transaction
                 <View style={statStyle.compRow}>
                     <View>
                         <Text style={[statStyle.compLab, { color: colorsNav.sub }]}>Gasto Total</Text>
-                        <Text style={[statStyle.compVal, { color: colorsNav.text }]}>{fmtCOP(thisMonthTotal, isHidden)}</Text>
+                        <Text style={[statStyle.compVal, { color: colorsNav.text }]}>{fmt(thisMonthTotal, currency, rates, isHidden)}</Text>
                     </View>
                     {lastMonthTotal > 0 && (
                         <View style={[statStyle.compBadge, { backgroundColor: isHigher ? '#FFEBEE' : '#E8F5E9' }]}>
@@ -282,7 +285,7 @@ function CategoryStatistics({ transactions, colorsNav, isHidden }: { transaction
                                 <View style={{ flex: 1 }}>
                                     <View style={statStyle.barHeaders}>
                                         <Text style={[statStyle.barLabel, { color: colorsNav.text }]}>{cat}</Text>
-                                        <Text style={[statStyle.barAmount, { color: colorsNav.text }]}>{fmtCOP(val, isHidden)}</Text>
+                                        <Text style={[statStyle.barAmount, { color: colorsNav.text }]}>{fmt(val, currency, rates, isHidden)}</Text>
                                     </View>
                                     <View style={[statStyle.barTrack, { backgroundColor: colorsNav.bg }]}>
                                         <View style={[statStyle.barFill, { width: `${(val / maxVal) * 100}%`, backgroundColor: info.color }]} />
@@ -317,7 +320,7 @@ const statStyle = StyleSheet.create({
 // ─── Pantalla principal ────────────────────────────────────────────────────────
 export default function ProfileScreen() {
     const router = useRouter();
-    const { user, logout, theme, isHidden, toggleTheme, setThemeConfig } = useAuth();
+    const { user, theme, setThemeConfig, toggleTheme, currency, setCurrencyConfig, rates, setRatesConfig, syncRates, isHidden, toggleHiddenMode, logout } = useAuth();
     const isFocused = useIsFocused();
     const colorsNav = useThemeColors();
     const isDark = colorsNav.isDark;
@@ -327,6 +330,9 @@ export default function ProfileScreen() {
     const [lockPin, setLockPin] = useState('');
     const [pinModalVisible, setPinModalVisible] = useState(false);
     const [tempPin, setTempPin] = useState('');
+    const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
+    const [ratesModalVisible, setRatesModalVisible] = useState(false);
+    const [tempRates, setTempRates] = useState<Record<string, number>>({ ...rates });
 
     useEffect(() => {
         loadLockSettings();
@@ -592,7 +598,6 @@ export default function ProfileScreen() {
                                 color={colorsNav.accent} 
                             />
                         </TouchableOpacity>
-{/* Eliminado: MagicAuraButton */}
                     </View>
                 </View>
 
@@ -617,7 +622,7 @@ export default function ProfileScreen() {
                     <View style={styles.actionRow}>
                         <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colorsNav.bg }]} onPress={() => setStatsModalVisible(true)}>
                             <MaterialIcons name="bar-chart" size={18} color={colorsNav.accent} />
-                            <Text style={[styles.actionBtnTxt, { color: colorsNav.text }]}>Estadísticas</Text>
+                            <Text style={[styles.actionBtnTxt, { color: colorsNav.text }]}>Análisis</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colorsNav.bg }]} onPress={handleLogout}>
                             <MaterialIcons name="exit-to-app" size={18} color="#EF4444" />
@@ -630,9 +635,7 @@ export default function ProfileScreen() {
                 <View style={{ marginTop: 8 }}>
                     <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>CONFIGURACIÓN</Text>
                     
-                    <View 
-                        style={[styles.listItem, { backgroundColor: colorsNav.card }]} 
-                    >
+                    <View style={[styles.listItem, { backgroundColor: colorsNav.card }]}>
                         <View style={[styles.listIcon, { backgroundColor: reminders ? '#E3F0FF' : (isDark ? '#3A3A52' : '#F1F5F9') }]}>
                             <Ionicons name="notifications" size={20} color={reminders ? '#3B82F6' : colorsNav.sub} />
                         </View>
@@ -656,6 +659,40 @@ export default function ProfileScreen() {
                              <Ionicons name={reminders ? "toggle" : "toggle-outline"} size={32} color={reminders ? colorsNav.accent : colorsNav.sub} />
                         </TouchableOpacity>
                     </View>
+
+                    <TouchableOpacity style={[styles.listItem, { backgroundColor: colorsNav.card }]} onPress={() => setCurrencyModalVisible(true)}>
+                        <View style={[styles.listIcon, { backgroundColor: isDark ? '#3A3A52' : '#F1F5F9' }]}>
+                            <MaterialIcons name="payments" size={20} color={colorsNav.sub} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.listTitle, { color: colorsNav.text }]}>Moneda Principal</Text>
+                            <Text style={[styles.listSub, { color: colorsNav.sub }]}>
+                                Seleccionada: {currency} ({CURRENCIES.find(c => c.code === currency)?.name || currency})
+                            </Text>
+                        </View>
+                        <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.listItem, { backgroundColor: colorsNav.card }]} onPress={() => { setTempRates({ ...rates }); setRatesModalVisible(true); }}>
+                        <View style={[styles.listIcon, { backgroundColor: isDark ? '#3A3A52' : '#F1F5F9' }]}>
+                            <MaterialIcons name="currency-exchange" size={20} color={colorsNav.sub} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.listTitle, { color: colorsNav.text }]}>Tipos de Cambio</Text>
+                            <Text style={[styles.listSub, { color: colorsNav.sub }]}>Configurar tasas personalizadas</Text>
+                        </View>
+                        <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.listItem, { backgroundColor: colorsNav.card }]} onPress={toggleHiddenMode}>
+                        <View style={[styles.listIcon, { backgroundColor: isDark ? '#3A3A52' : '#F1F5F9' }]}>
+                            <MaterialIcons name={isHidden ? "visibility-off" : "visibility"} size={20} color={colorsNav.sub} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.listTitle, { color: colorsNav.text }]}>Modo Incógnito</Text>
+                            <Text style={[styles.listSub, { color: colorsNav.sub }]}>{isHidden ? 'Activado' : 'Desactivado'}</Text>
+                        </View>
+                    </TouchableOpacity>
 
                     {showTimer && (
                         <Modal visible={showTimer} transparent animationType="fade">
@@ -715,7 +752,6 @@ export default function ProfileScreen() {
                         <Text style={[styles.optSub, { color: colorsNav.sub }]}>Control Mensual</Text>
                     </TouchableOpacity>
 
-                    {/* Resumen Semanal Card Interactive */}
                     <TouchableOpacity 
                         style={[styles.optBtn, { backgroundColor: colorsNav.card, borderColor: '#EF444420', borderWidth: 1 }]}
                         onPress={() => setWeeklyModalVisible(true)}
@@ -725,7 +761,7 @@ export default function ProfileScreen() {
                         </View>
                         <Text style={[styles.optTitle, { color: colorsNav.text }]}>Resumen Semanal</Text>
                         <View style={{ marginTop: 2 }}>
-                            <Text style={{ color: '#EF4444', fontWeight: '900', fontSize: 13 }}>{fmtCOP(weeklySpending, isHidden)}</Text>
+                            <Text style={{ color: '#EF4444', fontWeight: '900', fontSize: 13 }}>{fmt(weeklySpending, currency, rates, isHidden)}</Text>
                             {weeklyTopCat ? (
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 }}>
                                     <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#EF444430' }} />
@@ -820,7 +856,7 @@ export default function ProfileScreen() {
                         <View style={{ width: 28 }} />
                     </View>
                     <ScrollView contentContainerStyle={{ padding: 20 }}>
-                        <CategoryStatistics transactions={transactions} colorsNav={colorsNav} isHidden={isHidden} />
+                        <CategoryStatistics transactions={transactions} colorsNav={colorsNav} isHidden={isHidden} currency={currency} rates={rates} />
                         <View style={{ height: 50 }} />
                     </ScrollView>
                 </SafeAreaView>
@@ -840,7 +876,7 @@ export default function ProfileScreen() {
                         
                         <View style={styles.weeklyHero}>
                             <Text style={styles.weeklyHeroLabel}>Total Gastado (7 días)</Text>
-                            <Text style={[styles.weeklyHeroAmt, { color: '#EF4444' }]}>{fmtCOP(weeklySpending, isHidden)}</Text>
+                            <Text style={[styles.weeklyHeroAmt, { color: '#EF4444' }]}>{fmt(weeklySpending, currency, rates, isHidden)}</Text>
                             <Text style={[styles.weeklyHeroSub, { color: colorsNav.sub }]}>Últimas transacciones registradas</Text>
                         </View>
 
@@ -850,7 +886,7 @@ export default function ProfileScreen() {
                                 <View style={{ flex: 1 }}>
                                     <Text style={[styles.insightTitle, { color: colorsNav.text }]}>Aviso de Control</Text>
                                     <Text style={[styles.insightText, { color: colorsNav.sub }]}>
-                                        Tu mayor gasto ha sido en <Text style={{ fontWeight: '800', color: colorsNav.text }}>{weeklyTopCat}</Text> por {fmtCOP(weeklyTopAmt, isHidden)}. ¡Ojo ahí!
+                                        Tu mayor gasto ha sido en <Text style={{ fontWeight: '800', color: colorsNav.text }}>{weeklyTopCat}</Text> por {fmt(weeklyTopAmt, currency, rates, isHidden)}. ¡Ojo ahí!
                                     </Text>
                                 </View>
                             </View>
@@ -866,7 +902,7 @@ export default function ProfileScreen() {
                                             <MaterialIcons name={info.icon} size={18} color={info.color} />
                                         </View>
                                         <Text style={[styles.weekCatName, { color: colorsNav.text }]}>{cat}</Text>
-                                        <Text style={[styles.weekCatAmt, { color: colorsNav.text }]}>{fmtCOP(amt, isHidden)}</Text>
+                                        <Text style={[styles.weekCatAmt, { color: colorsNav.text }]}>{fmt(amt, currency, rates, isHidden)}</Text>
                                     </View>
                                 );
                             })}
@@ -909,6 +945,116 @@ export default function ProfileScreen() {
                                  <Text style={{ color: '#FFF', fontWeight: '800' }}>Guardar</Text>
                              </TouchableOpacity>
                          </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Modal Selección de Moneda */}
+            <Modal visible={currencyModalVisible} animationType="slide" transparent>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
+                    <View style={[styles.weeklyBottomModal, { backgroundColor: colorsNav.card }]}>
+                        <View style={styles.modalHandle} />
+                        <View style={styles.modalHeaderInner}>
+                            <Text style={[styles.weeklyModalTitle, { color: colorsNav.text }]}>Seleccionar Moneda</Text>
+                            <TouchableOpacity onPress={() => setCurrencyModalVisible(false)}>
+                                <MaterialIcons name="close" size={24} color={colorsNav.sub} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={{ gap: 12, marginBottom: 20 }}>
+                            {CURRENCIES.map((curr) => (
+                                <TouchableOpacity 
+                                    key={curr.code} 
+                                    style={[
+                                        styles.listItem, 
+                                        { backgroundColor: currency === curr.code ? colorsNav.accent + '15' : colorsNav.bg, borderWidth: 1, borderColor: currency === curr.code ? colorsNav.accent : 'transparent' }
+                                    ]}
+                                    onPress={async () => {
+                                        await setCurrencyConfig(curr.code);
+                                        setCurrencyModalVisible(false);
+                                    }}
+                                >
+                                    <View style={[styles.listIcon, { backgroundColor: currency === curr.code ? colorsNav.accent : (isDark ? '#3A3A52' : '#F1F5F9') }]}>
+                                        <Text style={{ color: currency === curr.code ? '#FFF' : colorsNav.sub, fontWeight: '800', fontSize: 12 }}>{curr.symbol}</Text>
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.listTitle, { color: colorsNav.text }]}>{curr.name}</Text>
+                                        <Text style={[styles.listSub, { color: colorsNav.sub }]}>{curr.code}</Text>
+                                    </View>
+                                    {currency === curr.code && <MaterialIcons name="check-circle" size={24} color={colorsNav.accent} />}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <TouchableOpacity style={[styles.closeModalBtn, { backgroundColor: colorsNav.bg }]} onPress={() => setCurrencyModalVisible(false)}>
+                            <Text style={[styles.closeModalBtnTxt, { color: colorsNav.text }]}>Cancelar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Modal Tipos de Cambio */}
+            <Modal visible={ratesModalVisible} animationType="slide" transparent>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
+                    <View style={[styles.weeklyBottomModal, { backgroundColor: colorsNav.card }]}>
+                        <View style={styles.modalHandle} />
+                        <View style={styles.modalHeaderInner}>
+                            <Text style={[styles.weeklyModalTitle, { color: colorsNav.text }]}>Tasas de Cambio</Text>
+                            <TouchableOpacity onPress={async () => {
+                                await syncRates();
+                                setTempRates({ ...rates });
+                                Alert.alert('Sincronizado', 'Tasas actualizadas automáticamente.');
+                            }}>
+                                <MaterialIcons name="sync" size={24} color={colorsNav.accent} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={[styles.listSub, { color: colorsNav.sub, marginBottom: 20 }]}>
+                            Define cuántos Pesos Colombianos equivale 1 unidad de cada moneda.
+                        </Text>
+
+                        <View style={{ gap: 16 }}>
+                            {CURRENCIES.filter(c => c.code !== 'COP').map((curr) => (
+                                <View key={curr.code} style={{ gap: 8 }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <Text style={{ color: colorsNav.text, fontWeight: '700' }}>1 {curr.name} ({curr.code})</Text>
+                                        <Text style={{ color: colorsNav.sub, fontSize: 12 }}>COP</Text>
+                                    </View>
+                                    <TextInput 
+                                        style={[styles.modalInput, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border, marginBottom: 0, padding: 12, borderRadius: 12, borderWidth: 1 }]}
+                                        value={tempRates[curr.code]?.toString()}
+                                        onChangeText={(val) => {
+                                            const numeric = parseFloat(val.replace(',', '.'));
+                                            if (!isNaN(numeric)) {
+                                                setTempRates({ ...tempRates, [curr.code]: numeric });
+                                            }
+                                        }}
+                                        keyboardType="decimal-pad"
+                                        placeholder="Valor en COP"
+                                        placeholderTextColor={colorsNav.sub}
+                                    />
+                                </View>
+                            ))}
+                        </View>
+
+                        <View style={{ flexDirection: 'row', gap: 12, marginTop: 32 }}>
+                            <TouchableOpacity 
+                                style={[styles.closeModalBtn, { backgroundColor: colorsNav.bg, flex: 1, marginTop: 0 }]} 
+                                onPress={() => setRatesModalVisible(false)}
+                            >
+                                <Text style={[styles.closeModalBtnTxt, { color: colorsNav.text }]}>Cerrar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.closeModalBtn, { backgroundColor: colorsNav.accent, flex: 1, marginTop: 0 }]} 
+                                onPress={async () => {
+                                    await setRatesConfig(tempRates);
+                                    setRatesModalVisible(false);
+                                    Alert.alert('Éxito', 'Tipos de cambio actualizados.');
+                                }}
+                            >
+                                <Text style={[styles.closeModalBtnTxt, { color: '#FFF' }]}>Guardar</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
             </Modal>

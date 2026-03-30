@@ -6,6 +6,7 @@ import { useIsFocused } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import { ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { formatCurrency, convertCurrency } from '@/utils/currency';
 import {
     Alert,
     Dimensions,
@@ -28,7 +29,7 @@ const PIE_COLORS = ['#4A7C59', '#8B5CF6', '#F59E0B', '#3B82F6', '#EF4444', '#00B
 
 export default function HistoryScreen() {
     const isFocused = useIsFocused();
-    const { user, theme, isHidden } = useAuth();
+    const { user, theme, currency, rates, isHidden } = useAuth();
     const colorsNav = useThemeColors();
     const isDark = colorsNav.isDark;
 
@@ -120,12 +121,7 @@ export default function HistoryScreen() {
             legendFontSize: 12,
         }));
 
-    const fmt = (n: number) =>
-        isHidden
-            ? '****'
-            : new Intl.NumberFormat('es-CO', {
-                style: 'currency', currency: 'COP', minimumFractionDigits: 0
-              }).format(n);
+    const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
 
     const getTxIconInfo = (tx: any) => {
         if (tx.type === 'income') {

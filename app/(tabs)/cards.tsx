@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { formatCurrency, getCurrencyInfo, convertCurrency, convertToBase } from '@/utils/currency';
 import {
     Alert,
     Dimensions,
@@ -47,7 +48,7 @@ const CARD_COLORS = ['#2D5A3D', '#4A7C59', '#1E293B', '#8B5CF6', '#F59E0B', '#EF
 export default function CardsScreen() {
     const isFocused = useIsFocused();
     const router = useRouter();
-    const { user, theme, isHidden } = useAuth();
+    const { user, theme, currency, rates, isHidden } = useAuth();
     const colorsNav = useThemeColors();
     const isDark = colorsNav.isDark;
 
@@ -79,15 +80,11 @@ export default function CardsScreen() {
     const formatInput = (text: string) => {
         const clean = text.replace(/\D/g, '');
         if (!clean) return '';
-        return new Intl.NumberFormat('es-CO').format(parseInt(clean, 10));
+        const info = getCurrencyInfo(currency);
+        return new Intl.NumberFormat(info.locale).format(parseInt(clean, 10));
     };
 
-    const fmt = (n: number) =>
-        isHidden
-            ? '****'
-            : new Intl.NumberFormat('es-CO', {
-                style: 'currency', currency: 'COP', minimumFractionDigits: 0
-              }).format(n);
+    const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
 
     const loadData = async () => {
         try {
@@ -140,7 +137,7 @@ export default function CardsScreen() {
 
     const handleAddCard = async () => {
         Keyboard.dismiss();
-        const limit = parseFloat(newLimit.replace(/\./g, ''));
+        const limit = convertToBase(parseFloat(newLimit.replace(/\./g, '')), currency, rates);
         const cut = parseInt(newCutDay, 10);
         const due = parseInt(newDueDay, 10);
         const minPct = parseFloat(newMinPct) || 10;
@@ -217,7 +214,7 @@ export default function CardsScreen() {
 
     const handlePayCard = async () => {
         if (!selectedCard) return;
-        const pay = parseFloat(payAmount.replace(/\./g, ''));
+        const pay = convertToBase(parseFloat(payAmount.replace(/\./g, '')), currency, rates);
         if (isNaN(pay) || pay <= 0) return;
 
         const debt = cardBalances[selectedCard.name] || 0;

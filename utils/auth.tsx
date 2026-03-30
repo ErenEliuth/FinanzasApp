@@ -6,6 +6,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { syncDown } from './sync';
 import { ThemeName } from '@/constants/Themes';
+import { fetchExchangeRates } from '@/utils/currency';
 
 WebBrowser.maybeCompleteAuthSession(); // Necesario para que el navegador se cierre tras el login
 
@@ -18,6 +19,11 @@ interface AuthContextType {
     theme: ThemeName;
     toggleTheme: () => Promise<void>;
     setThemeConfig: (theme: ThemeName) => Promise<void>;
+    currency: string;
+    setCurrencyConfig: (currency: string) => Promise<void>;
+    rates: Record<string, number>;
+    setRatesConfig: (rates: Record<string, number>) => Promise<void>;
+    syncRates: () => Promise<void>;
     isHidden: boolean;
     toggleHiddenMode: () => Promise<void>;
     login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
@@ -35,6 +41,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
     const [theme, setTheme] = useState<ThemeName>('light');
+    const [currency, setCurrency] = useState<string>('COP');
+    const [rates, setRates] = useState<Record<string, number>>({ COP: 1, USD: 3950, EUR: 4250, DOP: 67 });
     const [isHidden, setIsHidden] = useState(false);
     useEffect(() => {
         // Cargar sesión inicial de Supabase
@@ -64,6 +72,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (validThemes.includes(storedTheme as ThemeName)) {
                 setTheme(storedTheme as ThemeName);
             }
+            const storedCurrency = await AsyncStorage.getItem('user_currency');
+            if (storedCurrency) {
+                setCurrency(storedCurrency);
+            }
+            const storedRates = await AsyncStorage.getItem('user_rates');
+            if (storedRates) {
+                setRates(JSON.parse(storedRates));
+            } else {
+                syncRates();
+            }
             const storedHidden = await AsyncStorage.getItem('user_hidden_mode');
             if (storedHidden === 'true') {
                 setIsHidden(true);
@@ -89,6 +107,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const setThemeConfig = async (newTheme: ThemeName) => {
         setTheme(newTheme);
         await AsyncStorage.setItem('user_theme', newTheme);
+    };
+
+    const setCurrencyConfig = async (newCurrency: string) => {
+        setCurrency(newCurrency);
+        await AsyncStorage.setItem('user_currency', newCurrency);
+    };
+
+    const setRatesConfig = async (newRates: Record<string, number>) => {
+        setRates(newRates);
+        await AsyncStorage.setItem('user_rates', JSON.stringify(newRates));
+    };
+
+    const syncRates = async () => {
+        const newRates = await fetchExchangeRates();
+        if (newRates) {
+            await setRatesConfig(newRates);
+        }
     };
 
     const toggleHiddenMode = async () => {
@@ -215,7 +250,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, session, loading, theme, toggleTheme, setThemeConfig, isHidden, toggleHiddenMode, login, register, signInWithGoogle, logout }}>
+        <AuthContext.Provider value={{ user, session, loading, theme, toggleTheme, setThemeConfig, currency, setCurrencyConfig, rates, setRatesConfig, syncRates, isHidden, toggleHiddenMode, login, register, signInWithGoogle, logout }}>
             {children}
         </AuthContext.Provider>
     );

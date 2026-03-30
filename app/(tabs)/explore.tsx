@@ -5,6 +5,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 // Eliminado: MagicAuraButton
+import { formatCurrency, getCurrencyInfo, convertCurrency, convertToBase } from '@/utils/currency';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -63,9 +64,9 @@ export default function AddTransactionScreen() {
   const [suggestedAmount, setSuggestedAmount] = useState(0);
   const [suggestedPct, setSuggestedPct] = useState(0);
   const [incomeJustSaved, setIncomeJustSaved] = useState(0);
-
   const router = useRouter();
-  const { user, theme } = useAuth();
+  const { user, theme, currency, rates, isHidden } = useAuth();
+  const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
   const isDark = theme === 'dark';
 
   // ── Zenly Palette ──
@@ -207,7 +208,8 @@ export default function AddTransactionScreen() {
   const formatInput = (text: string) => {
     const clean = text.replace(/\D/g, '');
     if (!clean) return '';
-    return new Intl.NumberFormat('es-CO').format(parseInt(clean, 10));
+    const info = getCurrencyInfo(currency);
+    return new Intl.NumberFormat(info.locale).format(parseInt(clean, 10));
   };
 
   const handleAmountChange = (text: string) => {
@@ -215,7 +217,8 @@ export default function AddTransactionScreen() {
   };
 
   const handleSave = async () => {
-    const parsed = parseFloat(amount.replace(/\./g, '').replace(',', '.'));
+    const typedVal = parseFloat(amount.replace(/\./g, '').replace(',', '.'));
+    const parsed = convertToBase(typedVal, currency, rates);
     if (isNaN(parsed) || parsed <= 0 || isSaving) return;
 
     setIsSaving(true);
@@ -237,7 +240,7 @@ export default function AddTransactionScreen() {
           if (balance < parsed) {
             Alert.alert(
               'Saldo Insuficiente',
-              `No tienes fondos suficientes en "${account}".\n\nDisponible: ${fmtCOP(balance)}\nRequerido: ${fmtCOP(parsed)}`
+              `No tienes fondos suficientes en "${account}".\n\nDisponible: ${fmt(balance)}\nRequerido: ${fmt(parsed)}`
             );
             return;
           }
@@ -565,7 +568,7 @@ export default function AddTransactionScreen() {
                 </Text>
 
                 <View style={[styles.suggestionPill, { backgroundColor: colors.accent }]}>
-                  <Text style={[styles.suggestionAmt, { color: '#FFF' }]}>{fmtCOP(suggestedAmount)}</Text>
+                  <Text style={[styles.suggestionAmt, { color: '#FFF' }]}>{fmt(suggestedAmount)}</Text>
                   <Text style={[styles.suggestionLab, { color: 'rgba(255,255,255,0.8)' }]}>AHORRO RECOMENDADO</Text>
                 </View>
 
@@ -584,8 +587,6 @@ export default function AddTransactionScreen() {
     </TouchableWithoutFeedback>
   );
 }
-
-const fmtCOP = (n: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
