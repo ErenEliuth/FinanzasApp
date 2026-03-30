@@ -221,22 +221,20 @@ export default function AddTransactionScreen() {
       setAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
     } else {
       // Para USD, EUR, DOP: miles con coma, decimal con punto
-      // 1. Quitar todo menos núm y punto
-      let clean = text.replace(/[^0-9.]/g, '');
+      // 1. Quitar las comas (que son miles) para normalizar temporalmente
+      let raw = text.replace(/,/g, '');
       
-      // 2. Si el usuario puso una coma, la tratamos como punto decimal (fallback amigable)
-      if (text.includes(',') && !clean.includes('.')) {
-        clean = text.replace(/,/g, '.').replace(/[^0-9.]/g, '');
-      }
-
+      // 2. Filtrar para que solo queden números y máximo un punto
+      let clean = raw.replace(/[^0-9.]/g, '');
       const parts = clean.split('.');
-      if (parts.length > 2) return; // Más de un punto no permitido
-
-      // Formatear parte entera
-      const integerPart = parts[0] ? new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10)) : '';
       
-      // Unir con decimales si existen
+      if (parts.length > 2) return; // Ignorar si pulsan un segundo punto
+
+      // Formatear parte entera con comas de miles (US style)
+      const integerPart = parts[0] ? new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10)) : (clean.startsWith('.') ? '0' : '');
+      
       if (parts.length === 2) {
+        // Unir: parte entera + punto + hasta 2 decimales
         setAmount(`${integerPart}.${parts[1].slice(0, 2)}`);
       } else if (clean.endsWith('.')) {
         setAmount(`${integerPart}.`);

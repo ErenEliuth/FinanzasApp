@@ -143,13 +143,11 @@ export default function CardsScreen() {
             if (!clean) { setNewLimit(''); return; }
             setNewLimit(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
         } else {
-            let clean = text.replace(/[^0-9.]/g, '');
-            if (text.includes(',') && !clean.includes('.')) {
-                clean = text.replace(/,/g, '.').replace(/[^0-9.]/g, '');
-            }
+            let raw = text.replace(/,/g, '');
+            let clean = raw.replace(/[^0-9.]/g, '');
             const parts = clean.split('.');
             if (parts.length > 2) return;
-            const integerPart = parts[0] ? new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10)) : '';
+            const integerPart = parts[0] ? new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10)) : (clean.startsWith('.') ? '0' : '');
             if (parts.length === 2) setNewLimit(`${integerPart}.${parts[1].slice(0, 2)}`);
             else if (clean.endsWith('.')) setNewLimit(`${integerPart}.`);
             else setNewLimit(integerPart);
@@ -163,13 +161,11 @@ export default function CardsScreen() {
             if (!clean) { setPayAmount(''); return; }
             setPayAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
         } else {
-            let clean = text.replace(/[^0-9.]/g, '');
-            if (text.includes(',') && !clean.includes('.')) {
-                clean = text.replace(/,/g, '.').replace(/[^0-9.]/g, '');
-            }
+            let raw = text.replace(/,/g, '');
+            let clean = raw.replace(/[^0-9.]/g, '');
             const parts = clean.split('.');
             if (parts.length > 2) return;
-            const integerPart = parts[0] ? new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10)) : '';
+            const integerPart = parts[0] ? new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10)) : (clean.startsWith('.') ? '0' : '');
             if (parts.length === 2) setPayAmount(`${integerPart}.${parts[1].slice(0, 2)}`);
             else if (clean.endsWith('.')) setPayAmount(`${integerPart}.`);
             else setPayAmount(integerPart);
@@ -183,13 +179,11 @@ export default function CardsScreen() {
             if (!clean) { setManualMinAmount(''); return; }
             setManualMinAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
         } else {
-            let clean = text.replace(/[^0-9.]/g, '');
-            if (text.includes(',') && !clean.includes('.')) {
-                clean = text.replace(/,/g, '.').replace(/[^0-9.]/g, '');
-            }
+            let raw = text.replace(/,/g, '');
+            let clean = raw.replace(/[^0-9.]/g, '');
             const parts = clean.split('.');
             if (parts.length > 2) return;
-            const integerPart = parts[0] ? new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10)) : '';
+            const integerPart = parts[0] ? new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10)) : (clean.startsWith('.') ? '0' : '');
             if (parts.length === 2) setManualMinAmount(`${integerPart}.${parts[1].slice(0, 2)}`);
             else if (clean.endsWith('.')) setManualMinAmount(`${integerPart}.`);
             else setManualMinAmount(integerPart);
