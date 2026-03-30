@@ -137,38 +137,62 @@ export default function CardsScreen() {
 
 
     const handleLimitChange = (text: string) => {
+        if (!text) { setNewLimit(''); return; }
         if (currency === 'COP') {
             const clean = text.replace(/\D/g, '');
-            if (!clean) setNewLimit('');
-            else setNewLimit(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
+            if (!clean) { setNewLimit(''); return; }
+            setNewLimit(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
         } else {
-            const filtered = text.replace(/[^0-9.,]/g, '');
-            const dots = (filtered.match(/[.,]/g) || []).length;
-            if (dots <= 1) setNewLimit(filtered);
+            let clean = text.replace(/[^0-9.]/g, '');
+            if (text.includes(',') && !clean.includes('.')) {
+                clean = text.replace(/,/g, '.').replace(/[^0-9.]/g, '');
+            }
+            const parts = clean.split('.');
+            if (parts.length > 2) return;
+            const integerPart = parts[0] ? new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10)) : '';
+            if (parts.length === 2) setNewLimit(`${integerPart}.${parts[1].slice(0, 2)}`);
+            else if (clean.endsWith('.')) setNewLimit(`${integerPart}.`);
+            else setNewLimit(integerPart);
         }
     };
 
     const handlePayAmountChange = (text: string) => {
+        if (!text) { setPayAmount(''); return; }
         if (currency === 'COP') {
             const clean = text.replace(/\D/g, '');
-            if (!clean) setPayAmount('');
-            else setPayAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
+            if (!clean) { setPayAmount(''); return; }
+            setPayAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
         } else {
-            const filtered = text.replace(/[^0-9.,]/g, '');
-            const dots = (filtered.match(/[.,]/g) || []).length;
-            if (dots <= 1) setPayAmount(filtered);
+            let clean = text.replace(/[^0-9.]/g, '');
+            if (text.includes(',') && !clean.includes('.')) {
+                clean = text.replace(/,/g, '.').replace(/[^0-9.]/g, '');
+            }
+            const parts = clean.split('.');
+            if (parts.length > 2) return;
+            const integerPart = parts[0] ? new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10)) : '';
+            if (parts.length === 2) setPayAmount(`${integerPart}.${parts[1].slice(0, 2)}`);
+            else if (clean.endsWith('.')) setPayAmount(`${integerPart}.`);
+            else setPayAmount(integerPart);
         }
     };
 
     const handleManualMinChange = (text: string) => {
+        if (!text) { setManualMinAmount(''); return; }
         if (currency === 'COP') {
             const clean = text.replace(/\D/g, '');
-            if (!clean) setManualMinAmount('');
-            else setManualMinAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
+            if (!clean) { setManualMinAmount(''); return; }
+            setManualMinAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
         } else {
-            const filtered = text.replace(/[^0-9.,]/g, '');
-            const dots = (filtered.match(/[.,]/g) || []).length;
-            if (dots <= 1) setManualMinAmount(filtered);
+            let clean = text.replace(/[^0-9.]/g, '');
+            if (text.includes(',') && !clean.includes('.')) {
+                clean = text.replace(/,/g, '.').replace(/[^0-9.]/g, '');
+            }
+            const parts = clean.split('.');
+            if (parts.length > 2) return;
+            const integerPart = parts[0] ? new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10)) : '';
+            if (parts.length === 2) setManualMinAmount(`${integerPart}.${parts[1].slice(0, 2)}`);
+            else if (clean.endsWith('.')) setManualMinAmount(`${integerPart}.`);
+            else setManualMinAmount(integerPart);
         }
     };
     const handleAddCard = async () => {

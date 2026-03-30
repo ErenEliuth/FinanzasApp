@@ -117,26 +117,42 @@ export default function DebtsScreen() {
     };
 
     const handleAmountChange = (text: string) => {
+        if (!text) { setAmount(''); return; }
         if (currency === 'COP') {
             const clean = text.replace(/\D/g, '');
-            if (!clean) setAmount('');
-            else setAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
+            if (!clean) { setAmount(''); return; }
+            setAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
         } else {
-            const filtered = text.replace(/[^0-9.,]/g, '');
-            const dots = (filtered.match(/[.,]/g) || []).length;
-            if (dots <= 1) setAmount(filtered);
+            let clean = text.replace(/[^0-9.]/g, '');
+            if (text.includes(',') && !clean.includes('.')) {
+                clean = text.replace(/,/g, '.').replace(/[^0-9.]/g, '');
+            }
+            const parts = clean.split('.');
+            if (parts.length > 2) return;
+            const integerPart = parts[0] ? new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10)) : '';
+            if (parts.length === 2) setAmount(`${integerPart}.${parts[1].slice(0, 2)}`);
+            else if (clean.endsWith('.')) setAmount(`${integerPart}.`);
+            else setAmount(integerPart);
         }
     };
 
     const handlePayAmountChange = (text: string) => {
+        if (!text) { setPayAmount(''); return; }
         if (currency === 'COP') {
             const clean = text.replace(/\D/g, '');
-            if (!clean) setPayAmount('');
-            else setPayAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
+            if (!clean) { setPayAmount(''); return; }
+            setPayAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
         } else {
-            const filtered = text.replace(/[^0-9.,]/g, '');
-            const dots = (filtered.match(/[.,]/g) || []).length;
-            if (dots <= 1) setPayAmount(filtered);
+            let clean = text.replace(/[^0-9.]/g, '');
+            if (text.includes(',') && !clean.includes('.')) {
+                clean = text.replace(/,/g, '.').replace(/[^0-9.]/g, '');
+            }
+            const parts = clean.split('.');
+            if (parts.length > 2) return;
+            const integerPart = parts[0] ? new Intl.NumberFormat('en-US').format(parseInt(parts[0], 10)) : '';
+            if (parts.length === 2) setPayAmount(`${integerPart}.${parts[1].slice(0, 2)}`);
+            else if (clean.endsWith('.')) setPayAmount(`${integerPart}.`);
+            else setPayAmount(integerPart);
         }
     };
 
