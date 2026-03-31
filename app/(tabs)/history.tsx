@@ -3,7 +3,7 @@ import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 // Eliminado: MagicAuraButton
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatCurrency, convertCurrency } from '@/utils/currency';
@@ -36,9 +36,13 @@ export default function HistoryScreen() {
     const [transactions, setTransactions] = useState<any[]>([]);
     const [refreshing, setRefreshing] = useState(false);
     const [showChart, setShowChart] = useState(false);
+    const scrollRef = useRef<any>(null);
 
     useEffect(() => {
-        if (isFocused) loadData();
+        if (isFocused) {
+            loadData();
+            scrollRef.current?.scrollTo({ y: 0, animated: false });
+        }
     }, [isFocused]);
 
     const loadData = async () => {
@@ -237,6 +241,7 @@ export default function HistoryScreen() {
             {/* ── Lista de Transacciones ────────────────────────────────── */}
             {!showChart && (
                 <ScrollView
+                    ref={scrollRef}
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colorsNav.accent} />}

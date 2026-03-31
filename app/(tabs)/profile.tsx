@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatCurrency, convertCurrency, CURRENCIES } from '@/utils/currency';
 import {
@@ -265,7 +265,14 @@ export default function ProfileScreen() {
     const [weeklySpending, setWeeklySpending] = useState(0);
     const [weeklySummaryData, setWeeklySummaryData] = useState<[string, number][]>([]);
 
-    useEffect(() => { if (isFocused) loadData(); }, [isFocused]);
+    const scrollRef = useRef<any>(null);
+
+    useEffect(() => { 
+        if (isFocused) {
+            loadData(); 
+            scrollRef.current?.scrollTo({ y: 0, animated: false });
+        }
+    }, [isFocused]);
     useEffect(() => {
         AsyncStorage.getItem(`@avatar_${user?.id}`).then(uri => { if (uri) setAvatarUri(uri); });
     }, [user]);
@@ -310,7 +317,7 @@ export default function ProfileScreen() {
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colorsNav.bg }]}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+            <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
                 <View style={styles.header}>
                     <Text style={[styles.headerTitle, { color: colorsNav.text }]}>Perfil</Text>
                     <TouchableOpacity style={[styles.themeBtn, { backgroundColor: colorsNav.card }]} onPress={() => setThemeModalVisible(true)}>
@@ -396,13 +403,13 @@ export default function ProfileScreen() {
                         </View>
                         <ScrollView showsVerticalScrollIndicator={false}>
                             {[
-                                { label: 'Sanctuary', emoji: '🌿', light: 'light' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#4A7C59', darkColor: '#2D5A3D', lightBg: '#FFF8F0', darkBg: '#1A1A2E' },
-                                { label: 'Lavanda', emoji: '💜', light: 'lavender' as ThemeName, dark: 'lavender_dark' as ThemeName, lightColor: '#7C5DBA', darkColor: '#9D7FE0', lightBg: '#F8F7FF', darkBg: '#1A1625' },
-                                { label: 'Océano', emoji: '🌊', light: 'ocean' as ThemeName, dark: 'ocean_dark' as ThemeName, lightColor: '#008080', darkColor: '#26A69A', lightBg: '#F0F9FA', darkBg: '#0A1A1A' },
-                                { label: 'Rosa', emoji: '🌸', light: 'rose' as ThemeName, dark: 'rose_dark' as ThemeName, lightColor: '#E05C6E', darkColor: '#E07080', lightBg: '#FFF5F5', darkBg: '#1A0E0E' },
-                                { label: 'Ámbar', emoji: '🔥', light: 'amber' as ThemeName, dark: 'amber_dark' as ThemeName, lightColor: '#D97706', darkColor: '#F59E0B', lightBg: '#FFFBF0', darkBg: '#1A1400' },
-                                { label: 'Índigo', emoji: '🔷', light: 'slate' as ThemeName, dark: 'midnight' as ThemeName, lightColor: '#3B5BDB', darkColor: '#818CF8', lightBg: '#F5F7FA', darkBg: '#0D0D1A' },
-                                { label: 'Nieve', emoji: '❄️', light: 'snow' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#64748B', darkColor: '#A09B8C', lightBg: '#FFFFFF', darkBg: '#1A1A2E' },
+                                { label: 'Sanctuary', light: 'light' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#4A7C59', darkColor: '#2D5A3D', lightBg: '#FFF8F0', darkBg: '#1A1A2E' },
+                                { label: 'Lavanda',  light: 'lavender' as ThemeName, dark: 'lavender_dark' as ThemeName, lightColor: '#7C5DBA', darkColor: '#9D7FE0', lightBg: '#F8F7FF', darkBg: '#1A1625' },
+                                { label: 'Océano',  light: 'ocean' as ThemeName, dark: 'ocean_dark' as ThemeName, lightColor: '#008080', darkColor: '#26A69A', lightBg: '#F0F9FA', darkBg: '#0A1A1A' },
+                                { label: 'Rosa',  light: 'rose' as ThemeName, dark: 'rose_dark' as ThemeName, lightColor: '#E05C6E', darkColor: '#E07080', lightBg: '#FFF5F5', darkBg: '#1A0E0E' },
+                                { label: 'Ámbar',  light: 'amber' as ThemeName, dark: 'amber_dark' as ThemeName, lightColor: '#D97706', darkColor: '#F59E0B', lightBg: '#FFFBF0', darkBg: '#1A1400' },
+                                { label: 'Índigo',  light: 'slate' as ThemeName, dark: 'midnight' as ThemeName, lightColor: '#3B5BDB', darkColor: '#818CF8', lightBg: '#F5F7FA', darkBg: '#0D0D1A' },
+                                { label: 'Nieve',  light: 'snow' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#64748B', darkColor: '#A09B8C', lightBg: '#FFFFFF', darkBg: '#1A1A2E' },
                             ].map((group) => {
                                 const isLightActive = theme === group.light;
                                 const isDarkActive = theme === group.dark;

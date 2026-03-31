@@ -5,7 +5,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatCurrency, getCurrencyInfo, convertCurrency, convertToBase } from '@/utils/currency';
 import {
@@ -109,7 +109,14 @@ export default function CardsScreen() {
         } catch (e) { console.error(e); }
     };
 
-    useEffect(() => { if (isFocused) loadData(); }, [isFocused]);
+    const scrollRef = useRef<any>(null);
+
+    useEffect(() => { 
+        if (isFocused) {
+            loadData(); 
+            scrollRef.current?.scrollTo({ y: 0, animated: false });
+        } 
+    }, [isFocused]);
 
     const handleLimitChange = (text: string) => {
         const clean = text.replace(/\D/g, '');
@@ -206,7 +213,7 @@ export default function CardsScreen() {
                 </ScrollView>
             </View>
 
-            <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+            <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
                 {currentCard ? (
                     <View style={{ gap: 20 }}>
                         {/* Visa/Mastercard Design Card */}

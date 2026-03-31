@@ -3,10 +3,11 @@ import { syncUp } from '@/utils/sync';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 // Eliminado: MagicAuraButton
 import { formatCurrency, getCurrencyInfo, convertCurrency, convertToBase, CURRENCIES } from '@/utils/currency';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Keyboard,
@@ -44,6 +45,7 @@ const ACCOUNT_STORAGE_KEY = '@custom_accounts';
 type TxType = 'income' | 'expense' | 'ahorro' | 'transfer';
 
 export default function AddTransactionScreen() {
+  const isFocused = useIsFocused();
   const [type, setType] = useState<TxType>('income');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
@@ -59,6 +61,14 @@ export default function AddTransactionScreen() {
   const [newAccountName, setNewAccountName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   
+  const scrollRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (isFocused) {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+    }
+  }, [isFocused]);
+
   // ─── Sugerencia Inteligente de Ahorro ───
   const [showAiModal, setShowAiModal] = useState(false);
   const [suggestedAmount, setSuggestedAmount] = useState(0);
@@ -411,7 +421,7 @@ export default function AddTransactionScreen() {
     <TouchableWithoutFeedback onPress={Platform.OS === 'web' ? undefined : Keyboard.dismiss}>
       <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
             <View style={styles.header}>
               <Text style={[styles.title, { color: colors.text }]}>Nueva Transacción</Text>

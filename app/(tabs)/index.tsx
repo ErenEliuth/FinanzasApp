@@ -3,7 +3,7 @@ import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as Notifications from '@/utils/notifications';
 import { THEMES, ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -94,11 +94,14 @@ export default function HomeScreen() {
   const [changelogVisible, setChangelogVisible] = useState(false);
   const [showReminderPrompt, setShowReminderPrompt] = useState(false);
 
+  const scrollRef = useRef<any>(null);
+
   useEffect(() => {
     if (isFocused) {
       loadData();
       checkChangelog();
       checkReminderPrompt();
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
     }
   }, [isFocused]);
 
@@ -443,6 +446,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colorsNav.bg }]}>
       <ScrollView 
+        ref={scrollRef}
         contentContainerStyle={[
           styles.scrollContent,
           isDesktop && styles.desktopScrollContainer

@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatCurrency, convertCurrency, getCurrencyInfo, convertToBase, CURRENCIES } from '@/utils/currency';
@@ -71,7 +71,15 @@ export default function DebtsScreen() {
     const [accounts, setAccounts] = useState<string[]>(['Efectivo']);
     const [selectedAccount, setSelectedAccount] = useState('Efectivo');
 
-    useEffect(() => { if (isFocused) { loadData(); loadAccounts(); } }, [isFocused]);
+    const scrollRef = useRef<any>(null);
+
+    useEffect(() => { 
+        if (isFocused) { 
+            loadData(); 
+            loadAccounts(); 
+            scrollRef.current?.scrollTo({ y: 0, animated: false });
+        } 
+    }, [isFocused]);
 
     const loadData = async () => {
         if (!user) return;
@@ -288,7 +296,7 @@ export default function DebtsScreen() {
                 </View>
             </View>
 
-            <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+            <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
                 {/* Resumen */}
                 <View style={[styles.heroCard, { backgroundColor: colors.accent }]}>
                     <View style={styles.heroRow}>
