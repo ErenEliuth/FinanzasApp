@@ -89,6 +89,7 @@ export default function BudgetsScreen() {
                 .eq('user_id', user.id)
                 .eq('type', 'expense')
                 .neq('category', 'Ahorro')
+                .neq('category', 'Transferencia')
                 .gte('date', startDate.toISOString());
 
             const totals: Record<string, number> = {};

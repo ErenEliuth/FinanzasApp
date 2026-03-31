@@ -160,7 +160,7 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
     const currYear = today.getFullYear();
     const thisMonthExpenses = transactions.filter(t => {
         const d = new Date(t.date);
-        return t.type === 'expense' && t.category !== 'Ahorro' && d.getMonth() === currMonth && d.getFullYear() === currYear;
+        return t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && d.getMonth() === currMonth && d.getFullYear() === currYear;
     });
     const thisMonthTotal = thisMonthExpenses.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
     const categoryTotals: Record<string, number> = {};
@@ -178,7 +178,7 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
         chartLabels.push(MONTH_NAMES[d.getMonth()]);
         const monthTotal = transactions.filter(t => {
             const td = new Date(t.date);
-            return t.type === 'expense' && td.getMonth() === d.getMonth() && td.getFullYear() === d.getFullYear();
+            return t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && td.getMonth() === d.getMonth() && td.getFullYear() === d.getFullYear();
         }).reduce((s, t) => s + Math.abs(t.amount || 0), 0);
         chartData.push(monthTotal);
     }
@@ -320,7 +320,7 @@ export default function ProfileScreen() {
         });
         setActiveDays(map);
         const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-        const weekTxs = txs.filter(t => t.type === 'expense' && new Date(t.date) >= weekAgo);
+        const weekTxs = txs.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && new Date(t.date) >= weekAgo);
         setWeeklySpending(weekTxs.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0));
         const catMap: Record<string, number> = {};
         weekTxs.forEach(t => { catMap[t.category || 'Otros'] = (catMap[t.category || 'Otros'] || 0) + Math.abs(t.amount || 0); });
@@ -397,23 +397,23 @@ export default function ProfileScreen() {
                         </View>
                     </View>
                     <View style={styles.actionRow}>
-                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colorsNav.bg }]} onPress={handleLogout}>
+                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }]} onPress={handleLogout}>
                             <MaterialIcons name="logout" size={18} color="#EF4444" /><Text style={{ color: '#EF4444', fontWeight: '800' }}>Salir</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colorsNav.accent }]} onPress={() => setStatsModalVisible(true)}>
-                            <MaterialIcons name="analytics" size={18} color="#FFF" /><Text style={{ color: '#FFF', fontWeight: '800' }}>Análisis</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
 
                 <View style={styles.optionsGrid}>
-                    <TouchableOpacity style={[styles.optBtn, { backgroundColor: '#FF8A6520', flex: 1 }]} onPress={() => setWeeklyModalVisible(true)}>
+                    <TouchableOpacity style={[styles.optBtn, { backgroundColor: '#FF8A6520' }]} onPress={() => setWeeklyModalVisible(true)}>
                         <View style={[styles.optIcon, { backgroundColor: '#FF8A65' }]}><MaterialIcons name="auto-graph" size={20} color="#FFF" /></View>
                         <Text style={[styles.optTitle, { color: colorsNav.text }]}>Semanal</Text>
+                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Gasto últimos 7 días</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.optBtn, { backgroundColor: colorsNav.accent + '20', flex: 1 }]} onPress={toggleHiddenMode}>
-                        <View style={[styles.optIcon, { backgroundColor: colorsNav.accent }]}><Ionicons name={isHidden ? "eye" : "eye-off"} size={20} color="#FFF" /></View>
-                        <Text style={[styles.optTitle, { color: colorsNav.text }]}>{isHidden ? "Ver" : "Ocultar"}</Text>
+
+                    <TouchableOpacity style={[styles.optBtn, { backgroundColor: colorsNav.accent + '20' }]} onPress={() => setStatsModalVisible(true)}>
+                        <View style={[styles.optIcon, { backgroundColor: colorsNav.accent }]}><MaterialIcons name="analytics" size={20} color="#FFF" /></View>
+                        <Text style={[styles.optTitle, { color: colorsNav.text }]}>Estadísticas</Text>
+                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Análisis de consumos</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -433,7 +433,7 @@ export default function ProfileScreen() {
                     </View>
                     <View style={styles.listItem}>
                         <View style={[styles.listIcon, { backgroundColor: '#EF444415' }]}><MaterialIcons name="security" size={20} color="#EF4444" /></View>
-                        <View style={{ flex: 1 }}><Text style={[styles.listTitle, { color: colorsNav.text }]}>Bloqueo</Text></View>
+                        <View style={{ flex: 1 }}><Text style={[styles.listTitle, { color: colorsNav.text }]}>Bloqueo (PIN)</Text></View>
                         <Switch onValueChange={toggleLock} value={lockEnabled} trackColor={{ true: '#EF4444' }} />
                     </View>
                 </View>
@@ -483,6 +483,40 @@ export default function ProfileScreen() {
                         <CategoryStatistics transactions={transactions} colorsNav={colorsNav} isHidden={isHidden} currency={currency} rates={rates} />
                     </ScrollView>
                 </SafeAreaView>
+            </Modal>
+
+            {/* Modal Resumen Semanal */}
+            <Modal visible={weeklyModalVisible} animationType="slide" transparent>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
+                    <View style={[styles.modalBox, { backgroundColor: colorsNav.card, borderTopLeftRadius: 32, borderTopRightRadius: 32, width: '100%' }]}>
+                        <View style={{ width: 40, height: 4, backgroundColor: '#DDD', borderRadius: 2, alignSelf: 'center', marginBottom: 20 }} />
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <Text style={[styles.modalTitle, { color: colorsNav.text, marginBottom: 0 }]}>Análisis Semanal</Text>
+                            <TouchableOpacity onPress={() => setWeeklyModalVisible(false)}><MaterialIcons name="close" size={24} color={colorsNav.sub} /></TouchableOpacity>
+                        </View>
+                        
+                        <View style={{ alignItems: 'center', marginVertical: 20 }}>
+                            <Text style={{ fontSize: 12, color: colorsNav.sub, fontWeight: '700' }}>TOTAL GASTADO</Text>
+                            <Text style={{ fontSize: 36, fontWeight: '900', color: '#EF4444' }}>{fmt(weeklySpending, currency, rates, isHidden)}</Text>
+                        </View>
+
+                        <ScrollView style={{ maxHeight: 300 }}>
+                            {weeklySummaryData.map(([cat, amt]) => {
+                                const info = CAT_INFO[cat] || CAT_INFO['Otros'];
+                                return (
+                                    <View key={cat} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 15 }}>
+                                        <View style={[mSt.dayCircle, { backgroundColor: info.bg, width: 36, height: 36 }]}><MaterialIcons name={info.icon} size={18} color={info.color} /></View>
+                                        <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colorsNav.text }}>{cat}</Text>
+                                        <Text style={{ fontSize: 14, fontWeight: '800', color: colorsNav.text }}>{fmt(amt, currency, rates, isHidden)}</Text>
+                                    </View>
+                                );
+                            })}
+                        </ScrollView>
+                        <TouchableOpacity style={{ padding: 18, backgroundColor: colorsNav.accent, borderRadius: 18, alignItems: 'center', marginTop: 20 }} onPress={() => setWeeklyModalVisible(false)}>
+                            <Text style={{ color: '#FFF', fontWeight: '800' }}>Cerrar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
             </Modal>
 
             <Modal visible={currencyModalVisible} transparent animationType="slide">
@@ -537,10 +571,10 @@ const styles = StyleSheet.create({
     email: { fontSize: 13, marginTop: 2, opacity: 0.7 },
     actionRow: { flexDirection: 'row', gap: 12 },
     actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 16 },
-    optionsGrid: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-    optBtn: { flex: 1, padding: 18, borderRadius: 24, gap: 8 },
-    optIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-    optTitle: { fontSize: 13, fontWeight: '800' },
+    optionsGrid: { flexDirection: 'row', gap: 16, marginBottom: 16 },
+    optBtn: { flex: 1, padding: 18, borderRadius: 24, gap: 4 },
+    optIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
+    optTitle: { fontSize: 15, fontWeight: '800' },
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
     modalBox: { borderRadius: 32, padding: 24 },
     modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: 20 },
