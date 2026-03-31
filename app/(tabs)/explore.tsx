@@ -39,7 +39,7 @@ const SUGGESTED_EXTRAS = [
   { label: 'Inversión', icon: 'trending-up', type: 'income' },
 ];
 
-const STORAGE_KEY = 'user_custom_categories_v2';
+const STORAGE_KEY = '@user_custom_categories_v2';
 const ACCOUNT_STORAGE_KEY = '@custom_accounts';
 type TxType = 'income' | 'expense' | 'ahorro' | 'transfer';
 

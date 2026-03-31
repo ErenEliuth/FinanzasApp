@@ -1,4 +1,4 @@
-export type ThemeName = 'light' | 'dark' | 'lavender' | 'ocean' | 'snow';
+export type ThemeName = 'light' | 'dark' | 'lavender' | 'lavender_dark' | 'ocean' | 'ocean_dark' | 'snow';
 
 export const THEMES: Record<ThemeName, any> = {
   light: {
@@ -43,6 +43,20 @@ export const THEMES: Record<ThemeName, any> = {
     input: '#F2F0FF',
     isDark: false,
   },
+  lavender_dark: {
+    bg: '#1A1625',
+    card: '#241E32',
+    text: '#E2D9F3',
+    sub: '#9F94BC',
+    border: '#2E273F',
+    accent: '#9D7FE0',
+    cardBg: '#2A233A',
+    warmBg: '#1A1625',
+    greenCard: '#1A1625',
+    cream: '#241E32',
+    input: '#1A1625',
+    isDark: true,
+  },
   ocean: {
     bg: '#F0F9FA',
     card: '#FFFFFF',
@@ -56,6 +70,20 @@ export const THEMES: Record<ThemeName, any> = {
     cream: '#E0F2F3',
     input: '#E0F2F3',
     isDark: false,
+  },
+  ocean_dark: {
+    bg: '#0A1A1A',
+    card: '#122626',
+    text: '#E0F2F2',
+    sub: '#789F9F',
+    border: '#1A3333',
+    accent: '#26A69A',
+    cardBg: '#162E2E',
+    warmBg: '#0A1A1A',
+    greenCard: '#0A1A1A',
+    cream: '#122626',
+    input: '#0A1A1A',
+    isDark: true,
   },
   snow: {
     bg: '#FFFFFF',
@@ -72,3 +100,4 @@ export const THEMES: Record<ThemeName, any> = {
     isDark: false,
   }
 };
+
