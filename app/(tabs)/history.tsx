@@ -25,13 +25,14 @@ const screenWidth = Dimensions.get('window').width;
 
 
 
-const PIE_COLORS = ['#4A7C59', '#8B5CF6', '#F59E0B', '#3B82F6', '#EF4444', '#00BCD4', '#E91E63'];
+
 
 export default function HistoryScreen() {
     const isFocused = useIsFocused();
     const { user, theme, currency, rates, isHidden } = useAuth();
     const colorsNav = useThemeColors();
     const isDark = colorsNav.isDark;
+    const PIE_COLORS = [colorsNav.accent, '#8B5CF6', '#F59E0B', '#3B82F6', '#EF4444', '#00BCD4', '#E91E63'];
 
     const [transactions, setTransactions] = useState<any[]>([]);
     const [refreshing, setRefreshing] = useState(false);
@@ -129,8 +130,8 @@ export default function HistoryScreen() {
 
     const getTxIconInfo = (tx: any) => {
         if (tx.type === 'income') {
-            if (tx.category === 'Transferencia') return { icon: 'swap-horiz', bg: '#E3F0FF', color: '#3B82F6' };
-            return { icon: 'call-received', bg: '#E3F0FF', color: '#3B82F6' };
+            if (tx.category === 'Transferencia') return { icon: 'swap-horiz', bg: colorsNav.accent + '20', color: colorsNav.accent };
+            return { icon: 'call-received', bg: colorsNav.accent + '20', color: colorsNav.accent };
         }
         if (tx.category === 'Ahorro') return { icon: 'savings', bg: '#F0E6FF', color: '#8B5CF6' };
         if (tx.category === 'Comida' || tx.category === 'Supermercado') return { icon: 'shopping-cart', bg: '#FFF0E0', color: '#F59E0B' };
@@ -221,7 +222,7 @@ export default function HistoryScreen() {
                                 width={screenWidth - 40}
                                 height={220}
                                 chartConfig={{
-                                    color: (opacity = 1) => `rgba(74, 124, 89, ${opacity})`,
+                                    color: (opacity = 1) => `${colorsNav.accent}${Math.round(opacity * 255).toString(16).padStart(2, '0')}`,
                                 }}
                                 accessor="amount"
                                 backgroundColor="transparent"
@@ -280,7 +281,7 @@ export default function HistoryScreen() {
                                     <View style={styles.txRight}>
                                         <Text style={[
                                             styles.txAmount,
-                                            tx.category === 'Ahorro' ? { color: '#8B5CF6' } : (tx.type === 'income' ? { color: '#4A7C59' } : { color: '#EF4444' })
+                                            tx.category === 'Ahorro' ? { color: '#8B5CF6' } : (tx.type === 'income' ? { color: colorsNav.accent } : { color: '#EF4444' })
                                         ]}>
                                             {tx.type === 'income' ? '+' : '-'}{fmt(tx.amount)}
                                         </Text>

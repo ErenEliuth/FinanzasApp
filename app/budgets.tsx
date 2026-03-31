@@ -4,6 +4,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { syncUp, syncDown } from '@/utils/sync';
 import {
     Alert,
@@ -27,7 +28,7 @@ import { formatCurrency, convertCurrency, convertToBase, getCurrencyInfo } from 
 const DEFAULT_CATEGORIES = [
     { name: 'Comida',          icon: 'restaurant',     color: '#E67E22' },
     { name: 'Transporte',      icon: 'directions-car', color: '#34495E' },
-    { name: 'Hogar',           icon: 'home',           color: '#4A7C59' },
+    { name: 'Hogar',           icon: 'home',           color: '#4CAF50' },
     { name: 'Salud',           icon: 'medical-services', color: '#16A085' },
     { name: 'Educación',       icon: 'school',         color: '#2980B9' },
     { name: 'Entretenimiento', icon: 'sports-esports', color: '#8E44AD' },
@@ -43,12 +44,9 @@ const CATEGORY_STORAGE_KEY = '@user_custom_categories_v2';
 export default function BudgetsScreen() {
     const isFocused = useIsFocused();
     const router = useRouter();
-    const { user, theme, isHidden, currency, rates } = useAuth();
-    const isDark = theme === 'dark';
-
-    const colors = isDark 
-        ? { bg: '#1A1A2E', card: '#25253D', text: '#F5F0E8', sub: '#A09B8C', border: '#3A3A52', accent: '#4A7C59', lightAccent: '#4A7C5930', input: '#1A1A2E' }
-        : { bg: '#FFF8F0', card: '#FFFFFF', text: '#2D2D2D', sub: '#8B8680', border: '#F0E8DC', accent: '#4A7C59', lightAccent: '#E8F5E9', input: '#F5EDE0' };
+    const { user, isHidden, currency, rates } = useAuth();
+    const colors = useThemeColors();
+    const isDark = colors.isDark;
 
     const [budgets, setBudgets] = useState<any[]>([]);
     const [spending, setSpending] = useState<Record<string, number>>({});
@@ -430,7 +428,7 @@ const styles = StyleSheet.create({
     
     scroll: { paddingHorizontal: 24 },
 
-    summaryCard: { borderRadius: 32, padding: 24, marginBottom: 24, elevation: 8, shadowColor: '#4A7C59', shadowOpacity: 0.2, shadowRadius: 20 },
+    summaryCard: { borderRadius: 32, padding: 24, marginBottom: 24, elevation: 8, shadowColor: '#4CAF50', shadowOpacity: 0.2, shadowRadius: 20 },
     summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
     summaryLab: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '700' },
     summaryVal: { color: '#FFF', fontSize: 28, fontWeight: '900' },

@@ -5,6 +5,7 @@ import { useIsFocused } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import {
     Alert,
     Image,
@@ -27,12 +28,8 @@ export default function GoalsScreen() {
     const isFocused = useIsFocused();
     const router = useRouter();
     const { user, theme, isHidden } = useAuth();
-    const isDark = theme === 'dark';
-
-    // ── Sanctuary Palette ──
-    const colors = isDark 
-        ? { bg: '#1A1A2E', card: '#25253D', text: '#F5F0E8', sub: '#A09B8C', border: '#3A3A52', accent: '#4A7C59', lightAccent: '#4A7C5930' }
-        : { bg: '#FFF8F0', card: '#FFFFFF', text: '#2D2D2D', sub: '#8B8680', border: '#F0E8DC', accent: '#4A7C59', lightAccent: '#E8F5E9' };
+    const colors = useThemeColors();
+    const isDark = colors.isDark;
 
     const [goals, setGoals] = useState<any[]>([]);
     const [totalAhorro, setTotalAhorro] = useState(0);

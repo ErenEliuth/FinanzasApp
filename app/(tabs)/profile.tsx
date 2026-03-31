@@ -90,7 +90,7 @@ function MonthHeatmap({ activeDays, colorsNav }: {
                         const isFuture = new Date(year, month, day) > today;
                         let bgColor = colorsNav.bg;
                         if (isFuture) bgColor = 'transparent';
-                        else if (count > 0) bgColor = '#4A7C59';
+                        else if (count > 0) bgColor = colorsNav.accent;
                         return (
                             <View key={col} style={mSt.cell}>
                                 <View style={[

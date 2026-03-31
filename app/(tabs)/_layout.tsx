@@ -61,7 +61,7 @@ export default function TabLayout() {
           title: 'Inicio',
           href: '/',
           tabBarIcon: ({ color, focused }) => (
-            <View style={focused ? styles.activeIconWrap : styles.iconWrap}>
+            <View style={[focused ? { backgroundColor: colorsNav.accent + '15' } : {}, styles.iconWrap]}>
               <Ionicons name="home" size={22} color={color} />
             </View>
           ),
@@ -72,9 +72,9 @@ export default function TabLayout() {
         name="history"
         options={{
           title: 'Historial',
-          href: !isDesktop ? '/history' : null, // Disable link on PC
+          href: !isDesktop ? '/history' : null,
           tabBarIcon: ({ color, focused }) => (
-            <View style={focused ? styles.activeIconWrap : styles.iconWrap}>
+            <View style={[focused ? { backgroundColor: colorsNav.accent + '15' } : {}, styles.iconWrap]}>
               <MaterialIcons name="receipt-long" size={22} color={color} />
             </View>
           ),
@@ -165,18 +165,15 @@ const styles = StyleSheet.create({
     width: 40,
     height: 32,
     borderRadius: 10,
-    backgroundColor: 'rgba(74, 124, 89, 0.08)',
   },
   fabButton: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#4A7C59',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Platform.OS === 'web' ? 0 : 20,
     top: Platform.OS === 'web' ? -10 : 0,
-    shadowColor: '#4A7C59',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,

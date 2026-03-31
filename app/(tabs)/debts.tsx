@@ -354,14 +354,14 @@ export default function DebtsScreen() {
                                     <View style={{ alignItems: 'flex-end' }}>
                                         <Text style={[styles.totalVal, { color: colors.text }]}>{fmt(item.value)}</Text>
                                         <View style={[styles.statusBadge, { backgroundColor: isPaid ? '#E8F5E9' : '#FFF3E0' }]}>
-                                            <Text style={[styles.statusTxt, { color: isPaid ? '#4A7C59' : '#E67E22' }]}>{isPaid ? 'PAGO' : 'PEND.'}</Text>
+                                            <Text style={[styles.statusTxt, { color: isPaid ? colors.accent : '#E67E22' }]}>{isPaid ? 'PAGO' : 'PEND.'}</Text>
                                         </View>
                                     </View>
                                 </View>
                                 
                                 <View style={styles.progressArea}>
                                     <View style={[styles.pBarBg, { backgroundColor: colors.bg }]}>
-                                        <View style={[styles.pBarFill, { width: `${pct}%`, backgroundColor: isPaid ? '#4A7C59' : colors.accent }]} />
+                                        <View style={[styles.pBarFill, { width: `${pct}%`, backgroundColor: isPaid ? colors.accent : colors.accent }]} />
                                     </View>
                                 </View>
 
@@ -582,7 +582,7 @@ const styles = StyleSheet.create({
     selTxt: { fontSize: 14, fontWeight: '800' },
 
     scroll: { paddingHorizontal: 24 },
-    heroCard: { borderRadius: 32, padding: 24, marginBottom: 24, elevation: 6, shadowColor: '#4A7C59', shadowOpacity: 0.2, shadowRadius: 15 },
+    heroCard: { borderRadius: 32, padding: 24, marginBottom: 24, elevation: 6, shadowColor: '#3A3A5230', shadowOpacity: 0.2, shadowRadius: 15 },
     heroRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
     heroLab: { color: 'rgba(255,255,255,0.7)', fontSize: 14, fontWeight: '700', marginBottom: 4 },
     heroVal: { color: '#FFF', fontSize: 28, fontWeight: '900' },

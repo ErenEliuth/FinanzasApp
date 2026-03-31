@@ -43,9 +43,7 @@ type CreditCard = {
 
 
 // ─── Circular Progress Component ──────────────────────────────────────
-const CircularProgress = React.memo(({ percentage, size = 80, strokeWidth = 8, color = '#4A7C59' }: {
-  percentage: number; size?: number; strokeWidth?: number; color?: string;
-}) => {
+const CircularProgress = React.memo(({ percentage, size = 80, strokeWidth = 10, color }: { percentage: number, size?: number, strokeWidth?: number, color: string }) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
@@ -362,7 +360,7 @@ export default function HomeScreen() {
 
     const healthPct = activeMoney > 0 ? Math.max(0, Math.min(100, Math.round((realMoney / (activeMoney + savTotal)) * 100))) : 0;
     const healthLbl = healthPct >= 70 ? 'ÓPTIMO' : healthPct >= 40 ? 'REGULAR' : 'BAJO';
-    const healthClr = healthPct >= 70 ? '#4A7C59' : healthPct >= 40 ? '#F59E0B' : '#EF4444';
+    const healthClr = healthPct >= 70 ? colorsNav.accent : healthPct >= 40 ? '#F59E0B' : '#EF4444';
     const monthPct = inc > 0 ? ((inc - expGastos) / inc * 100).toFixed(1) : '0';
 
     return {
@@ -412,8 +410,8 @@ export default function HomeScreen() {
   // Icon helper for transactions
   const getTxIconInfo = (tx: any) => {
     if (tx.type === 'income') {
-      if (tx.category === 'Transferencia') return { icon: 'swap-horiz', bg: '#E3F0FF', color: '#3B82F6' };
-      return { icon: 'call-received', bg: '#E3F0FF', color: '#3B82F6' };
+      if (tx.category === 'Transferencia') return { icon: 'swap-horiz', bg: colorsNav.accent + '20', color: colorsNav.accent };
+      return { icon: 'call-received', bg: colorsNav.accent + '20', color: colorsNav.accent };
     }
     if (tx.category === 'Ahorro') return { icon: 'savings', bg: '#F0E6FF', color: '#8B5CF6' };
     if (tx.category === 'Comida' || tx.category === 'Supermercado') return { icon: 'shopping-cart', bg: '#FFF0E0', color: '#F59E0B' };
@@ -522,7 +520,7 @@ export default function HomeScreen() {
               <Text style={styles.balanceLabel}>DINERO ACTIVO</Text>
               <Text style={styles.balanceAmount}>{fmt(dineroActivo)}</Text>
               <View style={styles.balanceBadge}>
-                <MaterialIcons name="trending-up" size={14} color="#4A7C59" />
+                <MaterialIcons name="trending-up" size={14} color={colorsNav.accent} />
                 <Text style={styles.balanceBadgeText}>
                   {Number(porcentajeMes) >= 0 ? '+' : ''}{porcentajeMes}% este mes
                 </Text>
@@ -537,7 +535,7 @@ export default function HomeScreen() {
                 onPress={() => router.push('/goals')}
               >
                 <View style={[styles.widgetIconWrap, { backgroundColor: isDark ? '#3A5A4A' : '#E8F5E9' }]}>
-                  <MaterialIcons name="savings" size={22} color="#4A7C59" />
+                  <MaterialIcons name="savings" size={22} color={colorsNav.accent} />
                 </View>
                 <Text style={[styles.widgetLabel, { color: colorsNav.sub }]}>AHORROS</Text>
                 <Text style={[styles.widgetValue, { color: colorsNav.text }]}>{fmt(ahorroTotal)}</Text>
@@ -620,7 +618,7 @@ export default function HomeScreen() {
                 <View style={[styles.healthExpandedGrid, { backgroundColor: isDark ? '#2A2A42' : '#FAF5ED' }]}>
                   <View style={styles.healthExpandedItem}>
                     <Text style={[styles.healthExpandedItemLabel, { color: colorsNav.sub }]}>Disponible</Text>
-                    <Text style={[styles.healthExpandedItemValue, { color: '#4A7C59' }]}>{fmt(dineroActivo)}</Text>
+                    <Text style={[styles.healthExpandedItemValue, { color: colorsNav.accent }]}>{fmt(dineroActivo)}</Text>
                   </View>
                   <View style={{ width: 1, backgroundColor: isDark ? colorsNav.border : '#E8E0D4', height: '60%', alignSelf: 'center' }} />
                   <View style={styles.healthExpandedItem}>
@@ -703,7 +701,7 @@ export default function HomeScreen() {
                       </View>
                       <Text style={[
                         styles.txAmount,
-                        tx.category === 'Ahorro' ? { color: '#8B5CF6' } : (tx.type === 'income' ? { color: '#4A7C59' } : { color: '#EF4444' }),
+                        tx.category === 'Ahorro' ? { color: '#8B5CF6' } : (tx.type === 'income' ? { color: colorsNav.accent } : { color: '#EF4444' }),
                       ]}>
                         {tx.type === 'income' ? '+' : '-'}{fmt(tx.amount)}
                       </Text>
@@ -728,7 +726,7 @@ export default function HomeScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
                 {pendingItems.length > 0 && (
                   <TouchableOpacity
-                    style={{ backgroundColor: '#4A7C5915', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 }}
+                    style={{ backgroundColor: colorsNav.accent + '15', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 }}
                     onPress={async () => {
                       const keys = pendingItems.map(i => i.notifKey);
                       const prev = await AsyncStorage.getItem(`@dismissed_notifs_${user?.id}`);
@@ -738,7 +736,7 @@ export default function HomeScreen() {
                       setPendingItems([]);
                       setNotificationsVisible(false);
                     }}>
-                    <Text style={{ color: '#4A7C59', fontWeight: '800', fontSize: 13 }}>Marcar Leídas</Text>
+                    <Text style={{ color: colorsNav.accent, fontWeight: '800', fontSize: 13 }}>Marcar Leídas</Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity onPress={() => setNotificationsVisible(false)}>
@@ -844,7 +842,7 @@ export default function HomeScreen() {
                         <MaterialIcons
                           name={name === 'Efectivo' ? 'money' : name === 'Transferencia' ? 'account-balance' : 'wallet' as any}
                           size={20}
-                          color={name === 'Efectivo' ? '#4A7C59' : '#8B5CF6'}
+                          color={name === 'Efectivo' ? colorsNav.accent : '#8B5CF6'}
                         />
                       </View>
                       <Text style={[styles.accName, { color: colorsNav.text }]}>{name}</Text>

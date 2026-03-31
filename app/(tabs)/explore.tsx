@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 // Eliminado: MagicAuraButton
 import { formatCurrency, getCurrencyInfo, convertCurrency, convertToBase, CURRENCIES } from '@/utils/currency';
 import React, { useEffect, useRef, useState } from 'react';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import {
   Alert,
   Keyboard,
@@ -75,36 +76,13 @@ export default function AddTransactionScreen() {
   const [suggestedPct, setSuggestedPct] = useState(0);
   const [incomeJustSaved, setIncomeJustSaved] = useState(0);
   const router = useRouter();
-  const { user, theme, currency, rates, isHidden } = useAuth();
+  const { user, currency, rates, isHidden } = useAuth();
   const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
-  const isDark = theme === 'dark';
-
-  // ── Zenly Palette ──
-  const colors = isDark 
-    ? {
-        bg: '#1A1A2E',
-        card: '#25253D',
-        text: '#F5F0E8',
-        sub: '#A09B8C',
-        border: '#3A3A52',
-        accent: '#4A7C59',
-        lightAccent: '#4A7C5930',
-        input: '#1A1A2E',
-      }
-    : {
-        bg: '#FFF8F0',
-        card: '#FFFFFF',
-        text: '#2D2D2D',
-        sub: '#8B8680',
-        border: '#F0E8DC',
-        accent: '#4A7C59',
-        lightAccent: '#E8F5E9',
-        input: '#F5EDE0',
-      };
+  const colorsNav = useThemeColors();
 
   const typeColor =
-    type === 'income' ? '#4A7C59' :
-      type === 'ahorro' ? '#6366F1' :
+    type === 'income' ? colorsNav.accent :
+      type === 'ahorro' ? '#8B5CF6' :
         type === 'transfer' ? '#F59E0B' : '#EF4444';
 
   // Cargar datos guardados
@@ -215,13 +193,6 @@ export default function AddTransactionScreen() {
     ]);
   };
 
-  const formatInput = (text: string) => {
-    const clean = text.replace(/\D/g, '');
-    if (!clean) return '';
-    const info = getCurrencyInfo(currency);
-    return new Intl.NumberFormat(info.locale).format(parseInt(clean, 10));
-  };
-
   const handleAmountChange = (text: string) => {
     if (!text) { setAmount(''); return; }
 
@@ -230,34 +201,18 @@ export default function AddTransactionScreen() {
       if (!clean) { setAmount(''); return; }
       setAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
     } else {
-      // Para DOP, USD, EUR: separador de miles = ',' y decimal = '.'
-      // Los teclados en español usan ',' como decimal → normalizarlo a '.'
-      
-      // Paso 1: Si el texto termina en ',' o tiene una coma seguida de ≤2 dígitos
-      // al final (sin punto previo), la coma es decimal → convertirla a '.'
       let normalized = text;
-      
-      // Detectar si la coma es separador decimal:
-      // Caso A: termina en ',' → usuario acaba de escribir la coma decimal
-      // Caso B: coma seguida de 1-2 dígitos al final y sin punto → es decimal
-      // Caso C: ya hay un punto en el string → las comas son de miles, quitar
       const hasDot = text.includes('.');
       if (!hasDot) {
-        // Reemplazar la última coma por punto si parece ser decimal
-        // (coma seguida de máx 2 dígitos al final, o sola al final)
         normalized = text.replace(/,(\d{0,2})$/, '.$1');
-        // Si quedaron más comas delante, son de miles → quitarlas
         normalized = normalized.replace(/,/g, '');
       } else {
-        // Ya hay punto → las comas son de miles, eliminar
         normalized = text.replace(/,/g, '');
       }
 
-      // Paso 2: Separar por el punto decimal
       const parts = normalized.split('.');
-      if (parts.length > 2) return; // Más de un punto → ignorar
+      if (parts.length > 2) return;
 
-      // Paso 3: Formatear la parte entera
       const integerRaw = parts[0].replace(/\D/g, '');
       if (!integerRaw && normalized.startsWith('.')) {
         setAmount('0.' + (parts[1] || '').slice(0, 2));
@@ -268,7 +223,6 @@ export default function AddTransactionScreen() {
         ? new Intl.NumberFormat('en-US').format(parseInt(integerRaw, 10))
         : '';
 
-      // Paso 4: Reconstruir el string
       if (parts.length === 2) {
         setAmount(`${integerFormatted}.${parts[1].slice(0, 2)}`);
       } else if (normalized.endsWith('.')) {
@@ -284,7 +238,6 @@ export default function AddTransactionScreen() {
     if (currency === 'COP') {
         cleanStr = amount.replace(/\./g, '').replace(',', '.');
     } else {
-        // Para USD, EUR, DOP: quitar comas (miles) y usar punto para parseFloat
         cleanStr = amount.replace(/,/g, '');
     }
     const typedVal = parseFloat(cleanStr);
@@ -293,7 +246,6 @@ export default function AddTransactionScreen() {
 
     setIsSaving(true);
 
-    // ─── Validación de Saldo (Solo para Gasto / Ahorro / Transferencia) ──────────
     if (type !== 'income') {
       try {
         const { data: txs, error: txErr } = await supabase
@@ -312,6 +264,7 @@ export default function AddTransactionScreen() {
               'Saldo Insuficiente',
               `No tienes fondos suficientes en "${account}".\n\nDisponible: ${fmt(balance)}\nRequerido: ${fmt(parsed)}`
             );
+            setIsSaving(false);
             return;
           }
         }
@@ -321,6 +274,7 @@ export default function AddTransactionScreen() {
     if (type === 'transfer') {
       if (!destAccount || destAccount === account) {
         Alert.alert('Error', 'Selecciona una cuenta de destino diferente.');
+        setIsSaving(false);
         return;
       }
       const desc = description.trim() || `Transferencia ${account} → ${destAccount}`;
@@ -351,10 +305,8 @@ export default function AddTransactionScreen() {
       }]);
       if (error) throw error;
 
-      // ─── Lógica de Sugerencia Inteligente (Solo para ingresos) ───
       if (type === 'income') {
         try {
-          // Calculamos salud rápidamente
           const { data: allTx } = await supabase.from('transactions').select('amount, type, category').eq('user_id', user?.id);
           const { data: allDebts } = await supabase.from('debts').select('value, paid').eq('user_id', user?.id);
           
@@ -370,7 +322,6 @@ export default function AddTransactionScreen() {
           const realMoney = (totalActive + totalAhorro) - debtTotal;
           const healthPct = totalActive > 0 ? (realMoney / (totalActive + totalAhorro)) * 100 : 0;
 
-          // Porcentaje sugerido: 20% si salud > 70, 15% si 40-70, 10% si < 40
           const pct = healthPct >= 70 ? 20 : healthPct >= 40 ? 15 : 10;
           const suggest = Math.round(parsed * (pct / 100));
 
@@ -379,7 +330,7 @@ export default function AddTransactionScreen() {
           setIncomeJustSaved(parsed);
           setShowAiModal(true);
           setIsSaving(false);
-          return; // No salimos de la pantalla aun, mostramos modal
+          return;
         } catch (e) { console.error('Error calculando sugerencia:', e); }
       }
 
@@ -409,8 +360,6 @@ export default function AddTransactionScreen() {
     }
   };
 
-// Eliminado: confirmSaveWithSavings
-
   const allCategories = type === 'income'
     ? [...DEFAULT_INCOME_CATS, ...customCategories]
     : type === 'expense'
@@ -419,26 +368,25 @@ export default function AddTransactionScreen() {
 
   return (
     <TouchableWithoutFeedback onPress={Platform.OS === 'web' ? undefined : Keyboard.dismiss}>
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colorsNav.bg }]}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
             <View style={styles.header}>
-              <Text style={[styles.title, { color: colors.text }]}>Nueva Transacción</Text>
+              <Text style={[styles.title, { color: colorsNav.text }]}>Nueva Transacción</Text>
               <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-{/* Eliminado: MagicAuraButton */}
-                <TouchableOpacity onPress={() => router.back()} style={[styles.closeBtn, { backgroundColor: colors.card }]}>
-                  <Ionicons name="close" size={24} color={colors.text} />
+                <TouchableOpacity onPress={() => router.back()} style={[styles.closeBtn, { backgroundColor: colorsNav.card }]}>
+                  <Ionicons name="close" size={24} color={colorsNav.text} />
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* ── Selector de Tipo: Sanctuary Cards ─────────────── */}
-            <View style={[styles.typeList, { backgroundColor: colors.card }]}>
+            {/* Selector de Tipo */}
+            <View style={[styles.typeList, { backgroundColor: colorsNav.card }]}>
               {[
-                { id: 'income', label: 'Ingreso', icon: 'trending-up', c: '#4A7C59' },
+                { id: 'income', label: 'Ingreso', icon: 'trending-up', c: colorsNav.accent },
                 { id: 'expense', label: 'Gasto', icon: 'trending-down', c: '#EF4444' },
-                { id: 'ahorro', label: 'Ahorro', icon: 'wallet', c: '#6366F1' },
+                { id: 'ahorro', label: 'Ahorro', icon: 'wallet', c: '#8B5CF6' },
                 { id: 'transfer', label: 'Mover', icon: 'swap-horiz', c: '#F59E0B' },
               ].map(t => (
                 <TouchableOpacity
@@ -446,13 +394,13 @@ export default function AddTransactionScreen() {
                   style={[styles.typeItem, type === t.id && { backgroundColor: t.c + '15', borderColor: t.c }]}
                   onPress={() => { setType(t.id as TxType); setDescription(t.id === 'ahorro' ? 'Ahorro' : ''); }}
                 >
-                  <MaterialIcons name={t.icon as any} size={18} color={type === t.id ? t.c : colors.sub} />
-                  <Text style={[styles.typeItemText, { color: type === t.id ? t.c : colors.sub }]}>{t.label}</Text>
+                  <MaterialIcons name={t.icon as any} size={18} color={type === t.id ? t.c : colorsNav.sub} />
+                  <Text style={[styles.typeItemText, { color: type === t.id ? t.c : colorsNav.sub }]}>{t.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            {/* ── Monto ─────────────────────────────────────────────────── */}
+            {/* Monto */}
             <View style={[styles.amountCard, { backgroundColor: typeColor }]}>
               <Text style={styles.currSign}>{CURRENCIES.find(c => c.code === currency)?.symbol || '$'}</Text>
               <TextInput
@@ -467,58 +415,55 @@ export default function AddTransactionScreen() {
               />
             </View>
 
-            {/* ── Formulario Zenly ────────────────────────────────────── */}
-            <View style={[styles.form, { backgroundColor: colors.card }]}>
-              {/* Descripción */}
+            {/* Formulario */}
+            <View style={[styles.form, { backgroundColor: colorsNav.card }]}>
               <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: colors.sub }]}>Descripción</Text>
-                <View style={[styles.inputContainer, { backgroundColor: colors.bg }]}>
+                <Text style={[styles.inputLabel, { color: colorsNav.sub }]}>Descripción</Text>
+                <View style={[styles.inputContainer, { backgroundColor: colorsNav.bg }]}>
                   <TextInput
-                    style={[styles.textInput, { color: colors.text }]}
+                    style={[styles.textInput, { color: colorsNav.text }]}
                     value={description}
                     onChangeText={setDescription}
                     placeholder="Ej. Supermercado, Nómina..."
-                    placeholderTextColor={colors.sub + '80'}
+                    placeholderTextColor={colorsNav.sub + '80'}
                   />
                 </View>
               </View>
 
-              {/* Cuentas */}
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Cuenta</Text>
+                  <Text style={[styles.sectionTitle, { color: colorsNav.text }]}>Cuenta</Text>
                   <TouchableOpacity onPress={() => setAccountModalVisible(true)}>
-                    <MaterialIcons name="add-circle" size={24} color={colors.accent} />
+                    <MaterialIcons name="add-circle" size={24} color={colorsNav.accent} />
                   </TouchableOpacity>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
                   {['Efectivo', ...customAccounts.filter(a => !cardNames.includes(a))].map(acc => (
                     <TouchableOpacity
                       key={acc}
-                      style={[styles.chip, { backgroundColor: colors.bg }, account === acc && { backgroundColor: colors.accent }]}
+                      style={[styles.chip, { backgroundColor: colorsNav.bg }, account === acc && { backgroundColor: colorsNav.accent }]}
                       onPress={() => setAccount(acc)}
                       onLongPress={() => customAccounts.includes(acc) && handleDeleteCustomAccount(acc)}
                     >
-                      <Text style={[styles.chipText, { color: colors.sub }, account === acc && { color: '#FFF' }]}>{acc}</Text>
+                      <Text style={[styles.chipText, { color: colorsNav.sub }, account === acc && { color: '#FFF' }]}>{acc}</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
               </View>
 
-              {/* Tarjetas de Crédito (Solo para Ingreso o Gasto) */}
               {cardNames.length > 0 && type !== 'ahorro' && type !== 'transfer' && (
                 <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Tarjetas de Crédito</Text>
+                  <Text style={[styles.sectionTitle, { color: colorsNav.text }]}>Tarjetas de Crédito</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
                     {cardNames.map(acc => (
                       <TouchableOpacity
                         key={acc}
-                        style={[styles.chip, { backgroundColor: colors.bg, borderColor: '#6366F140', borderWidth: 1 }, account === acc && { backgroundColor: '#6366F1', borderColor: '#6366F1' }]}
+                        style={[styles.chip, { backgroundColor: colorsNav.bg, borderColor: colorsNav.accent + '40', borderWidth: 1 }, account === acc && { backgroundColor: colorsNav.accent, borderColor: colorsNav.accent }]}
                         onPress={() => setAccount(acc)}
                       >
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <MaterialIcons name="credit-card" size={14} color={account === acc ? '#FFF' : '#6366F1'} />
-                          <Text style={[styles.chipText, { color: colors.sub }, account === acc && { color: '#FFF' }]}>{acc}</Text>
+                          <MaterialIcons name="credit-card" size={14} color={account === acc ? '#FFF' : colorsNav.accent} />
+                          <Text style={[styles.chipText, { color: colorsNav.sub }, account === acc && { color: '#FFF' }]}>{acc}</Text>
                         </View>
                       </TouchableOpacity>
                     ))}
@@ -526,51 +471,47 @@ export default function AddTransactionScreen() {
                 </View>
               )}
 
-              {/* Categoría */}
               {type !== 'ahorro' && type !== 'transfer' && (
                 <View style={styles.section}>
                   <View style={styles.sectionHeader}>
-                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Categoría</Text>
+                    <Text style={[styles.sectionTitle, { color: colorsNav.text }]}>Categoría</Text>
                     <TouchableOpacity onPress={() => setModalVisible(true)}>
-                      <MaterialIcons name="add-circle" size={24} color={colors.accent} />
+                      <MaterialIcons name="add-circle" size={24} color={colorsNav.accent} />
                     </TouchableOpacity>
                   </View>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
                     {allCategories.map(cat => (
                       <TouchableOpacity
                         key={cat}
-                        style={[styles.chip, { backgroundColor: colors.bg }, category === cat && { backgroundColor: typeColor }]}
+                        style={[styles.chip, { backgroundColor: colorsNav.bg }, category === cat && { backgroundColor: typeColor }]}
                         onPress={() => setCategory(cat)}
                         onLongPress={() => customCategories.includes(cat) && handleDeleteCustomCategory(cat)}
                       >
-                        <Text style={[styles.chipText, { color: colors.sub }, category === cat && { color: '#FFF' }]}>{cat}</Text>
+                        <Text style={[styles.chipText, { color: colorsNav.sub }, category === cat && { color: '#FFF' }]}>{cat}</Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
                 </View>
               )}
 
-              {/* Destino (Transferencia) */}
               {type === 'transfer' && (
                 <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 12 }]}>Destino</Text>
+                  <Text style={[styles.sectionTitle, { color: colorsNav.text, marginBottom: 12 }]}>Destino</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
                     {['Efectivo', ...customAccounts.filter(a => !cardNames.includes(a))].filter(a => a !== account).map(acc => (
                       <TouchableOpacity
                         key={acc}
-                        style={[styles.chip, { backgroundColor: colors.bg }, destAccount === acc && { backgroundColor: typeColor }]}
+                        style={[styles.chip, { backgroundColor: colorsNav.bg }, destAccount === acc && { backgroundColor: typeColor }]}
                         onPress={() => setDestAccount(acc)}
                       >
-                        <Text style={[styles.chipText, { color: colors.sub }, destAccount === acc && { color: '#FFF' }]}>{acc}</Text>
+                        <Text style={[styles.chipText, { color: colorsNav.sub }, destAccount === acc && { color: '#FFF' }]}>{acc}</Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
-                  {/* Nota: Las tarjetas se ocultan para Mover y Ahorro según petición del usuario */}
               </View>
               )}
             </View>
 
-            {/* ── Botón Guardar ──────────────────────────────────────── */}
             <TouchableOpacity
               style={[styles.saveBtn, { backgroundColor: typeColor }, (!amount || isSaving) && { opacity: 0.5 }]}
               onPress={handleSave}
@@ -584,20 +525,19 @@ export default function AddTransactionScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
 
-        {/* Modales Sanctuary */}
         <Modal visible={modalVisible} transparent animationType="fade">
           <View style={styles.overlay}>
-             <View style={[styles.modalBox, { backgroundColor: colors.card }]}>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>Nueva Categoría</Text>
+             <View style={[styles.modalBox, { backgroundColor: colorsNav.card }]}>
+                <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Nueva Categoría</Text>
                 <TextInput
-                  style={[styles.modalInput, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }]}
+                  style={[styles.modalInput, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]}
                   value={newCategoryName} onChangeText={setNewCategoryName} placeholder="Ej. Suscripciones"
                 />
                 <View style={styles.modalBtns}>
-                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.bg }]} onPress={() => setModalVisible(false)}>
-                    <Text style={{ color: colors.text }}>Cancelar</Text>
+                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.bg }]} onPress={() => setModalVisible(false)}>
+                    <Text style={{ color: colorsNav.text }}>Cancelar</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.accent }]} onPress={handleAddCustomCategory}>
+                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.accent }]} onPress={handleAddCustomCategory}>
                     <Text style={{ color: '#FFF', fontWeight: '800' }}>Guardar</Text>
                   </TouchableOpacity>
                 </View>
@@ -607,17 +547,17 @@ export default function AddTransactionScreen() {
 
         <Modal visible={accountModalVisible} transparent animationType="fade">
           <View style={styles.overlay}>
-             <View style={[styles.modalBox, { backgroundColor: colors.card }]}>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>Nueva Cuenta</Text>
+             <View style={[styles.modalBox, { backgroundColor: colorsNav.card }]}>
+                <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Nueva Cuenta</Text>
                 <TextInput
-                  style={[styles.modalInput, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }]}
+                  style={[styles.modalInput, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]}
                   value={newAccountName} onChangeText={setNewAccountName} placeholder="Ej. Bancolombia"
                 />
                 <View style={styles.modalBtns}>
-                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.bg }]} onPress={() => setAccountModalVisible(false)}>
-                    <Text style={{ color: colors.text }}>Cancelar</Text>
+                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.bg }]} onPress={() => setAccountModalVisible(false)}>
+                    <Text style={{ color: colorsNav.text }}>Cancelar</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.accent }]} onPress={handleAddCustomAccount}>
+                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.accent }]} onPress={handleAddCustomAccount}>
                     <Text style={{ color: '#FFF', fontWeight: '800' }}>Guardar</Text>
                   </TouchableOpacity>
                 </View>
@@ -625,28 +565,27 @@ export default function AddTransactionScreen() {
           </View>
         </Modal>
 
-        {/* Modal de Sugerencia Inteligente Sanctuary */}
         <Modal visible={showAiModal} transparent animationType="slide">
           <View style={styles.overlay}>
-             <View style={[styles.modalBox, { backgroundColor: colors.card, alignItems: 'center' }]}>
-                <View style={[styles.aiIcon, { backgroundColor: colors.accent + '20' }]}>
-                  <MaterialIcons name="auto-awesome" size= {32} color={colors.accent} />
+             <View style={[styles.modalBox, { backgroundColor: colorsNav.card, alignItems: 'center' }]}>
+                <View style={[styles.aiIcon, { backgroundColor: colorsNav.accent + '20' }]}>
+                  <MaterialIcons name="auto-awesome" size= {32} color={colorsNav.accent} />
                 </View>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>Sugerencia Sanctuary</Text>
-                <Text style={[styles.modalSub, { color: colors.sub, textAlign: 'center' }]}>
+                <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Sugerencia Sanctuary</Text>
+                <Text style={[styles.modalSub, { color: colorsNav.sub, textAlign: 'center' }]}>
                   ¡Excelente ingreso! Para mantener tu salud financiera, te recomendamos ahorrar un {suggestedPct}% de este ingreso:
                 </Text>
 
-                <View style={[styles.suggestionPill, { backgroundColor: colors.accent }]}>
+                <View style={[styles.suggestionPill, { backgroundColor: colorsNav.accent }]}>
                   <Text style={[styles.suggestionAmt, { color: '#FFF' }]}>{fmt(suggestedAmount)}</Text>
                   <Text style={[styles.suggestionLab, { color: 'rgba(255,255,255,0.8)' }]}>AHORRO RECOMENDADO</Text>
                 </View>
 
                 <View style={styles.modalBtns}>
-                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.bg }]} onPress={() => { setShowAiModal(false); router.replace('/(tabs)'); }}>
-                    <Text style={{ color: colors.text }}>Ahora no</Text>
+                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.bg }]} onPress={() => { setShowAiModal(false); router.replace('/(tabs)'); }}>
+                    <Text style={{ color: colorsNav.text }}>Ahora no</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.accent }]} onPress={handleSaveSavingSuggestion} disabled={isSaving}>
+                  <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.accent }]} onPress={handleSaveSavingSuggestion} disabled={isSaving}>
                     <Text style={{ color: '#FFF', fontWeight: '800' }}>{isSaving ? 'Guardando...' : 'Ahorrar Ahora'}</Text>
                   </TouchableOpacity>
                 </View>
@@ -698,7 +637,7 @@ const styles = StyleSheet.create({
   mBtn: { flex: 1, padding: 18, borderRadius: 18, alignItems: 'center' },
 
   aiIcon: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
-  suggestionPill: { padding: 24, borderRadius: 28, alignItems: 'center', width: '100%', elevation: 4, shadowColor: '#4A7C59', shadowOpacity: 0.3, shadowRadius: 15, marginVertical: 12 },
+  suggestionPill: { padding: 24, borderRadius: 28, alignItems: 'center', width: '100%', elevation: 4, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 15, marginVertical: 12 },
   suggestionAmt: { fontSize: 32, fontWeight: '900', letterSpacing: -0.5 },
   suggestionLab: { fontSize: 13, fontWeight: '800', marginTop: 4, letterSpacing: 0.5 },
 });
