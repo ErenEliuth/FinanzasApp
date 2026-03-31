@@ -60,7 +60,12 @@ export default function BudgetsScreen() {
     const [customCategories, setCustomCategories] = useState<string[]>([]);
     const [newCatName, setNewCatName] = useState('');
 
-    useEffect(() => { if (isFocused) loadData(); }, [isFocused, period]);
+    useEffect(() => { 
+        if (isFocused) {
+            AsyncStorage.getItem('@budget_period').then(p => { if (p) setPeriod(p as any); });
+            loadData(); 
+        }
+    }, [isFocused]);
 
     const loadData = async () => {
         if (!user) return;
@@ -224,20 +229,7 @@ export default function BudgetsScreen() {
                 </TouchableOpacity>
             </View>
 
-            <View style={styles.tabSwitcher}>
-                <TouchableOpacity 
-                    style={[styles.tab, period === 'monthly' && { backgroundColor: colors.accent }]} 
-                    onPress={() => setPeriod('monthly')}
-                >
-                    <Text style={[styles.tabTxt, { color: period === 'monthly' ? '#FFF' : colors.sub }]}>Mensual</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                    style={[styles.tab, period === 'biweekly' && { backgroundColor: colors.accent }]} 
-                    onPress={() => setPeriod('biweekly')}
-                >
-                    <Text style={[styles.tabTxt, { color: period === 'biweekly' ? '#FFF' : colors.sub }]}>Quincenal</Text>
-                </TouchableOpacity>
-            </View>
+
 
             <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
                 
