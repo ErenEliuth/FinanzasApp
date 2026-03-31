@@ -65,7 +65,7 @@ export default function BudgetsScreen() {
             AsyncStorage.getItem('@budget_period').then(p => { if (p) setPeriod(p as any); });
             loadData(); 
         }
-    }, [isFocused]);
+    }, [isFocused, period]);
 
     const loadData = async () => {
         if (!user) return;
@@ -86,7 +86,10 @@ export default function BudgetsScreen() {
                     startDate = new Date(today.getFullYear(), today.getMonth(), 16);
                 } else {
                     startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                    startDate.setHours(0,0,0,0);
                 }
+            } else {
+                startDate.setHours(0,0,0,0);
             }
 
             const { data: txData } = await supabase.from('transactions')
@@ -104,6 +107,11 @@ export default function BudgetsScreen() {
             });
             setSpending(totals);
         } catch (e) { console.error(e); }
+    };
+
+    const togglePeriod = async (p: 'monthly' | 'biweekly') => {
+        setPeriod(p);
+        await AsyncStorage.setItem('@budget_period', p);
     };
 
     const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
@@ -229,7 +237,21 @@ export default function BudgetsScreen() {
                 </TouchableOpacity>
             </View>
 
-
+            {/* Selector de Periodo */}
+            <View style={styles.tabSwitcher}>
+                <TouchableOpacity 
+                    style={[styles.tab, period === 'monthly' && { backgroundColor: colors.accent }]} 
+                    onPress={() => togglePeriod('monthly')}
+                >
+                    <Text style={[styles.tabTxt, { color: period === 'monthly' ? '#FFF' : colors.sub }]}>Mensual</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={[styles.tab, period === 'biweekly' && { backgroundColor: colors.accent }]} 
+                    onPress={() => togglePeriod('biweekly')}
+                >
+                    <Text style={[styles.tabTxt, { color: period === 'biweekly' ? '#FFF' : colors.sub }]}>Quincenal</Text>
+                </TouchableOpacity>
+            </View>
 
             <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
                 
@@ -457,4 +479,3 @@ const styles = StyleSheet.create({
     delOptionTxt: { color: '#EF4444', fontSize: 12, fontWeight: '800' },
     modalInputText: { borderWidth: 1, borderRadius: 16, padding: 16, fontSize: 16, marginBottom: 20 },
 });
-

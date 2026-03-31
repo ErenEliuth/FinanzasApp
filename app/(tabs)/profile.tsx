@@ -257,7 +257,6 @@ export default function ProfileScreen() {
     const [statsModalVisible, setStatsModalVisible] = useState(false);
     const [weeklyModalVisible, setWeeklyModalVisible] = useState(false);
     const [editModalVisible, setEditModalVisible] = useState(false);
-    const [periodModalVisible, setPeriodModalVisible] = useState(false);
 
     const [transactions, setTransactions] = useState<any[]>([]);
     const [activeDays, setActiveDays] = useState<Map<string, number>>(new Map());
@@ -265,12 +264,10 @@ export default function ProfileScreen() {
     const [avatarUri, setAvatarUri] = useState<string | null>(null);
     const [weeklySpending, setWeeklySpending] = useState(0);
     const [weeklySummaryData, setWeeklySummaryData] = useState<[string, number][]>([]);
-    const [budgetPeriod, setBudgetPeriod] = useState<'monthly' | 'biweekly'>('monthly');
 
     useEffect(() => { if (isFocused) loadData(); }, [isFocused]);
     useEffect(() => {
         AsyncStorage.getItem(`@avatar_${user?.id}`).then(uri => { if (uri) setAvatarUri(uri); });
-        AsyncStorage.getItem('@budget_period').then(p => { if (p) setBudgetPeriod(p as any); });
     }, [user]);
 
     const loadData = async () => {
@@ -306,12 +303,6 @@ export default function ProfileScreen() {
             setAvatarUri(result.assets[0].uri);
             await AsyncStorage.setItem(`@avatar_${user?.id}`, result.assets[0].uri);
         }
-    };
-
-    const updateBudgetPeriod = async (p: 'monthly' | 'biweekly') => {
-        setBudgetPeriod(p);
-        await AsyncStorage.setItem('@budget_period', p);
-        setPeriodModalVisible(false);
     };
 
     const displayName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuario';
@@ -351,33 +342,35 @@ export default function ProfileScreen() {
                     <TouchableOpacity style={[styles.optBtn, { backgroundColor: '#FF8A6520' }]} onPress={() => setWeeklyModalVisible(true)}>
                         <View style={[styles.optIcon, { backgroundColor: '#FF8A65' }]}><MaterialIcons name="auto-graph" size={20} color="#FFF" /></View>
                         <Text style={[styles.optTitle, { color: colorsNav.text }]}>Semanal</Text>
-                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Análisis últimos 7 días</Text>
+                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Gasto últimos 7 días</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={[styles.optBtn, { backgroundColor: colorsNav.accent + '20' }]} onPress={() => setStatsModalVisible(true)}>
                         <View style={[styles.optIcon, { backgroundColor: colorsNav.accent }]}><MaterialIcons name="analytics" size={20} color="#FFF" /></View>
                         <Text style={[styles.optTitle, { color: colorsNav.text }]}>Estadísticas</Text>
-                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Gasto mensual total</Text>
-                    </TouchableOpacity>
-                    
-                    {/* Botón de Presupuesto en el grid como alternativa rápida */}
-                    <TouchableOpacity style={[styles.optBtn, { backgroundColor: '#3B82F620' }]} onPress={() => router.push('/budgets')}>
-                        <View style={[styles.optIcon, { backgroundColor: '#3B82F6' }]}><MaterialIcons name="savings" size={20} color="#FFF" /></View>
-                        <Text style={[styles.optTitle, { color: colorsNav.text }]}>Presupuestos</Text>
-                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Fijar tus límites</Text>
+                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Análisis de consumos</Text>
                     </TouchableOpacity>
                 </View>
 
                 <MonthHeatmap activeDays={activeDays} colorsNav={colorsNav} />
+                
+                {/* Botón de Presupuestos abajo del calendario */}
+                <TouchableOpacity 
+                    style={[styles.budgetFullBtn, { backgroundColor: colorsNav.card }]} 
+                    onPress={() => router.push('/budgets')}
+                >
+                    <View style={[styles.optIcon, { backgroundColor: '#3B82F6', marginBottom: 0 }]}>
+                        <MaterialIcons name="savings" size={20} color="#FFF" />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={[styles.optTitle, { color: colorsNav.text }]}>Presupuestos</Text>
+                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Controla tus límites de gasto</Text>
+                    </View>
+                    <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
+                </TouchableOpacity>
 
-                <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>AJUSTES DE LA APP</Text>
+                <Text style={[styles.sectionTitle, { color: colorsNav.sub, marginTop: 24 }]}>AJUSTES DE LA APP</Text>
                 <View style={[styles.profileCard, { backgroundColor: colorsNav.card, paddingVertical: 10 }]}>
-                    <TouchableOpacity style={styles.listItem} onPress={() => setPeriodModalVisible(true)}>
-                        <View style={[styles.listIcon, { backgroundColor: '#3B82F615' }]}><MaterialIcons name="event-note" size={20} color="#3B82F6" /></View>
-                        <View style={{ flex: 1 }}><Text style={[styles.listTitle, { color: colorsNav.text }]}>Frecuencia Presupuesto</Text><Text style={[styles.listSub, { color: colorsNav.sub }]}>{budgetPeriod === 'monthly' ? 'Mensual' : 'Quincenal'}</Text></View>
-                        <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
-                    </TouchableOpacity>
-
                     <TouchableOpacity style={styles.listItem} onPress={() => setCurrencyModalVisible(true)}>
                         <View style={[styles.listIcon, { backgroundColor: colorsNav.accent + '15' }]}><MaterialIcons name="payments" size={20} color={colorsNav.accent} /></View>
                         <View style={{ flex: 1 }}><Text style={[styles.listTitle, { color: colorsNav.text }]}>Moneda</Text><Text style={[styles.listSub, { color: colorsNav.sub }]}>{currency}</Text></View>
@@ -391,10 +384,10 @@ export default function ProfileScreen() {
             <Modal visible={themeModalVisible} transparent animationType="fade">
                 <View style={styles.overlay}>
                     <View style={[styles.modalBox, { backgroundColor: colorsNav.card, width: '90%' }]}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                        <div style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                             <Text style={[styles.modalTitle, { color: colorsNav.text, marginBottom: 0 }]}>Escoger Tema</Text>
                             <TouchableOpacity onPress={() => setThemeModalVisible(false)}><Ionicons name="close" size={24} color={colorsNav.sub} /></TouchableOpacity>
-                        </View>
+                        </div>
                         <View style={styles.themeGrid}>
                             {[
                                 { label: 'Original', light: 'light', dark: 'dark', color: '#4A7C59' },
@@ -419,29 +412,12 @@ export default function ProfileScreen() {
                 </View>
             </Modal>
 
-            <Modal visible={periodModalVisible} transparent animationType="slide">
-                <View style={[styles.overlay, { justifyContent: 'flex-end', padding: 0 }]}>
-                    <View style={[styles.modalBox, { backgroundColor: colorsNav.card, borderTopLeftRadius: 32, borderTopRightRadius: 32, width: '100%', paddingBottom: 50 }]}>
-                        <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Frecuencia de Presupuesto</Text>
-                        <TouchableOpacity style={[styles.listItem, budgetPeriod === 'monthly' && { backgroundColor: colorsNav.bg }]} onPress={() => updateBudgetPeriod('monthly')}>
-                            <Text style={{ color: colorsNav.text, fontWeight: '800' }}>Mensual</Text>
-                            {budgetPeriod === 'monthly' && <MaterialIcons name="check" size={24} color={colorsNav.accent} />}
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.listItem, budgetPeriod === 'biweekly' && { backgroundColor: colorsNav.bg }]} onPress={() => updateBudgetPeriod('biweekly')}>
-                            <Text style={{ color: colorsNav.text, fontWeight: '800' }}>Quincenal</Text>
-                            {budgetPeriod === 'biweekly' && <MaterialIcons name="check" size={24} color={colorsNav.accent} />}
-                        </TouchableOpacity>
-                        <TouchableOpacity style={{ marginTop: 20, alignItems: 'center' }} onPress={() => setPeriodModalVisible(false)}><Text style={{ color: colorsNav.sub }}>Cerrar</Text></TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
-
             <Modal visible={statsModalVisible} animationType="slide">
                 <SafeAreaView style={{ flex: 1, backgroundColor: colorsNav.bg }}>
                     <View style={styles.modalHeader}>
                         <TouchableOpacity onPress={() => setStatsModalVisible(false)}><MaterialIcons name="close" size={28} color={colorsNav.text} /></TouchableOpacity>
                         <Text style={[styles.modalHeaderTitle, { color: colorsNav.text }]}>Análisis de Gastos</Text>
-                        <View style={{ width: 28 }} />
+                        <div style={{ width: 28 }} />
                     </View>
                     <ScrollView contentContainerStyle={{ padding: 20 }}>
                         <CategoryStatistics transactions={transactions} colorsNav={colorsNav} isHidden={isHidden} currency={currency} rates={rates} />
@@ -453,10 +429,10 @@ export default function ProfileScreen() {
                 <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
                     <View style={[styles.modalBox, { backgroundColor: colorsNav.card, borderTopLeftRadius: 32, borderTopRightRadius: 32, width: '100%' }]}>
                         <View style={{ width: 40, height: 4, backgroundColor: '#DDD', borderRadius: 2, alignSelf: 'center', marginBottom: 20 }} />
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                        <div style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                             <Text style={[styles.modalTitle, { color: colorsNav.text, marginBottom: 0 }]}>Gasto Semanal</Text>
                             <TouchableOpacity onPress={() => setWeeklyModalVisible(false)}><MaterialIcons name="close" size={24} color={colorsNav.sub} /></TouchableOpacity>
-                        </View>
+                        </div>
                         <View style={{ alignItems: 'center', marginVertical: 20 }}>
                             <Text style={{ fontSize: 12, color: colorsNav.sub, fontWeight: '700' }}>TOTAL ÚLTIMOS 7 DÍAS</Text>
                             <Text style={{ fontSize: 36, fontWeight: '900', color: '#EF4444' }}>{fmt(weeklySpending, currency, rates, isHidden)}</Text>
@@ -528,9 +504,10 @@ const styles = StyleSheet.create({
     actionRow: { flexDirection: 'row', gap: 12 },
     actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 16 },
     optionsGrid: { flexWrap: 'wrap', flexDirection: 'row', gap: 16, marginBottom: 16 },
-    optBtn: { width: '47%', padding: 18, borderRadius: 24, gap: 4 },
+    optBtn: { flex: 1, padding: 18, borderRadius: 24, gap: 4 },
     optIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
     optTitle: { fontSize: 15, fontWeight: '800' },
+    budgetFullBtn: { flexDirection: 'row', alignItems: 'center', padding: 20, borderRadius: 24, elevation: 1 },
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
     modalBox: { borderRadius: 32, padding: 24 },
     modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: 20 },
