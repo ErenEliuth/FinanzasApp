@@ -404,19 +404,18 @@ export default function ProfileScreen() {
                         <ScrollView showsVerticalScrollIndicator={false}>
                             {[
                                 { label: 'Sanctuary', light: 'light' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#4A7C59', darkColor: '#2D5A3D', lightBg: '#FFF8F0', darkBg: '#1A1A2E' },
-                                { label: 'Lavanda',  light: 'lavender' as ThemeName, dark: 'lavender_dark' as ThemeName, lightColor: '#7C5DBA', darkColor: '#9D7FE0', lightBg: '#F8F7FF', darkBg: '#1A1625' },
-                                { label: 'Océano',  light: 'ocean' as ThemeName, dark: 'ocean_dark' as ThemeName, lightColor: '#008080', darkColor: '#26A69A', lightBg: '#F0F9FA', darkBg: '#0A1A1A' },
-                                { label: 'Rosa',  light: 'rose' as ThemeName, dark: 'rose_dark' as ThemeName, lightColor: '#E05C6E', darkColor: '#E07080', lightBg: '#FFF5F5', darkBg: '#1A0E0E' },
-                                { label: 'Ámbar',  light: 'amber' as ThemeName, dark: 'amber_dark' as ThemeName, lightColor: '#D97706', darkColor: '#F59E0B', lightBg: '#FFFBF0', darkBg: '#1A1400' },
-                                { label: 'Índigo',  light: 'slate' as ThemeName, dark: 'midnight' as ThemeName, lightColor: '#3B5BDB', darkColor: '#818CF8', lightBg: '#F5F7FA', darkBg: '#0D0D1A' },
-                                { label: 'Nieve',  light: 'snow' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#64748B', darkColor: '#A09B8C', lightBg: '#FFFFFF', darkBg: '#1A1A2E' },
+                                { label: 'Lavanda', light: 'lavender' as ThemeName, dark: 'lavender_dark' as ThemeName, lightColor: '#7C5DBA', darkColor: '#9D7FE0', lightBg: '#F8F7FF', darkBg: '#1A1625' },
+                                { label: 'Océano', light: 'ocean' as ThemeName, dark: 'ocean_dark' as ThemeName, lightColor: '#008080', darkColor: '#26A69A', lightBg: '#F0F9FA', darkBg: '#0A1A1A' },
+                                { label: 'Rosa', light: 'rose' as ThemeName, dark: 'rose_dark' as ThemeName, lightColor: '#E05C6E', darkColor: '#E07080', lightBg: '#FFF5F5', darkBg: '#1A0E0E' },
+                                { label: 'Ámbar', light: 'amber' as ThemeName, dark: 'amber_dark' as ThemeName, lightColor: '#D97706', darkColor: '#F59E0B', lightBg: '#FFFBF0', darkBg: '#1A1400' },
+                                { label: 'Índigo', light: 'slate' as ThemeName, dark: 'midnight' as ThemeName, lightColor: '#3B5BDB', darkColor: '#818CF8', lightBg: '#F5F7FA', darkBg: '#0D0D1A' },
+                                { label: 'Nieve', light: 'snow' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#64748B', darkColor: '#A09B8C', lightBg: '#FFFFFF', darkBg: '#1A1A2E' },
                             ].map((group) => {
                                 const isLightActive = theme === group.light;
                                 const isDarkActive = theme === group.dark;
                                 return (
                                     <View key={group.label} style={styles.themeRow}>
                                         <View style={styles.themeRowLabel}>
-                                            <Text style={styles.themeEmoji}>{group.emoji}</Text>
                                             <Text style={[styles.themeGroupName, { color: colorsNav.text }]}>{group.label}</Text>
                                         </View>
                                         <View style={styles.themeSwatchRow}>
