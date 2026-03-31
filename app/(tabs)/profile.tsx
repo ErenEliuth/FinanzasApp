@@ -1,4 +1,5 @@
 import { useAuth } from '@/utils/auth';
+import { THEMES, ThemeName } from '@/constants/Themes';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -6,7 +7,6 @@ import { useIsFocused } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { THEMES, ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatCurrency, convertCurrency, CURRENCIES } from '@/utils/currency';
 import {
@@ -381,33 +381,60 @@ export default function ProfileScreen() {
             </ScrollView>
 
             {/* Modals */}
-            <Modal visible={themeModalVisible} transparent animationType="fade">
-                <View style={styles.overlay}>
-                    <View style={[styles.modalBox, { backgroundColor: colorsNav.card, width: '90%' }]}>
-                        <div style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                            <Text style={[styles.modalTitle, { color: colorsNav.text, marginBottom: 0 }]}>Escoger Tema</Text>
-                            <TouchableOpacity onPress={() => setThemeModalVisible(false)}><Ionicons name="close" size={24} color={colorsNav.sub} /></TouchableOpacity>
-                        </div>
-                        <View style={styles.themeGrid}>
-                            {[
-                                { label: 'Original', light: 'light', dark: 'dark', color: '#4A7C59' },
-                                { label: 'Lavanda', light: 'lavender', dark: 'lavender_dark', color: '#7C5DBA' },
-                                { label: 'Océano', light: 'ocean', dark: 'ocean_dark', color: '#008080' },
-                                { label: 'Nieve', light: 'snow', dark: 'dark', color: '#64748B' },
-                            ].map((group) => (
-                                <View key={group.label} style={styles.themeGroup}>
-                                    <Text style={{ fontSize: 12, fontWeight: '800', color: colorsNav.text, marginBottom: 8 }}>{group.label}</Text>
-                                    <View style={{ flexDirection: 'row', gap: 10 }}>
-                                        <TouchableOpacity style={[styles.themeOption, theme === group.light && { borderColor: group.color, borderWidth: 2 }]} onPress={() => { setThemeConfig(group.light as any); setThemeModalVisible(false); }}>
-                                            <View style={[styles.colorIndicator, { backgroundColor: group.color }]} /><Text style={{ fontSize: 10, color: colorsNav.text }}>Claro</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity style={[styles.themeOption, { backgroundColor: '#1E293B' }, theme === group.dark && { borderColor: group.color, borderWidth: 2 }]} onPress={() => { setThemeConfig(group.dark as any); setThemeModalVisible(false); }}>
-                                            <View style={[styles.colorIndicator, { backgroundColor: group.color }]} /><Text style={{ fontSize: 10, color: '#FFF' }}>Oscuro</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                            ))}
+            <Modal visible={themeModalVisible} transparent animationType="slide">
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+                    <View style={[styles.themeSheet, { backgroundColor: colorsNav.card }]}>
+                        <View style={styles.sheetHandle} />
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                            <View>
+                                <Text style={[styles.modalTitle, { color: colorsNav.text, marginBottom: 2 }]}>Personaliza tu app</Text>
+                                <Text style={{ fontSize: 12, color: colorsNav.sub }}>Elige el estilo que más te guste</Text>
+                            </View>
+                            <TouchableOpacity style={[styles.closeCircle, { backgroundColor: isDark ? '#333' : '#F1F1F1' }]} onPress={() => setThemeModalVisible(false)}>
+                                <Ionicons name="close" size={20} color={colorsNav.text} />
+                            </TouchableOpacity>
                         </View>
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            {[
+                                { label: 'Sanctuary', emoji: '🌿', light: 'light' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#4A7C59', darkColor: '#2D5A3D', lightBg: '#FFF8F0', darkBg: '#1A1A2E' },
+                                { label: 'Lavanda', emoji: '💜', light: 'lavender' as ThemeName, dark: 'lavender_dark' as ThemeName, lightColor: '#7C5DBA', darkColor: '#9D7FE0', lightBg: '#F8F7FF', darkBg: '#1A1625' },
+                                { label: 'Océano', emoji: '🌊', light: 'ocean' as ThemeName, dark: 'ocean_dark' as ThemeName, lightColor: '#008080', darkColor: '#26A69A', lightBg: '#F0F9FA', darkBg: '#0A1A1A' },
+                                { label: 'Rosa', emoji: '🌸', light: 'rose' as ThemeName, dark: 'rose_dark' as ThemeName, lightColor: '#E05C6E', darkColor: '#E07080', lightBg: '#FFF5F5', darkBg: '#1A0E0E' },
+                                { label: 'Ámbar', emoji: '🔥', light: 'amber' as ThemeName, dark: 'amber_dark' as ThemeName, lightColor: '#D97706', darkColor: '#F59E0B', lightBg: '#FFFBF0', darkBg: '#1A1400' },
+                                { label: 'Índigo', emoji: '🔷', light: 'slate' as ThemeName, dark: 'midnight' as ThemeName, lightColor: '#3B5BDB', darkColor: '#818CF8', lightBg: '#F5F7FA', darkBg: '#0D0D1A' },
+                                { label: 'Nieve', emoji: '❄️', light: 'snow' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#64748B', darkColor: '#A09B8C', lightBg: '#FFFFFF', darkBg: '#1A1A2E' },
+                            ].map((group) => {
+                                const isLightActive = theme === group.light;
+                                const isDarkActive = theme === group.dark;
+                                return (
+                                    <View key={group.label} style={styles.themeRow}>
+                                        <View style={styles.themeRowLabel}>
+                                            <Text style={styles.themeEmoji}>{group.emoji}</Text>
+                                            <Text style={[styles.themeGroupName, { color: colorsNav.text }]}>{group.label}</Text>
+                                        </View>
+                                        <View style={styles.themeSwatchRow}>
+                                            <TouchableOpacity
+                                                style={[styles.swatch, { backgroundColor: group.lightBg }, isLightActive && [styles.swatchActive, { borderColor: group.lightColor }]]}
+                                                onPress={() => { setThemeConfig(group.light); setThemeModalVisible(false); }}
+                                            >
+                                                <View style={[styles.swatchDot, { backgroundColor: group.lightColor }]} />
+                                                <Text style={[styles.swatchLabel, { color: group.lightColor }]}>Claro</Text>
+                                                {isLightActive && <View style={[styles.swatchCheck, { backgroundColor: group.lightColor }]}><Ionicons name="checkmark" size={10} color="#FFF" /></View>}
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={[styles.swatch, { backgroundColor: group.darkBg }, isDarkActive && [styles.swatchActive, { borderColor: group.darkColor }]]}
+                                                onPress={() => { setThemeConfig(group.dark); setThemeModalVisible(false); }}
+                                            >
+                                                <View style={[styles.swatchDot, { backgroundColor: group.darkColor }]} />
+                                                <Text style={[styles.swatchLabel, { color: group.darkColor }]}>Oscuro</Text>
+                                                {isDarkActive && <View style={[styles.swatchCheck, { backgroundColor: group.darkColor }]}><Ionicons name="checkmark" size={10} color="#FFF" /></View>}
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                );
+                            })}
+                            <View style={{ height: 30 }} />
+                        </ScrollView>
                     </View>
                 </View>
             </Modal>
@@ -417,7 +444,7 @@ export default function ProfileScreen() {
                     <View style={styles.modalHeader}>
                         <TouchableOpacity onPress={() => setStatsModalVisible(false)}><MaterialIcons name="close" size={28} color={colorsNav.text} /></TouchableOpacity>
                         <Text style={[styles.modalHeaderTitle, { color: colorsNav.text }]}>Análisis de Gastos</Text>
-                        <div style={{ width: 28 }} />
+                        <View style={{ width: 28 }} />
                     </View>
                     <ScrollView contentContainerStyle={{ padding: 20 }}>
                         <CategoryStatistics transactions={transactions} colorsNav={colorsNav} isHidden={isHidden} currency={currency} rates={rates} />
@@ -429,10 +456,10 @@ export default function ProfileScreen() {
                 <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
                     <View style={[styles.modalBox, { backgroundColor: colorsNav.card, borderTopLeftRadius: 32, borderTopRightRadius: 32, width: '100%' }]}>
                         <View style={{ width: 40, height: 4, backgroundColor: '#DDD', borderRadius: 2, alignSelf: 'center', marginBottom: 20 }} />
-                        <div style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                             <Text style={[styles.modalTitle, { color: colorsNav.text, marginBottom: 0 }]}>Gasto Semanal</Text>
                             <TouchableOpacity onPress={() => setWeeklyModalVisible(false)}><MaterialIcons name="close" size={24} color={colorsNav.sub} /></TouchableOpacity>
-                        </div>
+                        </View>
                         <View style={{ alignItems: 'center', marginVertical: 20 }}>
                             <Text style={{ fontSize: 12, color: colorsNav.sub, fontWeight: '700' }}>TOTAL ÚLTIMOS 7 DÍAS</Text>
                             <Text style={{ fontSize: 36, fontWeight: '900', color: '#EF4444' }}>{fmt(weeklySpending, currency, rates, isHidden)}</Text>
@@ -516,10 +543,19 @@ const styles = StyleSheet.create({
     listTitle: { fontSize: 15, fontWeight: '700' },
     listSub: { fontSize: 12, marginTop: 2 },
     sectionTitle: { fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginLeft: 6, marginBottom: 12, opacity: 0.8 },
-    themeGrid: { gap: 20 },
-    themeGroup: { gap: 4 },
-    themeOption: { flex: 1, height: 50, borderRadius: 12, borderWidth: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderColor: '#DDD' },
-    colorIndicator: { width: 10, height: 10, borderRadius: 5 },
+    themeSheet: { borderTopLeftRadius: 36, borderTopRightRadius: 36, padding: 28, paddingTop: 16, maxHeight: '85%' },
+    sheetHandle: { width: 40, height: 4, backgroundColor: '#CCC', borderRadius: 2, alignSelf: 'center', marginBottom: 24 },
+    closeCircle: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+    themeRow: { marginBottom: 20 },
+    themeRowLabel: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+    themeEmoji: { fontSize: 18 },
+    themeGroupName: { fontSize: 14, fontWeight: '800' },
+    themeSwatchRow: { flexDirection: 'row', gap: 12 },
+    swatch: { flex: 1, height: 72, borderRadius: 20, borderWidth: 2, borderColor: 'transparent', justifyContent: 'center', alignItems: 'center', gap: 4, position: 'relative' },
+    swatchActive: { borderWidth: 2.5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
+    swatchDot: { width: 22, height: 22, borderRadius: 11 },
+    swatchLabel: { fontSize: 11, fontWeight: '800' },
+    swatchCheck: { position: 'absolute', top: 8, right: 8, width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
     modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20 },
     modalHeaderTitle: { fontSize: 18, fontWeight: '800' },
 });

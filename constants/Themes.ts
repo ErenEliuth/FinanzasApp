@@ -1,4 +1,17 @@
-export type ThemeName = 'light' | 'dark' | 'lavender' | 'lavender_dark' | 'ocean' | 'ocean_dark' | 'snow';
+export type ThemeName = 
+  | 'light' 
+  | 'dark' 
+  | 'lavender' 
+  | 'lavender_dark' 
+  | 'ocean' 
+  | 'ocean_dark' 
+  | 'snow'
+  | 'rose'
+  | 'rose_dark'
+  | 'amber'
+  | 'amber_dark'
+  | 'slate'
+  | 'midnight';
 
 export const THEMES: Record<ThemeName, any> = {
   light: {
@@ -98,6 +111,89 @@ export const THEMES: Record<ThemeName, any> = {
     cream: '#F1F5F9',
     input: '#F1F5F9',
     isDark: false,
-  }
+  },
+  rose: {
+    bg: '#FFF5F5',
+    card: '#FFFFFF',
+    text: '#2D1A1A',
+    sub: '#9B7070',
+    border: '#FFE4E4',
+    accent: '#E05C6E',
+    cardBg: '#FFF0F0',
+    warmBg: '#FFF5F5',
+    greenCard: '#8B1A2E',
+    cream: '#FFE8E8',
+    input: '#FFE8E8',
+    isDark: false,
+  },
+  rose_dark: {
+    bg: '#1A0E0E',
+    card: '#2A1A1A',
+    text: '#F5E0E0',
+    sub: '#B08080',
+    border: '#3A2222',
+    accent: '#E07080',
+    cardBg: '#2E1A1A',
+    warmBg: '#1A0E0E',
+    greenCard: '#1A0E0E',
+    cream: '#2A1A1A',
+    input: '#1A0E0E',
+    isDark: true,
+  },
+  amber: {
+    bg: '#FFFBF0',
+    card: '#FFFFFF',
+    text: '#2D2000',
+    sub: '#9B8040',
+    border: '#FAE8B0',
+    accent: '#D97706',
+    cardBg: '#FFF8E0',
+    warmBg: '#FFFBF0',
+    greenCard: '#7C4A00',
+    cream: '#FDF0C0',
+    input: '#FDF0C0',
+    isDark: false,
+  },
+  amber_dark: {
+    bg: '#1A1400',
+    card: '#252000',
+    text: '#F5E8C0',
+    sub: '#A09050',
+    border: '#3A3000',
+    accent: '#F59E0B',
+    cardBg: '#2A2400',
+    warmBg: '#1A1400',
+    greenCard: '#1A1400',
+    cream: '#252000',
+    input: '#1A1400',
+    isDark: true,
+  },
+  slate: {
+    bg: '#F5F7FA',
+    card: '#FFFFFF',
+    text: '#1E2840',
+    sub: '#5A6A84',
+    border: '#E2E8F0',
+    accent: '#3B5BDB',
+    cardBg: '#F0F4FF',
+    warmBg: '#F5F7FA',
+    greenCard: '#1E2840',
+    cream: '#E8EEFF',
+    input: '#E8EEFF',
+    isDark: false,
+  },
+  midnight: {
+    bg: '#0D0D1A',
+    card: '#161628',
+    text: '#E8E0FF',
+    sub: '#8080AB',
+    border: '#252540',
+    accent: '#818CF8',
+    cardBg: '#1A1A30',
+    warmBg: '#0D0D1A',
+    greenCard: '#0D0D1A',
+    cream: '#161628',
+    input: '#0D0D1A',
+    isDark: true,
+  },
 };
-
