@@ -139,6 +139,19 @@ export default function TabLayout() {
         }}
       />
 
+      <Tabs.Screen
+        name="invest"
+        options={{
+          title: 'Invertir',
+          href: '/invest' as any,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? styles.activeIconWrap : styles.iconWrap}>
+              <MaterialIcons name="show-chart" size={22} color={color} />
+            </View>
+          ),
+        }}
+      />
+
 
       <Tabs.Screen
         name="debts"
