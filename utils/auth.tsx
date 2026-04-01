@@ -5,7 +5,7 @@ import * as WebBrowser from 'expo-web-browser';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { syncDown } from './sync';
-import { ThemeName } from '@/constants/Themes';
+import { ThemeName, THEMES } from '@/constants/Themes';
 import { fetchExchangeRates } from '@/utils/currency';
 
 WebBrowser.maybeCompleteAuthSession(); // Necesario para que el navegador se cierre tras el login
@@ -68,8 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Cargar tema
         const loadTheme = async () => {
             const storedTheme = await AsyncStorage.getItem('user_theme');
-            const validThemes: ThemeName[] = ['light', 'dark', 'lavender', 'ocean', 'snow'];
-            if (validThemes.includes(storedTheme as ThemeName)) {
+            if (storedTheme && Object.keys(THEMES).includes(storedTheme as string)) {
                 setTheme(storedTheme as ThemeName);
             }
             const storedCurrency = await AsyncStorage.getItem('user_currency');

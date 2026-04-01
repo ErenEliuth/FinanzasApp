@@ -246,7 +246,7 @@ export default function AddTransactionScreen() {
 
     setIsSaving(true);
 
-    if (type !== 'income') {
+    if (type !== 'income' && !cardNames.includes(account)) {
       try {
         const { data: txs, error: txErr } = await supabase
           .from('transactions')

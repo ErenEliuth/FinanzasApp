@@ -139,7 +139,8 @@ export default function BudgetsScreen() {
         else cleanVal = limitAmount.replace(/,/g, '');
         
         const typedVal = parseFloat(cleanVal);
-        const val = convertToBase(typedVal, currency, rates);
+        let val = convertToBase(typedVal, currency, rates);
+        if (period === 'biweekly') val = val * 2;
         
         if (isNaN(val) || val <= 0) return;
         try {
@@ -181,7 +182,9 @@ export default function BudgetsScreen() {
     const openModal = (cat: any, existing?: any) => {
         setSelectedCat(cat);
         if (existing) {
-            const val = convertCurrency(existing.monthly_limit, currency, rates);
+            let baseLimit = existing.monthly_limit;
+            if (period === 'biweekly') baseLimit = baseLimit / 2;
+            const val = convertCurrency(baseLimit, currency, rates);
             setLimitAmount(val.toString());
         } else {
             setLimitAmount('');
@@ -214,7 +217,10 @@ export default function BudgetsScreen() {
         }
     }
 
-    const totalLimit = budgets.reduce((sum, b) => sum + b.monthly_limit, 0);
+    const totalLimit = budgets.reduce((sum, b) => {
+        const limit = period === 'biweekly' ? b.monthly_limit / 2 : b.monthly_limit;
+        return sum + limit;
+    }, 0);
     const totalSpent = budgets.reduce((sum, b) => sum + (spending[b.category] || 0), 0);
     const totalRemaining = Math.max(0, totalLimit - totalSpent);
     const dailySafeSpend = remainingDays > 0 ? totalRemaining / remainingDays : 0;
@@ -279,7 +285,9 @@ export default function BudgetsScreen() {
                 {allCategories.map(cat => {
                     const budget = budgets.find(b => b.category === cat.name);
                     const spent = spending[cat.name] || 0;
-                    const limit = budget?.monthly_limit || 0;
+                    let limit = budget?.monthly_limit || 0;
+                    if (period === 'biweekly') limit = limit / 2;
+                    
                     const pct = limit > 0 ? Math.min(100, (spent / limit) * 100) : 0;
                     const isOver = limit > 0 && spent > limit;
                     const isNear = limit > 0 && pct >= 85 && !isOver;
