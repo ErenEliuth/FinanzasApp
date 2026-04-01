@@ -488,6 +488,14 @@ export default function HomeScreen() {
 
                 <TouchableOpacity
                   style={[styles.headerIconBtn, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0', width: 'auto', paddingHorizontal: 14, borderRadius: 12 }]}
+                  onPress={() => router.push('/invest' as any)}
+                >
+                  <MaterialIcons name="show-chart" size={18} color={isDark ? '#D4C5A9' : '#8B7355'} />
+                  <Text style={{ color: isDark ? '#D4C5A9' : '#8B7355', fontSize: 13, fontWeight: '700', marginLeft: 6 }}>Inversiones</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.headerIconBtn, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0', width: 'auto', paddingHorizontal: 14, borderRadius: 12 }]}
                   onPress={() => router.push('/profile')}
                 >
                   <Ionicons name="person-outline" size={18} color={isDark ? '#D4C5A9' : '#8B7355'} />
