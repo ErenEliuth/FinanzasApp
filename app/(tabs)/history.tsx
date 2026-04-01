@@ -142,12 +142,14 @@ export default function HistoryScreen() {
         return { icon: 'bolt', bg: '#FFF8E1', color: '#FF9800' };
     };
 
-    const formatTxDate = (dateStr: string) => {
+    const formatTxDate = (tx: any) => {
+        const dateStr = tx.date;
         if (!dateStr) return '';
-        // Bugfix 7:00 PM: Si la fecha viene como YYYY-MM-DD (de deudas o gastos fijos), JS la asume UTC.
-        // Al forzar el tiempo local con 'T12:00:00' sin 'Z', corregimos el desfase de 5h en Colombia.
+        
         const normalized = dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`;
         const txDate = new Date(normalized);
+        const timeSource = tx.created_at ? new Date(tx.created_at) : txDate;
+
         const today = new Date();
         const yesterday = new Date(today);
         yesterday.setDate(yesterday.getDate() - 1);
@@ -155,7 +157,7 @@ export default function HistoryScreen() {
         const isToday = txDate.toDateString() === today.toDateString();
         const isYesterday = txDate.toDateString() === yesterday.toDateString();
 
-        const timeStr = txDate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+        const timeStr = timeSource.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
 
         if (isToday) return `HOY, ${timeStr}`;
         if (isYesterday) return `AYER, ${timeStr}`;
@@ -272,7 +274,7 @@ export default function HistoryScreen() {
                                             {tx.description === 'Sin descripción' || !tx.description ? tx.category : tx.description}
                                         </Text>
                                         <View style={styles.txMeta}>
-                                            <Text style={[styles.txSub, { color: colorsNav.sub }]}>{formatTxDate(tx.date)}</Text>
+                                            <Text style={[styles.txSub, { color: colorsNav.sub }]}>{formatTxDate(tx)}</Text>
                                             <View style={styles.dot} />
                                             <Text style={[styles.txSub, { color: colorsNav.sub }]} numberOfLines={1}>{tx.category}</Text>
                                         </View>
