@@ -95,6 +95,7 @@ export default function InvestScreen() {
   const [goals, setGoals] = useState<InvestGoal[]>([]);
   const [goalModalVisible, setGoalModalVisible] = useState(false);
   const [newGoal, setNewGoal] = useState({ name: '', target: '', icon: 'home' });
+  const [deletingGoalId, setDeletingGoalId] = useState<string | null>(null);
 
   // Form
   const [ticker, setTicker] = useState('');
@@ -225,6 +226,13 @@ export default function InvestScreen() {
       await AsyncStorage.setItem(`@invest_goals_${user?.id}`, JSON.stringify(updated));
       setGoalModalVisible(false);
       setNewGoal({ name: '', target: '', icon: 'home' });
+  };
+
+  const handleDeleteGoal = async (id: string) => {
+      const updated = goals.filter(g => g.id !== id);
+      setGoals(updated);
+      await AsyncStorage.setItem(`@invest_goals_${user?.id}`, JSON.stringify(updated));
+      setDeletingGoalId(null);
   };
 
   const handleDeletePosition = async (id: string) => {
@@ -390,20 +398,42 @@ export default function InvestScreen() {
                     <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>Metas</Text>
                     <TouchableOpacity onPress={() => setGoalModalVisible(true)}><Text style={{ color: colors.accent, fontWeight: '800' }}>+ AÑADIR</Text></TouchableOpacity>
                 </View>
-                {goals.map(g => {
+                {goals.map((g) => {
                     const prog = Math.min((totalCurrent / (g.target || 1)) * 100, 100);
+                    const remaining = Math.max(g.target - totalCurrent, 0);
+                    const monthsToReach = projectedSurplus > 0 ? Math.ceil(remaining / projectedSurplus) : null;
                     return (
-                        <View key={g.id} style={[styles.insightCard, { backgroundColor: colors.card, marginBottom: 16 }]}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                                <View style={[styles.goalIconBox, { backgroundColor: g.color + '15' }]}><MaterialCommunityIcons name={g.icon as any} size={24} color={g.color} /></View>
-                                <View style={{flex:1}}>
-                                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>{g.name}</Text>
-                                    <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>Meta: {baseFmt(g.target)}</Text>
+                        <TouchableOpacity 
+                            key={g.id} 
+                            onLongPress={() => setDeletingGoalId(g.id)}
+                            style={[styles.insightCard, { backgroundColor: colors.card, marginBottom: 16, borderWidth: 1, borderColor: colors.border }]}
+                        >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                                <View style={[styles.goalIconBox, { backgroundColor: g.color + '15' }]}>
+                                    <MaterialCommunityIcons name={g.icon as any} size={24} color={g.color} />
                                 </View>
-                                <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>{prog.toFixed(0)}%</Text>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>{g.name}</Text>
+                                    <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>Objetivo: {baseFmt(g.target)}</Text>
+                                </View>
+                                {deletingGoalId === g.id ? (
+                                    <TouchableOpacity 
+                                        onPress={() => handleDeleteGoal(g.id)}
+                                        style={{ backgroundColor: '#EF4444', width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' }}
+                                    >
+                                        <Ionicons name="trash" size={20} color="#FFF" />
+                                    </TouchableOpacity>
+                                ) : (
+                                    <Text style={{ color: colors.text, fontSize: 20, fontWeight: '900' }}>{prog.toFixed(0)}%</Text>
+                                )}
                             </View>
-                            <View style={{ height: 8, backgroundColor: colors.bg, borderRadius: 4 }}><View style={{ width: `${prog}%`, height: '100%', backgroundColor: g.color, borderRadius: 4 }} /></View>
-                        </View>
+                            <View style={{ height: 10, backgroundColor: colors.bg, borderRadius: 5, marginBottom: 16 }}>
+                                <View style={{ width: `${prog}%`, height: '100%', backgroundColor: g.color, borderRadius: 5 }} />
+                            </View>
+                            <Text style={{ color: colors.sub, fontSize: 13, fontWeight: '700', textAlign: 'center' }}>
+                                {monthsToReach ? `Santy estima que llegarás en ~${monthsToReach} meses` : 'Define tu ahorro en el Asesor para estimar tiempo.'}
+                            </Text>
+                        </TouchableOpacity>
                     );
                 })}
             </View>
