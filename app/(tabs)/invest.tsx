@@ -212,13 +212,22 @@ export default function InvestScreen() {
   };
 
   const handleDeletePosition = (id: string) => {
+    const executeDelete = async () => {
+        const updated = positions.filter(p => p.id !== id);
+        setPositions(updated);
+        await AsyncStorage.setItem(`@invest_${user?.id}`, JSON.stringify(updated));
+    };
+
+    if (Platform.OS === 'web') {
+        if (window.confirm('¿Borrar este activo del portafolio?')) {
+            executeDelete();
+        }
+        return;
+    }
+
     Alert.alert('Eliminar', '¿Borrar este activo del portafolio?', [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: async () => {
-          const updated = positions.filter(p => p.id !== id);
-          setPositions(updated);
-          await AsyncStorage.setItem(`@invest_${user?.id}`, JSON.stringify(updated));
-      }}
+      { text: 'Eliminar', style: 'destructive', onPress: executeDelete }
     ]);
   };
 
