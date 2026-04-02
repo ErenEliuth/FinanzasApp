@@ -58,6 +58,7 @@ export default function InvestScreen() {
   const [shares, setShares] = useState('');
   const [avgPrice, setAvgPrice] = useState('');
   const [assetType, setAssetType] = useState<AssetType>('stock');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Dividendos
   const [totalDividends, setTotalDividends] = useState<number>(0);
@@ -211,24 +212,11 @@ export default function InvestScreen() {
     fetchLivePrices([newPos]);
   };
 
-  const handleDeletePosition = (id: string) => {
-    const executeDelete = async () => {
-        const updated = positions.filter(p => p.id !== id);
-        setPositions(updated);
-        await AsyncStorage.setItem(`@invest_${user?.id}`, JSON.stringify(updated));
-    };
-
-    if (Platform.OS === 'web') {
-        if (window.confirm('¿Borrar este activo del portafolio?')) {
-            executeDelete();
-        }
-        return;
-    }
-
-    Alert.alert('Eliminar', '¿Borrar este activo del portafolio?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: executeDelete }
-    ]);
+  const handleDeletePosition = async (id: string) => {
+      const updated = positions.filter(p => p.id !== id);
+      setPositions(updated);
+      await AsyncStorage.setItem(`@invest_${user?.id}`, JSON.stringify(updated));
+      setDeletingId(null);
   };
 
   const handleAddDividends = async () => {
@@ -344,10 +332,9 @@ export default function InvestScreen() {
                 const posProfitPct = ((currentP - pos.avgPrice) / pos.avgPrice) * 100;
 
                 return (
-                  <TouchableOpacity 
+                  <View 
                     key={pos.id} 
                     style={[styles.positionCard, { backgroundColor: colors.card }]}
-                    onLongPress={() => handleDeletePosition(pos.id)}
                   >
                     <View style={styles.posLeft}>
                       <View style={[styles.typeIcon, { backgroundColor: colors.bg }]}>
@@ -360,13 +347,24 @@ export default function InvestScreen() {
                     </View>
                     <View style={styles.posRight}>
                       <Text style={[styles.posValue, { color: colors.text }]}>{baseFmt(posTotalVal)}</Text>
-                      {(pos.type === 'stock' || pos.type === 'crypto') && (
-                        <Text style={[styles.posReturn, { color: posProfit >= 0 ? '#4CAF50' : '#EF4444' }]}>
-                          {posProfit >= 0 ? '+' : ''}{posProfitPct.toFixed(2)}%
-                        </Text>
-                      )}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 }}>
+                          {(pos.type === 'stock' || pos.type === 'crypto') && (
+                            <Text style={[styles.posReturn, { color: posProfit >= 0 ? '#4CAF50' : '#EF4444', marginTop: 0 }]}>
+                              {posProfit >= 0 ? '+' : ''}{posProfitPct.toFixed(2)}%
+                            </Text>
+                          )}
+                          {deletingId === pos.id ? (
+                              <TouchableOpacity onPress={() => handleDeletePosition(pos.id)} style={{ backgroundColor: '#EF4444', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                                  <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800' }}>ELIMINAR</Text>
+                              </TouchableOpacity>
+                          ) : (
+                              <TouchableOpacity onPress={() => setDeletingId(pos.id)} style={{ padding: 4 }}>
+                                  <Ionicons name="trash-outline" size={18} color={colors.sub} />
+                              </TouchableOpacity>
+                          )}
+                      </View>
                     </View>
-                  </TouchableOpacity>
+                  </View>
                 );
               })
             )}
