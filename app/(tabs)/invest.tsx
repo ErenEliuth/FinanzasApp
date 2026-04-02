@@ -395,13 +395,13 @@ export default function InvestScreen() {
                     onLongPress={() => setDeletingId(pos.id)}
                     activeOpacity={0.7}
                   >
-                    <View style={styles.posLeft}>
+                    <View style={[styles.posLeft, { flex: 1 }]}>
                       <View style={[styles.typeIcon, { backgroundColor: colors.bg }]}>
                         {getAssetIcon(pos.type)}
                       </View>
-                      <View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text style={[styles.tickerName, { color: colors.text }]}>{pos.ticker}</Text>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <Text style={[styles.tickerName, { color: colors.text }]} numberOfLines={1}>{pos.ticker}</Text>
                             <View style={[styles.typeBadge, { backgroundColor: getAssetColor(pos.type) + '15' }]}>
                                 <Text style={[styles.typeBadgeText, { color: getAssetColor(pos.type) }]}>{getAssetLabel(pos.type)}</Text>
                             </View>
@@ -411,20 +411,16 @@ export default function InvestScreen() {
                     </View>
                     <View style={styles.posRight}>
                       <Text style={[styles.posValue, { color: colors.text }]}>{baseFmt(posTotalVal)}</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
                           <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '800' }}>{((posTotalVal / (totalCurrent || 1)) * 100).toFixed(1)}% peso</Text>
                           {(pos.type === 'stock' || pos.type === 'crypto') && (
                             <Text style={[styles.posReturn, { color: posProfit >= 0 ? '#4CAF50' : '#EF4444', marginTop: 0 }]}>
                               {posProfit >= 0 ? '+' : ''}{posProfitPct.toFixed(2)}%
                             </Text>
                           )}
-                          {deletingId === pos.id ? (
-                              <TouchableOpacity onPress={() => handleDeletePosition(pos.id)} style={{ backgroundColor: '#EF4444', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                          {deletingId === pos.id && (
+                              <TouchableOpacity onPress={() => handleDeletePosition(pos.id)} style={{ backgroundColor: '#EF4444', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginLeft: 8 }}>
                                   <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800' }}>ELIMINAR</Text>
-                              </TouchableOpacity>
-                          ) : (
-                              <TouchableOpacity onPress={() => setDeletingId(pos.id)} style={{ padding: 4 }}>
-                                  <Ionicons name="trash-outline" size={18} color={colors.sub} />
                               </TouchableOpacity>
                           )}
                       </View>
