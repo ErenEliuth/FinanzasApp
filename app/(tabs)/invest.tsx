@@ -81,6 +81,8 @@ const TARGET_ALLOC: Record<AssetType, number> = {
     'real_estate': 0.10
 };
 
+const TRII_FEE = 14875; // Comisión estándar aprox con IVA
+
 export default function InvestScreen() {
   const isFocused = useIsFocused();
   const router = useRouter();
@@ -292,19 +294,21 @@ export default function InvestScreen() {
   
   // Paquete Sugerido Dinámico
   const getSantyPack = (amount: number) => {
-    if (amount <= 0) return { items: [], rationale: '' };
+    if (amount <= TRII_FEE) return { items: [], rationale: 'El monto es insuficiente para cubrir la comisión de Trii.' };
     
-    // Pool de activos dinámico (simulando selección inteligente)
+    const netAmount = amount - TRII_FEE; // Importante: Restar comisión
+    
+    // Pool de activos dinámico
     const pool = [...SEARCH_SUGGESTIONS].sort(() => 0.5 - Math.random());
     const selected = pool.slice(0, 4);
     
     const items = selected.map((s, i) => {
         const weights = [0.4, 0.3, 0.2, 0.1];
-        const val = amount * weights[i];
+        const val = netAmount * weights[i];
         return { ticker: s.ticker, amount: val, shares: s.price ? Math.floor(val / s.price) : undefined };
     });
 
-    const rationale = `Santy eligió este paquete para maximizar tus ${amount > 1000000 ? 'dividendos' : 'ganancias de capital'} basándose en el volumen actual del COLCAP y el mercado tech global.`;
+    const rationale = `Santy restó la comisión de Trii (${baseFmt(TRII_FEE)}) y te recomienda invertir tu capital neto de ${baseFmt(netAmount)} para maximizar ganancias.`;
     
     return { items, rationale };
   };
@@ -507,6 +511,7 @@ export default function InvestScreen() {
                 {/* MANUAL SIMULATOR */}
                 <View style={[styles.insightCard, { backgroundColor: colors.card, marginBottom: 24 }]}>
                     <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginBottom: 16 }}>Simulador de Capital Extra</Text>
+                    <Text style={{ color: colors.sub, fontSize: 11, marginBottom: 12 }}>Trii cobra {baseFmt(TRII_FEE)} por operación. Santy lo restará automáticamente.</Text>
                     <View style={{ flexDirection: 'row', gap: 10 }}>
                         <TextInput 
                             style={{ flex: 1, backgroundColor: colors.bg, borderRadius: 16, padding: 16, color: colors.text, fontWeight: '800' }}
@@ -523,7 +528,10 @@ export default function InvestScreen() {
                     {simResult && (
                         <View style={{ marginTop: 24 }}>
                             <View style={{ backgroundColor: colors.bg, padding: 16, borderRadius: 16, marginBottom: 16 }}>
-                                <Text style={{ color: colors.accent, fontSize: 11, fontWeight: '900', marginBottom: 4 }}>ESTRATEGIA SANTY:</Text>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                                    <Text style={{ color: colors.accent, fontSize: 11, fontWeight: '900' }}>ESTRATEGIA SANTY:</Text>
+                                    <Text style={{ color: '#EF4444', fontSize: 10, fontWeight: '900' }}>FEE: - {baseFmt(TRII_FEE)}</Text>
+                                </View>
                                 <Text style={{ color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '700' }}>{simRationale}</Text>
                             </View>
                             {simResult.map((res, i) => (
@@ -540,6 +548,7 @@ export default function InvestScreen() {
                 </View>
             </View>
         )}
+
       </ScrollView>
 
       {/* MODALS */}
