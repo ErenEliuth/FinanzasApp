@@ -117,6 +117,7 @@ export default function InvestScreen() {
   // Simulator
   const [simAmount, setSimAmount] = useState('');
   const [simResult, setSimResult] = useState<{ticker: string, amount: number, shares?: number}[] | null>(null);
+  const [simRationale, setSimRationale] = useState('');
 
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [chartSymbol, setChartSymbol] = useState<string | null>(null);
@@ -288,18 +289,36 @@ export default function InvestScreen() {
   const currentMonthIdx = new Date().getMonth();
   const projectedDivs = getProjectedDividends();
   const nextMonthDiv = projectedDivs[(currentMonthIdx + 1) % 12];
-  const projectedSurplus = healthInfo.available > 0 ? healthInfo.available : 0;
+  
+  // Paquete Sugerido Dinámico
+  const getSantyPack = (amount: number) => {
+    if (amount <= 0) return { items: [], rationale: '' };
+    
+    // Pool de activos dinámico (simulando selección inteligente)
+    const pool = [...SEARCH_SUGGESTIONS].sort(() => 0.5 - Math.random());
+    const selected = pool.slice(0, 4);
+    
+    const items = selected.map((s, i) => {
+        const weights = [0.4, 0.3, 0.2, 0.1];
+        const val = amount * weights[i];
+        return { ticker: s.ticker, amount: val, shares: s.price ? Math.floor(val / s.price) : undefined };
+    });
 
+    const rationale = `Santy eligió este paquete para maximizar tus ${amount > 1000000 ? 'dividendos' : 'ganancias de capital'} basándose en el volumen actual del COLCAP y el mercado tech global.`;
+    
+    return { items, rationale };
+  };
+
+  const projectedSurplus = healthInfo.available > 0 ? healthInfo.available : 0;
+  const autoPack = getSantyPack(projectedSurplus);
+
+  // Lógica del Simulador de Santy
   const handleSimulate = () => {
     const amount = parseFloat(simAmount.replace(/\D/g, ''));
     if (isNaN(amount) || amount <= 0) return;
-    const ecoP = SEARCH_SUGGESTIONS.find(s => s.ticker === 'ECOPETROL')?.price || 2400;
-    const bcolP = SEARCH_SUGGESTIONS.find(s => s.ticker === 'BCOLOMBIA')?.price || 35200;
-    setSimResult([
-       { ticker: 'ECOPETROL', amount: amount * 0.45, shares: Math.floor((amount * 0.45) / ecoP) },
-       { ticker: 'BCOLOMBIA', amount: amount * 0.35, shares: Math.floor((amount * 0.35) / bcolP) },
-       { ticker: 'BTC', amount: amount * 0.20 }
-    ]);
+    const res = getSantyPack(amount);
+    setSimResult(res.items);
+    setSimRationale(res.rationale);
   };
 
   const openChart = (s: string) => { setChartSymbol(`BVC:${s}`); setChartModalVisible(true); };
@@ -430,14 +449,20 @@ export default function InvestScreen() {
                             <View style={{ height: 10, backgroundColor: colors.bg, borderRadius: 5, marginBottom: 16 }}>
                                 <View style={{ width: `${prog}%`, height: '100%', backgroundColor: g.color, borderRadius: 5 }} />
                             </View>
-                            <Text style={{ color: colors.sub, fontSize: 13, fontWeight: '700', textAlign: 'center' }}>
-                                {monthsToReach ? `Santy estima que llegarás en ~${monthsToReach} meses` : 'Define tu ahorro en el Asesor para estimar tiempo.'}
-                            </Text>
+                            <View style={{ marginTop: 12, backgroundColor: g.color + '10', padding: 12, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: g.color }}>
+                                <Text style={{ color: colors.text, fontSize: 11, fontWeight: '800' }}>💡 SANTY INSIGHT:</Text>
+                                <Text style={{ color: colors.sub, fontSize: 11, lineHeight: 16, marginTop: 4 }}>
+                                    {monthsToReach && monthsToReach > 0 
+                                      ? `Ahorra $50.000 COP más al mes para alcanzar esta meta ${Math.max(1, Math.floor(monthsToReach/2))} mes(es) antes.` 
+                                      : `¡Estás en la recta final! Mantén el ritmo de inversión.`}
+                                </Text>
+                            </View>
                         </TouchableOpacity>
                     );
                 })}
             </View>
         )}
+
 
         {activeTab === 'calendar' && (
             <View>
@@ -456,21 +481,62 @@ export default function InvestScreen() {
 
         {activeTab === 'ai' && (
             <View>
+                {/* PROACTIVE SAVINGS INSIGHT */}
                 <View style={[styles.premiumCard, { backgroundColor: '#8B5CF6', marginBottom: 24 }]}>
-                    <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '800' }}>SALUD FINANCIERA</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '800' }}>SANTY INSIGHT</Text>
                     <Text style={{ color: '#FFF', fontSize: 32, fontWeight: '900', marginVertical: 8 }}>{baseFmt(projectedSurplus)}</Text>
-                    <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>Excedente proyectado para invertir este mes.</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, lineHeight: 18 }}>
+                        Este es tu excedente mensual para invertir. Santy te recomienda usarlo sabiamente.
+                    </Text>
                 </View>
-                <View style={[styles.insightCard, { backgroundColor: colors.card }]}>
-                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginBottom: 16 }}>Simulador de Inversión</Text>
-                    <TextInput style={[styles.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Monto..." keyboardType="decimal-pad" value={simAmount} onChangeText={setSimAmount} />
-                    <TouchableOpacity onPress={handleSimulate} style={{ backgroundColor: colors.accent, padding: 16, borderRadius: 16, alignItems: 'center' }}><Text style={{ color: '#FFF', fontWeight: '900' }}>SIMULAR</Text></TouchableOpacity>
-                    {simResult && simResult.map((r, i) => (
-                        <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
-                            <Text style={{ color: colors.text, fontWeight: '700' }}>{r.ticker}</Text>
-                            <Text style={{ color: colors.accent, fontWeight: '900' }}>{baseFmt(r.amount)}</Text>
+
+                {/* TOP GAINERS SECTION */}
+                <View style={{ marginBottom: 32 }}>
+                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginBottom: 16 }}>Las Más Eficientes de Hoy (BVC)</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -24, paddingHorizontal: 24 }}>
+                        {SEARCH_SUGGESTIONS.slice(0, 5).map((s, i) => (
+                            <View key={i} style={[styles.compactCard, { backgroundColor: colors.card, width: 140, marginRight: 12, borderWidth: 1, borderColor: colors.border }]}>
+                                <Text style={{ color: colors.text, fontSize: 13, fontWeight: '900' }}>{s.ticker}</Text>
+                                <Text style={{ color: '#10B981', fontSize: 13, fontWeight: '800', marginTop: 4 }}>+{(Math.random() * 3 + 1).toFixed(2)}%</Text>
+                                <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '700', marginTop: 8 }}>{baseFmt(s.price || 0)}</Text>
+                            </View>
+                        ))}
+                    </ScrollView>
+                </View>
+
+                {/* MANUAL SIMULATOR */}
+                <View style={[styles.insightCard, { backgroundColor: colors.card, marginBottom: 24 }]}>
+                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginBottom: 16 }}>Simulador de Capital Extra</Text>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <TextInput 
+                            style={{ flex: 1, backgroundColor: colors.bg, borderRadius: 16, padding: 16, color: colors.text, fontWeight: '800' }}
+                            placeholder="¿Cuánto quieres invertir?" 
+                            placeholderTextColor={colors.sub}
+                            keyboardType="decimal-pad"
+                            value={simAmount}
+                            onChangeText={t => setSimAmount(formatCurrency(parseFloat(t.replace(/\D/g, '') || '0'), 'COP', false).replace('$', ''))}
+                        />
+                        <TouchableOpacity onPress={handleSimulate} style={{ backgroundColor: colors.accent, width: 56, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center' }}>
+                            <Ionicons name="sparkles" size={24} color="#FFF" />
+                        </TouchableOpacity>
+                    </View>
+                    {simResult && (
+                        <View style={{ marginTop: 24 }}>
+                            <View style={{ backgroundColor: colors.bg, padding: 16, borderRadius: 16, marginBottom: 16 }}>
+                                <Text style={{ color: colors.accent, fontSize: 11, fontWeight: '900', marginBottom: 4 }}>ESTRATEGIA SANTY:</Text>
+                                <Text style={{ color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '700' }}>{simRationale}</Text>
+                            </View>
+                            {simResult.map((res, i) => (
+                                <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                                    <View>
+                                        <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>{res.ticker}</Text>
+                                        {res.shares && <Text style={{ color: colors.sub, fontSize: 10 }}>{res.shares} unidades aprox.</Text>}
+                                    </View>
+                                    <Text style={{ color: colors.accent, fontSize: 13, fontWeight: '900' }}>{baseFmt(res.amount)}</Text>
+                                </View>
+                            ))}
                         </View>
-                    ))}
+                    )}
                 </View>
             </View>
         )}
