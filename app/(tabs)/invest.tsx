@@ -126,10 +126,16 @@ export default function InvestScreen() {
                     // Muchos tickers locales pueden requerir sufijos, si no hay, asume mercado global.
                 }
 
-                // Yahoo Finance API (Suele estar abierta para consultas básicas CORS bypassable in react-native)
-                const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${queryTicker}`);
+                // Proxy para evitar bloqueo CORS en la versión Web
+                const baseUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${queryTicker}`;
+                const fetchUrl = Platform.OS === 'web' 
+                    ? `https://api.allorigins.win/get?url=${encodeURIComponent(baseUrl)}`
+                    : baseUrl;
+
+                const res = await fetch(fetchUrl);
                 if (res.ok) {
-                    const data = await res.json();
+                    const rawData = await res.json();
+                    const data = Platform.OS === 'web' && rawData.contents ? JSON.parse(rawData.contents) : rawData;
                     const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
                     if (price) {
                         let finalPriceCop = price;
