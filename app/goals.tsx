@@ -277,7 +277,12 @@ export default function GoalsScreen() {
                         const pct = Math.min(100, (goal.current_amount / goal.target_amount) * 100);
                         const isDone = pct >= 100;
                         return (
-                            <View key={goal.id} style={[styles.goalCard, { backgroundColor: colors.card }]}>
+                            <TouchableOpacity 
+                                key={goal.id} 
+                                style={[styles.goalCard, { backgroundColor: colors.card }]}
+                                onLongPress={() => handleDelete(goal)}
+                                activeOpacity={0.9}
+                            >
                                 <View style={styles.goalImgCont}>
                                     {goal.image_uri ? (
                                         <Image source={{ uri: goal.image_uri }} style={styles.goalImg} />
@@ -344,7 +349,7 @@ export default function GoalsScreen() {
                                         </TouchableOpacity>
                                     </View>
                                 </View>
-                            </View>
+                            </TouchableOpacity>
                         );
                     })
                 )}

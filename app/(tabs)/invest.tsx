@@ -59,6 +59,7 @@ export default function InvestScreen() {
   const [avgPrice, setAvgPrice] = useState('');
   const [assetType, setAssetType] = useState<AssetType>('stock');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [allocation, setAllocation] = useState<Record<AssetType, number>>({ stock: 0, crypto: 0, fixed: 0, real_estate: 0 });
 
   // Dividendos
   const [totalDividends, setTotalDividends] = useState<number>(0);
@@ -165,6 +166,24 @@ export default function InvestScreen() {
 
     setLivePrices(newPrices);
     setIsFetchingPrices(false);
+
+    // Calculate allocation after fetching live prices
+    const newAllocation: Record<AssetType, number> = { stock: 0, crypto: 0, fixed: 0, real_estate: 0 };
+    let totalValue = 0;
+
+    currentPositions.forEach(p => {
+        const val = p.shares * (newPrices[p.id] || p.avgPrice);
+        newAllocation[p.type] += val;
+        totalValue += val;
+    });
+
+    // Convert to percentages
+    if (totalValue > 0) {
+        Object.keys(newAllocation).forEach(key => {
+            newAllocation[key as AssetType] = (newAllocation[key as AssetType] / totalValue) * 100;
+        });
+    }
+    setAllocation(newAllocation);
   };
 
   const calculateHealth = async () => {
@@ -238,6 +257,24 @@ export default function InvestScreen() {
       }
   };
 
+  const getAssetColor = (type: AssetType) => {
+      switch(type) {
+          case 'crypto': return '#F7931A';
+          case 'real_estate': return '#6366F1';
+          case 'fixed': return '#10B981';
+          default: return colors.accent;
+      }
+  };
+
+  const getAssetLabel = (type: AssetType) => {
+      switch(type) {
+          case 'crypto': return 'Crypto';
+          case 'real_estate': return 'Inmueble';
+          case 'fixed': return 'Escalable';
+          default: return 'Acción/ETF';
+      }
+  };
+
   const totalInvested = positions.reduce((sum, p) => sum + (p.shares * p.avgPrice), 0);
   const totalCurrent = positions.reduce((sum, p) => {
     const currentPrice = livePrices[p.id] || p.avgPrice; 
@@ -290,6 +327,26 @@ export default function InvestScreen() {
               </View>
             </View>
 
+            {/* ALLOCATION BARS */}
+            <View style={[styles.allocationCard, { backgroundColor: colors.card }]}>
+                <Text style={[styles.allocationTitle, { color: colors.text }]}>Distribución de Activos</Text>
+                <View style={styles.allocationRow}>
+                    {Object.entries(allocation).filter(([_, pct]) => pct > 0).map(([type, pct]) => (
+                        <View key={type} style={{ flex: pct }}>
+                           <View style={[styles.allocationBarPart, { backgroundColor: getAssetColor(type as AssetType) }]} />
+                        </View>
+                    ))}
+                </View>
+                <View style={styles.allocationLegend}>
+                    {Object.entries(allocation).filter(([_, pct]) => pct > 0).map(([type, pct]) => (
+                        <View key={type} style={styles.legendItem}>
+                            <View style={[styles.legendDot, { backgroundColor: getAssetColor(type as AssetType) }]} />
+                            <Text style={[styles.legendText, { color: colors.sub }]}>{getAssetLabel(type as AssetType)} {pct.toFixed(0)}%</Text>
+                        </View>
+                    ))}
+                </View>
+            </View>
+
             {/* DIVIDENDS MINI-CARD */}
             <TouchableOpacity 
                 style={[styles.divCard, { backgroundColor: colors.card }]} 
@@ -332,22 +389,30 @@ export default function InvestScreen() {
                 const posProfitPct = ((currentP - pos.avgPrice) / pos.avgPrice) * 100;
 
                 return (
-                  <View 
+                  <TouchableOpacity 
                     key={pos.id} 
                     style={[styles.positionCard, { backgroundColor: colors.card }]}
+                    onLongPress={() => setDeletingId(pos.id)}
+                    activeOpacity={0.7}
                   >
                     <View style={styles.posLeft}>
                       <View style={[styles.typeIcon, { backgroundColor: colors.bg }]}>
                         {getAssetIcon(pos.type)}
                       </View>
                       <View>
-                        <Text style={[styles.tickerName, { color: colors.text }]}>{pos.ticker}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={[styles.tickerName, { color: colors.text }]}>{pos.ticker}</Text>
+                            <View style={[styles.typeBadge, { backgroundColor: getAssetColor(pos.type) + '15' }]}>
+                                <Text style={[styles.typeBadgeText, { color: getAssetColor(pos.type) }]}>{getAssetLabel(pos.type)}</Text>
+                            </View>
+                        </View>
                         <Text style={[styles.posShares, { color: colors.sub }]}>{pos.type === 'fixed' || pos.type === 'real_estate' ? 'Activo estable' : `${pos.shares} unid.`}</Text>
                       </View>
                     </View>
                     <View style={styles.posRight}>
                       <Text style={[styles.posValue, { color: colors.text }]}>{baseFmt(posTotalVal)}</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 }}>
+                          <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '800' }}>{((posTotalVal / (totalCurrent || 1)) * 100).toFixed(1)}% peso</Text>
                           {(pos.type === 'stock' || pos.type === 'crypto') && (
                             <Text style={[styles.posReturn, { color: posProfit >= 0 ? '#4CAF50' : '#EF4444', marginTop: 0 }]}>
                               {posProfit >= 0 ? '+' : ''}{posProfitPct.toFixed(2)}%
@@ -364,7 +429,7 @@ export default function InvestScreen() {
                           )}
                       </View>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 );
               })
             )}
@@ -545,4 +610,15 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderRadius: 16, padding: 16, fontSize: 16, marginBottom: 16 },
   modalBtns: { flexDirection: 'row', gap: 12, marginTop: 8 },
   mBtn: { flex: 1, paddingVertical: 18, borderRadius: 20, alignItems: 'center' },
+
+  allocationCard: { borderRadius: 24, padding: 20, marginBottom: 16, elevation: 1 },
+  allocationTitle: { fontSize: 13, fontWeight: '900', marginBottom: 12, opacity: 0.8 },
+  allocationRow: { height: 10, borderRadius: 5, overflow: 'hidden', flexDirection: 'row', gap: 2, marginBottom: 12 },
+  allocationBarPart: { height: '100%' },
+  allocationLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendText: { fontSize: 11, fontWeight: '700' },
+  typeBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5 },
+  typeBadgeText: { fontSize: 8, fontWeight: '900' },
 });
