@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
+import { WebView } from 'react-native-webview';
 
 interface TradingViewProps {
   symbol?: string;
@@ -68,11 +69,11 @@ const TradingViewWidget = ({ symbol = 'BITSTAMP:BTCUSD', height = 100, type = 't
     `;
 
   return (
-    <View style={{ height, width: '100%', overflow: 'hidden' }}>
-      <iframe
-        srcDoc={html}
-        style={{ width: '100%', height: '100%', border: 'none' }}
-        title="TradingView"
+    <View style={{ height, width: '100%', backgroundColor: 'transparent' }}>
+      <WebView
+        originWhitelist={['*']}
+        source={{ html }}
+        style={{ backgroundColor: 'transparent' }}
       />
     </View>
   );

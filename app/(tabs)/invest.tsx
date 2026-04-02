@@ -393,32 +393,17 @@ export default function InvestScreen() {
                 <Text style={[styles.triiTotalValue, { color: colors.text }]}>
                     {showBalances ? baseFmt(totalCurrent + totalDividends) : '• • • • • •'}
                 </Text>
-
-                <View style={styles.triiBalances}>
-                    <View style={styles.triiBalanceItem}>
-                        <Text style={[styles.triiBalLabel, { color: colors.sub }]}>Disponible</Text>
-                        <Text style={[styles.triiBalValue, { color: colors.text }]}>
-                            {showBalances ? baseFmt(healthInfo.available) : '• • •'}
-                        </Text>
-                    </View>
-                    <View style={[styles.triiDivider, { backgroundColor: colors.border }]} />
-                    <View style={styles.triiBalanceItem}>
-                        <Text style={[styles.triiBalLabel, { color: colors.sub }]}>En canje</Text>
-                        <Text style={[styles.triiBalValue, { color: colors.text }]}>
-                            {showBalances ? baseFmt(0) : '• • •'}
-                        </Text>
-                    </View>
-                </View>
             </View>
 
             {/* ── PORTFOLIO SECTION ────────────── */}
             <View style={styles.triiPortfolioHeader}>
-                <Text style={{ color: colors.sub, fontSize: 13, fontWeight: '700' }}>Portafolio <Ionicons name="information-circle-outline" size={14} /></Text>
+                <Text style={{ color: colors.sub, fontSize: 13, fontWeight: '700' }}>Portafolio</Text>
                 <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>{baseFmt(totalCurrent)}</Text>
             </View>
 
             {/* ALLOCATION BAR */}
-            <View style={styles.triiBarContainer}>
+            <View style={[styles.triiBarContainer, { backgroundColor: colors.cardBg || 'rgba(0,0,0,0.05)' }]}>
+
                 <View style={styles.triiAllocationRow}>
                     {Object.entries(allocation).filter(([_, pct]) => pct > 0).map(([type, pct], idx) => (
                         <View key={type} style={{ flex: pct }}>
@@ -436,9 +421,9 @@ export default function InvestScreen() {
 
             {/* CATEGORY CARDS */}
             <View style={{ flexDirection: 'row', gap: 12, marginBottom: 32 }}>
-                <View style={[styles.triiCatCard, { backgroundColor: colors.card, borderColor: '#10B981', borderWidth: 1 }]}>
+                <View style={[styles.triiCatCard, { backgroundColor: colors.card, borderColor: colors.accent, borderWidth: 1 }]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#10B981' }} />
+                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent }} />
                         <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>Acciones y ETFs</Text>
                     </View>
                     <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>{baseFmt(totalCurrent)}</Text>
@@ -446,17 +431,12 @@ export default function InvestScreen() {
                 <View style={[styles.triiCatCard, { backgroundColor: colors.card }]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                         <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#3B82F6' }} />
-                        <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>Fondos / CDTs</Text>
+                        <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>Fondos / Otros</Text>
                     </View>
                     <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>$ 0,00</Text>
                 </View>
             </View>
 
-            <View style={styles.triiSliderBtn}>
-                <Ionicons name="chevron-back" size={20} color={colors.sub} />
-                <Text style={{ color: colors.text, fontWeight: '800' }}>Mi inversión</Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.accent} />
-            </View>
 
 
             {/* DIVIDENDS MINI-CARD */}
