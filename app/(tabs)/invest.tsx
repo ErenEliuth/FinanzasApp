@@ -32,6 +32,15 @@ interface Position {
   type: AssetType;
 }
 
+interface InvestGoal {
+    id: string;
+    name: string;
+    target: number;
+    current: number;
+    icon: string;
+    color: string;
+}
+
 // Simulador de precios fallback
 const MOCK_PRICES: Record<string, number> = {
   'ECOPETROL': 2640,
@@ -108,6 +117,11 @@ export default function InvestScreen() {
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
   
+  // Goals State
+  const [goals, setGoals] = useState<InvestGoal[]>([]);
+  const [goalModalVisible, setGoalModalVisible] = useState(false);
+  const [newGoal, setNewGoal] = useState({ name: '', target: '', icon: 'home' });
+
   // Simulator State
   const [simAmount, setSimAmount] = useState('');
   const [simResult, setSimResult] = useState<{ticker: string, amount: number, shares?: number}[] | null>(null);
@@ -136,6 +150,16 @@ export default function InvestScreen() {
   const loadData = async () => {
     try {
       if (!user) return;
+      
+      const storedGoals = await AsyncStorage.getItem(`@invest_goals_${user?.id}`);
+      if (storedGoals) setGoals(JSON.parse(storedGoals));
+      else {
+          // Default goal if none
+          const def = [{ id: '1', name: 'Libertad Financiera', target: 50000000, current: 0, icon: 'shield', color: '#8B5CF6' }];
+          setGoals(def);
+          await AsyncStorage.setItem(`@invest_goals_${user?.id}`, JSON.stringify(def));
+      }
+
       const stored = await AsyncStorage.getItem(`@invest_${user?.id}`);
       let parsedPositions: Position[] = [];
       if (stored) {
@@ -224,10 +248,33 @@ export default function InvestScreen() {
     };
     const updated = [...positions, newPos];
     setPositions(updated);
+
+    // Update goals current based on portfolio growth (simplified)
+    const newGoals = goals.map(g => ({ ...g, current: (totalCurrent / goals.length) }));
+    setGoals(newGoals);
+    await AsyncStorage.setItem(`@invest_goals_${user?.id}`, JSON.stringify(newGoals));
+
     await AsyncStorage.setItem(`@invest_${user?.id}`, JSON.stringify(updated));
     setTicker(''); setShares(''); setAvgPrice('');
     setModalVisible(false);
     fetchLivePrices(updated);
+  };
+
+  const handleAddGoal = async () => {
+      if (!newGoal.name || !newGoal.target) return;
+      const goal: InvestGoal = {
+          id: Date.now().toString(),
+          name: newGoal.name,
+          target: parseFloat(newGoal.target.replace(/\D/g, '')),
+          current: 0,
+          icon: newGoal.icon,
+          color: ['#8B5CF6', '#10B981', '#3B82F6', '#F59E0B', '#EF4444'][goals.length % 5]
+      };
+      const updated = [...goals, goal];
+      setGoals(updated);
+      await AsyncStorage.setItem(`@invest_goals_${user?.id}`, JSON.stringify(updated));
+      setGoalModalVisible(false);
+      setNewGoal({ name: '', target: '', icon: 'home' });
   };
 
   const handleTickerSearch = (text: string) => {
@@ -395,7 +442,48 @@ export default function InvestScreen() {
                 </TouchableOpacity>
             </View>
 
+            {/* ── SECCIÓN METAS DE INVERSIÓN ────────── */}
+            <View style={{ marginBottom: 32 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>Tus Metas</Text>
+                    <TouchableOpacity onPress={() => setGoalModalVisible(true)}>
+                        <Text style={{ color: colors.accent, fontSize: 13, fontWeight: '800' }}>+ AÑADIR</Text>
+                    </TouchableOpacity>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -24, paddingHorizontal: 24 }}>
+                    {goals.map((g) => {
+                        const prog = Math.min((totalCurrent / (g.target || 1)) * 100, 100);
+                        const remaining = Math.max(g.target - totalCurrent, 0);
+                        const monthsToReach = projectedSurplus > 0 ? Math.ceil(remaining / projectedSurplus) : null;
+                        
+                        return (
+                            <View key={g.id} style={[styles.goalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                                    <View style={[styles.goalIconBox, { backgroundColor: g.color + '15' }]}>
+                                        <MaterialCommunityIcons name={g.icon as any} size={20} color={g.color} />
+                                    </View>
+                                    <View>
+                                        <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900' }}>{g.name}</Text>
+                                        <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>Meta: {baseFmt(g.target)}</Text>
+                                    </View>
+                                </View>
+                                <View style={{ height: 6, backgroundColor: colors.bg, borderRadius: 3, marginBottom: 8 }}>
+                                    <View style={{ width: `${prog}%`, height: '100%', backgroundColor: g.color, borderRadius: 3 }} />
+                                </View>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                    <Text style={{ color: colors.text, fontSize: 11, fontWeight: '900' }}>{prog.toFixed(0)}%</Text>
+                                    <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '700' }}>
+                                        {monthsToReach ? `Faltan ~${monthsToReach} meses` : 'Define ahorro mensual'}
+                                    </Text>
+                                </View>
+                            </View>
+                        );
+                    })}
+                </ScrollView>
+            </View>
+
             {/* ── SECCIÓN SIMULADOR SANTY ────────────── */}
+
             <View style={[styles.premiumCard, { backgroundColor: colors.accent, padding: 24, borderRadius: 28, marginBottom: 32 }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
                     <MaterialIcons name="auto-awesome" size={24} color="#FFF" />
@@ -667,9 +755,53 @@ export default function InvestScreen() {
             <TextInput style={[styles.input, {backgroundColor:colors.bg, color:colors.text}]} placeholder="Monto" keyboardType="decimal-pad" value={divAmount} onChangeText={setDivAmount} />
             <View style={styles.modalBtns}>
                 <TouchableOpacity style={[styles.mBtn, {backgroundColor:colors.bg}]} onPress={() => setDivModalVisible(false)}><Text style={{color:colors.text}}>Cerrar</Text></TouchableOpacity>
-                <TouchableOpacity style={[styles.mBtn, {backgroundColor:'#10B981'}]} onPress={handleAddDividends}><Text style={{color:'#FFF'}}>Guardar</Text></TouchableOpacity>
+                <TouchableOpacity style={[styles.mBtn, { backgroundColor: '#10B981' }]} onPress={handleAddDividends}>
+                <Text style={{ color: '#FFF', fontWeight: '800' }}>Registrar Pago</Text>
+              </TouchableOpacity>
             </View>
         </View></View>
+      </Modal>
+
+      {/* Modal Add Goal */}
+      <Modal visible={goalModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Nueva Meta</Text>
+            <TextInput 
+                style={[styles.input, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }]} 
+                placeholder="Nombre de la meta (Ej: Casa Propia)" 
+                placeholderTextColor={colors.sub}
+                value={newGoal.name} onChangeText={t => setNewGoal({...newGoal, name: t})}
+            />
+            <TextInput 
+                style={[styles.input, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }]} 
+                placeholder="Monto Objetivo (Ej: $50.000.000)" 
+                placeholderTextColor={colors.sub}
+                keyboardType="decimal-pad"
+                value={newGoal.target} 
+                onChangeText={t => setNewGoal({...newGoal, target: formatCurrency(parseFloat(t.replace(/\D/g, '') || '0'), 'COP', false).replace('$', '')})}
+            />
+            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24 }}>
+                {['home', 'car', 'airplane', 'trending-up', 'shield'].map(icon => (
+                    <TouchableOpacity 
+                        key={icon} 
+                        style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: newGoal.icon === icon ? colors.accent : colors.bg, justifyContent: 'center', alignItems: 'center' }}
+                        onPress={() => setNewGoal({...newGoal, icon})}
+                    >
+                        <MaterialCommunityIcons name={icon as any} size={24} color={newGoal.icon === icon ? '#FFF' : colors.sub} />
+                    </TouchableOpacity>
+                ))}
+            </View>
+            <View style={styles.modalBtns}>
+              <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.bg }]} onPress={() => setGoalModalVisible(false)}>
+                <Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.accent }]} onPress={handleAddGoal}>
+                <Text style={{ color: '#FFF', fontWeight: '800' }}>Crear Meta</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
 
       <Modal visible={chartModalVisible} transparent={false} animationType="slide">
@@ -711,6 +843,8 @@ const styles = StyleSheet.create({
   assetIconBox: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   insightCard: { padding: 24, borderRadius: 28 },
   premiumCard: { padding: 24, borderRadius: 28 },
+  goalCard: { width: 240, borderRadius: 28, padding: 20, marginRight: 16, borderWidth: 1 },
+  goalIconBox: { width: 40, height: 40, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   divCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderRadius: 24 },
   triiTicker: { fontSize: 15, fontWeight: '800' },
   emptyState: { alignItems: 'center', paddingVertical: 40 },
