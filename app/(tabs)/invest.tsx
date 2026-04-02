@@ -20,6 +20,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { formatCurrency, convertCurrency } from '@/utils/currency';
+import TradingViewWidget from '@/components/TradingViewWidget';
 
 export type AssetType = 'stock' | 'crypto' | 'fixed' | 'real_estate';
 
@@ -42,6 +43,20 @@ const MOCK_PRICES: Record<string, number> = {
   'NU': 48000,
   'AAPL': 750000,
 };
+
+// Sugerencias de búsqueda para evitar errores
+const SEARCH_SUGGESTIONS = [
+    { ticker: 'ECOPETROL', name: 'Ecopetrol S.A.', price: 2640, type: 'stock' },
+    { ticker: 'BCOLOMBIA', name: 'Bancolombia S.A.', price: 35200, type: 'stock' },
+    { ticker: 'GEB', name: 'Grupo Energía Bogotá', price: 2620, type: 'stock' },
+    { ticker: 'ISA', name: 'Interconexión Eléctrica', price: 19100, type: 'stock' },
+    { ticker: 'PFAVAL', name: 'Grupo Aval Pref.', price: 480, type: 'stock' },
+    { ticker: 'PFBCOLOM', name: 'Bancolombia Pref.', price: 34500, type: 'stock' },
+    { ticker: 'AAPL', name: 'Apple Inc.', price: 750000, type: 'stock' },
+    { ticker: 'TSLA', name: 'Tesla, Inc.', price: 820000, type: 'stock' },
+    { ticker: 'BTC', name: 'Bitcoin', price: 280000000, type: 'crypto' },
+    { ticker: 'ETH', name: 'Ethereum', price: 12500000, type: 'crypto' },
+];
 
 export default function InvestScreen() {
   const isFocused = useIsFocused();
@@ -72,6 +87,18 @@ export default function InvestScreen() {
   // Precios en tiempo real
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
+  
+  // Visibilidad y saldos (Simulados basados en Trii)
+  const [showBalances, setShowBalances] = useState(true);
+  const [availableCash, setAvailableCash] = useState(0);
+  const [pendingCash, setPendingCash] = useState(0);
+
+  // Sugerencias buscador
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+
+  // TradingView Chart
+  const [chartSymbol, setChartSymbol] = useState<string | null>(null);
+  const [chartModalVisible, setChartModalVisible] = useState(false);
 
   // Funciones de formato
   const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
@@ -242,6 +269,31 @@ export default function InvestScreen() {
     fetchLivePrices([newPos]);
   };
 
+  const handleTickerSearch = (text: string) => {
+    setTicker(text.toUpperCase());
+    if (text.length > 1) {
+        const filtered = SEARCH_SUGGESTIONS.filter(s => 
+            s.ticker.includes(text.toUpperCase()) || 
+            s.name.toLowerCase().includes(text.toLowerCase())
+        );
+        setSuggestions(filtered);
+    } else {
+        setSuggestions([]);
+    }
+  };
+
+  const selectSuggestion = (s: any) => {
+    setTicker(s.ticker);
+    setAssetType(s.type);
+    setAvgPrice(s.price.toString());
+    setSuggestions([]);
+  };
+
+  const openChart = (s: string) => {
+    setChartSymbol(s.includes(':') ? s : `BVC:${s}`);
+    setChartModalVisible(true);
+  };
+
   const handleDeletePosition = async (id: string) => {
       const updated = positions.filter(p => p.id !== id);
       setPositions(updated);
@@ -323,40 +375,89 @@ export default function InvestScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          {/* TRADINGVIEW TICKER TAPE */}
+          <View style={{ marginHorizontal: -24, height: 48, marginBottom: 12 }}>
+            <TradingViewWidget type="ticker-tape" height={48} />
+          </View>
+
         {activeTab === 'portfolio' ? (
           <>
-            {/* PORTFOLIO SUMMARY */}
-            <View style={[styles.summaryCard, { backgroundColor: colors.greenCard }]}>
-              <Text style={styles.summaryLabel}>TU PATRIMONIO ACTIVO</Text>
-              <Text style={styles.summaryValue}>{fmt(totalCurrent)}</Text>
-              
-              <View style={styles.profitBadge}>
-                <Ionicons name={profit >= 0 ? 'trending-up' : 'trending-down'} size={16} color={profit >= 0 ? '#4CAF50' : '#EF4444'} />
-                <Text style={[styles.profitText, { color: profit >= 0 ? '#4CAF50' : '#EF4444' }]}>
-                  {profit >= 0 ? '+' : ''}{fmt(profit)} ({profitPct.toFixed(2)}%)
+            {/* ── TOTAL PORTFOLIO (Trii Style) ────────────────────────── */}
+            <View style={{ alignItems: 'center', marginVertical: 32 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                    <Text style={[styles.triiTotalLabel, { color: colors.sub }]}>Total</Text>
+                    <TouchableOpacity onPress={() => setShowBalances(!showBalances)}>
+                        <Ionicons name={showBalances ? "eye-outline" : "eye-off-outline"} size={22} color={colors.sub} />
+                    </TouchableOpacity>
+                </View>
+                <Text style={[styles.triiTotalValue, { color: colors.text }]}>
+                    {showBalances ? baseFmt(totalCurrent + totalDividends) : '• • • • • •'}
                 </Text>
-              </View>
+
+                <View style={styles.triiBalances}>
+                    <View style={styles.triiBalanceItem}>
+                        <Text style={[styles.triiBalLabel, { color: colors.sub }]}>Disponible</Text>
+                        <Text style={[styles.triiBalValue, { color: colors.text }]}>
+                            {showBalances ? baseFmt(healthInfo.available) : '• • •'}
+                        </Text>
+                    </View>
+                    <View style={[styles.triiDivider, { backgroundColor: colors.border }]} />
+                    <View style={styles.triiBalanceItem}>
+                        <Text style={[styles.triiBalLabel, { color: colors.sub }]}>En canje</Text>
+                        <Text style={[styles.triiBalValue, { color: colors.text }]}>
+                            {showBalances ? baseFmt(0) : '• • •'}
+                        </Text>
+                    </View>
+                </View>
             </View>
 
-            {/* ALLOCATION BARS */}
-            <View style={[styles.allocationCard, { backgroundColor: colors.card }]}>
-                <Text style={[styles.allocationTitle, { color: colors.text }]}>Distribución de Activos</Text>
-                <View style={styles.allocationRow}>
-                    {Object.entries(allocation).filter(([_, pct]) => pct > 0).map(([type, pct]) => (
+            {/* ── PORTFOLIO SECTION ────────────── */}
+            <View style={styles.triiPortfolioHeader}>
+                <Text style={{ color: colors.sub, fontSize: 13, fontWeight: '700' }}>Portafolio <Ionicons name="information-circle-outline" size={14} /></Text>
+                <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>{baseFmt(totalCurrent)}</Text>
+            </View>
+
+            {/* ALLOCATION BAR */}
+            <View style={styles.triiBarContainer}>
+                <View style={styles.triiAllocationRow}>
+                    {Object.entries(allocation).filter(([_, pct]) => pct > 0).map(([type, pct], idx) => (
                         <View key={type} style={{ flex: pct }}>
-                           <View style={[styles.allocationBarPart, { backgroundColor: getAssetColor(type as AssetType) }]} />
-                        </View>
-                    ))}
-                </View>
-                <View style={styles.allocationLegend}>
-                    {Object.entries(allocation).filter(([_, pct]) => pct > 0).map(([type, pct]) => (
-                        <View key={type} style={styles.legendItem}>
-                            <View style={[styles.legendDot, { backgroundColor: getAssetColor(type as AssetType) }]} />
-                            <Text style={[styles.legendText, { color: colors.sub }]}>{getAssetLabel(type as AssetType)} {pct.toFixed(0)}%</Text>
+                           <View style={[styles.triiBarFill, { 
+                               backgroundColor: getAssetColor(type as AssetType),
+                               borderTopLeftRadius: idx === 0 ? 6 : 0,
+                               borderBottomLeftRadius: idx === 0 ? 6 : 0,
+                               borderTopRightRadius: idx === Object.keys(allocation).length - 1 ? 6 : 0,
+                               borderBottomRightRadius: idx === Object.keys(allocation).length - 1 ? 6 : 0,
+                           }]} />
                         </View>
                     ))}
                 </View>
             </View>
+
+            {/* CATEGORY CARDS */}
+            <View style={{ flexDirection: 'row', gap: 12, marginBottom: 32 }}>
+                <View style={[styles.triiCatCard, { backgroundColor: colors.card, borderColor: '#10B981', borderWidth: 1 }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#10B981' }} />
+                        <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>Acciones y ETFs</Text>
+                    </View>
+                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>{baseFmt(totalCurrent)}</Text>
+                </View>
+                <View style={[styles.triiCatCard, { backgroundColor: colors.card }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#3B82F6' }} />
+                        <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>Fondos / CDTs</Text>
+                    </View>
+                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>$ 0,00</Text>
+                </View>
+            </View>
+
+            <View style={styles.triiSliderBtn}>
+                <Ionicons name="chevron-back" size={20} color={colors.sub} />
+                <Text style={{ color: colors.text, fontWeight: '800' }}>Mi inversión</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.accent} />
+            </View>
+
 
             {/* DIVIDENDS MINI-CARD */}
             <TouchableOpacity 
@@ -393,52 +494,52 @@ export default function InvestScreen() {
                 <Text style={{ color: colors.sub, fontSize: 12, textAlign: 'center', marginTop: 8 }}>Suma tus acciones, criptomonedas o CDTs tocando el (+)</Text>
               </View>
             ) : (
-              positions.map((pos) => {
-                const currentP = livePrices[pos.id] || pos.avgPrice;
-                const posTotalVal = pos.shares * currentP;
-                const posProfit = posTotalVal - (pos.shares * pos.avgPrice);
-                const posProfitPct = ((currentP - pos.avgPrice) / pos.avgPrice) * 100;
+                <View style={[styles.triiListCard, { backgroundColor: colors.card }]}>
+                    {/* Header Tabla Trii */}
+                    <View style={styles.triiTableHeader}>
+                        <Text style={[styles.triiCol, { flex: 1.5 }]}>Empresas ({positions.length}) <Ionicons name="swap-vertical" size={12} /></Text>
+                        <Text style={[styles.triiCol, { textAlign: 'center' }]}>Precio Mercado <Ionicons name="swap-vertical" size={12} /></Text>
+                        <Text style={[styles.triiCol, { textAlign: 'right' }]}>Variación <Ionicons name="swap-vertical" size={12} /></Text>
+                    </View>
 
-                return (
-                  <TouchableOpacity 
-                    key={pos.id} 
-                    style={[styles.positionCard, { backgroundColor: colors.card }]}
-                    onLongPress={() => setDeletingId(pos.id)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.posLeft, { flex: 1 }]}>
-                      <View style={[styles.typeIcon, { backgroundColor: colors.bg }]}>
-                        {getAssetIcon(pos.type)}
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                            <Text style={[styles.tickerName, { color: colors.text }]} numberOfLines={1}>{pos.ticker}</Text>
-                            <View style={[styles.typeBadge, { backgroundColor: getAssetColor(pos.type) + '15' }]}>
-                                <Text style={[styles.typeBadgeText, { color: getAssetColor(pos.type) }]}>{getAssetLabel(pos.type)}</Text>
+                    {positions.map((pos) => {
+                        const currentP = livePrices[pos.id] || pos.avgPrice;
+                        const posProfitPct = ((currentP - pos.avgPrice) / pos.avgPrice) * 100;
+
+                        return (
+                        <TouchableOpacity 
+                            key={pos.id} 
+                            style={styles.triiListItem}
+                            onPress={() => openChart(pos.ticker)}
+                            onLongPress={() => setDeletingId(pos.id)}
+                            activeOpacity={0.7}
+                        >
+                            <View style={{ flex: 1.5, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                <View style={[styles.triiLogoCircle, { backgroundColor: getAssetColor(pos.type) + '15' }]}>
+                                    <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: getAssetColor(pos.type) }} />
+                                </View>
+                                <View>
+                                    <Text style={[styles.triiTicker, { color: colors.text }]}>{pos.ticker}</Text>
+                                    <Text style={[styles.triiShares, { color: colors.sub }]}>{pos.shares} unid.</Text>
+                                </View>
                             </View>
-                        </View>
-                        <Text style={[styles.posShares, { color: colors.sub }]}>{pos.type === 'fixed' || pos.type === 'real_estate' ? 'Activo estable' : `${pos.shares} unid.`}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.posRight}>
-                      <Text style={[styles.posValue, { color: colors.text }]}>{baseFmt(posTotalVal)}</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                          <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '800' }}>{((posTotalVal / (totalCurrent || 1)) * 100).toFixed(1)}% peso</Text>
-                          {(pos.type === 'stock' || pos.type === 'crypto') && (
-                            <Text style={[styles.posReturn, { color: posProfit >= 0 ? '#4CAF50' : '#EF4444', marginTop: 0 }]}>
-                              {posProfit >= 0 ? '+' : ''}{posProfitPct.toFixed(2)}%
-                            </Text>
-                          )}
-                          {deletingId === pos.id && (
-                              <TouchableOpacity onPress={() => handleDeletePosition(pos.id)} style={{ backgroundColor: '#EF4444', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginLeft: 8 }}>
-                                  <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800' }}>ELIMINAR</Text>
-                              </TouchableOpacity>
-                          )}
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })
+                            
+                            <Text style={[styles.triiMktPrice, { color: colors.text }]}>{baseFmt(currentP)}</Text>
+                            
+                            <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                                <Text style={[styles.triiPct, { color: posProfitPct >= 0 ? '#10B981' : '#EF4444' }]}>
+                                    {posProfitPct >= 0 ? '+' : ''}{posProfitPct.toFixed(1)}%
+                                </Text>
+                                {deletingId === pos.id && (
+                                    <TouchableOpacity onPress={() => handleDeletePosition(pos.id)} style={{ backgroundColor: '#EF4444', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4 }}>
+                                        <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '800' }}>BORRAR</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        </TouchableOpacity>
+                        );
+                    })}
+                </View>
             )}
           </>
         ) : (
@@ -492,12 +593,30 @@ export default function InvestScreen() {
                ))}
             </View>
 
-            <TextInput 
-              style={[styles.input, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }]} 
-              placeholder={assetType === 'crypto' ? 'Ej. BTC-USD' : assetType === 'fixed' ? 'Nombr del Banco / CDT' : 'Símbolo (Ej. ECOPETROL)'}
-              placeholderTextColor={colors.sub}
-              value={ticker} onChangeText={setTicker} autoCapitalize="characters"
-            />
+            <View>
+                <TextInput 
+                    style={[styles.input, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }]} 
+                    placeholder={assetType === 'crypto' ? 'Ej. BTC-USD' : assetType === 'fixed' ? 'Nombre del Banco' : 'Símbolo (Ej. ECOPETROL)'}
+                    placeholderTextColor={colors.sub}
+                    value={ticker} onChangeText={handleTickerSearch} autoCapitalize="characters"
+                />
+                {suggestions.length > 0 && (
+                    <View style={[styles.suggestionBox, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+                        {suggestions.map((s, idx) => (
+                            <TouchableOpacity key={idx} style={[styles.suggestionItem, idx !== suggestions.length -1 && { borderBottomColor: colors.border, borderBottomWidth: 1 }]} onPress={() => selectSuggestion(s)}>
+                                <View>
+                                    <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>{s.ticker}</Text>
+                                    <Text style={{ color: colors.sub, fontSize: 10 }}>{s.name}</Text>
+                                </View>
+                                <View style={{ alignItems: 'flex-end' }}>
+                                    <Text style={{ color: colors.accent, fontSize: 13, fontWeight: '900' }}>{baseFmt(s.price)}</Text>
+                                    <Text style={{ color: colors.sub, fontSize: 8 }}>MARKET PRICE</Text>
+                                </View>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                )}
+            </View>
             {assetType !== 'fixed' && assetType !== 'real_estate' && (
                 <TextInput 
                   style={[styles.input, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }]} 
@@ -555,6 +674,19 @@ export default function InvestScreen() {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Modal TradingView Chart */}
+      <Modal visible={chartModalVisible} animationType="slide" presentationStyle="formSheet">
+          <SafeAreaView style={{ flex: 1, backgroundColor: '#131722' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#333' }}>
+                  <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900' }}>Análisis: {chartSymbol}</Text>
+                  <TouchableOpacity onPress={() => setChartModalVisible(false)}>
+                      <Ionicons name="close" size={24} color="#FFF" />
+                  </TouchableOpacity>
+              </View>
+              {chartSymbol && <TradingViewWidget symbol={chartSymbol} type="chart" height={600} />}
+          </SafeAreaView>
       </Modal>
 
     </SafeAreaView>
@@ -619,6 +751,30 @@ const styles = StyleSheet.create({
   mBtn: { flex: 1, paddingVertical: 18, borderRadius: 20, alignItems: 'center' },
 
   allocationCard: { borderRadius: 24, padding: 20, marginBottom: 16, elevation: 1 },
+  triiTotalLabel: { fontSize: 16, fontWeight: '700' },
+  triiTotalValue: { fontSize: 42, fontWeight: '900', letterSpacing: -1 },
+  triiBalances: { flexDirection: 'row', alignItems: 'center', marginTop: 24, paddingHorizontal: 10, width: '100%', justifyContent: 'center' },
+  triiBalanceItem: { flex: 1, alignItems: 'center' },
+  triiBalLabel: { fontSize: 12, fontWeight: '800', marginBottom: 4 },
+  triiBalValue: { fontSize: 18, fontWeight: '900' },
+  triiDivider: { width: 1, height: 30, marginHorizontal: 20 },
+  triiPortfolioHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, paddingHorizontal: 4 },
+  triiBarContainer: { height: 12, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 6, overflow: 'hidden', marginBottom: 24 },
+  triiAllocationRow: { flexDirection: 'row', height: '100%', gap: 2 },
+  triiBarFill: { height: '100%' },
+  triiCatCard: { flex: 1, borderRadius: 16, padding: 18 },
+  triiSliderBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(0,0,0,0.03)', paddingVertical: 18, paddingHorizontal: 24, borderRadius: 24, marginBottom: 40 },
+  triiListCard: { borderRadius: 32, paddingVertical: 10, overflow: 'hidden' },
+  triiTableHeader: { flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
+  triiCol: { fontSize: 11, fontWeight: '800', color: 'rgba(0,0,0,0.4)', flex: 1 },
+  triiListItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.03)' },
+  triiLogoCircle: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  triiTicker: { fontSize: 15, fontWeight: '800' },
+  triiShares: { fontSize: 11, fontWeight: '600' },
+  triiMktPrice: { flex: 1, fontSize: 14, fontWeight: '800', textAlign: 'center' },
+  triiPct: { fontSize: 14, fontWeight: '900' },
+  suggestionBox: { borderBottomLeftRadius: 16, borderBottomRightRadius: 16, overflow: 'hidden', borderTopWidth: 0, marginTop: -12, marginBottom: 16 },
+  suggestionItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
   allocationTitle: { fontSize: 13, fontWeight: '900', marginBottom: 12, opacity: 0.8 },
   allocationRow: { height: 10, borderRadius: 5, overflow: 'hidden', flexDirection: 'row', gap: 2, marginBottom: 12 },
   allocationBarPart: { height: '100%' },
