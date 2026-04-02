@@ -33,11 +33,11 @@ interface Position {
 
 // Simulador de precios fallback (ya que no hay API gratuita universal infalible)
 const MOCK_PRICES: Record<string, number> = {
-  'ECOPETROL': 2100,
-  'BCOLOMBIA': 32000,
-  'ISA': 18500,
-  'GEB': 2400,
-  'NUTRESA': 45000,
+  'ECOPETROL': 2640,
+  'BCOLOMBIA': 35200,
+  'ISA': 19100,
+  'GEB': 2620,
+  'NUTRESA': 48000,
   'CSPX': 1850000,
   'NU': 48000,
   'AAPL': 750000,
@@ -122,43 +122,21 @@ export default function InvestScreen() {
 
             try {
                 let queryTicker = pos.ticker;
-                if (pos.type === 'crypto' && !queryTicker.includes('-')) {
-                    queryTicker = `${queryTicker}-USD`; // Yahoo Finance crypto format BTC-USD
-                } else if (pos.type === 'stock' && !queryTicker.includes('.')) {
-                    // Muchos tickers locales pueden requerir sufijos, si no hay, asume mercado global.
+                
+                // Intento 1: Ticker original
+                let price = await tryFetchPrice(queryTicker, pos.type);
+                
+                // Intento 2: Si es colombiano (sin punto), añadir .CL
+                if (!price && pos.type === 'stock' && !queryTicker.includes('.')) {
+                    price = await tryFetchPrice(`${queryTicker}.CL`, pos.type);
                 }
 
-                // Proxy para evitar bloqueo CORS en la versión Web
-                const baseUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${queryTicker}`;
-                const fetchUrl = Platform.OS === 'web' 
-                    ? `https://api.allorigins.win/get?url=${encodeURIComponent(baseUrl)}`
-                    : baseUrl;
-
-                const res = await fetch(fetchUrl);
-                if (res.ok) {
-                    const rawData = await res.json();
-                    const data = Platform.OS === 'web' && rawData.contents ? JSON.parse(rawData.contents) : rawData;
-                    const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
-                    if (price) {
-                        let finalPriceCop = price;
-                        const currencyRes = data?.chart?.result?.[0]?.meta?.currency;
-                        
-                        // Si el precio devuelto es en USD, se convierte a COP aproximado (Moneda local base del Portafolio)
-                        if (currencyRes === 'USD') {
-                            finalPriceCop = price * (rates['USD'] || 3950);
-                        } else if (currencyRes === 'EUR') {
-                            finalPriceCop = price * (rates['EUR'] || 4250);
-                        }
-                        
-                        newPrices[pos.id] = finalPriceCop;
-                    } else {
-                        newPrices[pos.id] = MOCK_PRICES[pos.ticker] || pos.avgPrice;
-                    }
+                if (price) {
+                    newPrices[pos.id] = price;
                 } else {
                     newPrices[pos.id] = MOCK_PRICES[pos.ticker] || pos.avgPrice;
                 }
             } catch (err) {
-                // Fallback
                 newPrices[pos.id] = MOCK_PRICES[pos.ticker] || pos.avgPrice;
             }
         }
@@ -184,6 +162,39 @@ export default function InvestScreen() {
         });
     }
     setAllocation(newAllocation);
+  };
+
+  const tryFetchPrice = async (ticker: string, type: AssetType) => {
+    try {
+        let queryTicker = ticker;
+        if (type === 'crypto' && !queryTicker.includes('-')) {
+            queryTicker = `${queryTicker}-USD`;
+        }
+
+        const baseUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${queryTicker}`;
+        const fetchUrl = Platform.OS === 'web' 
+            ? `https://api.allorigins.win/get?url=${encodeURIComponent(baseUrl)}`
+            : baseUrl;
+
+        const res = await fetch(fetchUrl);
+        if (!res.ok) return null;
+        
+        const rawData = await res.json();
+        const data = Platform.OS === 'web' && rawData.contents ? JSON.parse(rawData.contents) : rawData;
+        const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+        
+        if (price) {
+            let finalPriceCop = price;
+            const currencyRes = data?.chart?.result?.[0]?.meta?.currency;
+            if (currencyRes === 'USD') {
+                finalPriceCop = price * (rates['USD'] || 3950);
+            } else if (currencyRes === 'EUR') {
+                finalPriceCop = price * (rates['EUR'] || 4250);
+            }
+            return finalPriceCop;
+        }
+    } catch (e) {}
+    return null;
   };
 
   const calculateHealth = async () => {
