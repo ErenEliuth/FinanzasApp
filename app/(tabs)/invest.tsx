@@ -48,14 +48,23 @@ const MOCK_PRICES: Record<string, number> = {
 const SEARCH_SUGGESTIONS = [
     { ticker: 'ECOPETROL', name: 'Ecopetrol S.A.', price: 2640, type: 'stock' },
     { ticker: 'BCOLOMBIA', name: 'Bancolombia S.A.', price: 35200, type: 'stock' },
+    { ticker: 'PFBCOLOM', name: 'Bancolombia Pref.', price: 34500, type: 'stock' },
     { ticker: 'GEB', name: 'Grupo Energía Bogotá', price: 2620, type: 'stock' },
     { ticker: 'ISA', name: 'Interconexión Eléctrica', price: 19100, type: 'stock' },
     { ticker: 'PFAVAL', name: 'Grupo Aval Pref.', price: 480, type: 'stock' },
-    { ticker: 'PFBCOLOM', name: 'Bancolombia Pref.', price: 34500, type: 'stock' },
+    { ticker: 'PFGRUPSU', name: 'Grupo Sura Pref.', price: 32500, type: 'stock' },
+    { ticker: 'CNEC', name: 'Canacol Energy', price: 12500, type: 'stock' },
+    { ticker: 'NUTRESA', name: 'Nutresa S.A.', price: 48000, type: 'stock' },
+    { ticker: 'CORFICOL', name: 'Corficolombiana', price: 15400, type: 'stock' },
+    { ticker: 'CEMARGOS', name: 'Cementos Argos', price: 8200, type: 'stock' },
     { ticker: 'AAPL', name: 'Apple Inc.', price: 750000, type: 'stock' },
+    { ticker: 'NVDA', name: 'NVIDIA Corp.', price: 3200000, type: 'stock' },
     { ticker: 'TSLA', name: 'Tesla, Inc.', price: 820000, type: 'stock' },
+    { ticker: 'AMZN', name: 'Amazon.com', price: 780000, type: 'stock' },
+    { ticker: 'NU', name: 'NuBank (Nu Holdings)', price: 48000, type: 'stock' },
     { ticker: 'BTC', name: 'Bitcoin', price: 280000000, type: 'crypto' },
     { ticker: 'ETH', name: 'Ethereum', price: 12500000, type: 'crypto' },
+    { ticker: 'SOL', name: 'Solana', price: 650000, type: 'crypto' },
 ];
 
 export default function InvestScreen() {
@@ -523,29 +532,37 @@ export default function InvestScreen() {
             )}
           </>
         ) : (
-          <View style={[styles.aiCard, { backgroundColor: colors.card }]}>
-            <View style={[styles.aiIcon, { backgroundColor: '#8B5CF620' }]}>
-              <MaterialIcons name="auto-awesome" size={42} color="#8B5CF6" />
-            </View>
-            <Text style={[styles.aiTitle, { color: colors.text }]}>Análisis de Inversión</Text>
-            
-            <View style={[styles.dataBox, { backgroundColor: colors.bg }]}>
-              <Text style={[styles.dataBoxLabel, { color: colors.sub }]}>Salud Financiera Actual</Text>
-              <Text style={[styles.dataBoxVal, { color: healthInfo.status === 'Óptima' ? '#4CAF50' : healthInfo.status === 'Regular' ? '#F59E0B' : '#EF4444' }]}>
-                {healthInfo.status}
-              </Text>
-              <Text style={[styles.dataBoxLabel, { color: colors.sub, marginTop: 8 }]}>Excedente Disponible (Aprox)</Text>
-              <Text style={[styles.dataBoxVal, { color: colors.text }]}>{fmt(healthInfo.available)}</Text>
-            </View>
+            <View style={[styles.aiCard, { backgroundColor: colors.card }]}>
+              <View style={[styles.aiIcon, { backgroundColor: '#8B5CF620' }]}>
+                <MaterialIcons name="auto-awesome" size={42} color="#8B5CF6" />
+              </View>
+              <Text style={[styles.aiTitle, { color: colors.text }]}>Asesor Santy</Text>
+              
+              <View style={[styles.dataBox, { backgroundColor: colors.bg }]}>
+                <Text style={[styles.dataBoxLabel, { color: colors.sub }]}>Mercado Colombiano (BVC)</Text>
+                <View style={{ marginTop: 12, width: '100%' }}>
+                    {positions.some(p => ((livePrices[p.id] || p.avgPrice) - p.avgPrice) / p.avgPrice < -0.1) ? (
+                        <View style={{ backgroundColor: '#EF444415', padding: 12, borderRadius: 12, marginBottom: 8 }}>
+                            <Text style={{ color: '#EF4444', fontSize: 13, fontWeight: '800' }}>⚠️ Oportunidad de Compra</Text>
+                            <Text style={{ color: colors.text, fontSize: 11, marginTop: 4 }}>Tus activos en BVC han bajado un 10%. Si crees en su valor a largo plazo, es un buen momento para promediar a la baja.</Text>
+                        </View>
+                    ) : (
+                        <View style={{ backgroundColor: '#10B98115', padding: 12, borderRadius: 12, marginBottom: 8 }}>
+                            <Text style={{ color: '#10B981', fontSize: 13, fontWeight: '800' }}>🚀 Tendencia Alcista</Text>
+                            <Text style={{ color: colors.text, fontSize: 11, marginTop: 4 }}>Tus acciones están rindiendo bien. No es momento de vender todo, pero podrías tomar algo de ganancias.</Text>
+                        </View>
+                    )}
+                </View>
+              </View>
 
-            <Text style={[styles.aiRecommendation, { color: colors.text }]}>
-              {healthInfo.status === 'Óptima' && healthInfo.available > 200000 
-                ? "¡Excelente mes! Tienes un buen excedente. Es un momento ideal para hacer aportes a fondos indexados o comprar acciones estables. Abre tu plataforma preferida y considera reinvertir estos fondos."
-                : healthInfo.status === 'Regular'
-                ? "Tienes algo de capital, pero no estás en tu mejor momento de liquidez. Si vas a invertir, busca opciones seguras y líquidas como un fondo de inversión colectiva o un CDT antes de comprar acciones de volatilidad."
-                : "Actualmente tu nivel de deudas o gastos sobrepasa tu comodidad financiera. Te recomendamos enfocarte en pagar tus tarjetas y crear un fondo de emergencia antes de buscar rendimientos."}
-            </Text>
-          </View>
+              <Text style={[styles.aiRecommendation, { color: colors.text }]}>
+                {positions.length > 0 ? (
+                    `Basado en tus activos (${positions.map(p => p.ticker).join(', ')}), te recomiendo diversificar en activos de mayor liquidez como fondos indexados si el dólar baja de la zona de los $3.900.`
+                ) : (
+                    "¡Empecemos! No tienes activos registrados. Mi primera recomendación para un portafolio equilibrado en Colombia es buscar acciones de dividendos estables como Ecopetrol o Bancolombia."
+                )}
+              </Text>
+            </View>
         )}
       </ScrollView>
 
@@ -557,18 +574,22 @@ export default function InvestScreen() {
             
             <View style={styles.typeSelectorRow}>
                {[
-                 { id: 'stock', label: 'Acción/ETF', ic: 'show-chart' },
-                 { id: 'crypto', label: 'Crypto', ic: 'bitcoin' },
-                 { id: 'fixed', label: 'CDT/Fijo', ic: 'bank' },
-                 { id: 'real_estate', label: 'Inmueble', ic: 'business' }
+                 { id: 'stock', label: 'Acción/ETF', ic: 'trending-up', set: 'MaterialIcons' },
+                 { id: 'crypto', label: 'Crypto', ic: 'currency-bitcoin', set: 'MaterialCommunityIcons' },
+                 { id: 'fixed', label: 'CDT/Fijo', ic: 'account-balance', set: 'MaterialIcons' },
+                 { id: 'real_estate', label: 'Inmueble', ic: 'home-work', set: 'MaterialIcons' }
                ].map(t => (
                   <TouchableOpacity 
                     key={t.id}
                     style={[styles.typeBtn, assetType === t.id ? { backgroundColor: colors.accent, borderColor: colors.accent } : { borderColor: colors.border }]}
                     onPress={() => setAssetType(t.id as AssetType)}
                   >
-                    <MaterialCommunityIcons name={t.ic as any} size={18} color={assetType === t.id ? '#FFF' : colors.sub} />
-                    <Text style={{ fontSize: 10, fontWeight: '800', color: assetType === t.id ? '#FFF' : colors.sub, marginTop: 4 }}>{t.label}</Text>
+                    {t.set === 'MaterialIcons' ? (
+                        <MaterialIcons name={t.ic as any} size={20} color={assetType === t.id ? '#FFF' : colors.sub} />
+                    ) : (
+                        <MaterialCommunityIcons name={t.ic as any} size={20} color={assetType === t.id ? '#FFF' : colors.sub} />
+                    )}
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: assetType === t.id ? '#FFF' : colors.sub, marginTop: 6 }}>{t.label}</Text>
                   </TouchableOpacity>
                ))}
             </View>
@@ -721,13 +742,13 @@ const styles = StyleSheet.create({
   dataBoxVal: { fontSize: 22, fontWeight: '900', marginTop: 4 },
   aiRecommendation: { fontSize: 15, lineHeight: 24, fontWeight: '500', textAlign: 'center' },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
-  modalBox: { borderRadius: 32, padding: 32 },
-  modalTitle: { fontSize: 20, fontWeight: '900', marginBottom: 20 },
-  typeSelectorRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
-  typeBtn: { flex: 1, borderWidth: 1, borderRadius: 12, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
-  input: { borderWidth: 1, borderRadius: 16, padding: 16, fontSize: 16, marginBottom: 16 },
-  modalBtns: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalBox: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 32, paddingBottom: 50 },
+  modalTitle: { fontSize: 24, fontWeight: '900', marginBottom: 24 },
+  typeSelectorRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
+  typeBtn: { flex: 1, borderWidth: 1, borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
+  input: { borderWidth: 1, borderRadius: 18, padding: 18, fontSize: 16, marginBottom: 16 },
+  modalBtns: { flexDirection: 'row', gap: 12, marginTop: 12 },
   mBtn: { flex: 1, paddingVertical: 18, borderRadius: 20, alignItems: 'center' },
 
   allocationCard: { borderRadius: 24, padding: 20, marginBottom: 16, elevation: 1 },
