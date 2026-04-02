@@ -101,10 +101,17 @@ export default function InvestScreen() {
   const [divModalVisible, setDivModalVisible] = useState(false);
   const [divAmount, setDivAmount] = useState('');
 
+  // Info IA / Salud Financiera
+  const [healthInfo, setHealthInfo] = useState({ available: 0, status: 'Calculando...' });
+
   // Precios en tiempo real
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
   
+  // Simulator State
+  const [simAmount, setSimAmount] = useState('');
+  const [simResult, setSimResult] = useState<{ticker: string, amount: number, shares?: number}[] | null>(null);
+
   // Visibilidad y saldos
   const [showBalances, setShowBalances] = useState(true);
 
@@ -122,6 +129,7 @@ export default function InvestScreen() {
   useEffect(() => {
     if (isFocused) {
       loadData();
+      calculateHealth();
     }
   }, [isFocused]);
 
@@ -180,6 +188,29 @@ export default function InvestScreen() {
         });
     }
     setAllocation(newAllocation);
+  };
+
+  const calculateHealth = async () => {
+    if (!user) return;
+    try {
+      const { data: allTx } = await supabase.from('transactions').select('amount, type, category').eq('user_id', user.id);
+      const { data: allDebts } = await supabase.from('debts').select('value, paid').eq('user_id', user.id);
+
+      let totalActive = 0, totalAhorro = 0;
+      allTx?.forEach(t => {
+        if (t.type === 'income') totalActive += t.amount;
+        else {
+          if (t.category === 'Ahorro') totalAhorro += t.amount;
+          totalActive -= t.amount;
+        }
+      });
+      const debtTotal = allDebts?.reduce((sum, d) => sum + (Number(d.value) - Number(d.paid || 0)), 0) || 0;
+
+      const healthPct = totalActive > 0 ? ((totalActive + totalAhorro - debtTotal) / (totalActive + totalAhorro)) * 100 : 0;
+      let status = healthPct >= 70 ? 'Óptima' : healthPct >= 40 ? 'Regular' : 'Baja';
+
+      setHealthInfo({ available: totalActive, status });
+    } catch (e) { }
   };
 
   const handleSavePosition = async () => {
@@ -250,12 +281,12 @@ export default function InvestScreen() {
       }
   };
 
-  const getAssetLabel = (type: AssetType) => {
+  const getAssetIcon = (type: AssetType) => {
       switch(type) {
-          case 'crypto': return 'Crypto';
-          case 'real_estate': return 'Inmueble';
-          case 'fixed': return 'Escalable';
-          default: return 'Acción/ETF';
+          case 'crypto': return <MaterialCommunityIcons name="bitcoin" size={20} color="#F7931A" />;
+          case 'real_estate': return <MaterialIcons name="apartment" size={20} color="#6366F1" />;
+          case 'fixed': return <MaterialIcons name="trending-up" size={20} color="#10B981" />;
+          default: return <MaterialIcons name="show-chart" size={20} color={colors.accent} />;
       }
   };
 
@@ -277,6 +308,7 @@ export default function InvestScreen() {
 
   const currentMonthIdx = new Date().getMonth();
   const projectedDivs = getProjectedDividends();
+  const nextMonthDiv = projectedDivs[(currentMonthIdx + 1) % 12];
 
   // Rebalance logic
   const getRebalanceAdvice = () => {
@@ -287,12 +319,35 @@ export default function InvestScreen() {
         const targetPct = target * 100;
         if (targetPct - currentPct > 5) {
             const gapAmount = (totalAssets * (targetPct / 100)) - (totalAssets * (currentPct / 100));
-            advice.push({ type, gapAmount, label: getAssetLabel(type as AssetType) });
+            advice.push({ type, gapAmount, label: type === 'stock' ? 'Acciones' : type === 'crypto' ? 'Crypto' : type === 'fixed' ? 'Renta Fija' : 'Inmuebles' });
         }
     }
     return advice;
   };
   const rebalanceAdvice = getRebalanceAdvice();
+
+  // Paquete Sugerido Basado en excedente
+  const getSantyPack = (amount: number) => {
+    if (amount <= 0) return [];
+    const ecoP = SEARCH_SUGGESTIONS.find(s => s.ticker === 'ECOPETROL')?.price || 2400;
+    const bcolP = SEARCH_SUGGESTIONS.find(s => s.ticker === 'BCOLOMBIA')?.price || 35200;
+    
+    return [
+       { ticker: 'ECOPETROL', amount: amount * 0.45, shares: Math.floor((amount * 0.45) / ecoP) },
+       { ticker: 'BCOLOMBIA', amount: amount * 0.35, shares: Math.floor((amount * 0.35) / bcolP) },
+       { ticker: 'BTC-USD', amount: amount * 0.20 }
+    ];
+  };
+
+  const projectedSurplus = healthInfo.available > 0 ? healthInfo.available : 0;
+  const autoPack = getSantyPack(projectedSurplus);
+
+  // Lógica del Simulador de Santy
+  const handleSimulate = () => {
+    const amount = parseFloat(simAmount.replace(/\D/g, ''));
+    if (isNaN(amount) || amount <= 0) return;
+    setSimResult(getSantyPack(amount));
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -329,84 +384,132 @@ export default function InvestScreen() {
 
         {activeTab === 'portfolio' ? (
           <>
-            <View style={{ alignItems: 'center', marginVertical: 32 }}>
-                <Text style={[styles.triiTotalLabel, { color: colors.sub }]}>Total</Text>
+            {/* ── HEADER SALDO ────────────────────────── */}
+            <View style={{ alignItems: 'center', marginVertical: 40 }}>
+                <Text style={[styles.triiTotalLabel, { color: colors.sub }]}>Tu Patrimonio Total</Text>
                 <Text style={[styles.triiTotalValue, { color: colors.text }]}>
                     {showBalances ? baseFmt(totalCurrent + totalDividends) : '• • • • • •'}
                 </Text>
-            </View>
-
-            {/* DIVIDEND CALENDAR */}
-            <View style={{ marginBottom: 32 }}>
-                <Text style={{ color: colors.sub, fontSize: 13, fontWeight: '700', marginBottom: 12 }}>Dividendos Proyectados</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -24, paddingHorizontal: 24 }}>
-                    {projectedDivs.map((amount, idx) => {
-                        if (amount === 0) return null;
-                        const month = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'][idx];
-                        const isNext = idx === (currentMonthIdx + 1) % 12;
-                        return (
-                            <View key={idx} style={[styles.divMonthCard, { borderColor: isNext ? colors.accent : colors.border, backgroundColor: colors.card }]}>
-                                <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '800' }}>{month.toUpperCase()}</Text>
-                                <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900' }}>{baseFmt(amount)}</Text>
-                            </View>
-                        );
-                    })}
-                </ScrollView>
-            </View>
-
-            {/* REBALANCE BANNER */}
-            {rebalanceAdvice.length > 0 && (
-                <TouchableOpacity style={[styles.rebalanceBanner, { backgroundColor: colors.accent + '15', borderColor: colors.accent }]} onPress={() => setActiveTab('ai')}>
-                    <MaterialCommunityIcons name="scale-balance" size={20} color={colors.accent} />
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={{ color: colors.text, fontSize: 12, fontWeight: '800' }}>Oportunidad de Rebalanceo</Text>
-                        <Text style={{ color: colors.sub, fontSize: 11 }}>Te recomendamos invertir para llegar a tu meta ideal.</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={16} color={colors.accent} />
+                <TouchableOpacity onPress={() => setShowBalances(!showBalances)} style={{ marginTop: 12 }}>
+                    <Ionicons name={showBalances ? "eye-outline" : "eye-off-outline"} size={22} color={colors.sub} />
                 </TouchableOpacity>
-            )}
-
-            <TouchableOpacity style={[styles.divCard, { backgroundColor: colors.card, marginBottom: 32 }]} onPress={() => setDivModalVisible(true)}>
-              <View style={styles.divLeft}>
-                  <View style={[styles.divIcon, { backgroundColor: '#10B98120' }]}>
-                      <MaterialCommunityIcons name="cash-multiple" size={20} color="#10B981" />
-                  </View>
-                  <View>
-                      <Text style={[styles.divTitle, { color: colors.text }]}>Ganancias registradas</Text>
-                      <Text style={[styles.divSub, { color: colors.sub }]}>Histórico de pagos añadidos</Text>
-                  </View>
-              </View>
-              <Text style={[styles.divAmount, { color: '#10B981' }]}>+ {baseFmt(totalDividends)}</Text>
-            </TouchableOpacity>
-
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Tus Activos</Text>
-              <TouchableOpacity onPress={() => setModalVisible(true)}>
-                <MaterialIcons name="add-circle" size={28} color={colors.accent} />
-              </TouchableOpacity>
             </View>
 
-            {positions.length > 0 && (
-                <View style={[styles.triiListCard, { backgroundColor: colors.card }]}>
-                    <View style={styles.triiTableHeader}>
-                        <Text style={[styles.triiCol, { flex: 1.5 }]}>Empresa</Text>
-                        <Text style={[styles.triiCol, { textAlign: 'center' }]}>Mercado</Text>
-                        <Text style={[styles.triiCol, { textAlign: 'right' }]}>Rent.</Text>
+            {/* ── SECCIÓN SIMULADOR SANTY ────────────── */}
+            <View style={[styles.premiumCard, { backgroundColor: colors.accent, padding: 24, borderRadius: 28, marginBottom: 32 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                    <MaterialIcons name="auto-awesome" size={24} color="#FFF" />
+                    <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900', marginLeft: 10 }}>¿Cuánto quieres invertir?</Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TextInput 
+                        style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 16, padding: 16, color: '#FFF', fontWeight: '900', fontSize: 18 }}
+                        placeholder="$ 500.000" 
+                        placeholderTextColor="rgba(255,255,255,0.5)"
+                        keyboardType="decimal-pad"
+                        value={simAmount}
+                        onChangeText={t => setSimAmount(formatCurrency(parseFloat(t.replace(/\D/g, '') || '0'), 'COP', false).replace('$', ''))}
+                    />
+                    <TouchableOpacity onPress={handleSimulate} style={{ backgroundColor: '#FFF', width: 56, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center' }}>
+                        <Ionicons name="sparkles" size={24} color={colors.accent} />
+                    </TouchableOpacity>
+                </View>
+
+                {simResult && (
+                    <View style={{ marginTop: 20, backgroundColor: 'rgba(0,0,0,0.1)', padding: 16, borderRadius: 16 }}>
+                        <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginBottom: 10 }}>PAQUETE RECOMENDADO POR SANTY:</Text>
+                        {simResult.map((res, i) => (
+                            <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                                <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700' }}>{res.ticker} {res.shares ? `(${res.shares} unid.)` : ''}</Text>
+                                <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{baseFmt(res.amount)}</Text>
+                            </View>
+                        ))}
                     </View>
-                    {positions.map(pos => {
+                )}
+            </View>
+
+            {/* ── RESUMEN EN TARJETAS LIMPIAS ────────── */}
+            <View style={{ flexDirection: 'row', gap: 12, marginBottom: 32 }}>
+                <View style={[styles.compactCard, { backgroundColor: colors.card, flex: 1 }]}>
+                    <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800' }}>PRÓXIMA RENTA</Text>
+                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900', marginTop: 4 }}>{baseFmt(nextMonthDiv)}</Text>
+                    <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '700', marginTop: 2 }}>{new Date().toLocaleString('es-ES', { month: 'long' }).toUpperCase()}</Text>
+                </View>
+                <TouchableOpacity onPress={() => setDivModalVisible(true)} style={[styles.compactCard, { backgroundColor: colors.card, flex: 1 }]}>
+                    <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800' }}>GANANCIAS COBRADAS</Text>
+                    <Text style={{ color: '#10B981', fontSize: 18, fontWeight: '900', marginTop: 4 }}>+ {baseFmt(totalDividends)}</Text>
+                    <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '700', marginTop: 2 }}>HISTORIAL RENTAS</Text>
+                </TouchableOpacity>
+            </View>
+
+            {/* SECCIÓN PORTAFOLIO Y TUS ACTIVOS */}
+            <View style={{ marginBottom: 32 }}>
+                <View style={styles.triiPortfolioHeader}>
+                    <Text style={{ color: colors.sub, fontSize: 13, fontWeight: '700' }}>Distribución de Activos</Text>
+                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>Valorizado: {baseFmt(totalCurrent)}</Text>
+                </View>
+
+                {/* ALLOCATION BAR */}
+                <View style={[styles.triiBarContainer, { backgroundColor: colors.cardBg || 'rgba(0,0,0,0.05)', marginTop: 8 }]}>
+                    <View style={styles.triiAllocationRow}>
+                        {Object.entries(allocation).filter(([_, pct]) => pct > 0).map(([type, pct], idx) => (
+                            <View key={type} style={{ flex: pct }}>
+                               <View style={[styles.triiBarFill, { 
+                                   backgroundColor: getAssetColor(type as AssetType),
+                                   borderTopLeftRadius: idx === 0 ? 6 : 0,
+                                   borderBottomLeftRadius: idx === 0 ? 6 : 0,
+                                   borderTopRightRadius: idx === Object.keys(allocation).length - 1 ? 6 : 0,
+                                   borderBottomRightRadius: idx === Object.keys(allocation).length - 1 ? 6 : 0,
+                               }]} />
+                            </View>
+                        ))}
+                    </View>
+                </View>
+            </View>
+
+            {/* LISTA DE ACTIVOS (MODERNA) */}
+            <View style={styles.sectionHeader}>
+                <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>Tus Posiciones</Text>
+                <TouchableOpacity onPress={() => setModalVisible(true)} style={{ backgroundColor: colors.accent, width: 36, height: 36, borderRadius: 12, justifyContent: 'center', alignItems: 'center' }}>
+                    <Ionicons name="add" size={24} color="#FFF" />
+                </TouchableOpacity>
+            </View>
+
+            {positions.length === 0 ? (
+                <View style={styles.emptyState}>
+                    <MaterialIcons name="show-chart" size={48} color={colors.sub} />
+                    <Text style={{ color: colors.sub, fontWeight: '700', marginTop: 12 }}>Sin activos aún.</Text>
+                </View>
+            ) : (
+                <View style={{ marginTop: 8 }}>
+                    {positions.map((pos) => {
                         const currentP = livePrices[pos.id] || pos.avgPrice;
                         const posProfitPct = ((currentP - pos.avgPrice) / pos.avgPrice) * 100;
                         return (
-                            <TouchableOpacity key={pos.id} style={styles.triiListItem} onPress={() => openChart(pos.ticker)} onLongPress={() => setDeletingId(pos.id)}>
-                                <View style={{ flex: 1.5 }}>
-                                    <Text style={[styles.triiTicker, { color: colors.text }]}>{pos.ticker}</Text>
-                                    <Text style={[styles.triiShares, { color: colors.sub }]}>{pos.shares} unid.</Text>
+                            <TouchableOpacity 
+                                key={pos.id} 
+                                style={[styles.assetRow, { backgroundColor: colors.card, borderColor: colors.border }]} 
+                                onPress={() => openChart(pos.ticker)}
+                                onLongPress={() => setDeletingId(pos.id)}
+                            >
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                    <View style={[styles.assetIconBox, { backgroundColor: getAssetColor(pos.type) + '15' }]}>
+                                        {getAssetIcon(pos.type)}
+                                    </View>
+                                    <View>
+                                        <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900' }}>{pos.ticker}</Text>
+                                        <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>{pos.shares} Unid.</Text>
+                                    </View>
                                 </View>
-                                <Text style={[styles.triiMktPrice, { color: colors.text }]}>{baseFmt(currentP)}</Text>
-                                <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                                    <Text style={[styles.triiPct, { color: posProfitPct >= 0 ? '#10B981' : '#EF4444' }]}>{posProfitPct >= 0 ? '+' : ''}{posProfitPct.toFixed(1)}%</Text>
+                                <View style={{ alignItems: 'flex-end' }}>
+                                    <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900' }}>{baseFmt(currentP * pos.shares)}</Text>
+                                    <Text style={{ color: posProfitPct >= 0 ? '#10B981' : '#EF4444', fontSize: 12, fontWeight: '900' }}>
+                                        {posProfitPct >= 0 ? '▲' : '▼'} {Math.abs(posProfitPct).toFixed(1)}%
+                                    </Text>
                                     {deletingId === pos.id && (
-                                        <TouchableOpacity onPress={() => handleDeletePosition(pos.id)}><Text style={{color:'#EF4444', fontSize:10}}>ELIMINAR</Text></TouchableOpacity>
+                                        <TouchableOpacity onPress={() => handleDeletePosition(pos.id)} style={{ backgroundColor: '#EF4444', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginTop: 8 }}>
+                                            <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '900' }}>ELIMINAR</Text>
+                                        </TouchableOpacity>
                                     )}
                                 </View>
                             </TouchableOpacity>
@@ -416,20 +519,116 @@ export default function InvestScreen() {
             )}
           </>
         ) : (
-            <View style={[styles.aiCard, { backgroundColor: colors.card }]}>
-              <View style={[styles.aiIcon, { backgroundColor: '#8B5CF620' }]}>
-                <MaterialIcons name="auto-awesome" size={42} color="#8B5CF6" />
-              </View>
-              <Text style={[styles.aiTitle, { color: colors.text }]}>Asesor Santy</Text>
-              <View style={[styles.dataBox, { backgroundColor: colors.bg, width: '100%', borderRadius: 20, padding: 20, marginBottom: 24 }]}>
-                    {rebalanceAdvice.map((adv, idx) => (
-                        <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                            <Text style={{ color: colors.text, fontSize: 12 }}>Falta en {adv.label}</Text>
-                            <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '900' }}>+ {baseFmt(adv.gapAmount)}</Text>
+            <View style={{ paddingVertical: 20 }}>
+                <View style={{ alignItems: 'center', marginBottom: 40 }}>
+                    <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: '#8B5CF620', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
+                        <MaterialIcons name="auto-awesome" size={50} color="#8B5CF6" />
+                    </View>
+                    <Text style={{ color: colors.text, fontSize: 24, fontWeight: '900' }}>Analítica Santy</Text>
+                    <Text style={{ color: colors.sub, fontSize: 14, textAlign: 'center', paddingHorizontal: 20, marginTop: 8 }}>
+                        Santy analiza tus ingresos y gastos para decirte cuánto puedes invertir.
+                    </Text>
+                </View>
+
+                {/* PROACTIVE SAVINGS INSIGHT */}
+                <View style={[styles.premiumCard, { backgroundColor: '#8B5CF6', marginBottom: 24, padding: 24, borderRadius: 32 }]}>
+                    <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '800' }}>POTENCIAL DE INVERSIÓN FINAL DE MES</Text>
+                    <Text style={{ color: '#FFF', fontSize: 32, fontWeight: '900', marginVertical: 8 }}>{baseFmt(projectedSurplus)}</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, lineHeight: 18 }}>
+                        {projectedSurplus > 0 
+                          ? `Si mantienes tu nivel de gasto actual, podrías terminar el mes con este excedente para invertir.`
+                          : `Aún no detecto excedentes. ¡Intenta reducir tus gastos este mes para empezar a invertir!`}
+                    </Text>
+                    
+                    {autoPack.length > 0 && projectedSurplus > 0 && (
+                        <View style={{ marginTop: 24, paddingTop: 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.2)' }}>
+                            <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900', marginBottom: 12 }}>PAQUETE SUGERIDO POR SANTY:</Text>
+                            {autoPack.map((p, i) => (
+                                <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                                    <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700' }}>{p.ticker}</Text>
+                                    <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>~ {baseFmt(p.amount)}</Text>
+                                </View>
+                            ))}
                         </View>
-                    ))}
-                    {rebalanceAdvice.length === 0 && <Text style={{ color:colors.text }}>¡Tu portafolio está perfectamente balanceado!</Text>}
-              </View>
+                    )}
+                </View>
+
+                {/* MANUAL SIMULATOR */}
+                <View style={[styles.insightCard, { backgroundColor: colors.card, marginBottom: 24 }]}>
+                    <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900', marginBottom: 16 }}>Simulador de Capital Extra</Text>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <TextInput 
+                            style={{ flex: 1, backgroundColor: colors.bg, borderRadius: 16, padding: 16, color: colors.text, fontWeight: '800' }}
+                            placeholder="Monto a invertir..." 
+                            placeholderTextColor={colors.sub}
+                            keyboardType="decimal-pad"
+                            value={simAmount}
+                            onChangeText={t => setSimAmount(formatCurrency(parseFloat(t.replace(/\D/g, '') || '0'), 'COP', false).replace('$', ''))}
+                        />
+                        <TouchableOpacity onPress={handleSimulate} style={{ backgroundColor: colors.accent, width: 56, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center' }}>
+                            <Ionicons name="sparkles" size={24} color="#FFF" />
+                        </TouchableOpacity>
+                    </View>
+                    {simResult && (
+                        <View style={{ marginTop: 16 }}>
+                            {simResult.map((res, i) => (
+                                <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                                    <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>{res.ticker}</Text>
+                                    <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '800' }}>{baseFmt(res.amount)}</Text>
+                                </View>
+                            ))}
+                        </View>
+                    )}
+                </View>
+
+                {/* REBALANCE INSIGHT */}
+
+                <View style={[styles.insightCard, { backgroundColor: colors.card }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12 }}>
+                        <MaterialCommunityIcons name="scale-balance" size={24} color={colors.accent} />
+                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>Estado del Rebalanceo</Text>
+                    </View>
+                    {rebalanceAdvice.length > 0 ? (
+                        <>
+                            <Text style={{ color: colors.sub, fontSize: 13, lineHeight: 20, marginBottom: 20 }}>
+                                Tu portafolio actual está un poco desviado de tu meta ideal. Santy te recomienda estas acciones:
+                            </Text>
+                            {rebalanceAdvice.map((adv, idx) => (
+                                <View key={idx} style={{ backgroundColor: colors.bg, padding: 16, borderRadius: 16, marginBottom: 12, flexDirection: 'row', justifyContent: 'space-between' }}>
+                                    <Text style={{ color: colors.text, fontWeight: '800' }}>Añadir en {adv.label}</Text>
+                                    <Text style={{ color: colors.accent, fontWeight: '900' }}>+ {baseFmt(adv.gapAmount)}</Text>
+                                </View>
+                            ))}
+                        </>
+                    ) : (
+                        <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                            <Ionicons name="checkmark-circle" size={48} color="#10B981" />
+                            <Text style={{ color: colors.text, fontWeight: '800', marginTop: 16 }}>¡Tu portafolio está perfecto!</Text>
+                        </View>
+                    )}
+                </View>
+
+                {/* DIVIDEND CALENDAR SECTION */}
+                <View style={[styles.insightCard, { backgroundColor: colors.card, marginTop: 20 }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12 }}>
+                        <MaterialCommunityIcons name="calendar-month" size={24} color="#3B82F6" />
+                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>Tus Rentas Futuras</Text>
+                    </View>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        {projectedDivs.map((amount, idx) => {
+                            if (amount === 0) return null;
+                            const month = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'][idx];
+                            const isCurrent = idx === currentMonthIdx;
+                            return (
+                                <View key={idx} style={{ width: 120, height: 100, backgroundColor: isCurrent ? colors.accent + '20' : colors.bg, borderRadius: 20, padding: 16, marginRight: 12, justifyContent: 'center', alignItems: 'center' }}>
+                                    <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '900', marginBottom: 4 }}>{month.toUpperCase()}</Text>
+                                    <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900' }}>{baseFmt(amount)}</Text>
+                                    {isCurrent && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent, marginTop: 8 }} />}
+                                </View>
+                            );
+                        })}
+                    </ScrollView>
+                </View>
             </View>
         )}
       </ScrollView>
@@ -492,18 +691,7 @@ const styles = StyleSheet.create({
   tab: { flex: 1, paddingVertical: 12, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
   tabText: { fontSize: 13, fontWeight: '800' },
   scroll: { paddingHorizontal: 24, paddingBottom: 100 },
-  divCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderRadius: 20, marginBottom: 24 },
-  divLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  divIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  divTitle: { fontSize: 14, fontWeight: '800' },
-  divSub: { fontSize: 11, fontWeight: '600', marginTop: 2 },
-  divAmount: { fontSize: 15, fontWeight: '900' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: '800' },
-  aiCard: { borderRadius: 32, padding: 32, alignItems: 'center' },
-  aiIcon: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
-  aiTitle: { fontSize: 22, fontWeight: '900', marginBottom: 24 },
-  dataBox: { width: '100%', borderRadius: 20, padding: 20, marginBottom: 24 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalBox: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 32, paddingBottom: 50 },
   modalTitle: { fontSize: 24, fontWeight: '900', marginBottom: 24 },
@@ -512,21 +700,18 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderRadius: 18, padding: 18, fontSize: 16, marginBottom: 16 },
   modalBtns: { flexDirection: 'row', gap: 12, marginTop: 12 },
   mBtn: { flex: 1, paddingVertical: 18, borderRadius: 20, alignItems: 'center' },
-  divMonthCard: { width: 100, borderRadius: 16, padding: 16, marginRight: 12, borderWidth: 1, alignItems: 'center' },
-  rebalanceBanner: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 20, borderWidth: 1, marginBottom: 32 },
   triiTotalLabel: { fontSize: 16, fontWeight: '700' },
   triiTotalValue: { fontSize: 42, fontWeight: '900', letterSpacing: -1 },
   triiPortfolioHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, paddingHorizontal: 4 },
   triiBarContainer: { height: 12, borderRadius: 6, overflow: 'hidden', marginBottom: 24 },
   triiAllocationRow: { flexDirection: 'row', height: '100%', gap: 2 },
   triiBarFill: { height: '100%' },
-  triiCatCard: { flex: 1, borderRadius: 16, padding: 18 },
-  triiListCard: { borderRadius: 32, paddingVertical: 10, overflow: 'hidden' },
-  triiTableHeader: { flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
-  triiCol: { fontSize: 11, fontWeight: '800', color: 'rgba(0,0,0,0.4)', flex: 1 },
-  triiListItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.03)' },
+  compactCard: { padding: 16, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
+  assetRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderRadius: 24, marginBottom: 8, borderWidth: 1 },
+  assetIconBox: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  insightCard: { padding: 24, borderRadius: 28 },
+  premiumCard: { padding: 24, borderRadius: 28 },
+  divCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderRadius: 24 },
   triiTicker: { fontSize: 15, fontWeight: '800' },
-  triiShares: { fontSize: 11, fontWeight: '600' },
-  triiMktPrice: { flex: 1, fontSize: 14, fontWeight: '800', textAlign: 'center' },
-  triiPct: { fontSize: 14, fontWeight: '900' },
+  emptyState: { alignItems: 'center', paddingVertical: 40 },
 });
