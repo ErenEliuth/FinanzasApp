@@ -32,19 +32,16 @@ interface Position {
   type: AssetType;
 }
 
-// Simulador de precios fallback (ya que no hay API gratuita universal infalible)
+// Simulador de precios fallback
 const MOCK_PRICES: Record<string, number> = {
   'ECOPETROL': 2640,
   'BCOLOMBIA': 35200,
   'ISA': 19100,
   'GEB': 2620,
   'NUTRESA': 48000,
-  'CSPX': 1850000,
-  'NU': 48000,
   'AAPL': 750000,
 };
 
-// Sugerencias de búsqueda para evitar errores
 const SEARCH_SUGGESTIONS = [
     { ticker: 'ECOPETROL', name: 'Ecopetrol S.A.', price: 2640, type: 'stock' },
     { ticker: 'BCOLOMBIA', name: 'Bancolombia S.A.', price: 35200, type: 'stock' },
@@ -55,8 +52,6 @@ const SEARCH_SUGGESTIONS = [
     { ticker: 'PFGRUPSU', name: 'Grupo Sura Pref.', price: 32500, type: 'stock' },
     { ticker: 'CNEC', name: 'Canacol Energy', price: 12500, type: 'stock' },
     { ticker: 'NUTRESA', name: 'Nutresa S.A.', price: 48000, type: 'stock' },
-    { ticker: 'CORFICOL', name: 'Corficolombiana', price: 15400, type: 'stock' },
-    { ticker: 'CEMARGOS', name: 'Cementos Argos', price: 8200, type: 'stock' },
     { ticker: 'AAPL', name: 'Apple Inc.', price: 750000, type: 'stock' },
     { ticker: 'NVDA', name: 'NVIDIA Corp.', price: 3200000, type: 'stock' },
     { ticker: 'TSLA', name: 'Tesla, Inc.', price: 820000, type: 'stock' },
@@ -66,6 +61,22 @@ const SEARCH_SUGGESTIONS = [
     { ticker: 'ETH', name: 'Ethereum', price: 12500000, type: 'crypto' },
     { ticker: 'SOL', name: 'Solana', price: 650000, type: 'crypto' },
 ];
+
+// Valores reales de dividendos para Colombia (Anual promedio)
+const MOCK_DIVS: Record<string, { yield: number, months: number[] }> = {
+    'ECOPETROL': { yield: 444, months: [3, 11] }, // COP por accion, pagado en Abril y Diciembre
+    'BCOLOMBIA': { yield: 3120, months: [0, 3, 6, 9] }, // COP por accion, trimestral
+    'ISA': { yield: 1800, months: [4, 11] },
+    'GEB': { yield: 220, months: [5, 11] },
+    'AAPL': { yield: 2.4, months: [1, 4, 7, 10] }, // USD, simulado
+};
+
+const TARGET_ALLOC: Record<AssetType, number> = {
+    'stock': 0.50,
+    'crypto': 0.15,
+    'fixed': 0.25,
+    'real_estate': 0.10
+};
 
 export default function InvestScreen() {
   const isFocused = useIsFocused();
@@ -90,17 +101,12 @@ export default function InvestScreen() {
   const [divModalVisible, setDivModalVisible] = useState(false);
   const [divAmount, setDivAmount] = useState('');
 
-  // Info IA
-  const [healthInfo, setHealthInfo] = useState({ available: 0, status: 'Calculando...' });
-
   // Precios en tiempo real
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
   
-  // Visibilidad y saldos (Simulados basados en Trii)
+  // Visibilidad y saldos
   const [showBalances, setShowBalances] = useState(true);
-  const [availableCash, setAvailableCash] = useState(0);
-  const [pendingCash, setPendingCash] = useState(0);
 
   // Sugerencias buscador
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -116,7 +122,6 @@ export default function InvestScreen() {
   useEffect(() => {
     if (isFocused) {
       loadData();
-      calculateHealth();
     }
   }, [isFocused]);
 
@@ -127,7 +132,6 @@ export default function InvestScreen() {
       let parsedPositions: Position[] = [];
       if (stored) {
         parsedPositions = JSON.parse(stored);
-        // Retrocompatibilidad con posiciones viejas que no tenían tipo
         parsedPositions = parsedPositions.map(p => ({ ...p, type: p.type || 'stock' }));
         setPositions(parsedPositions);
       }
@@ -150,48 +154,26 @@ export default function InvestScreen() {
 
     try {
         for (const pos of currentPositions) {
-            // Renta fija y bienes raíces se mantienen estables en su precio promedio o usamos valorización manual
             if (pos.type === 'fixed' || pos.type === 'real_estate') {
                 newPrices[pos.id] = pos.avgPrice;
                 continue;
             }
-
-            try {
-                let queryTicker = pos.ticker;
-                
-                // Intento 1: Ticker original
-                let price = await tryFetchPrice(queryTicker, pos.type);
-                
-                // Intento 2: Si es colombiano (sin punto), añadir .CL
-                if (!price && pos.type === 'stock' && !queryTicker.includes('.')) {
-                    price = await tryFetchPrice(`${queryTicker}.CL`, pos.type);
-                }
-
-                if (price) {
-                    newPrices[pos.id] = price;
-                } else {
-                    newPrices[pos.id] = MOCK_PRICES[pos.ticker] || pos.avgPrice;
-                }
-            } catch (err) {
-                newPrices[pos.id] = MOCK_PRICES[pos.ticker] || pos.avgPrice;
-            }
+            newPrices[pos.id] = MOCK_PRICES[pos.ticker] || pos.avgPrice;
         }
     } catch (e) {}
 
     setLivePrices(newPrices);
     setIsFetchingPrices(false);
 
-    // Calculate allocation after fetching live prices
+    // Calculate allocation
     const newAllocation: Record<AssetType, number> = { stock: 0, crypto: 0, fixed: 0, real_estate: 0 };
     let totalValue = 0;
-
     currentPositions.forEach(p => {
         const val = p.shares * (newPrices[p.id] || p.avgPrice);
         newAllocation[p.type] += val;
         totalValue += val;
     });
 
-    // Convert to percentages
     if (totalValue > 0) {
         Object.keys(newAllocation).forEach(key => {
             newAllocation[key as AssetType] = (newAllocation[key as AssetType] / totalValue) * 100;
@@ -200,82 +182,21 @@ export default function InvestScreen() {
     setAllocation(newAllocation);
   };
 
-  const tryFetchPrice = async (ticker: string, type: AssetType) => {
-    try {
-        let queryTicker = ticker;
-        if (type === 'crypto' && !queryTicker.includes('-')) {
-            queryTicker = `${queryTicker}-USD`;
-        }
-
-        const baseUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${queryTicker}`;
-        const fetchUrl = Platform.OS === 'web' 
-            ? `https://api.allorigins.win/get?url=${encodeURIComponent(baseUrl)}`
-            : baseUrl;
-
-        const res = await fetch(fetchUrl);
-        if (!res.ok) return null;
-        
-        const rawData = await res.json();
-        const data = Platform.OS === 'web' && rawData.contents ? JSON.parse(rawData.contents) : rawData;
-        const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
-        
-        if (price) {
-            let finalPriceCop = price;
-            const currencyRes = data?.chart?.result?.[0]?.meta?.currency;
-            if (currencyRes === 'USD') {
-                finalPriceCop = price * (rates['USD'] || 3950);
-            } else if (currencyRes === 'EUR') {
-                finalPriceCop = price * (rates['EUR'] || 4250);
-            }
-            return finalPriceCop;
-        }
-    } catch (e) {}
-    return null;
-  };
-
-  const calculateHealth = async () => {
-    if (!user) return;
-    try {
-      const { data: allTx } = await supabase.from('transactions').select('amount, type, category').eq('user_id', user.id);
-      const { data: allDebts } = await supabase.from('debts').select('value, paid').eq('user_id', user.id);
-
-      let totalActive = 0, totalAhorro = 0;
-      allTx?.forEach(t => {
-        if (t.type === 'income') totalActive += t.amount;
-        else {
-          if (t.category === 'Ahorro') totalAhorro += t.amount;
-          totalActive -= t.amount;
-        }
-      });
-      const debtTotal = allDebts?.reduce((sum, d) => sum + (Number(d.value) - Number(d.paid || 0)), 0) || 0;
-
-      const healthPct = totalActive > 0 ? ((totalActive + totalAhorro - debtTotal) / (totalActive + totalAhorro)) * 100 : 0;
-      let status = healthPct >= 70 ? 'Óptima' : healthPct >= 40 ? 'Regular' : 'Baja';
-
-      setHealthInfo({ available: totalActive, status });
-    } catch (e) { }
-  };
-
   const handleSavePosition = async () => {
     if (!ticker || !shares || !avgPrice) return;
-    
     const newPos: Position = {
       id: Date.now().toString(),
       ticker: ticker.toUpperCase().trim(),
       shares: parseFloat(shares.replace(',', '.')),
-      avgPrice: parseFloat(avgPrice.replace(/\./g, '').replace(',', '.')), // Normalize COP input
+      avgPrice: parseFloat(avgPrice.replace(/\./g, '').replace(',', '.')),
       type: assetType
     };
-
     const updated = [...positions, newPos];
     setPositions(updated);
     await AsyncStorage.setItem(`@invest_${user?.id}`, JSON.stringify(updated));
-    
     setTicker(''); setShares(''); setAvgPrice('');
     setModalVisible(false);
-    
-    // Obtener su precio inmediato
-    fetchLivePrices([newPos]);
+    fetchLivePrices(updated);
   };
 
   const handleTickerSearch = (text: string) => {
@@ -320,15 +241,6 @@ export default function InvestScreen() {
       setDivModalVisible(false);
   };
 
-  const getAssetIcon = (type: AssetType) => {
-      switch(type) {
-          case 'crypto': return <MaterialCommunityIcons name="bitcoin" size={24} color="#F7931A" />;
-          case 'real_estate': return <MaterialIcons name="business" size={24} color="#6366F1" />;
-          case 'fixed': return <MaterialCommunityIcons name="bank" size={24} color="#10B981" />;
-          default: return <MaterialIcons name="show-chart" size={24} color={colors.accent} />;
-      }
-  };
-
   const getAssetColor = (type: AssetType) => {
       switch(type) {
           case 'crypto': return '#F7931A';
@@ -348,13 +260,39 @@ export default function InvestScreen() {
   };
 
   const totalInvested = positions.reduce((sum, p) => sum + (p.shares * p.avgPrice), 0);
-  const totalCurrent = positions.reduce((sum, p) => {
-    const currentPrice = livePrices[p.id] || p.avgPrice; 
-    return sum + (p.shares * currentPrice);
-  }, 0);
+  const totalCurrent = positions.reduce((sum, p) => sum + (p.shares * (livePrices[p.id] || p.avgPrice)), 0);
 
-  const profit = (totalCurrent - totalInvested) + totalDividends;
-  const profitPct = totalInvested > 0 ? (profit / totalInvested) * 100 : 0;
+  // Dividend projections
+  const getProjectedDividends = () => {
+    const monthlyData = Array(12).fill(0);
+    positions.forEach(pos => {
+        const d = MOCK_DIVS[pos.ticker];
+        if (d) {
+            const payPerShare = d.yield / (d.months.length || 1);
+            d.months.forEach(m => { monthlyData[m] += pos.shares * payPerShare; });
+        }
+    });
+    return monthlyData;
+  };
+
+  const currentMonthIdx = new Date().getMonth();
+  const projectedDivs = getProjectedDividends();
+
+  // Rebalance logic
+  const getRebalanceAdvice = () => {
+    const advice = [];
+    const totalAssets = totalCurrent || 1;
+    for (const [type, target] of Object.entries(TARGET_ALLOC)) {
+        const currentPct = allocation[type as AssetType] || 0;
+        const targetPct = target * 100;
+        if (targetPct - currentPct > 5) {
+            const gapAmount = (totalAssets * (targetPct / 100)) - (totalAssets * (currentPct / 100));
+            advice.push({ type, gapAmount, label: getAssetLabel(type as AssetType) });
+        }
+    }
+    return advice;
+  };
+  const rebalanceAdvice = getRebalanceAdvice();
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -391,84 +329,56 @@ export default function InvestScreen() {
 
         {activeTab === 'portfolio' ? (
           <>
-            {/* ── TOTAL PORTFOLIO (Trii Style) ────────────────────────── */}
             <View style={{ alignItems: 'center', marginVertical: 32 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                    <Text style={[styles.triiTotalLabel, { color: colors.sub }]}>Total</Text>
-                    <TouchableOpacity onPress={() => setShowBalances(!showBalances)}>
-                        <Ionicons name={showBalances ? "eye-outline" : "eye-off-outline"} size={22} color={colors.sub} />
-                    </TouchableOpacity>
-                </View>
+                <Text style={[styles.triiTotalLabel, { color: colors.sub }]}>Total</Text>
                 <Text style={[styles.triiTotalValue, { color: colors.text }]}>
                     {showBalances ? baseFmt(totalCurrent + totalDividends) : '• • • • • •'}
                 </Text>
             </View>
 
-            {/* ── PORTFOLIO SECTION ────────────── */}
-            <View style={styles.triiPortfolioHeader}>
-                <Text style={{ color: colors.sub, fontSize: 13, fontWeight: '700' }}>Portafolio</Text>
-                <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>{baseFmt(totalCurrent)}</Text>
+            {/* DIVIDEND CALENDAR */}
+            <View style={{ marginBottom: 32 }}>
+                <Text style={{ color: colors.sub, fontSize: 13, fontWeight: '700', marginBottom: 12 }}>Dividendos Proyectados</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -24, paddingHorizontal: 24 }}>
+                    {projectedDivs.map((amount, idx) => {
+                        if (amount === 0) return null;
+                        const month = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'][idx];
+                        const isNext = idx === (currentMonthIdx + 1) % 12;
+                        return (
+                            <View key={idx} style={[styles.divMonthCard, { borderColor: isNext ? colors.accent : colors.border, backgroundColor: colors.card }]}>
+                                <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '800' }}>{month.toUpperCase()}</Text>
+                                <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900' }}>{baseFmt(amount)}</Text>
+                            </View>
+                        );
+                    })}
+                </ScrollView>
             </View>
 
-            {/* ALLOCATION BAR */}
-            <View style={[styles.triiBarContainer, { backgroundColor: colors.cardBg || 'rgba(0,0,0,0.05)' }]}>
-
-                <View style={styles.triiAllocationRow}>
-                    {Object.entries(allocation).filter(([_, pct]) => pct > 0).map(([type, pct], idx) => (
-                        <View key={type} style={{ flex: pct }}>
-                           <View style={[styles.triiBarFill, { 
-                               backgroundColor: getAssetColor(type as AssetType),
-                               borderTopLeftRadius: idx === 0 ? 6 : 0,
-                               borderBottomLeftRadius: idx === 0 ? 6 : 0,
-                               borderTopRightRadius: idx === Object.keys(allocation).length - 1 ? 6 : 0,
-                               borderBottomRightRadius: idx === Object.keys(allocation).length - 1 ? 6 : 0,
-                           }]} />
-                        </View>
-                    ))}
-                </View>
-            </View>
-
-            {/* CATEGORY CARDS */}
-            <View style={{ flexDirection: 'row', gap: 12, marginBottom: 32 }}>
-                <View style={[styles.triiCatCard, { backgroundColor: colors.card, borderColor: colors.accent, borderWidth: 1 }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent }} />
-                        <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>Acciones y ETFs</Text>
+            {/* REBALANCE BANNER */}
+            {rebalanceAdvice.length > 0 && (
+                <TouchableOpacity style={[styles.rebalanceBanner, { backgroundColor: colors.accent + '15', borderColor: colors.accent }]} onPress={() => setActiveTab('ai')}>
+                    <MaterialCommunityIcons name="scale-balance" size={20} color={colors.accent} />
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={{ color: colors.text, fontSize: 12, fontWeight: '800' }}>Oportunidad de Rebalanceo</Text>
+                        <Text style={{ color: colors.sub, fontSize: 11 }}>Te recomendamos invertir para llegar a tu meta ideal.</Text>
                     </View>
-                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>{baseFmt(totalCurrent)}</Text>
-                </View>
-                <View style={[styles.triiCatCard, { backgroundColor: colors.card }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#3B82F6' }} />
-                        <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>Fondos / Otros</Text>
-                    </View>
-                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>$ 0,00</Text>
-                </View>
-            </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.accent} />
+                </TouchableOpacity>
+            )}
 
-
-
-            {/* DIVIDENDS MINI-CARD */}
-            <TouchableOpacity 
-                style={[styles.divCard, { backgroundColor: colors.card }]} 
-                onPress={() => setDivModalVisible(true)}
-            >
-                <View style={styles.divLeft}>
-                    <View style={[styles.divIcon, { backgroundColor: '#10B98120' }]}>
-                        <MaterialCommunityIcons name="cash-multiple" size={20} color="#10B981" />
-                    </View>
-                    <View>
-                        <Text style={[styles.divTitle, { color: colors.text }]}>Dividendos / Rentas</Text>
-                        <Text style={[styles.divSub, { color: colors.sub }]}>Ganancias históricas añadidas</Text>
-                    </View>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={[styles.divAmount, { color: '#10B981' }]}>+ {baseFmt(totalDividends)}</Text>
-                    <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '800', marginTop: 4 }}>AÑADIR RENTA</Text>
-                </View>
+            <TouchableOpacity style={[styles.divCard, { backgroundColor: colors.card, marginBottom: 32 }]} onPress={() => setDivModalVisible(true)}>
+              <View style={styles.divLeft}>
+                  <View style={[styles.divIcon, { backgroundColor: '#10B98120' }]}>
+                      <MaterialCommunityIcons name="cash-multiple" size={20} color="#10B981" />
+                  </View>
+                  <View>
+                      <Text style={[styles.divTitle, { color: colors.text }]}>Ganancias registradas</Text>
+                      <Text style={[styles.divSub, { color: colors.sub }]}>Histórico de pagos añadidos</Text>
+                  </View>
+              </View>
+              <Text style={[styles.divAmount, { color: '#10B981' }]}>+ {baseFmt(totalDividends)}</Text>
             </TouchableOpacity>
 
-            {/* POSITIONS LIST */}
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Tus Activos</Text>
               <TouchableOpacity onPress={() => setModalVisible(true)}>
@@ -476,56 +386,30 @@ export default function InvestScreen() {
               </TouchableOpacity>
             </View>
 
-            {positions.length === 0 ? (
-              <View style={styles.emptyState}>
-                <MaterialIcons name="show-chart" size={48} color={colors.sub} />
-                <Text style={[styles.emptyText, { color: colors.sub }]}>Aún no tienes inversiones registradas.</Text>
-                <Text style={{ color: colors.sub, fontSize: 12, textAlign: 'center', marginTop: 8 }}>Suma tus acciones, criptomonedas o CDTs tocando el (+)</Text>
-              </View>
-            ) : (
+            {positions.length > 0 && (
                 <View style={[styles.triiListCard, { backgroundColor: colors.card }]}>
-                    {/* Header Tabla Trii */}
                     <View style={styles.triiTableHeader}>
-                        <Text style={[styles.triiCol, { flex: 1.5 }]}>Empresas ({positions.length}) <Ionicons name="swap-vertical" size={12} /></Text>
-                        <Text style={[styles.triiCol, { textAlign: 'center' }]}>Precio Mercado <Ionicons name="swap-vertical" size={12} /></Text>
-                        <Text style={[styles.triiCol, { textAlign: 'right' }]}>Variación <Ionicons name="swap-vertical" size={12} /></Text>
+                        <Text style={[styles.triiCol, { flex: 1.5 }]}>Empresa</Text>
+                        <Text style={[styles.triiCol, { textAlign: 'center' }]}>Mercado</Text>
+                        <Text style={[styles.triiCol, { textAlign: 'right' }]}>Rent.</Text>
                     </View>
-
-                    {positions.map((pos) => {
+                    {positions.map(pos => {
                         const currentP = livePrices[pos.id] || pos.avgPrice;
                         const posProfitPct = ((currentP - pos.avgPrice) / pos.avgPrice) * 100;
-
                         return (
-                        <TouchableOpacity 
-                            key={pos.id} 
-                            style={styles.triiListItem}
-                            onPress={() => openChart(pos.ticker)}
-                            onLongPress={() => setDeletingId(pos.id)}
-                            activeOpacity={0.7}
-                        >
-                            <View style={{ flex: 1.5, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                                <View style={[styles.triiLogoCircle, { backgroundColor: getAssetColor(pos.type) + '15' }]}>
-                                    <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: getAssetColor(pos.type) }} />
-                                </View>
-                                <View>
+                            <TouchableOpacity key={pos.id} style={styles.triiListItem} onPress={() => openChart(pos.ticker)} onLongPress={() => setDeletingId(pos.id)}>
+                                <View style={{ flex: 1.5 }}>
                                     <Text style={[styles.triiTicker, { color: colors.text }]}>{pos.ticker}</Text>
                                     <Text style={[styles.triiShares, { color: colors.sub }]}>{pos.shares} unid.</Text>
                                 </View>
-                            </View>
-                            
-                            <Text style={[styles.triiMktPrice, { color: colors.text }]}>{baseFmt(currentP)}</Text>
-                            
-                            <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                                <Text style={[styles.triiPct, { color: posProfitPct >= 0 ? '#10B981' : '#EF4444' }]}>
-                                    {posProfitPct >= 0 ? '+' : ''}{posProfitPct.toFixed(1)}%
-                                </Text>
-                                {deletingId === pos.id && (
-                                    <TouchableOpacity onPress={() => handleDeletePosition(pos.id)} style={{ backgroundColor: '#EF4444', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4 }}>
-                                        <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '800' }}>BORRAR</Text>
-                                    </TouchableOpacity>
-                                )}
-                            </View>
-                        </TouchableOpacity>
+                                <Text style={[styles.triiMktPrice, { color: colors.text }]}>{baseFmt(currentP)}</Text>
+                                <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                                    <Text style={[styles.triiPct, { color: posProfitPct >= 0 ? '#10B981' : '#EF4444' }]}>{posProfitPct >= 0 ? '+' : ''}{posProfitPct.toFixed(1)}%</Text>
+                                    {deletingId === pos.id && (
+                                        <TouchableOpacity onPress={() => handleDeletePosition(pos.id)}><Text style={{color:'#EF4444', fontSize:10}}>ELIMINAR</Text></TouchableOpacity>
+                                    )}
+                                </View>
+                            </TouchableOpacity>
                         );
                     })}
                 </View>
@@ -537,159 +421,64 @@ export default function InvestScreen() {
                 <MaterialIcons name="auto-awesome" size={42} color="#8B5CF6" />
               </View>
               <Text style={[styles.aiTitle, { color: colors.text }]}>Asesor Santy</Text>
-              
-              <View style={[styles.dataBox, { backgroundColor: colors.bg }]}>
-                <Text style={[styles.dataBoxLabel, { color: colors.sub }]}>Mercado Colombiano (BVC)</Text>
-                <View style={{ marginTop: 12, width: '100%' }}>
-                    {positions.some(p => ((livePrices[p.id] || p.avgPrice) - p.avgPrice) / p.avgPrice < -0.1) ? (
-                        <View style={{ backgroundColor: '#EF444415', padding: 12, borderRadius: 12, marginBottom: 8 }}>
-                            <Text style={{ color: '#EF4444', fontSize: 13, fontWeight: '800' }}>⚠️ Oportunidad de Compra</Text>
-                            <Text style={{ color: colors.text, fontSize: 11, marginTop: 4 }}>Tus activos en BVC han bajado un 10%. Si crees en su valor a largo plazo, es un buen momento para promediar a la baja.</Text>
+              <View style={[styles.dataBox, { backgroundColor: colors.bg, width: '100%', borderRadius: 20, padding: 20, marginBottom: 24 }]}>
+                    {rebalanceAdvice.map((adv, idx) => (
+                        <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                            <Text style={{ color: colors.text, fontSize: 12 }}>Falta en {adv.label}</Text>
+                            <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '900' }}>+ {baseFmt(adv.gapAmount)}</Text>
                         </View>
-                    ) : (
-                        <View style={{ backgroundColor: '#10B98115', padding: 12, borderRadius: 12, marginBottom: 8 }}>
-                            <Text style={{ color: '#10B981', fontSize: 13, fontWeight: '800' }}>🚀 Tendencia Alcista</Text>
-                            <Text style={{ color: colors.text, fontSize: 11, marginTop: 4 }}>Tus acciones están rindiendo bien. No es momento de vender todo, pero podrías tomar algo de ganancias.</Text>
-                        </View>
-                    )}
-                </View>
+                    ))}
+                    {rebalanceAdvice.length === 0 && <Text style={{ color:colors.text }}>¡Tu portafolio está perfectamente balanceado!</Text>}
               </View>
-
-              <Text style={[styles.aiRecommendation, { color: colors.text }]}>
-                {positions.length > 0 ? (
-                    `Basado en tus activos (${positions.map(p => p.ticker).join(', ')}), te recomiendo diversificar en activos de mayor liquidez como fondos indexados si el dólar baja de la zona de los $3.900.`
-                ) : (
-                    "¡Empecemos! No tienes activos registrados. Mi primera recomendación para un portafolio equilibrado en Colombia es buscar acciones de dividendos estables como Ecopetrol o Bancolombia."
-                )}
-              </Text>
             </View>
         )}
       </ScrollView>
 
-      {/* Modal Add Position */}
+      {/* Modals... */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalBox, { backgroundColor: colors.card }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>Añadir Activo</Text>
-            
             <View style={styles.typeSelectorRow}>
-               {[
-                 { id: 'stock', label: 'Acción/ETF', ic: 'trending-up', set: 'MaterialIcons' },
-                 { id: 'crypto', label: 'Crypto', ic: 'currency-bitcoin', set: 'MaterialCommunityIcons' },
-                 { id: 'fixed', label: 'CDT/Fijo', ic: 'account-balance', set: 'MaterialIcons' },
-                 { id: 'real_estate', label: 'Inmueble', ic: 'home-work', set: 'MaterialIcons' }
-               ].map(t => (
-                  <TouchableOpacity 
-                    key={t.id}
-                    style={[styles.typeBtn, assetType === t.id ? { backgroundColor: colors.accent, borderColor: colors.accent } : { borderColor: colors.border }]}
-                    onPress={() => setAssetType(t.id as AssetType)}
-                  >
-                    {t.set === 'MaterialIcons' ? (
-                        <MaterialIcons name={t.ic as any} size={20} color={assetType === t.id ? '#FFF' : colors.sub} />
-                    ) : (
-                        <MaterialCommunityIcons name={t.ic as any} size={20} color={assetType === t.id ? '#FFF' : colors.sub} />
-                    )}
-                    <Text style={{ fontSize: 10, fontWeight: '800', color: assetType === t.id ? '#FFF' : colors.sub, marginTop: 6 }}>{t.label}</Text>
+               {['stock', 'crypto', 'fixed', 'real_estate'].map(t => (
+                  <TouchableOpacity key={t} style={[styles.typeBtn, assetType === t ? { backgroundColor: colors.accent } : { borderColor: colors.border }]} onPress={() => setAssetType(t as AssetType)}>
+                    <Text style={{ fontSize: 10, color: assetType === t ? '#FFF' : colors.sub }}>{t.toUpperCase()}</Text>
                   </TouchableOpacity>
                ))}
             </View>
-
-            <View>
-                <TextInput 
-                    style={[styles.input, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }]} 
-                    placeholder={assetType === 'crypto' ? 'Ej. BTC-USD' : assetType === 'fixed' ? 'Nombre del Banco' : 'Símbolo (Ej. ECOPETROL)'}
-                    placeholderTextColor={colors.sub}
-                    value={ticker} onChangeText={handleTickerSearch} autoCapitalize="characters"
-                />
-                {suggestions.length > 0 && (
-                    <View style={[styles.suggestionBox, { backgroundColor: colors.bg, borderColor: colors.border }]}>
-                        {suggestions.map((s, idx) => (
-                            <TouchableOpacity key={idx} style={[styles.suggestionItem, idx !== suggestions.length -1 && { borderBottomColor: colors.border, borderBottomWidth: 1 }]} onPress={() => selectSuggestion(s)}>
-                                <View>
-                                    <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>{s.ticker}</Text>
-                                    <Text style={{ color: colors.sub, fontSize: 10 }}>{s.name}</Text>
-                                </View>
-                                <View style={{ alignItems: 'flex-end' }}>
-                                    <Text style={{ color: colors.accent, fontSize: 13, fontWeight: '900' }}>{baseFmt(s.price)}</Text>
-                                    <Text style={{ color: colors.sub, fontSize: 8 }}>MARKET PRICE</Text>
-                                </View>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                )}
-            </View>
-            {assetType !== 'fixed' && assetType !== 'real_estate' && (
-                <TextInput 
-                  style={[styles.input, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }]} 
-                  placeholder="Cantidad comprada (Ej. 10.5)" 
-                  placeholderTextColor={colors.sub}
-                  keyboardType="decimal-pad"
-                  value={shares} onChangeText={setShares}
-                />
+            <TextInput style={[styles.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Símbolo" value={ticker} onChangeText={handleTickerSearch} />
+            {suggestions.length > 0 && (
+                <View style={{ backgroundColor: colors.bg, borderRadius: 10, padding: 10, marginBottom: 10 }}>
+                    {suggestions.map(s => <TouchableOpacity key={s.ticker} onPress={() => selectSuggestion(s)}><Text style={{color:colors.text, padding:8}}>{s.ticker} - {s.name}</Text></TouchableOpacity>)}
+                </View>
             )}
-            <TextInput 
-              style={[styles.input, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }]} 
-              placeholder={assetType === 'fixed' || assetType === 'real_estate' ? "Valor Invertido Total (COP)" : "Precio promedio c/u (COP)"}
-              placeholderTextColor={colors.sub}
-              keyboardType="decimal-pad"
-              value={avgPrice} onChangeText={setAvgPrice}
-            />
-
+            <TextInput style={[styles.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Cantidad" keyboardType="decimal-pad" value={shares} onChangeText={setShares} />
+            <TextInput style={[styles.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Precio Promedio" keyboardType="decimal-pad" value={avgPrice} onChangeText={setAvgPrice} />
             <View style={styles.modalBtns}>
-              <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.bg }]} onPress={() => setModalVisible(false)}>
-                <Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.accent }]} onPress={() => { handleSavePosition(); if (assetType === 'fixed' || assetType === 'real_estate') setShares('1'); }}>
-                <Text style={{ color: '#FFF', fontWeight: '800' }}>Añadir</Text>
-              </TouchableOpacity>
+              <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.bg }]} onPress={() => setModalVisible(false)}><Text style={{color:colors.text}}>Cerrar</Text></TouchableOpacity>
+              <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.accent }]} onPress={handleSavePosition}><Text style={{color:'#FFF'}}>Añadir</Text></TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Modal Add Dividends */}
       <Modal visible={divModalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalBox, { backgroundColor: colors.card, paddingVertical: 40 }]}>
-            <View style={{ alignItems: 'center', marginBottom: 20 }}>
-                <MaterialCommunityIcons name="cash-register" size={40} color="#10B981" />
-                <Text style={[styles.modalTitle, { color: colors.text, marginTop: 12, marginBottom: 4 }]}>Registrar Rentas</Text>
-                <Text style={{ color: colors.sub, fontSize: 13, textAlign: 'center' }}>Suma dividendos, pagos de rentas o intereses de CDTs a tu beneficio total.</Text>
-            </View>
-            
-            <TextInput 
-              style={[styles.input, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border, textAlign: 'center', fontSize: 24, fontWeight: '800' }]} 
-              placeholder="$ 0" 
-              placeholderTextColor={colors.sub + '80'}
-              keyboardType="decimal-pad"
-              value={divAmount} onChangeText={t => setDivAmount(formatCurrency(parseFloat(t.replace(/\D/g, '') || '0'), 'COP', false).replace('$', ''))}
-            />
-
+        <View style={styles.modalOverlay}><View style={[styles.modalBox, {backgroundColor:colors.card}]}>
+            <Text style={[styles.modalTitle, {color:colors.text}]}>Registrar Renta</Text>
+            <TextInput style={[styles.input, {backgroundColor:colors.bg, color:colors.text}]} placeholder="Monto" keyboardType="decimal-pad" value={divAmount} onChangeText={setDivAmount} />
             <View style={styles.modalBtns}>
-              <TouchableOpacity style={[styles.mBtn, { backgroundColor: colors.bg }]} onPress={() => setDivModalVisible(false)}>
-                <Text style={{ color: colors.text, fontWeight: '700' }}>Cerrar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.mBtn, { backgroundColor: '#10B981' }]} onPress={handleAddDividends}>
-                <Text style={{ color: '#FFF', fontWeight: '800' }}>Registrar Pago</Text>
-              </TouchableOpacity>
+                <TouchableOpacity style={[styles.mBtn, {backgroundColor:colors.bg}]} onPress={() => setDivModalVisible(false)}><Text style={{color:colors.text}}>Cerrar</Text></TouchableOpacity>
+                <TouchableOpacity style={[styles.mBtn, {backgroundColor:'#10B981'}]} onPress={handleAddDividends}><Text style={{color:'#FFF'}}>Guardar</Text></TouchableOpacity>
             </View>
-          </View>
-        </View>
+        </View></View>
       </Modal>
 
-      {/* Modal TradingView Chart */}
-      <Modal visible={chartModalVisible} animationType="slide" presentationStyle="formSheet">
+      <Modal visible={chartModalVisible} transparent={false} animationType="slide">
           <SafeAreaView style={{ flex: 1, backgroundColor: '#131722' }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#333' }}>
-                  <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900' }}>Análisis: {chartSymbol}</Text>
-                  <TouchableOpacity onPress={() => setChartModalVisible(false)}>
-                      <Ionicons name="close" size={24} color="#FFF" />
-                  </TouchableOpacity>
-              </View>
+              <TouchableOpacity style={{ padding: 16 }} onPress={() => setChartModalVisible(false)}><Ionicons name="close" size={32} color="#FFF" /></TouchableOpacity>
               {chartSymbol && <TradingViewWidget symbol={chartSymbol} type="chart" height={600} />}
           </SafeAreaView>
       </Modal>
-
     </SafeAreaView>
   );
 }
@@ -699,49 +488,22 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: Platform.OS === 'android' ? 40 : 10, paddingBottom: 10 },
   headerTitle: { fontSize: 20, fontWeight: '900' },
   circleBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  
   tabContainer: { flexDirection: 'row', marginHorizontal: 24, padding: 6, borderRadius: 16, marginBottom: 16 },
   tab: { flex: 1, paddingVertical: 12, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
   tabText: { fontSize: 13, fontWeight: '800' },
-
   scroll: { paddingHorizontal: 24, paddingBottom: 100 },
-  
-  summaryCard: { borderRadius: 28, padding: 24, marginBottom: 16, elevation: 8, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 15, alignItems: 'center' },
-  summaryLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  summaryValue: { color: '#FFF', fontSize: 36, fontWeight: '900', marginVertical: 8 },
-  profitBadge: { backgroundColor: '#FFF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
-  profitText: { fontSize: 14, fontWeight: '800' },
-
-  divCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderRadius: 20, marginBottom: 24, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
+  divCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderRadius: 20, marginBottom: 24 },
   divLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   divIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   divTitle: { fontSize: 14, fontWeight: '800' },
   divSub: { fontSize: 11, fontWeight: '600', marginTop: 2 },
   divAmount: { fontSize: 15, fontWeight: '900' },
-
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   sectionTitle: { fontSize: 18, fontWeight: '800' },
-
-  positionCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderRadius: 20, marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
-  posLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  typeIcon: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-  tickerName: { fontSize: 16, fontWeight: '800' },
-  posShares: { fontSize: 12, fontWeight: '600', marginTop: 2 },
-  posRight: { alignItems: 'flex-end' },
-  posValue: { fontSize: 16, fontWeight: '800' },
-  posReturn: { fontSize: 13, fontWeight: '800', marginTop: 2 },
-
-  emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
-  emptyText: { marginTop: 16, fontSize: 14, fontWeight: '600' },
-
-  aiCard: { borderRadius: 32, padding: 32, alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
+  aiCard: { borderRadius: 32, padding: 32, alignItems: 'center' },
   aiIcon: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
   aiTitle: { fontSize: 22, fontWeight: '900', marginBottom: 24 },
-  dataBox: { width: '100%', borderRadius: 20, padding: 20, marginBottom: 24, alignItems: 'center' },
-  dataBoxLabel: { fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
-  dataBoxVal: { fontSize: 22, fontWeight: '900', marginTop: 4 },
-  aiRecommendation: { fontSize: 15, lineHeight: 24, fontWeight: '500', textAlign: 'center' },
-
+  dataBox: { width: '100%', borderRadius: 20, padding: 20, marginBottom: 24 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalBox: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 32, paddingBottom: 50 },
   modalTitle: { fontSize: 24, fontWeight: '900', marginBottom: 24 },
@@ -750,39 +512,21 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderRadius: 18, padding: 18, fontSize: 16, marginBottom: 16 },
   modalBtns: { flexDirection: 'row', gap: 12, marginTop: 12 },
   mBtn: { flex: 1, paddingVertical: 18, borderRadius: 20, alignItems: 'center' },
-
-  allocationCard: { borderRadius: 24, padding: 20, marginBottom: 16, elevation: 1 },
+  divMonthCard: { width: 100, borderRadius: 16, padding: 16, marginRight: 12, borderWidth: 1, alignItems: 'center' },
+  rebalanceBanner: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 20, borderWidth: 1, marginBottom: 32 },
   triiTotalLabel: { fontSize: 16, fontWeight: '700' },
   triiTotalValue: { fontSize: 42, fontWeight: '900', letterSpacing: -1 },
-  triiBalances: { flexDirection: 'row', alignItems: 'center', marginTop: 24, paddingHorizontal: 10, width: '100%', justifyContent: 'center' },
-  triiBalanceItem: { flex: 1, alignItems: 'center' },
-  triiBalLabel: { fontSize: 12, fontWeight: '800', marginBottom: 4 },
-  triiBalValue: { fontSize: 18, fontWeight: '900' },
-  triiDivider: { width: 1, height: 30, marginHorizontal: 20 },
   triiPortfolioHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, paddingHorizontal: 4 },
-  triiBarContainer: { height: 12, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 6, overflow: 'hidden', marginBottom: 24 },
+  triiBarContainer: { height: 12, borderRadius: 6, overflow: 'hidden', marginBottom: 24 },
   triiAllocationRow: { flexDirection: 'row', height: '100%', gap: 2 },
   triiBarFill: { height: '100%' },
   triiCatCard: { flex: 1, borderRadius: 16, padding: 18 },
-  triiSliderBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(0,0,0,0.03)', paddingVertical: 18, paddingHorizontal: 24, borderRadius: 24, marginBottom: 40 },
   triiListCard: { borderRadius: 32, paddingVertical: 10, overflow: 'hidden' },
   triiTableHeader: { flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
   triiCol: { fontSize: 11, fontWeight: '800', color: 'rgba(0,0,0,0.4)', flex: 1 },
   triiListItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.03)' },
-  triiLogoCircle: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
   triiTicker: { fontSize: 15, fontWeight: '800' },
   triiShares: { fontSize: 11, fontWeight: '600' },
   triiMktPrice: { flex: 1, fontSize: 14, fontWeight: '800', textAlign: 'center' },
   triiPct: { fontSize: 14, fontWeight: '900' },
-  suggestionBox: { borderBottomLeftRadius: 16, borderBottomRightRadius: 16, overflow: 'hidden', borderTopWidth: 0, marginTop: -12, marginBottom: 16 },
-  suggestionItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
-  allocationTitle: { fontSize: 13, fontWeight: '900', marginBottom: 12, opacity: 0.8 },
-  allocationRow: { height: 10, borderRadius: 5, overflow: 'hidden', flexDirection: 'row', gap: 2, marginBottom: 12 },
-  allocationBarPart: { height: '100%' },
-  allocationLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendText: { fontSize: 11, fontWeight: '700' },
-  typeBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5 },
-  typeBadgeText: { fontSize: 8, fontWeight: '900' },
 });
