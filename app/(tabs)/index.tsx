@@ -91,6 +91,7 @@ export default function HomeScreen() {
   const [isRealBalanceCollapsed, setIsRealBalanceCollapsed] = useState(true);
   const [changelogVisible, setChangelogVisible] = useState(false);
   const [showReminderPrompt, setShowReminderPrompt] = useState(false);
+  const [investmentTotal, setInvestmentTotal] = useState(0);
 
   const scrollRef = useRef<any>(null);
 
@@ -317,6 +318,16 @@ export default function HomeScreen() {
       }) || [];
       setPendingItems(urgent);
 
+      // Load Investment Total
+      try {
+        const storedInvest = await AsyncStorage.getItem(`@invest_${user.id}`);
+        if (storedInvest) {
+          const positions = JSON.parse(storedInvest);
+          const total = positions.reduce((sum: number, p: any) => sum + (Number(p.shares || 0) * Number(p.avgPrice || 0)), 0);
+          setInvestmentTotal(total);
+        }
+      } catch (e) { }
+
     } catch (e) { console.error('Error cargando datos de Supabase:', e); }
   };
 
@@ -355,10 +366,17 @@ export default function HomeScreen() {
       .filter(([accName]) => !userCards.includes(accName) && accName !== 'Ahorro')
       .reduce((sum, [_, amt]) => sum + Number(amt), 0);
 
-    const realMoney = (activeMoney + savTotal) - debtTotal;
-    const available = activeMoney - debtTotal + savTotal;
+    // Balance Real (Dinero Disponible al Instante - Deudas)
+    const realMoney = activeMoney - debtTotal;
 
-    const healthPct = activeMoney > 0 ? Math.max(0, Math.min(100, Math.round((realMoney / (activeMoney + savTotal)) * 100))) : 0;
+    // Balance General (Patrimonio Total: Disponible + Ahorro + Inversión - Deudas)
+    const generalMoney = (activeMoney + savTotal + investmentTotal) - debtTotal;
+
+    const assetsTotal = activeMoney + savTotal + investmentTotal;
+    const healthPct = assetsTotal > 0 
+      ? Math.max(0, Math.min(100, Math.round((generalMoney / assetsTotal) * 100))) 
+      : 0;
+
     const healthLbl = healthPct >= 70 ? 'ÓPTIMO' : healthPct >= 40 ? 'REGULAR' : 'BAJO';
     const healthClr = healthPct >= 70 ? colorsNav.accent : healthPct >= 40 ? '#F59E0B' : '#EF4444';
     const monthPct = inc > 0 ? ((inc - expGastos) / inc * 100).toFixed(1) : '0';
@@ -366,7 +384,9 @@ export default function HomeScreen() {
     return {
       dineroActivo: activeMoney,
       dineroReal: realMoney,
+      dineroGeneral: generalMoney,
       ahorroTotal: savTotal,
+      investmentTotal,
       ingresosMes: inc,
       gastosMes: expGastos,
       ahorroDelMes: savMes,
@@ -374,9 +394,9 @@ export default function HomeScreen() {
       saludLabel: healthLbl,
       saludColor: healthClr,
       porcentajeMes: monthPct,
-      saldoDisponible: available
+      saldoDisponible: realMoney // Usamos el balance real como saldo disponible
     };
-  }, [allTransactions, debtTotal, accountTotals, userCards]);
+  }, [allTransactions, debtTotal, accountTotals, userCards, investmentTotal]);
 
   const handleLogout = async () => {
     if (Platform.OS === 'web') {
@@ -565,6 +585,22 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* ── Inversiones Widget ─────────────────────────────────── */}
+            <TouchableOpacity
+              style={[styles.investmentWidget, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}
+              activeOpacity={0.8}
+              onPress={() => router.push('/invest' as any)}
+            >
+              <View style={[styles.widgetIconWrap, { backgroundColor: isDark ? '#2A3447' : '#E3F2FD', marginBottom: 0 }]}>
+                <MaterialIcons name="show-chart" size={22} color="#3B82F6" />
+              </View>
+              <View style={{ flex: 1, marginLeft: 14 }}>
+                <Text style={[styles.widgetLabel, { color: colorsNav.sub, marginBottom: 2 }]}>INVERSIONES</Text>
+                <Text style={[styles.widgetValue, { color: colorsNav.text }]}>{fmt(investmentTotal)}</Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
+            </TouchableOpacity>
+
             {/* Prompt Recordatorios */}
             {showReminderPrompt && (
               <View style={[styles.reminderPrompt, { backgroundColor: isDark ? colorsNav.card : '#FFF', borderColor: isDark ? colorsNav.border : '#F0E8DC', borderWidth: 1 }]}>
@@ -620,21 +656,35 @@ export default function HomeScreen() {
             {!isRealBalanceCollapsed && (
               <View style={[styles.healthExpandedCard, { backgroundColor: isDark ? colorsNav.card : '#FFF', borderColor: isDark ? colorsNav.border : '#F0E8DC' }]}>
                 <View style={{ alignItems: 'center', marginBottom: 14 }}>
-                  <Text style={[styles.healthExpandedTitle, { color: colorsNav.text }]}>Balance Real</Text>
+                  <Text style={[styles.healthExpandedTitle, { color: colorsNav.text }]}>Balance al Instante</Text>
                   <Text style={[styles.healthExpandedAmount, { color: dineroReal >= 0 ? colorsNav.text : '#EF4444' }]}>
                     {fmt(dineroReal)}
                   </Text>
-                  <Text style={[styles.healthExpandedSub, { color: colorsNav.sub }]}>Dinero proyectado una vez pagues deudas</Text>
+                  <Text style={[styles.healthExpandedSub, { color: colorsNav.sub }]}>Disponible − Deuda de tarjetas y fijos</Text>
                 </View>
+
+                <View style={{ alignItems: 'center', marginBottom: 20, paddingTop: 10, borderTopWidth: 1, borderTopColor: isDark ? colorsNav.border : '#F0E8DC' }}>
+                  <Text style={[styles.healthExpandedTitle, { color: colorsNav.text, fontSize: 13 }]}>Dinero General (Patrimonio)</Text>
+                  <Text style={[styles.healthExpandedAmount, { fontSize: 20, color: dineroGeneral >= 0 ? colorsNav.accent : '#EF4444' }]}>
+                    {fmt(dineroGeneral)}
+                  </Text>
+                  <Text style={[styles.healthExpandedSub, { color: colorsNav.sub }]}>Suma de Disponible, Ahorro e Inversión − Deuda</Text>
+                </View>
+
                 <View style={[styles.healthExpandedGrid, { backgroundColor: isDark ? '#2A2A42' : '#FAF5ED' }]}>
                   <View style={styles.healthExpandedItem}>
                     <Text style={[styles.healthExpandedItemLabel, { color: colorsNav.sub }]}>Disponible</Text>
-                    <Text style={[styles.healthExpandedItemValue, { color: colorsNav.accent }]}>{fmt(dineroActivo)}</Text>
+                    <Text style={[styles.healthExpandedItemValue, { color: colorsNav.text }]}>{fmt(dineroActivo)}</Text>
                   </View>
                   <View style={{ width: 1, backgroundColor: isDark ? colorsNav.border : '#E8E0D4', height: '60%', alignSelf: 'center' }} />
                   <View style={styles.healthExpandedItem}>
                     <Text style={[styles.healthExpandedItemLabel, { color: colorsNav.sub }]}>Ahorro</Text>
                     <Text style={[styles.healthExpandedItemValue, { color: '#8B5CF6' }]}>{fmt(ahorroTotal)}</Text>
+                  </View>
+                  <View style={{ width: 1, backgroundColor: isDark ? colorsNav.border : '#E8E0D4', height: '60%', alignSelf: 'center' }} />
+                  <View style={styles.healthExpandedItem}>
+                    <Text style={[styles.healthExpandedItemLabel, { color: colorsNav.sub }]}>Inversión</Text>
+                    <Text style={[styles.healthExpandedItemValue, { color: '#3B82F6' }]}>{fmt(investmentTotal)}</Text>
                   </View>
                   <View style={{ width: 1, backgroundColor: isDark ? colorsNav.border : '#E8E0D4', height: '60%', alignSelf: 'center' }} />
                   <View style={styles.healthExpandedItem}>
@@ -1356,4 +1406,15 @@ const styles = StyleSheet.create({
   remBtnTextNo: { fontSize: 13, fontWeight: '700' },
   remBtnYes: { flex: 1.5, paddingVertical: 14, borderRadius: 16, alignItems: 'center' },
   remBtnTextYes: { color: '#FFF', fontSize: 13, fontWeight: '800' },
+  investmentWidget: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: 24,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
+  },
 });

@@ -305,7 +305,7 @@ export default function InvestScreen() {
                 <Text style={[s.quickLabel, { color: colors.sub }]}>Metas</Text>
               </View>
               <View style={[s.quickStat, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <MaterialCommunityIcons name="cash-multiple" size={18} color="#3B82F6" />
+                <MaterialIcons name="payments" size={18} color="#3B82F6" />
                 <Text style={[s.quickNum, { color: colors.text }]}>{baseFmt(nextMonthDiv)}</Text>
                 <Text style={[s.quickLabel, { color: colors.sub }]}>Próx. Div</Text>
               </View>

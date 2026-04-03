@@ -247,23 +247,6 @@ export default function GoalsScreen() {
                     </View>
                 </View>
 
-                {/* ── Inversiones ── */}
-                <TouchableOpacity 
-                    style={[styles.summaryBox, { backgroundColor: colors.card, paddingVertical: 18, marginTop: -8, marginBottom: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
-                    onPress={() => router.push('/invest' as any)}
-                    activeOpacity={0.8}
-                >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                        <View style={[styles.iconBox, { backgroundColor: colors.accent + '20' }]}>
-                            <MaterialIcons name="show-chart" size={20} color={colors.accent} />
-                        </View>
-                        <View>
-                            <Text style={[styles.summaryLabel, { color: colors.sub }]}>Inversiones</Text>
-                            <Text style={[{ color: colors.text, fontSize: 16, fontWeight: '800' }]}>Ver portafolio de inversión</Text>
-                        </View>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color={colors.sub} />
-                </TouchableOpacity>
 
                 {/* ── Lista de Metas ── */}
                 {goals.length === 0 ? (
