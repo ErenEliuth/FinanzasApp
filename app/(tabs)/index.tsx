@@ -675,19 +675,17 @@ export default function HomeScreen() {
             {!isRealBalanceCollapsed && (
               <View style={[styles.healthExpandedCard, { backgroundColor: isDark ? colorsNav.card : '#FFF', borderColor: isDark ? colorsNav.border : '#F0E8DC' }]}>
                 <View style={{ alignItems: 'center', marginBottom: 14 }}>
-                  <Text style={[styles.healthExpandedTitle, { color: colorsNav.text }]}>Balance al Instante</Text>
+                  <Text style={[styles.healthExpandedTitle, { color: colorsNav.text }]}>Balance Real</Text>
                   <Text style={[styles.healthExpandedAmount, { color: dineroReal >= 0 ? colorsNav.text : '#EF4444' }]}>
                     {fmt(dineroReal)}
                   </Text>
-                  <Text style={[styles.healthExpandedSub, { color: colorsNav.sub }]}>Disponible − Deuda de tarjetas y fijos</Text>
                 </View>
 
                 <View style={{ alignItems: 'center', marginBottom: 20, paddingTop: 10, borderTopWidth: 1, borderTopColor: isDark ? colorsNav.border : '#F0E8DC' }}>
-                  <Text style={[styles.healthExpandedTitle, { color: colorsNav.text, fontSize: 13 }]}>Dinero General (Patrimonio)</Text>
+                  <Text style={[styles.healthExpandedTitle, { color: colorsNav.text, fontSize: 13 }]}>Patrimonio Total</Text>
                   <Text style={[styles.healthExpandedAmount, { fontSize: 20, color: dineroGeneral >= 0 ? colorsNav.accent : '#EF4444' }]}>
                     {fmt(dineroGeneral)}
                   </Text>
-                  <Text style={[styles.healthExpandedSub, { color: colorsNav.sub }]}>Suma de Disponible, Ahorro e Inversión − Deuda</Text>
                 </View>
 
                 <View style={[styles.healthExpandedGrid, { backgroundColor: isDark ? '#2A2A42' : '#FAF5ED' }]}>
@@ -707,8 +705,8 @@ export default function HomeScreen() {
                   </View>
                   <View style={{ width: 1, backgroundColor: isDark ? colorsNav.border : '#E8E0D4', height: '60%', alignSelf: 'center' }} />
                   <View style={styles.healthExpandedItem}>
-                    <Text style={[styles.healthExpandedItemLabel, { color: colorsNav.sub }]}>Deuda</Text>
-                    <Text style={[styles.healthExpandedItemValue, { color: '#EF4444' }]}>−{fmt(debtTotal)}</Text>
+                    <Text style={[styles.healthExpandedItemLabel, { color: colorsNav.sub }]}>Deudas</Text>
+                    <Text style={[styles.healthExpandedItemValue, { color: '#EF4444' }]} numberOfLines={1}>−{fmt(debtTotal)}</Text>
                   </View>
                 </View>
               </View>
@@ -1231,16 +1229,17 @@ const styles = StyleSheet.create({
   healthExpandedItem: {
     alignItems: 'center',
     flex: 1,
+    paddingHorizontal: 4,
   },
   healthExpandedItemLabel: {
     fontSize: 9,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.3,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   healthExpandedItemValue: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
   },
 
