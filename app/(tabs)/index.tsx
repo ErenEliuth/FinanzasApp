@@ -331,7 +331,7 @@ export default function HomeScreen() {
     } catch (e) { console.error('Error cargando datos de Supabase:', e); }
   };
 
-  const { dineroActivo, dineroReal, ahorroTotal, ingresosMes, gastosMes, ahorroDelMes, saludPorcentaje, saludLabel, saludColor, porcentajeMes, saldoDisponible } = React.useMemo(() => {
+  const { dineroActivo, dineroReal, dineroGeneral, ahorroTotal, ingresosMes, gastosMes, ahorroDelMes, saludPorcentaje, saludLabel, saludColor, porcentajeMes, saldoDisponible } = React.useMemo(() => {
     const today = new Date();
     const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();

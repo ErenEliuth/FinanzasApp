@@ -9,7 +9,7 @@ import { supabase } from '@/utils/supabase';
 import {
   Alert, Modal, Platform, SafeAreaView, ScrollView, StyleSheet,
   Text, TextInput, TouchableOpacity, View, ActivityIndicator, Animated,
-  Dimensions
+  Dimensions, KeyboardAvoidingView
 } from 'react-native';
 import { formatCurrency, convertCurrency } from '@/utils/currency';
 import { searchAssets, fetchCryptoPrice, POPULAR_ASSETS, SearchResult } from '@/utils/stockPrices';
@@ -532,111 +532,121 @@ export default function InvestScreen() {
 
       {/* ═══ ADD ASSET MODAL ═══ */}
       <Modal visible={modalVisible} transparent animationType="slide">
-        <View style={s.modalOverlay}>
-          <View style={[s.modalBox, { backgroundColor: colors.card }]}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <Text style={[s.modalTitle, { color: colors.text }]}>Buscar Activo</Text>
-              <TouchableOpacity onPress={() => { setModalVisible(false); setSelectedAsset(null); setSearchQuery(''); }}>
-                <Ionicons name="close" size={24} color={colors.sub} />
-              </TouchableOpacity>
-            </View>
-
-            {!selectedAsset ? (
-              <>
-                <View style={[s.searchBar, { backgroundColor: colors.bg }]}>
-                  <Ionicons name="search" size={18} color={colors.sub} />
-                  <TextInput style={{ flex: 1, color: colors.text, fontSize: 15, fontWeight: '600', marginLeft: 10 }}
-                    placeholder="Buscar por nombre o ticker..." placeholderTextColor={colors.sub}
-                    value={searchQuery} onChangeText={handleSearch} autoFocus />
-                  {isSearching && <ActivityIndicator size="small" color={colors.accent} />}
-                </View>
-                <ScrollView style={{ maxHeight: 360, marginTop: 12 }}>
-                  {searchResults.map((asset, i) => (
-                    <TouchableOpacity key={i} style={[s.searchItem, { borderColor: colors.border }]} onPress={() => handleSelectAsset(asset)}>
-                      <View style={[s.searchIcon, { backgroundColor: getAssetColor(asset.type as AssetType) + '12' }]}>
-                        {asset.type === 'crypto' ? <MaterialCommunityIcons name="bitcoin" size={20} color="#F7931A" /> : <MaterialIcons name="show-chart" size={20} color={colors.accent} />}
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>{asset.ticker}</Text>
-                        <Text style={{ color: colors.sub, fontSize: 11 }} numberOfLines={1}>{asset.name}</Text>
-                      </View>
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>
-                          {asset.currency === 'USD' ? `$${asset.price.toLocaleString()} USD` : baseFmt(asset.price)}
-                        </Text>
-                        <Text style={{ color: asset.changePercent >= 0 ? '#10B981' : '#EF4444', fontSize: 11, fontWeight: '700' }}>
-                          {asset.changePercent >= 0 ? '+' : ''}{asset.changePercent.toFixed(2)}%
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </>
-            ) : (
-              <View>
-                <View style={[s.selectedAssetBox, { backgroundColor: colors.bg }]}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <View style={[s.searchIcon, { backgroundColor: getAssetColor(selectedAsset.type as AssetType) + '12' }]}>
-                      {selectedAsset.type === 'crypto' ? <MaterialCommunityIcons name="bitcoin" size={22} color="#F7931A" /> : <MaterialIcons name="show-chart" size={22} color={colors.accent} />}
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>{selectedAsset.ticker}</Text>
-                      <Text style={{ color: colors.sub, fontSize: 12 }}>{selectedAsset.name}</Text>
-                    </View>
-                    <TouchableOpacity onPress={() => { setSelectedAsset(null); setSearchQuery(''); setSearchResults(POPULAR_ASSETS.slice(0,6)); }}>
-                      <Ionicons name="close-circle" size={22} color={colors.sub} />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
-                    <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>Precio actual</Text>
-                    <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900' }}>
-                      {selectedAsset.currency === 'USD' ? `$${selectedAsset.price.toLocaleString()} USD` : baseFmt(selectedAsset.price)}
-                    </Text>
-                  </View>
-                  {selectedAsset.currency === 'USD' && (
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-                      <Text style={{ color: colors.sub, fontSize: 11 }}>≈ en COP</Text>
-                      <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>{baseFmt(selectedAsset.price * usdToCop)}</Text>
-                    </View>
-                  )}
-                </View>
-
-                <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800', marginTop: 20, marginBottom: 8 }}>Cantidad de unidades</Text>
-                <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]}
-                  placeholder="Ej: 10" placeholderTextColor={colors.sub} keyboardType="decimal-pad"
-                  value={addShares} onChangeText={setAddShares} />
-
-                {addShares && parseFloat(addShares) > 0 && (
-                  <View style={[s.totalPreview, { backgroundColor: colors.bg }]}>
-                    <Text style={{ color: colors.sub, fontSize: 12 }}>Total inversión</Text>
-                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>
-                      {baseFmt((selectedAsset.currency === 'USD' ? selectedAsset.price * usdToCop : selectedAsset.price) * parseFloat(addShares || '0'))}
-                    </Text>
-                  </View>
-                )}
-
-                <TouchableOpacity onPress={handleSavePosition} style={[s.confirmBtn, { backgroundColor: colors.accent }]}>
-                  <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>Agregar al Portafolio</Text>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+          style={{ flex: 1 }}
+        >
+          <View style={s.modalOverlay}>
+            <View style={[s.modalBox, { backgroundColor: colors.card }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <Text style={[s.modalTitle, { color: colors.text }]}>Buscar Activo</Text>
+                <TouchableOpacity onPress={() => { setModalVisible(false); setSelectedAsset(null); setSearchQuery(''); }}>
+                  <Ionicons name="close" size={24} color={colors.sub} />
                 </TouchableOpacity>
               </View>
-            )}
+
+              {!selectedAsset ? (
+                <>
+                  <View style={[s.searchBar, { backgroundColor: colors.bg }]}>
+                    <Ionicons name="search" size={18} color={colors.sub} />
+                    <TextInput style={{ flex: 1, color: colors.text, fontSize: 15, fontWeight: '600', marginLeft: 10 }}
+                      placeholder="Buscar por nombre o ticker..." placeholderTextColor={colors.sub}
+                      value={searchQuery} onChangeText={handleSearch} autoFocus />
+                    {isSearching && <ActivityIndicator size="small" color={colors.accent} />}
+                  </View>
+                  <ScrollView style={{ maxHeight: 260, marginTop: 12 }} showsVerticalScrollIndicator={false}>
+                    {searchResults.map((asset, i) => (
+                      <TouchableOpacity key={i} style={[s.searchItem, { borderColor: colors.border }]} onPress={() => handleSelectAsset(asset)}>
+                        <View style={[s.searchIcon, { backgroundColor: getAssetColor(asset.type as AssetType) + '12' }]}>
+                          {asset.type === 'crypto' ? <MaterialCommunityIcons name="bitcoin" size={20} color="#F7931A" /> : <MaterialIcons name="show-chart" size={20} color={colors.accent} />}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>{asset.ticker}</Text>
+                          <Text style={{ color: colors.sub, fontSize: 11 }} numberOfLines={1}>{asset.name}</Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>
+                            {asset.currency === 'USD' ? `$${asset.price.toLocaleString()} USD` : baseFmt(asset.price)}
+                          </Text>
+                          <Text style={{ color: asset.changePercent >= 0 ? '#10B981' : '#EF4444', fontSize: 11, fontWeight: '700' }}>
+                            {asset.changePercent >= 0 ? '+' : ''}{asset.changePercent.toFixed(2)}%
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </>
+              ) : (
+                <View>
+                  <View style={[s.selectedAssetBox, { backgroundColor: colors.bg }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <View style={[s.searchIcon, { backgroundColor: getAssetColor(selectedAsset.type as AssetType) + '12' }]}>
+                        {selectedAsset.type === 'crypto' ? <MaterialCommunityIcons name="bitcoin" size={22} color="#F7931A" /> : <MaterialIcons name="show-chart" size={22} color={colors.accent} />}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>{selectedAsset.ticker}</Text>
+                        <Text style={{ color: colors.sub, fontSize: 12 }}>{selectedAsset.name}</Text>
+                      </View>
+                      <TouchableOpacity onPress={() => { setSelectedAsset(null); setSearchQuery(''); setSearchResults(POPULAR_ASSETS.slice(0,6)); }}>
+                        <Ionicons name="close-circle" size={22} color={colors.sub} />
+                      </TouchableOpacity>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
+                      <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>Precio actual</Text>
+                      <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900' }}>
+                        {selectedAsset.currency === 'USD' ? `$${selectedAsset.price.toLocaleString()} USD` : baseFmt(selectedAsset.price)}
+                      </Text>
+                    </View>
+                    {selectedAsset.currency === 'USD' && (
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                        <Text style={{ color: colors.sub, fontSize: 11 }}>≈ en COP</Text>
+                        <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>{baseFmt(selectedAsset.price * usdToCop)}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800', marginTop: 20, marginBottom: 8 }}>Cantidad de unidades</Text>
+                  <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]}
+                    placeholder="Ej: 10" placeholderTextColor={colors.sub} keyboardType="decimal-pad"
+                    value={addShares} onChangeText={setAddShares} />
+
+                  {addShares && parseFloat(addShares) > 0 && (
+                    <View style={[s.totalPreview, { backgroundColor: colors.bg }]}>
+                      <Text style={{ color: colors.sub, fontSize: 12 }}>Total inversión</Text>
+                      <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>
+                        {baseFmt((selectedAsset.currency === 'USD' ? selectedAsset.price * usdToCop : selectedAsset.price) * parseFloat(addShares || '0'))}
+                      </Text>
+                    </View>
+                  )}
+
+                  <TouchableOpacity onPress={handleSavePosition} style={[s.confirmBtn, { backgroundColor: colors.accent }]}>
+                    <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>Agregar al Portafolio</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Goal Modal */}
       <Modal visible={goalModalVisible} transparent animationType="slide">
-        <View style={s.modalOverlay}>
-          <View style={[s.modalBox, { backgroundColor: colors.card }]}>
-            <Text style={[s.modalTitle, { color: colors.text }]}>Nueva Meta</Text>
-            <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Nombre" placeholderTextColor={colors.sub} value={newGoal.name} onChangeText={t => setNewGoal({...newGoal, name: t})} />
-            <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Objetivo (COP)" placeholderTextColor={colors.sub} keyboardType="decimal-pad" value={newGoal.target} onChangeText={t => setNewGoal({...newGoal, target: t})} />
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <TouchableOpacity style={[s.modalBtn, { backgroundColor: colors.bg }]} onPress={() => setGoalModalVisible(false)}><Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text></TouchableOpacity>
-              <TouchableOpacity style={[s.modalBtn, { backgroundColor: colors.accent }]} onPress={handleAddGoal}><Text style={{ color: '#FFF', fontWeight: '900' }}>Crear</Text></TouchableOpacity>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+          style={{ flex: 1 }}
+        >
+          <View style={s.modalOverlay}>
+            <View style={[s.modalBox, { backgroundColor: colors.card }]}>
+              <Text style={[s.modalTitle, { color: colors.text }]}>Nueva Meta</Text>
+              <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Nombre" placeholderTextColor={colors.sub} value={newGoal.name} onChangeText={t => setNewGoal({...newGoal, name: t})} />
+              <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Objetivo (COP)" placeholderTextColor={colors.sub} keyboardType="decimal-pad" value={newGoal.target} onChangeText={t => setNewGoal({...newGoal, target: t})} />
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <TouchableOpacity style={[s.modalBtn, { backgroundColor: colors.bg }]} onPress={() => setGoalModalVisible(false)}><Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text></TouchableOpacity>
+                <TouchableOpacity style={[s.modalBtn, { backgroundColor: colors.accent }]} onPress={handleAddGoal}><Text style={{ color: '#FFF', fontWeight: '900' }}>Crear</Text></TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
