@@ -82,17 +82,47 @@ export default function InvestScreen() {
   const loadData = async () => {
     try {
       if (!user) return;
-      const storedGoals = await AsyncStorage.getItem(`@invest_goals_${user?.id}`);
-      if (storedGoals) setGoals(JSON.parse(storedGoals));
-      else {
-        const def = [{ id: '1', name: 'Libertad Financiera', target: 50000000, current: 0, icon: 'shield', color: '#8B5CF6' }];
-        setGoals(def); await AsyncStorage.setItem(`@invest_goals_${user?.id}`, JSON.stringify(def));
+      
+      // Cargar Metas desde Supabase
+      const { data: gData, error: gError } = await supabase
+        .from('investment_goals')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      if (!gError && gData && gData.length > 0) {
+        setGoals(gData);
+      } else {
+        const defGoal = { 
+          user_id: user.id, 
+          name: 'Libertad Financiera', 
+          target: 50000000, 
+          icon: 'shield', 
+          color: '#8B5CF6' 
+        };
+        const { data: inserted } = await supabase.from('investment_goals').insert([defGoal]).select();
+        if (inserted) setGoals(inserted);
       }
-      const stored = await AsyncStorage.getItem(`@invest_${user?.id}`);
-      if (stored) {
-        const parsed = JSON.parse(stored).map((p: any) => ({ ...p, type: p.type || 'stock' }));
-        setPositions(parsed); refreshPrices(parsed);
+
+      // Cargar Posiciones desde Supabase
+      const { data: pData, error: pError } = await supabase
+        .from('investments')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      if (!pError && pData) {
+        const parsed = pData.map((p: any) => ({
+          id: p.id,
+          ticker: p.ticker,
+          name: p.name,
+          shares: Number(p.shares),
+          avgPrice: Number(p.avg_price),
+          type: p.type as AssetType,
+          currency: p.currency
+        }));
+        setPositions(parsed);
+        refreshPrices(parsed);
       }
+
       const storedDivs = await AsyncStorage.getItem(`@invest_divs_${user?.id}`);
       if (storedDivs) setTotalDividends(Number(storedDivs));
     } catch (e) { console.error(e); }
@@ -141,46 +171,84 @@ export default function InvestScreen() {
   };
 
   const handleSavePosition = async () => {
-    if (!selectedAsset || !addShares) return;
+    if (!selectedAsset || !addShares || !user) return;
     const priceCOP = selectedAsset.currency === 'USD' ? selectedAsset.price * usdToCop : selectedAsset.price;
-    const newPos: Position = {
-      id: Date.now().toString(), ticker: selectedAsset.ticker,
-      name: selectedAsset.name, shares: parseFloat(addShares.replace(',', '.')),
-      avgPrice: priceCOP, type: selectedAsset.type as AssetType,
-      currency: selectedAsset.currency,
+    const sharesNum = parseFloat(addShares.replace(',', '.'));
+    
+    const dbEntry = {
+      user_id: user.id,
+      ticker: selectedAsset.ticker,
+      name: selectedAsset.name,
+      shares: sharesNum,
+      avg_price: priceCOP,
+      type: selectedAsset.type,
+      currency: selectedAsset.currency
     };
-    const updated = [...positions, newPos];
-    setPositions(updated);
-    await AsyncStorage.setItem(`@invest_${user?.id}`, JSON.stringify(updated));
-    setSelectedAsset(null); setAddShares(''); setSearchQuery(''); setModalVisible(false);
-    refreshPrices(updated);
+
+    const { data: inserted, error } = await supabase.from('investments').insert([dbEntry]).select();
+    
+    if (!error && inserted) {
+      const newPos: Position = {
+        id: inserted[0].id,
+        ticker: inserted[0].ticker,
+        name: inserted[0].name,
+        shares: Number(inserted[0].shares),
+        avgPrice: Number(inserted[0].avg_price),
+        type: inserted[0].type as AssetType,
+        currency: inserted[0].currency,
+      };
+      const updated = [...positions, newPos];
+      setPositions(updated);
+      setSelectedAsset(null); setAddShares(''); setSearchQuery(''); setModalVisible(false);
+      refreshPrices(updated);
+    } else {
+      Alert.alert("Error", "No se pudo guardar la inversión en la nube.");
+    }
   };
 
   const handleDeletePosition = async (id: string) => {
-    const updated = positions.filter(p => p.id !== id);
-    setPositions(updated);
-    await AsyncStorage.setItem(`@invest_${user?.id}`, JSON.stringify(updated));
-    setDeletingId(null);
+    const { error } = await supabase.from('investments').delete().eq('id', id);
+    if (!error) {
+      const updated = positions.filter(p => p.id !== id);
+      setPositions(updated);
+      setDeletingId(null);
+    } else {
+      Alert.alert("Error", "No se pudo eliminar de la nube.");
+    }
   };
 
   const handleAddGoal = async () => {
-    if (!newGoal.name || !newGoal.target) return;
-    const goal: InvestGoal = {
-      id: Date.now().toString(), name: newGoal.name,
-      target: parseFloat(newGoal.target.replace(/\D/g, '')), current: 0,
-      icon: newGoal.icon, color: ['#8B5CF6', '#10B981', '#3B82F6', '#F59E0B', '#EF4444'][goals.length % 5]
+    if (!newGoal.name || !newGoal.target || !user) return;
+    const targetNum = parseFloat(newGoal.target.replace(/\D/g, ''));
+    const color = ['#8B5CF6', '#10B981', '#3B82F6', '#F59E0B', '#EF4444'][goals.length % 5];
+    
+    const dbGoal = {
+      user_id: user.id,
+      name: newGoal.name,
+      target: targetNum,
+      icon: newGoal.icon,
+      color: color
     };
-    const updated = [...goals, goal];
-    setGoals(updated);
-    await AsyncStorage.setItem(`@invest_goals_${user?.id}`, JSON.stringify(updated));
-    setGoalModalVisible(false); setNewGoal({ name: '', target: '', icon: 'home' });
+
+    const { data: inserted, error } = await supabase.from('investment_goals').insert([dbGoal]).select();
+    
+    if (!error && inserted) {
+      setGoals([...goals, inserted[0]]);
+      setGoalModalVisible(false); setNewGoal({ name: '', target: '', icon: 'home' });
+    } else {
+      Alert.alert("Error", "No se pudo crear la meta en la nube.");
+    }
   };
 
   const handleDeleteGoal = async (id: string) => {
-    const updated = goals.filter(g => g.id !== id);
-    setGoals(updated);
-    await AsyncStorage.setItem(`@invest_goals_${user?.id}`, JSON.stringify(updated));
-    setDeletingGoalId(null);
+    const { error } = await supabase.from('investment_goals').delete().eq('id', id);
+    if (!error) {
+      const updated = goals.filter(g => g.id !== id);
+      setGoals(updated);
+      setDeletingGoalId(null);
+    } else {
+      Alert.alert("Error", "No se pudo eliminar la meta.");
+    }
   };
 
   const getAssetIcon = (type: AssetType) => {

@@ -233,12 +233,15 @@ export default function HomeScreen() {
         }
       } catch (e) { }
 
-      // Cargar total de inversiones para el resumen de salud
+      // Cargar total de inversiones desde Supabase
       try {
-        const storedInvest = await AsyncStorage.getItem(`@invest_${user.id}`);
-        if (storedInvest) {
-          const positions: any[] = JSON.parse(storedInvest);
-          const total = positions.reduce((sum, pos) => sum + (Number(pos.shares || 0) * (Number(pos.avgPrice || 0))), 0);
+        const { data: invData } = await supabase
+          .from('investments')
+          .select('shares, avg_price')
+          .eq('user_id', user.id);
+        
+        if (invData) {
+          const total = invData.reduce((sum, pos) => sum + (Number(pos.shares || 0) * (Number(pos.avg_price || 0))), 0);
           setInvestmentTotal(total);
         }
       } catch (e) { }
