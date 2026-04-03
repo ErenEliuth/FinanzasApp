@@ -233,6 +233,16 @@ export default function HomeScreen() {
         }
       } catch (e) { }
 
+      // Cargar total de inversiones para el resumen de salud
+      try {
+        const storedInvest = await AsyncStorage.getItem(`@invest_${user.id}`);
+        if (storedInvest) {
+          const positions: any[] = JSON.parse(storedInvest);
+          const total = positions.reduce((sum, pos) => sum + (Number(pos.shares || 0) * (Number(pos.avgPrice || 0))), 0);
+          setInvestmentTotal(total);
+        }
+      } catch (e) { }
+
 
       const { data: allDebts, error: debtError } = await supabase
         .from('debts')
@@ -364,18 +374,27 @@ export default function HomeScreen() {
 
     const activeMoney = Object.entries(accountTotals)
       .filter(([accName]) => !userCards.includes(accName) && accName !== 'Ahorro')
-      .reduce((sum, [_, amt]) => sum + Number(amt), 0);
+      .reduce((sum, [_, amt]) => {
+        const val = Number(amt);
+        return sum + (isNaN(val) ? 0 : val);
+      }, 0);
 
     // Balance Real (Dinero Disponible al Instante - Deudas)
-    const realMoney = activeMoney - debtTotal;
+    const realMoney = activeMoney - (isNaN(debtTotal) ? 0 : debtTotal);
 
     // Balance General (Patrimonio Total: Disponible + Ahorro + Inversión - Deudas)
-    const generalMoney = (activeMoney + savTotal + investmentTotal) - debtTotal;
-
-    const assetsTotal = activeMoney + savTotal + investmentTotal;
-    const healthPct = assetsTotal > 0 
-      ? Math.max(0, Math.min(100, Math.round((generalMoney / assetsTotal) * 100))) 
+    const currentAhorro = isNaN(savTotal) ? 0 : savTotal;
+    const currentInvestment = isNaN(investmentTotal) ? 0 : investmentTotal;
+    const currentDebt = isNaN(debtTotal) ? 0 : debtTotal;
+    
+    const assetsTotal = activeMoney + currentAhorro + currentInvestment;
+    const generalMoney = assetsTotal - currentDebt;
+    
+    const rawHealthPct = assetsTotal > 0 
+      ? Math.max(0, Math.min(100, Math.round((realMoney / assetsTotal) * 100))) 
       : 0;
+    
+    const healthPct = isNaN(rawHealthPct) ? 0 : rawHealthPct;
 
     const healthLbl = healthPct >= 70 ? 'ÓPTIMO' : healthPct >= 40 ? 'REGULAR' : 'BAJO';
     const healthClr = healthPct >= 70 ? colorsNav.accent : healthPct >= 40 ? '#F59E0B' : '#EF4444';
