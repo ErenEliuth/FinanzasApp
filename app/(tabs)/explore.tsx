@@ -68,6 +68,10 @@ export default function AddTransactionScreen() {
   useEffect(() => {
     if (isFocused) {
       scrollRef.current?.scrollTo({ y: 0, animated: false });
+      setAmount('');
+      setDescription('');
+      setCategory('');
+      setDestAccount('');
     }
   }, [isFocused]);
 
