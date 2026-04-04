@@ -84,7 +84,6 @@ export default function AddTransactionScreen() {
   const { user, currency, rates, isHidden } = useAuth();
   const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
   const colorsNav = useThemeColors();
-  const isDark = useColorScheme() === 'dark';
 
   const typeColor =
     type === 'income' ? colorsNav.accent :
@@ -406,7 +405,7 @@ export default function AddTransactionScreen() {
 
             {/* Selector de Tipo (Pills Minimalistas) */}
             <View style={styles.typeListWrap}>
-              <View style={[styles.typeList, { backgroundColor: isDark ? '#1C1C2E' : '#F0F0F5' }]}>
+              <View style={[styles.typeList, { backgroundColor: colorsNav.border + '50' }]}>
                 {[
                   { id: 'income', label: 'Ingreso', c: colorsNav.accent },
                   { id: 'expense', label: 'Gasto', c: '#EF4444' },
@@ -415,7 +414,7 @@ export default function AddTransactionScreen() {
                 ].map(t => (
                   <TouchableOpacity
                     key={t.id}
-                    style={[styles.typeItem, type === t.id && { backgroundColor: isDark ? '#2A2A42' : '#FFF', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4 }]}
+                    style={[styles.typeItem, type === t.id && { backgroundColor: colorsNav.card, elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4 }]}
                     onPress={() => { setType(t.id as TxType); setDescription(t.id === 'ahorro' ? 'Ahorro' : ''); }}
                   >
                     <Text style={[styles.typeItemText, { color: type === t.id ? t.c : colorsNav.sub }]}>{t.label}</Text>
@@ -432,7 +431,7 @@ export default function AddTransactionScreen() {
                 value={amount}
                 onChangeText={handleAmountChange}
                 placeholder="0"
-                placeholderTextColor={typeColor + '50'}
+                placeholderTextColor={colorsNav.sub}
                 keyboardType="decimal-pad"
                 returnKeyType="done"
                 onSubmitEditing={Keyboard.dismiss}
@@ -441,7 +440,7 @@ export default function AddTransactionScreen() {
 
             {/* Formulario (Sin Caja Blanca, Flotante Sobre Fondo) */}
             <View style={styles.form}>
-              <View style={[styles.inputContainer, { borderBottomColor: isDark ? colorsNav.border : '#E5E7EB' }]}>
+              <View style={[styles.inputContainer, { borderBottomColor: colorsNav.border }]}>
                 <TextInput
                   style={[styles.textInput, { color: colorsNav.text }]}
                   value={description}
@@ -457,7 +456,7 @@ export default function AddTransactionScreen() {
                   {['Efectivo', ...customAccounts.filter(a => !cardNames.includes(a))].map(acc => (
                     <TouchableOpacity
                       key={acc}
-                      style={[styles.chip, { backgroundColor: account === acc ? typeColor : (isDark ? '#2A2A42' : '#F4F4F9') }]}
+                      style={[styles.chip, { backgroundColor: account === acc ? typeColor : colorsNav.card }]}
                       onPress={() => setAccount(acc)}
                       onLongPress={() => customAccounts.includes(acc) && handleDeleteCustomAccount(acc)}
                     >
@@ -477,7 +476,7 @@ export default function AddTransactionScreen() {
                     {cardNames.map(acc => (
                       <TouchableOpacity
                         key={acc}
-                        style={[styles.chip, { backgroundColor: account === acc ? typeColor : (isDark ? '#2A2A42' : '#F4F4F9') }]}
+                        style={[styles.chip, { backgroundColor: account === acc ? typeColor : colorsNav.card }]}
                         onPress={() => setAccount(acc)}
                       >
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -497,7 +496,7 @@ export default function AddTransactionScreen() {
                     {allCategories.map(cat => (
                       <TouchableOpacity
                         key={cat}
-                        style={[styles.chip, { backgroundColor: category === cat ? typeColor : (isDark ? '#2A2A42' : '#F4F4F9') }]}
+                        style={[styles.chip, { backgroundColor: category === cat ? typeColor : colorsNav.card }]}
                         onPress={() => setCategory(cat)}
                         onLongPress={() => customCategories.includes(cat) && handleDeleteCustomCategory(cat)}
                       >
@@ -518,7 +517,7 @@ export default function AddTransactionScreen() {
                     {['Efectivo', ...customAccounts.filter(a => !cardNames.includes(a))].filter(a => a !== account).map(acc => (
                       <TouchableOpacity
                         key={acc}
-                        style={[styles.chip, { backgroundColor: destAccount === acc ? typeColor : (isDark ? '#2A2A42' : '#F4F4F9') }]}
+                        style={[styles.chip, { backgroundColor: destAccount === acc ? typeColor : colorsNav.card }]}
                         onPress={() => setDestAccount(acc)}
                       >
                         <Text style={[styles.chipText, { color: destAccount === acc ? '#FFF' : colorsNav.text }]}>{acc}</Text>
