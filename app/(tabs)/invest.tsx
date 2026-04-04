@@ -605,15 +605,13 @@ export default function InvestScreen() {
       </KeyboardAvoidingView>
 
       {/* ═══ ADD ASSET MODAL ═══ */}
-      <Modal visible={modalVisible} transparent animationType="slide">
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-          style={s.modalOverlay}
-        >
+      <Modal visible={modalVisible} transparent animationType="slide" statusBarTranslucent>
+        <View style={s.modalOverlay}>
           <TouchableWithoutFeedback onPress={() => { setModalVisible(false); setSelectedAsset(null); setSearchQuery(''); }}>
             <View style={StyleSheet.absoluteFill} />
           </TouchableWithoutFeedback>
-          <View style={[s.modalBox, { backgroundColor: colors.card }]}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View style={[s.modalBox, { backgroundColor: colors.card }]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <Text style={[s.modalTitle, { color: colors.text }]}>Buscar Activo</Text>
                 <TouchableOpacity onPress={() => { setModalVisible(false); setSelectedAsset(null); setSearchQuery(''); }}>
@@ -701,19 +699,18 @@ export default function InvestScreen() {
                 </View>
               )}
             </View>
-        </KeyboardAvoidingView>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* Goal Modal */}
-      <Modal visible={goalModalVisible} transparent animationType="slide">
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-          style={s.modalOverlay}
-        >
+      <Modal visible={goalModalVisible} transparent animationType="slide" statusBarTranslucent>
+        <View style={s.modalOverlay}>
           <TouchableWithoutFeedback onPress={() => setGoalModalVisible(false)}>
             <View style={StyleSheet.absoluteFill} />
           </TouchableWithoutFeedback>
-          <View style={[s.modalBox, { backgroundColor: colors.card }]}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View style={[s.modalBox, { backgroundColor: colors.card }]}>
             <Text style={[s.modalTitle, { color: colors.text }]}>Nueva Meta</Text>
             <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Nombre" placeholderTextColor={colors.sub} value={newGoal.name} onChangeText={t => setNewGoal({...newGoal, name: t})} />
             <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Objetivo (COP)" placeholderTextColor={colors.sub} keyboardType="decimal-pad" value={newGoal.target} onChangeText={t => setNewGoal({...newGoal, target: t})} />
@@ -723,6 +720,7 @@ export default function InvestScreen() {
             </View>
           </View>
         </KeyboardAvoidingView>
+        </View>
       </Modal>
     </SafeAreaView>
   );
