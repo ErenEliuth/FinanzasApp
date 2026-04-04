@@ -2,9 +2,7 @@ import { useAuth } from '@/utils/auth';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
-// Eliminado: MagicAuraButton
 import React, { useEffect, useRef, useState } from 'react';
-import { ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatCurrency, convertCurrency } from '@/utils/currency';
 import {
@@ -23,13 +21,9 @@ import { PieChart } from 'react-native-chart-kit';
 
 const screenWidth = Dimensions.get('window').width;
 
-
-
-
-
 export default function HistoryScreen() {
     const isFocused = useIsFocused();
-    const { user, theme, currency, rates, isHidden } = useAuth();
+    const { user, currency, rates, isHidden } = useAuth();
     const colorsNav = useThemeColors();
     const isDark = colorsNav.isDark;
     const PIE_COLORS = [colorsNav.accent, '#8B5CF6', '#F59E0B', '#3B82F6', '#EF4444', '#00BCD4', '#E91E63'];
@@ -98,7 +92,6 @@ export default function HistoryScreen() {
         );
     };
 
-    // Filtro por mes
     const filteredTransactions = transactions.filter(t => {
         const d = new Date(t.date);
         return d.getMonth() === selectedDate.getMonth() && d.getFullYear() === selectedDate.getFullYear();
@@ -127,11 +120,13 @@ export default function HistoryScreen() {
     const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
 
     const changeMonth = (delta: number) => {
-        const newDate = new Date(selectedDate);
+        const newDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
         newDate.setMonth(newDate.getMonth() + delta);
         
         const now = new Date();
-        if (newDate > new Date(now.getFullYear(), now.getMonth(), 1)) return; // No permitir meses futuros
+        const maxDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        
+        if (newDate > maxDate) return; 
         
         setSelectedDate(newDate);
     };
@@ -167,7 +162,6 @@ export default function HistoryScreen() {
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colorsNav.bg }]}>
-            {/* ── Header ────────────────────────────────────────────────── */}
             <View style={styles.header}>
                 <View>
                     <Text style={[styles.headerTitle, { color: colorsNav.text }]}>Historial</Text>
@@ -186,7 +180,6 @@ export default function HistoryScreen() {
                 </View>
             </View>
 
-            {/* ── Month Selector ── */}
             <View style={styles.monthSelector}>
                 <TouchableOpacity onPress={() => changeMonth(-1)} style={[styles.monthBtn, { backgroundColor: isDark ? colorsNav.card : '#F1F5F9' }]}>
                     <Ionicons name="chevron-back" size={20} color={colorsNav.accent} />
@@ -209,7 +202,6 @@ export default function HistoryScreen() {
                 </TouchableOpacity>
             </View>
 
-            {/* ── Resumen Rápido ── */}
             {!showChart && (
                 <View style={styles.summaryRow}>
                     <View style={[styles.summaryCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
@@ -236,7 +228,6 @@ export default function HistoryScreen() {
                 </View>
             )}
 
-            {/* ── Gráfico de Gastos ────────────────────────────────────── */}
             {showChart && (
                 <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
                     {pieData.length > 0 ? (
@@ -264,7 +255,6 @@ export default function HistoryScreen() {
                 </ScrollView>
             )}
 
-            {/* ── Lista de Transacciones ────────────────────────────────── */}
             {!showChart && (
                 <ScrollView
                     ref={scrollRef}
@@ -344,7 +334,6 @@ const styles = StyleSheet.create({
         borderRadius: 14,
     },
     chartToggleText: { fontSize: 13, fontWeight: '700' },
-
     summaryRow: {
         flexDirection: 'row', gap: 10,
         paddingHorizontal: 20, marginBottom: 20,
@@ -358,7 +347,6 @@ const styles = StyleSheet.create({
     },
     summaryLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 0.8 },
     summaryValue: { fontSize: 13, fontWeight: '800' },
-
     listContent: { paddingHorizontal: 20 },
     chartCard: {
         marginHorizontal: 20, borderRadius: 24, padding: 20, marginTop: 10,
@@ -366,11 +354,9 @@ const styles = StyleSheet.create({
     },
     chartTitle: { fontSize: 16, fontWeight: '800', marginBottom: 20, textAlign: 'center' },
     chartEmptyText: { fontSize: 14, marginTop: 12, fontWeight: '600' },
-
     emptyWrap: { alignItems: 'center', paddingTop: 80, gap: 12 },
     emptyTitle: { fontSize: 18, fontWeight: '800' },
     emptySub: { fontSize: 14, textAlign: 'center' },
-
     txCard: {
         flexDirection: 'row', alignItems: 'center',
         borderRadius: 20, padding: 14, marginBottom: 10,
@@ -385,14 +371,10 @@ const styles = StyleSheet.create({
     txMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
     txSub: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.3 },
     dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#CBD5E1' },
-
     txRight: { alignItems: 'flex-end' },
     txAmount: { fontSize: 15, fontWeight: '800' },
     accText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginTop: 4, letterSpacing: 0.5 },
-
     swipeHint: { textAlign: 'center', fontSize: 12, marginTop: 24, fontWeight: '500' },
-
-    // Month Selector Styles
     monthSelector: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -405,7 +387,6 @@ const styles = StyleSheet.create({
         width: 36,
         height: 36,
         borderRadius: 12,
-        backgroundColor: '#F1F5F9', // Default light bg, will be hidden or themed
         justifyContent: 'center',
         alignItems: 'center',
     },

@@ -16,7 +16,7 @@ export default function TabLayout() {
   const colorsNav = useThemeColors();
   const isDark = colorsNav.isDark;
 
-  const isInvestOrRestricted = (segments as string[]).some(s => ['invest', 'debts', 'goals', 'budgets'].includes(s));
+  const isInvestOrRestricted = (segments as string[]).some(s => ['invest', 'debts', 'goals', 'budgets', 'explore'].includes(s));
 
   const colors = {
     bg: colorsNav.card,
