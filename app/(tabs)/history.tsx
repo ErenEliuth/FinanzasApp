@@ -35,11 +35,11 @@ export default function HistoryScreen() {
     const scrollRef = useRef<any>(null);
 
     useEffect(() => {
-        if (isFocused) {
+        if (isFocused && user) {
             loadData();
             scrollRef.current?.scrollTo({ y: 0, animated: false });
         }
-    }, [isFocused]);
+    }, [isFocused, user]);
 
     const loadData = async () => {
         if (!user) return;
@@ -93,7 +93,8 @@ export default function HistoryScreen() {
     };
 
     const filteredTransactions = transactions.filter(t => {
-        const d = new Date(t.date);
+        const normalized = t.date.includes('T') ? t.date : `${t.date}T12:00:00`;
+        const d = new Date(normalized);
         return d.getMonth() === selectedDate.getMonth() && d.getFullYear() === selectedDate.getFullYear();
     });
 
@@ -146,18 +147,13 @@ export default function HistoryScreen() {
     };
 
     const formatTxDate = (tx: any) => {
-        const txDate = new Date(tx.date);
-        const today = new Date();
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
+      const dateStr = tx.date;
+      if (!dateStr) return '';
+      
+      const normalized = dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`;
+      const txDate = new Date(normalized);
 
-        const isToday = txDate.toDateString() === today.toDateString();
-        const isYesterday = txDate.toDateString() === yesterday.toDateString();
-
-        if (isToday) return `HOY`;
-        if (isYesterday) return `AYER`;
-        
-        return `${txDate.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }).toUpperCase()}`;
+      return `${txDate.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }).toUpperCase()}`;
     };
 
     return (
