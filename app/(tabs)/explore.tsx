@@ -374,7 +374,14 @@ export default function AddTransactionScreen() {
 
             <View style={styles.header}>
               <Text style={[styles.title, { color: colorsNav.text }]}>Nueva Transacción</Text>
-              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+                <TouchableOpacity 
+                   onPress={handleSave} 
+                   disabled={!amount || isSaving}
+                   style={[styles.saveHeaderBtn, { backgroundColor: (!amount || isSaving) ? colorsNav.card : colorsNav.accent }]}
+                >
+                  <MaterialIcons name="check" size={24} color={(!amount || isSaving) ? colorsNav.sub : "#FFF"} />
+                </TouchableOpacity>
                 <TouchableOpacity onPress={() => router.back()} style={[styles.closeBtn, { backgroundColor: colorsNav.card }]}>
                   <Ionicons name="close" size={24} color={colorsNav.text} />
                 </TouchableOpacity>
@@ -601,7 +608,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { padding: 24, paddingBottom: 100 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, marginTop: Platform.OS === 'android' ? 20 : 0 },
-  title: { fontSize: 24, fontWeight: '900' },
+  title: { fontSize: 24, fontWeight: '900', flex: 1 },
+  saveHeaderBtn: { width: 44, height: 44, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
   closeBtn: { width: 44, height: 44, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
 
   typeList: { flexDirection: 'row', padding: 6, borderRadius: 20, marginBottom: 20, justifyContent: 'space-between' },

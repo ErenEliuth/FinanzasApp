@@ -129,6 +129,10 @@ export default function HistoryScreen() {
     const changeMonth = (delta: number) => {
         const newDate = new Date(selectedDate);
         newDate.setMonth(newDate.getMonth() + delta);
+        
+        const now = new Date();
+        if (newDate > new Date(now.getFullYear(), now.getMonth(), 1)) return; // No permitir meses futuros
+        
         setSelectedDate(newDate);
     };
 
@@ -147,10 +151,6 @@ export default function HistoryScreen() {
     };
 
     const formatTxDate = (tx: any) => {
-        // Usamos created_at para la hora exacta, y date para el día nominal
-        // Si no hay created_at, caemos en la fecha de la transacción
-        const timeSource = tx.created_at ? new Date(tx.created_at) : new Date(tx.date);
-        
         const txDate = new Date(tx.date);
         const today = new Date();
         const yesterday = new Date(today);
@@ -159,16 +159,10 @@ export default function HistoryScreen() {
         const isToday = txDate.toDateString() === today.toDateString();
         const isYesterday = txDate.toDateString() === yesterday.toDateString();
 
-        const timeStr = timeSource.toLocaleTimeString('es-CO', { 
-            hour: '2-digit', 
-            minute: '2-digit', 
-            hour12: true 
-        });
-
-        if (isToday) return `HOY, ${timeStr}`;
-        if (isYesterday) return `AYER, ${timeStr}`;
+        if (isToday) return `HOY`;
+        if (isYesterday) return `AYER`;
         
-        return `${txDate.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }).toUpperCase()}, ${timeStr}`;
+        return `${txDate.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }).toUpperCase()}`;
     };
 
     return (
@@ -202,8 +196,16 @@ export default function HistoryScreen() {
                         {selectedDate.toLocaleString('es-CO', { month: 'long', year: 'numeric' })}
                     </Text>
                 </View>
-                <TouchableOpacity onPress={() => changeMonth(1)} style={[styles.monthBtn, { backgroundColor: isDark ? colorsNav.card : '#F1F5F9' }]}>
-                    <Ionicons name="chevron-forward" size={20} color={colorsNav.accent} />
+                <TouchableOpacity 
+                    onPress={() => changeMonth(1)} 
+                    style={[styles.monthBtn, { backgroundColor: isDark ? colorsNav.card : '#F1F5F9' }]}
+                    disabled={new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1) > new Date()}
+                >
+                    <Ionicons 
+                        name="chevron-forward" 
+                        size={20} 
+                        color={new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1) > new Date() ? colorsNav.sub + '40' : colorsNav.accent} 
+                    />
                 </TouchableOpacity>
             </View>
 

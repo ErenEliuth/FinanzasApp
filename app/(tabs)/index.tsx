@@ -462,7 +462,6 @@ export default function HomeScreen() {
     
     const normalized = dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`;
     const txDate = new Date(normalized);
-    const timeSource = tx.created_at ? new Date(tx.created_at) : txDate;
 
     const today = new Date();
     const yesterday = new Date(today);
@@ -471,11 +470,9 @@ export default function HomeScreen() {
     const isToday = txDate.toDateString() === today.toDateString();
     const isYesterday = txDate.toDateString() === yesterday.toDateString();
 
-    const timeStr = timeSource.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
-
-    if (isToday) return `HOY, ${timeStr}`;
-    if (isYesterday) return `AYER, ${timeStr}`;
-    return `${txDate.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }).toUpperCase()}, ${timeStr}`;
+    if (isToday) return `HOY`;
+    if (isYesterday) return `AYER`;
+    return `${txDate.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }).toUpperCase()}`;
   };
 
   return (
