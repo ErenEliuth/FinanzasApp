@@ -463,15 +463,6 @@ export default function HomeScreen() {
     const normalized = dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`;
     const txDate = new Date(normalized);
 
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    const isToday = txDate.toDateString() === today.toDateString();
-    const isYesterday = txDate.toDateString() === yesterday.toDateString();
-
-    if (isToday) return `HOY`;
-    if (isYesterday) return `AYER`;
     return `${txDate.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }).toUpperCase()}`;
   };
 

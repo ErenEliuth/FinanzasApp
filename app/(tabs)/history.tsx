@@ -49,7 +49,7 @@ export default function HistoryScreen() {
                 .select('*')
                 .eq('user_id', user.id)
                 .order('date', { ascending: false })
-                .order('created_at', { ascending: false });
+                .order('id', { ascending: false });
 
             if (error) throw error;
             setTransactions(data || []);
