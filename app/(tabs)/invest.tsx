@@ -606,15 +606,14 @@ export default function InvestScreen() {
 
       {/* ═══ ADD ASSET MODAL ═══ */}
       <Modal visible={modalVisible} transparent animationType="slide">
-        <View style={s.modalOverlay}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+          style={s.modalOverlay}
+        >
           <TouchableWithoutFeedback onPress={() => { setModalVisible(false); setSelectedAsset(null); setSearchQuery(''); }}>
             <View style={StyleSheet.absoluteFill} />
           </TouchableWithoutFeedback>
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-            style={{ width: '100%', justifyContent: 'flex-end' }}
-          >
-            <View style={[s.modalBox, { backgroundColor: colors.card }]}>
+          <View style={[s.modalBox, { backgroundColor: colors.card }]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <Text style={[s.modalTitle, { color: colors.text }]}>Buscar Activo</Text>
                 <TouchableOpacity onPress={() => { setModalVisible(false); setSelectedAsset(null); setSearchQuery(''); }}>
@@ -702,31 +701,28 @@ export default function InvestScreen() {
                 </View>
               )}
             </View>
-          </KeyboardAvoidingView>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Goal Modal */}
       <Modal visible={goalModalVisible} transparent animationType="slide">
-        <View style={s.modalOverlay}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+          style={s.modalOverlay}
+        >
           <TouchableWithoutFeedback onPress={() => setGoalModalVisible(false)}>
             <View style={StyleSheet.absoluteFill} />
           </TouchableWithoutFeedback>
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-            style={{ width: '100%', justifyContent: 'flex-end' }}
-          >
-            <View style={[s.modalBox, { backgroundColor: colors.card }]}>
-              <Text style={[s.modalTitle, { color: colors.text }]}>Nueva Meta</Text>
-              <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Nombre" placeholderTextColor={colors.sub} value={newGoal.name} onChangeText={t => setNewGoal({...newGoal, name: t})} />
-              <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Objetivo (COP)" placeholderTextColor={colors.sub} keyboardType="decimal-pad" value={newGoal.target} onChangeText={t => setNewGoal({...newGoal, target: t})} />
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                <TouchableOpacity style={[s.modalBtn, { backgroundColor: colors.bg }]} onPress={() => setGoalModalVisible(false)}><Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text></TouchableOpacity>
-                <TouchableOpacity style={[s.modalBtn, { backgroundColor: colors.accent }]} onPress={handleAddGoal}><Text style={{ color: '#FFF', fontWeight: '900' }}>Crear</Text></TouchableOpacity>
-              </View>
+          <View style={[s.modalBox, { backgroundColor: colors.card }]}>
+            <Text style={[s.modalTitle, { color: colors.text }]}>Nueva Meta</Text>
+            <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Nombre" placeholderTextColor={colors.sub} value={newGoal.name} onChangeText={t => setNewGoal({...newGoal, name: t})} />
+            <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Objetivo (COP)" placeholderTextColor={colors.sub} keyboardType="decimal-pad" value={newGoal.target} onChangeText={t => setNewGoal({...newGoal, target: t})} />
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity style={[s.modalBtn, { backgroundColor: colors.bg }]} onPress={() => setGoalModalVisible(false)}><Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text></TouchableOpacity>
+              <TouchableOpacity style={[s.modalBtn, { backgroundColor: colors.accent }]} onPress={handleAddGoal}><Text style={{ color: '#FFF', fontWeight: '900' }}>Crear</Text></TouchableOpacity>
             </View>
-          </KeyboardAvoidingView>
-        </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
