@@ -22,7 +22,8 @@ import {
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  View
+  View,
+  useColorScheme
 } from 'react-native';
 
 // ─── Categorías fijas por defecto ───────────────────────────────────────────
@@ -79,6 +80,7 @@ export default function AddTransactionScreen() {
   const { user, currency, rates, isHidden } = useAuth();
   const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
   const colorsNav = useThemeColors();
+  const isDark = useColorScheme() === 'dark';
 
   const typeColor =
     type === 'income' ? colorsNav.accent :
@@ -393,96 +395,90 @@ export default function AddTransactionScreen() {
 
             <View style={styles.header}>
               <Text style={[styles.title, { color: colorsNav.text }]}>Nueva Transacción</Text>
-              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                <TouchableOpacity onPress={() => router.back()} style={[styles.closeBtn, { backgroundColor: colorsNav.card }]}>
-                  <Ionicons name="close" size={24} color={colorsNav.text} />
-                </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
+                <Ionicons name="close" size={24} color={colorsNav.sub} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Selector de Tipo (Pills Minimalistas) */}
+            <View style={styles.typeListWrap}>
+              <View style={[styles.typeList, { backgroundColor: isDark ? '#1C1C2E' : '#F0F0F5' }]}>
+                {[
+                  { id: 'income', label: 'Ingreso', c: colorsNav.accent },
+                  { id: 'expense', label: 'Gasto', c: '#EF4444' },
+                  { id: 'ahorro', label: 'Ahorro', c: '#8B5CF6' },
+                  { id: 'transfer', label: 'Mover', c: '#F59E0B' },
+                ].map(t => (
+                  <TouchableOpacity
+                    key={t.id}
+                    style={[styles.typeItem, type === t.id && { backgroundColor: isDark ? '#2A2A42' : '#FFF', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4 }]}
+                    onPress={() => { setType(t.id as TxType); setDescription(t.id === 'ahorro' ? 'Ahorro' : ''); }}
+                  >
+                    <Text style={[styles.typeItemText, { color: type === t.id ? t.c : colorsNav.sub }]}>{t.label}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
 
-            {/* Selector de Tipo */}
-            <View style={[styles.typeList, { backgroundColor: colorsNav.card }]}>
-              {[
-                { id: 'income', label: 'Ingreso', icon: 'trending-up', c: colorsNav.accent },
-                { id: 'expense', label: 'Gasto', icon: 'trending-down', c: '#EF4444' },
-                { id: 'ahorro', label: 'Ahorro', icon: 'wallet', c: '#8B5CF6' },
-                { id: 'transfer', label: 'Mover', icon: 'swap-horiz', c: '#F59E0B' },
-              ].map(t => (
-                <TouchableOpacity
-                  key={t.id}
-                  style={[styles.typeItem, type === t.id && { backgroundColor: t.c + '15', borderColor: t.c }]}
-                  onPress={() => { setType(t.id as TxType); setDescription(t.id === 'ahorro' ? 'Ahorro' : ''); }}
-                >
-                  <MaterialIcons name={t.icon as any} size={18} color={type === t.id ? t.c : colorsNav.sub} />
-                  <Text style={[styles.typeItemText, { color: type === t.id ? t.c : colorsNav.sub }]}>{t.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Monto */}
-            <View style={[styles.amountCard, { backgroundColor: typeColor }]}>
-              <Text style={styles.currSign}>{CURRENCIES.find(c => c.code === currency)?.symbol || '$'}</Text>
+            {/* Monto (Gigante y Transparente) */}
+            <View style={styles.amountCard}>
+              <Text style={[styles.currSign, { color: typeColor }]}>{CURRENCIES.find(c => c.code === currency)?.symbol || '$'}</Text>
               <TextInput
-                style={styles.amountInput}
+                style={[styles.amountInput, { color: typeColor }]}
                 value={amount}
                 onChangeText={handleAmountChange}
                 placeholder="0"
-                placeholderTextColor="rgba(255,255,255,0.4)"
+                placeholderTextColor={typeColor + '50'}
                 keyboardType="decimal-pad"
                 returnKeyType="done"
                 onSubmitEditing={Keyboard.dismiss}
               />
             </View>
 
-            {/* Formulario */}
-            <View style={[styles.form, { backgroundColor: colorsNav.card }]}>
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: colorsNav.sub }]}>Descripción</Text>
-                <View style={[styles.inputContainer, { backgroundColor: colorsNav.bg }]}>
-                  <TextInput
-                    style={[styles.textInput, { color: colorsNav.text }]}
-                    value={description}
-                    onChangeText={setDescription}
-                    placeholder="Ej. Supermercado, Nómina..."
-                    placeholderTextColor={colorsNav.sub + '80'}
-                  />
-                </View>
+            {/* Formulario (Sin Caja Blanca, Flotante Sobre Fondo) */}
+            <View style={styles.form}>
+              <View style={[styles.inputContainer, { borderBottomColor: isDark ? colorsNav.border : '#E5E7EB' }]}>
+                <TextInput
+                  style={[styles.textInput, { color: colorsNav.text }]}
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="Descripción (opcional)"
+                  placeholderTextColor={colorsNav.sub}
+                />
               </View>
 
               <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionTitle, { color: colorsNav.text }]}>Cuenta</Text>
-                  <TouchableOpacity onPress={() => setAccountModalVisible(true)}>
-                    <MaterialIcons name="add-circle" size={24} color={colorsNav.accent} />
-                  </TouchableOpacity>
-                </View>
+                <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>Cuenta</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
                   {['Efectivo', ...customAccounts.filter(a => !cardNames.includes(a))].map(acc => (
                     <TouchableOpacity
                       key={acc}
-                      style={[styles.chip, { backgroundColor: colorsNav.bg }, account === acc && { backgroundColor: colorsNav.accent }]}
+                      style={[styles.chip, { backgroundColor: account === acc ? typeColor : (isDark ? '#2A2A42' : '#F4F4F9') }]}
                       onPress={() => setAccount(acc)}
                       onLongPress={() => customAccounts.includes(acc) && handleDeleteCustomAccount(acc)}
                     >
-                      <Text style={[styles.chipText, { color: colorsNav.sub }, account === acc && { color: '#FFF' }]}>{acc}</Text>
+                      <Text style={[styles.chipText, { color: account === acc ? '#FFF' : colorsNav.text }]}>{acc}</Text>
                     </TouchableOpacity>
                   ))}
+                  <TouchableOpacity style={styles.addChip} onPress={() => setAccountModalVisible(true)}>
+                    <MaterialIcons name="add" size={20} color={colorsNav.sub} />
+                  </TouchableOpacity>
                 </ScrollView>
               </View>
 
               {cardNames.length > 0 && type !== 'ahorro' && type !== 'transfer' && (
                 <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, { color: colorsNav.text }]}>Tarjetas de Crédito</Text>
+                  <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>Tarjetas de Crédito</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
                     {cardNames.map(acc => (
                       <TouchableOpacity
                         key={acc}
-                        style={[styles.chip, { backgroundColor: colorsNav.bg, borderColor: colorsNav.accent + '40', borderWidth: 1 }, account === acc && { backgroundColor: colorsNav.accent, borderColor: colorsNav.accent }]}
+                        style={[styles.chip, { backgroundColor: account === acc ? typeColor : (isDark ? '#2A2A42' : '#F4F4F9') }]}
                         onPress={() => setAccount(acc)}
                       >
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <MaterialIcons name="credit-card" size={14} color={account === acc ? '#FFF' : colorsNav.accent} />
-                          <Text style={[styles.chipText, { color: colorsNav.sub }, account === acc && { color: '#FFF' }]}>{acc}</Text>
+                          <MaterialIcons name="credit-card" size={14} color={account === acc ? '#FFF' : colorsNav.text} />
+                          <Text style={[styles.chipText, { color: account === acc ? '#FFF' : colorsNav.text }]}>{acc}</Text>
                         </View>
                       </TouchableOpacity>
                     ))}
@@ -492,38 +488,36 @@ export default function AddTransactionScreen() {
 
               {type !== 'ahorro' && type !== 'transfer' && (
                 <View style={styles.section}>
-                  <View style={styles.sectionHeader}>
-                    <Text style={[styles.sectionTitle, { color: colorsNav.text }]}>Categoría</Text>
-                    <TouchableOpacity onPress={() => setModalVisible(true)}>
-                      <MaterialIcons name="add-circle" size={24} color={colorsNav.accent} />
-                    </TouchableOpacity>
-                  </View>
+                  <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>Categoría</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
                     {allCategories.map(cat => (
                       <TouchableOpacity
                         key={cat}
-                        style={[styles.chip, { backgroundColor: colorsNav.bg }, category === cat && { backgroundColor: typeColor }]}
+                        style={[styles.chip, { backgroundColor: category === cat ? typeColor : (isDark ? '#2A2A42' : '#F4F4F9') }]}
                         onPress={() => setCategory(cat)}
                         onLongPress={() => customCategories.includes(cat) && handleDeleteCustomCategory(cat)}
                       >
-                        <Text style={[styles.chipText, { color: colorsNav.sub }, category === cat && { color: '#FFF' }]}>{cat}</Text>
+                        <Text style={[styles.chipText, { color: category === cat ? '#FFF' : colorsNav.text }]}>{cat}</Text>
                       </TouchableOpacity>
                     ))}
+                    <TouchableOpacity style={styles.addChip} onPress={() => setModalVisible(true)}>
+                      <MaterialIcons name="add" size={20} color={colorsNav.sub} />
+                    </TouchableOpacity>
                   </ScrollView>
                 </View>
               )}
 
               {type === 'transfer' && (
                 <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, { color: colorsNav.text, marginBottom: 12 }]}>Destino</Text>
+                  <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>Destino</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
                     {['Efectivo', ...customAccounts.filter(a => !cardNames.includes(a))].filter(a => a !== account).map(acc => (
                       <TouchableOpacity
                         key={acc}
-                        style={[styles.chip, { backgroundColor: colorsNav.bg }, destAccount === acc && { backgroundColor: typeColor }]}
+                        style={[styles.chip, { backgroundColor: destAccount === acc ? typeColor : (isDark ? '#2A2A42' : '#F4F4F9') }]}
                         onPress={() => setDestAccount(acc)}
                       >
-                        <Text style={[styles.chipText, { color: colorsNav.sub }, destAccount === acc && { color: '#FFF' }]}>{acc}</Text>
+                        <Text style={[styles.chipText, { color: destAccount === acc ? '#FFF' : colorsNav.text }]}>{acc}</Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
@@ -620,32 +614,31 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { padding: 24, paddingBottom: 100 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, marginTop: Platform.OS === 'android' ? 20 : 0 },
-  title: { fontSize: 24, fontWeight: '900' },
-  closeBtn: { width: 44, height: 44, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
+  closeBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'flex-end' },
 
-  typeList: { flexDirection: 'row', padding: 6, borderRadius: 20, marginBottom: 20, justifyContent: 'space-between' },
-  typeItem: { flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center', gap: 4, borderWidth: 1, borderColor: 'transparent' },
-  typeItemText: { fontSize: 11, fontWeight: '800' },
+  typeListWrap: { alignItems: 'center', marginBottom: 30 },
+  typeList: { flexDirection: 'row', padding: 4, borderRadius: 100, width: '100%', justifyContent: 'space-between' },
+  typeItem: { flex: 1, paddingVertical: 10, borderRadius: 100, alignItems: 'center', backgroundColor: 'transparent' },
+  typeItemText: { fontSize: 13, fontWeight: '800' },
 
-  amountCard: { borderRadius: 28, padding: 32, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', marginBottom: 24, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 15 },
-  currSign: { color: '#FFF', fontSize: 28, fontWeight: '800', marginRight: 6 },
-  amountInput: { color: '#FFF', fontSize: 42, fontWeight: '900', minWidth: 150, textAlign: 'center' },
+  amountCard: { alignItems: 'center', flexDirection: 'row', justifyContent: 'center', marginBottom: 40, marginTop: 10 },
+  currSign: { fontSize: 52, fontWeight: '900', marginRight: 4, marginTop: Platform.OS === 'android' ? -8 : 0 },
+  amountInput: { fontSize: 64, fontWeight: '900', minWidth: '40%', textAlign: 'center', padding: 0 },
 
-  form: { borderRadius: 32, padding: 24, gap: 24, elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
-  inputGroup: { gap: 8 },
-  inputLabel: { fontSize: 13, fontWeight: '800', marginLeft: 4 },
-  inputContainer: { borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14 },
-  textInput: { fontSize: 16, fontWeight: '600' },
+  form: { gap: 32 },
+  inputContainer: { borderBottomWidth: 1, paddingVertical: 12, paddingHorizontal: 4 },
+  textInput: { fontSize: 18, fontWeight: '600' },
 
-  section: { gap: 12 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionTitle: { fontSize: 16, fontWeight: '800' },
-  chipRow: { gap: 10 },
-  chip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14 },
-  chipText: { fontSize: 13, fontWeight: '800' },
+  section: { gap: 14 },
+  sectionTitle: { fontSize: 13, fontWeight: '800', marginLeft: 4, textTransform: 'uppercase', letterSpacing: 1 },
+  chipRow: { gap: 10, paddingRight: 20 },
+  chip: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 100 },
+  chipText: { fontSize: 14, fontWeight: '700' },
+  addChip: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'transparent', borderWidth: 1, borderColor: '#D1D5DB', justifyContent: 'center', alignItems: 'center' },
 
-  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 20, borderRadius: 24, marginTop: 32, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 15 },
-  saveBtnText: { color: '#FFF', fontSize: 18, fontWeight: '900' },
+  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 20, borderRadius: 100, marginTop: 40, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width:0, height:4 } },
+  saveBtnText: { color: '#FFF', fontSize: 18, fontWeight: '900', letterSpacing: -0.5 },
 
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
   modalBox: { borderRadius: 32, padding: 32, gap: 20 },
