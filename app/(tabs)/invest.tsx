@@ -389,7 +389,7 @@ export default function InvestScreen() {
                 {[
                   { id: 'portfolio', label: 'Mi Portafolio', sub: `${positions.length} activos · ${baseFmt(totalCurrent)}`, icon: 'pie-chart', color: colors.accent, iconSet: 'MI' },
                   { id: 'goals', label: 'Metas de Inversión', sub: `${goals.length} proyectos activos`, icon: 'flag', color: '#10B981', iconSet: 'MI' },
-                  { id: 'calendar', label: 'Dividendos & Rentas', sub: `Anual est: ${baseFmt(projectedDivs.reduce((a,b)=>a+b, 0))}`, icon: 'calendar-month', color: '#3B82F6', iconSet: 'MCI' },
+                  { id: 'calendar', label: 'Dividendos & Rentas', sub: `Anual est: ${baseFmt(projectedDivs.reduce((a,b)=>a+b, 0))}`, icon: 'calendar-month', color: '#3B82F6', iconSet: 'MI' },
                   { id: 'ai', label: 'Asesor Santy', sub: `Excedente: ${baseFmt(projectedSurplus)}`, icon: 'auto-awesome', color: '#8B5CF6', iconSet: 'MI' },
                 ].map(item => (
                   <TouchableOpacity key={item.id} style={[s.navCard, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => setActiveTab(item.id as any)}>

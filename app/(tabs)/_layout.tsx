@@ -16,7 +16,7 @@ export default function TabLayout() {
   const colorsNav = useThemeColors();
   const isDark = colorsNav.isDark;
 
-  const isDebtsOrRestricted = (segments as string[]).some(s => ['debts', 'goals', 'cards', 'budgets'].includes(s));
+  const isInvestOrRestricted = (segments as string[]).some(s => ['invest', 'debts', 'goals', 'budgets'].includes(s));
 
   const colors = {
     bg: colorsNav.card,
@@ -44,7 +44,7 @@ export default function TabLayout() {
           shadowOpacity: 0.06,
           shadowRadius: 12,
           zIndex: 100,
-          display: isDesktop ? 'none' : 'flex',
+          display: isDesktop || isInvestOrRestricted ? 'none' : 'flex',
           paddingBottom: Platform.OS === 'ios' ? 20 : 4,
           paddingTop: 4,
         },
@@ -86,7 +86,7 @@ export default function TabLayout() {
         options={{
           title: 'Añadir',
           href: '/explore',
-          tabBarItemStyle: isDebtsOrRestricted 
+          tabBarItemStyle: isInvestOrRestricted 
             ? { pointerEvents: 'none' as any, opacity: 0.5 } 
             : {},
           tabBarIcon: ({ focused }) => {
@@ -94,7 +94,7 @@ export default function TabLayout() {
               <View 
                 style={[
                   styles.fabButton, 
-                  isDebtsOrRestricted && styles.fabButtonDisabled, 
+                  isInvestOrRestricted && styles.fabButtonDisabled, 
                   { backgroundColor: colorsNav.accent }
                 ]}
               >
@@ -106,7 +106,7 @@ export default function TabLayout() {
         }}
         listeners={{
           tabPress: (e) => {
-            if (isDebtsOrRestricted) {
+            if (isInvestOrRestricted) {
               e.preventDefault();
             }
           },
