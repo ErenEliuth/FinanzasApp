@@ -349,9 +349,15 @@ export default function BudgetsScreen() {
             </ScrollView>
 
             {/* Modal Límite */}
-            <Modal visible={modalVisible} transparent animationType="fade">
+            <Modal visible={modalVisible} transparent animationType="slide">
                 <View style={styles.overlay}>
-                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%', alignItems: 'center' }}>
+                    <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+                        <View style={StyleSheet.absoluteFill} />
+                    </TouchableWithoutFeedback>
+                    <KeyboardAvoidingView 
+                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+                        style={{ width: '100%', justifyContent: 'flex-end' }}
+                    >
                         <View style={[styles.modalBox, { backgroundColor: colors.card, width: '100%' }]}>
                             <View style={styles.modalHeaderInner}>
                                 <View style={[styles.modalIcon, { backgroundColor: selectedCat.color + '15' }]}>
@@ -396,27 +402,35 @@ export default function BudgetsScreen() {
             </Modal>
 
             {/* Modal de Nueva Categoría */}
-            <Modal visible={addCatModalVisible} transparent animationType="fade">
+            <Modal visible={addCatModalVisible} transparent animationType="slide">
                 <View style={styles.overlay}>
-                    <View style={[styles.modalBox, { backgroundColor: colors.card, width: '90%' }]}>
-                        <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 20 }]}>Nueva Categoría</Text>
-                        <TextInput 
-                            style={[styles.modalInputText, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]}
-                            placeholder="Nombre de la categoría"
-                            placeholderTextColor={colors.sub}
-                            value={newCatName}
-                            onChangeText={setNewCatName}
-                            autoFocus
-                        />
-                        <View style={styles.modalFooter}>
-                            <TouchableOpacity style={[styles.mBtnB, { backgroundColor: colors.bg }]} onPress={() => setAddCatModalVisible(false)}>
-                                <Text style={{ color: colors.text, fontWeight: '800' }}>Cancelar</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={[styles.mBtnB, { backgroundColor: colors.accent }]} onPress={handleAddCategory}>
-                                <Text style={{ color: '#FFF', fontWeight: '800' }}>Guardar</Text>
-                            </TouchableOpacity>
+                    <TouchableWithoutFeedback onPress={() => setAddCatModalVisible(false)}>
+                        <View style={StyleSheet.absoluteFill} />
+                    </TouchableWithoutFeedback>
+                    <KeyboardAvoidingView 
+                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+                        style={{ width: '100%', justifyContent: 'flex-end' }}
+                    >
+                        <View style={[styles.modalBox, { backgroundColor: colors.card, width: '100%' }]}>
+                            <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 20 }]}>Nueva Categoría</Text>
+                            <TextInput 
+                                style={[styles.modalInputText, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }]}
+                                placeholder="Nombre de la categoría"
+                                placeholderTextColor={colors.sub}
+                                value={newCatName}
+                                onChangeText={setNewCatName}
+                                autoFocus
+                            />
+                            <View style={styles.modalFooter}>
+                                <TouchableOpacity style={[styles.mBtnB, { backgroundColor: colors.bg }]} onPress={() => setAddCatModalVisible(false)}>
+                                    <Text style={{ color: colors.text, fontWeight: '800' }}>Cancelar</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={[styles.mBtnB, { backgroundColor: colors.accent }]} onPress={handleAddCategory}>
+                                    <Text style={{ color: '#FFF', fontWeight: '800' }}>Guardar</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
-                    </View>
+                    </KeyboardAvoidingView>
                 </View>
             </Modal>
         </SafeAreaView>
@@ -434,7 +448,7 @@ const styles = StyleSheet.create({
     tab: { flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
     tabTxt: { fontSize: 13, fontWeight: '800' },
     
-    scroll: { paddingHorizontal: 24 },
+    scroll: { paddingHorizontal: 24, paddingBottom: 100 },
 
     summaryCard: { borderRadius: 32, padding: 24, marginBottom: 24, elevation: 8, shadowColor: '#4CAF50', shadowOpacity: 0.2, shadowRadius: 20 },
     summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
@@ -467,8 +481,8 @@ const styles = StyleSheet.create({
     addTxt: { fontSize: 13, fontWeight: '800' },
 
     // Modal
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
-    modalBox: { borderRadius: 32, padding: 32 },
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+    modalBox: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 32, paddingBottom: 50 },
     modalHeaderInner: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 32 },
     modalIcon: { width: 56, height: 56, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
     modalTitle: { fontSize: 20, fontWeight: '900' },

@@ -35,6 +35,7 @@ export default function HistoryScreen() {
     const PIE_COLORS = [colorsNav.accent, '#8B5CF6', '#F59E0B', '#3B82F6', '#EF4444', '#00BCD4', '#E91E63'];
 
     const [transactions, setTransactions] = useState<any[]>([]);
+    const [selectedDate, setSelectedDate] = useState(new Date());
     const [refreshing, setRefreshing] = useState(false);
     const [showChart, setShowChart] = useState(false);
     const scrollRef = useRef<any>(null);
@@ -54,7 +55,7 @@ export default function HistoryScreen() {
                 .select('*')
                 .eq('user_id', user.id)
                 .order('date', { ascending: false })
-                .order('id', { ascending: false });
+                .order('created_at', { ascending: false });
 
             if (error) throw error;
             setTransactions(data || []);
@@ -97,25 +98,22 @@ export default function HistoryScreen() {
         );
     };
 
-    // Totales
-    const today = new Date();
-    const currMonth = today.getMonth();
-    const currYear = today.getFullYear();
-
-    const totalIngresos = transactions.filter(t => t.type === 'income' && t.category !== 'Transferencia' && t.category !== 'Ahorro').reduce((s, t) => s + t.amount, 0);
-    const totalGastos = transactions.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia').reduce((s, t) => s + t.amount, 0);
-    const totalAhorro = transactions.filter(t => t.category === 'Ahorro').reduce((s, t) => s + t.amount, 0);
-
-    // Datos para el gráfico
-    const monthExpenses = transactions.filter(t => {
+    // Filtro por mes
+    const filteredTransactions = transactions.filter(t => {
         const d = new Date(t.date);
-        return t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && d.getMonth() === currMonth && d.getFullYear() === currYear;
+        return d.getMonth() === selectedDate.getMonth() && d.getFullYear() === selectedDate.getFullYear();
     });
+
+    const totalIngresos = filteredTransactions.filter(t => t.type === 'income' && t.category !== 'Transferencia' && t.category !== 'Ahorro').reduce((s, t) => s + t.amount, 0);
+    const totalGastos = filteredTransactions.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia').reduce((s, t) => s + t.amount, 0);
+    const totalAhorro = filteredTransactions.filter(t => t.category === 'Ahorro').reduce((s, t) => s + t.amount, 0);
+
     const catTotals: Record<string, number> = {};
-    monthExpenses.forEach(t => {
+    filteredTransactions.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia').forEach(t => {
         const c = t.category || 'Otros';
         catTotals[c] = (catTotals[c] || 0) + t.amount;
     });
+
     const pieData = Object.entries(catTotals)
         .sort((a, b) => b[1] - a[1])
         .map(([name, amount], i) => ({
@@ -127,6 +125,12 @@ export default function HistoryScreen() {
         }));
 
     const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
+
+    const changeMonth = (delta: number) => {
+        const newDate = new Date(selectedDate);
+        newDate.setMonth(newDate.getMonth() + delta);
+        setSelectedDate(newDate);
+    };
 
     const getTxIconInfo = (tx: any) => {
         if (tx.type === 'income') {
@@ -143,13 +147,11 @@ export default function HistoryScreen() {
     };
 
     const formatTxDate = (tx: any) => {
-        const dateStr = tx.date;
-        if (!dateStr) return '';
+        // Usamos created_at para la hora exacta, y date para el día nominal
+        // Si no hay created_at, caemos en la fecha de la transacción
+        const timeSource = tx.created_at ? new Date(tx.created_at) : new Date(tx.date);
         
-        const normalized = dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`;
-        const txDate = new Date(normalized);
-        const timeSource = tx.created_at ? new Date(tx.created_at) : txDate;
-
+        const txDate = new Date(tx.date);
         const today = new Date();
         const yesterday = new Date(today);
         yesterday.setDate(yesterday.getDate() - 1);
@@ -157,10 +159,15 @@ export default function HistoryScreen() {
         const isToday = txDate.toDateString() === today.toDateString();
         const isYesterday = txDate.toDateString() === yesterday.toDateString();
 
-        const timeStr = timeSource.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+        const timeStr = timeSource.toLocaleTimeString('es-CO', { 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            hour12: true 
+        });
 
         if (isToday) return `HOY, ${timeStr}`;
         if (isYesterday) return `AYER, ${timeStr}`;
+        
         return `${txDate.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }).toUpperCase()}, ${timeStr}`;
     };
 
@@ -170,7 +177,7 @@ export default function HistoryScreen() {
             <View style={styles.header}>
                 <View>
                     <Text style={[styles.headerTitle, { color: colorsNav.text }]}>Historial</Text>
-                    <Text style={[styles.headerSub, { color: colorsNav.sub }]}>{transactions.length} transacciones registradas</Text>
+                    <Text style={[styles.headerSub, { color: colorsNav.sub }]}>{filteredTransactions.length} movimientos hallados</Text>
                 </View>
                 <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
                     <TouchableOpacity
@@ -179,19 +186,33 @@ export default function HistoryScreen() {
                     >
                         <Ionicons name="pie-chart" size={16} color={showChart ? '#FFF' : colorsNav.accent} />
                         <Text style={[styles.chartToggleText, { color: showChart ? '#FFF' : colorsNav.accent }]}>
-                            {showChart ? 'Ver Lista' : 'Gráfico'}
+                            {showChart ? 'Lista' : 'Gráfico'}
                         </Text>
                     </TouchableOpacity>
-{/* Eliminado: MagicAuraButton */}
                 </View>
             </View>
 
-            {/* ── Resumen Rápido Sanctuary ──────────────────────────────── */}
+            {/* ── Month Selector ── */}
+            <View style={styles.monthSelector}>
+                <TouchableOpacity onPress={() => changeMonth(-1)} style={[styles.monthBtn, { backgroundColor: isDark ? colorsNav.card : '#F1F5F9' }]}>
+                    <Ionicons name="chevron-back" size={20} color={colorsNav.accent} />
+                </TouchableOpacity>
+                <View style={styles.monthLabelBox}>
+                    <Text style={[styles.monthLabelText, { color: colorsNav.text }]}>
+                        {selectedDate.toLocaleString('es-CO', { month: 'long', year: 'numeric' })}
+                    </Text>
+                </View>
+                <TouchableOpacity onPress={() => changeMonth(1)} style={[styles.monthBtn, { backgroundColor: isDark ? colorsNav.card : '#F1F5F9' }]}>
+                    <Ionicons name="chevron-forward" size={20} color={colorsNav.accent} />
+                </TouchableOpacity>
+            </View>
+
+            {/* ── Resumen Rápido ── */}
             {!showChart && (
                 <View style={styles.summaryRow}>
                     <View style={[styles.summaryCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
-                        <View style={[styles.miniIcon, { backgroundColor: '#E3F0FF' }]}>
-                            <MaterialIcons name="call-received" size={12} color="#3B82F6" />
+                        <View style={[styles.miniIcon, { backgroundColor: colorsNav.accent + '15' }]}>
+                            <MaterialIcons name="call-received" size={12} color={colorsNav.accent} />
                         </View>
                         <Text style={[styles.summaryLabel, { color: colorsNav.sub }]}>INGRESOS</Text>
                         <Text style={[styles.summaryValue, { color: colorsNav.text }]}>{fmt(totalIngresos)}</Text>
@@ -215,10 +236,10 @@ export default function HistoryScreen() {
 
             {/* ── Gráfico de Gastos ────────────────────────────────────── */}
             {showChart && (
-                <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+                <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
                     {pieData.length > 0 ? (
                         <View style={[styles.chartCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
-                            <Text style={[styles.chartTitle, { color: colorsNav.text }]}>Distribución de Gastos (Mes Actual)</Text>
+                            <Text style={[styles.chartTitle, { color: colorsNav.text }]}>Distribución de Gastos</Text>
                             <PieChart
                                 data={pieData}
                                 width={screenWidth - 40}
@@ -235,7 +256,7 @@ export default function HistoryScreen() {
                     ) : (
                         <View style={[styles.chartCard, { backgroundColor: isDark ? colorsNav.card : '#FFF', alignItems: 'center', paddingVertical: 40 }]}>
                             <Ionicons name="pie-chart-outline" size={48} color={colorsNav.sub} />
-                            <Text style={[styles.chartEmptyText, { color: colorsNav.sub }]}>No hay gastos registrados este mes</Text>
+                            <Text style={[styles.chartEmptyText, { color: colorsNav.sub }]}>No hay gastos registrados en este período</Text>
                         </View>
                     )}
                 </ScrollView>
@@ -249,14 +270,14 @@ export default function HistoryScreen() {
                     showsVerticalScrollIndicator={false}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colorsNav.accent} />}
                 >
-                    {transactions.length === 0 ? (
+                    {filteredTransactions.length === 0 ? (
                         <View style={styles.emptyWrap}>
                             <MaterialIcons name="receipt-long" size={60} color={isDark ? '#3A3A52' : '#E0D8CC'} />
                             <Text style={[styles.emptyTitle, { color: colorsNav.text }]}>Sin movimientos</Text>
-                            <Text style={[styles.emptySub, { color: colorsNav.sub }]}>Tus transacciones aparecerán aquí</Text>
+                            <Text style={[styles.emptySub, { color: colorsNav.sub }]}>No hay transacciones para este mes</Text>
                         </View>
                     ) : (
-                        transactions.map(tx => {
+                        filteredTransactions.map(tx => {
                             const iconInfo = getTxIconInfo(tx);
                             return (
                                 <TouchableOpacity
@@ -368,4 +389,31 @@ const styles = StyleSheet.create({
     accText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginTop: 4, letterSpacing: 0.5 },
 
     swipeHint: { textAlign: 'center', fontSize: 12, marginTop: 24, fontWeight: '500' },
+
+    // Month Selector Styles
+    monthSelector: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 20,
+        marginBottom: 20,
+        gap: 15,
+    },
+    monthBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 12,
+        backgroundColor: '#F1F5F9', // Default light bg, will be hidden or themed
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    monthLabelBox: {
+        minWidth: 140,
+        alignItems: 'center',
+    },
+    monthLabelText: {
+        fontSize: 15,
+        fontWeight: '800',
+        textTransform: 'capitalize',
+    },
 });

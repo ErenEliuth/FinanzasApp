@@ -9,7 +9,7 @@ import { supabase } from '@/utils/supabase';
 import {
   Alert, Modal, Platform, SafeAreaView, ScrollView, StyleSheet,
   Text, TextInput, TouchableOpacity, View, ActivityIndicator, Animated,
-  Dimensions, KeyboardAvoidingView
+  Dimensions, KeyboardAvoidingView, TouchableWithoutFeedback
 } from 'react-native';
 import { formatCurrency, convertCurrency } from '@/utils/currency';
 import { searchAssets, fetchCryptoPrice, POPULAR_ASSETS, SearchResult } from '@/utils/stockPrices';
@@ -332,279 +332,288 @@ export default function InvestScreen() {
         ) : <View style={{ width: 40 }} />}
       </View>
 
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      >
+        <ScrollView contentContainerStyle={s.mainScroll} showsVerticalScrollIndicator={false}>
 
-        {/* ═══ HUB ═══ */}
-        {activeTab === 'hub' && (
-          <View>
-            {/* Summary Card */}
-            <View style={[s.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[s.summaryLabel, { color: colors.sub }]}>PATRIMONIO TOTAL</Text>
-              <Text style={[s.summaryAmount, { color: colors.text }]}>{baseFmt(totalCurrent + totalDividends)}</Text>
-              <View style={s.summaryRow}>
-                <View style={[s.chip, { backgroundColor: profitAbs >= 0 ? '#10B98115' : '#EF444415' }]}>
-                  <Text style={{ color: profitAbs >= 0 ? '#10B981' : '#EF4444', fontSize: 13, fontWeight: '800' }}>
-                    {profitAbs >= 0 ? '▲' : '▼'} {profitPct.toFixed(1)}%
-                  </Text>
-                </View>
-                <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>{baseFmt(Math.abs(profitAbs))} {profitAbs >= 0 ? 'ganancia' : 'pérdida'}</Text>
-              </View>
-
-              {/* Mini allocation bar */}
-              {totalCurrent > 0 && (
-                <View style={s.miniAllocBar}>
-                  {Object.entries(allocation).map(([type, pct]) => pct > 0 && (
-                    <View key={type} style={{ flex: pct, height: 6, backgroundColor: allocColors[type], borderRadius: 3 }} />
-                  ))}
-                </View>
-              )}
-            </View>
-
-            {/* Quick Stats Row */}
-            <View style={s.quickRow}>
-              <View style={[s.quickStat, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <MaterialIcons name="pie-chart" size={18} color={colors.accent} />
-                <Text style={[s.quickNum, { color: colors.text }]}>{positions.length}</Text>
-                <Text style={[s.quickLabel, { color: colors.sub }]}>Activos</Text>
-              </View>
-              <View style={[s.quickStat, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <MaterialIcons name="flag" size={18} color="#10B981" />
-                <Text style={[s.quickNum, { color: colors.text }]}>{goals.length}</Text>
-                <Text style={[s.quickLabel, { color: colors.sub }]}>Metas</Text>
-              </View>
-              <View style={[s.quickStat, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <MaterialIcons name="payments" size={18} color="#3B82F6" />
-                <Text style={[s.quickNum, { color: colors.text }]}>{baseFmt(nextMonthDiv)}</Text>
-                <Text style={[s.quickLabel, { color: colors.sub }]}>Próx. Div</Text>
-              </View>
-            </View>
-
-            {/* Navigation Cards */}
-            <View style={{ gap: 12, marginTop: 8 }}>
-              {[
-                { id: 'portfolio', label: 'Mi Portafolio', sub: `${positions.length} activos · ${baseFmt(totalCurrent)}`, icon: 'pie-chart', color: colors.accent, iconSet: 'MI' },
-                { id: 'goals', label: 'Metas de Inversión', sub: `${goals.length} proyectos activos`, icon: 'flag', color: '#10B981', iconSet: 'MI' },
-                { id: 'calendar', label: 'Dividendos & Rentas', sub: `Anual est: ${baseFmt(projectedDivs.reduce((a,b)=>a+b, 0))}`, icon: 'calendar-month', color: '#3B82F6', iconSet: 'MCI' },
-                { id: 'ai', label: 'Asesor Santy', sub: `Excedente: ${baseFmt(projectedSurplus)}`, icon: 'auto-awesome', color: '#8B5CF6', iconSet: 'MI' },
-              ].map(item => (
-                <TouchableOpacity key={item.id} style={[s.navCard, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => setActiveTab(item.id as any)}>
-                  <View style={[s.navIcon, { backgroundColor: item.color + '12' }]}>
-                    {item.iconSet === 'MCI'
-                      ? <MaterialCommunityIcons name={item.icon as any} size={24} color={item.color} />
-                      : <MaterialIcons name={item.icon as any} size={24} color={item.color} />}
+          {/* ═══ HUB ═══ */}
+          {activeTab === 'hub' && (
+            <View>
+              {/* Summary Card */}
+              <View style={[s.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[s.summaryLabel, { color: colors.sub }]}>PATRIMONIO TOTAL</Text>
+                <Text style={[s.summaryAmount, { color: colors.text }]}>{baseFmt(totalCurrent + totalDividends)}</Text>
+                <View style={s.summaryRow}>
+                  <View style={[s.chip, { backgroundColor: profitAbs >= 0 ? '#10B98115' : '#EF444415' }]}>
+                    <Text style={{ color: profitAbs >= 0 ? '#10B981' : '#EF4444', fontSize: 13, fontWeight: '800' }}>
+                      {profitAbs >= 0 ? '▲' : '▼'} {profitPct.toFixed(1)}%
+                    </Text>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800' }}>{item.label}</Text>
-                    <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '600', marginTop: 2 }}>{item.sub}</Text>
+                  <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>{baseFmt(Math.abs(profitAbs))} {profitAbs >= 0 ? 'ganancia' : 'pérdida'}</Text>
+                </View>
+
+                {/* Mini allocation bar */}
+                {totalCurrent > 0 && (
+                  <View style={s.miniAllocBar}>
+                    {Object.entries(allocation).map(([type, pct]) => pct > 0 && (
+                      <View key={type} style={{ flex: pct, height: 6, backgroundColor: allocColors[type], borderRadius: 3 }} />
+                    ))}
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={colors.sub} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
+                )}
+              </View>
 
-        {/* ═══ PORTFOLIO ═══ */}
-        {activeTab === 'portfolio' && (
-          <View>
-            {/* Portfolio Summary */}
-            <View style={[s.portfolioSummary, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={s.portfolioRow}>
-                <View>
-                  <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800' }}>INVERTIDO</Text>
-                  <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>{baseFmt(totalInvested)}</Text>
+              {/* Quick Stats Row */}
+              <View style={s.quickRow}>
+                <View style={[s.quickStat, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <MaterialIcons name="pie-chart" size={18} color={colors.accent} />
+                  <Text style={[s.quickNum, { color: colors.text }]}>{positions.length}</Text>
+                  <Text style={[s.quickLabel, { color: colors.sub }]}>Activos</Text>
                 </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800' }}>ACTUAL</Text>
-                  <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>{baseFmt(totalCurrent)}</Text>
+                <View style={[s.quickStat, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <MaterialIcons name="flag" size={18} color="#10B981" />
+                  <Text style={[s.quickNum, { color: colors.text }]}>{goals.length}</Text>
+                  <Text style={[s.quickLabel, { color: colors.sub }]}>Metas</Text>
+                </View>
+                <View style={[s.quickStat, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <MaterialIcons name="payments" size={18} color="#3B82F6" />
+                  <Text style={[s.quickNum, { color: colors.text }]}>{baseFmt(nextMonthDiv)}</Text>
+                  <Text style={[s.quickLabel, { color: colors.sub }]}>Próx. Div</Text>
                 </View>
               </View>
-              <View style={[s.profitBadge, { backgroundColor: profitAbs >= 0 ? '#10B98112' : '#EF444412' }]}>
-                <Text style={{ color: profitAbs >= 0 ? '#10B981' : '#EF4444', fontWeight: '900', fontSize: 13 }}>
-                  {profitAbs >= 0 ? '+' : ''}{baseFmt(profitAbs)} ({profitPct.toFixed(1)}%)
-                </Text>
-              </View>
-            </View>
 
-            {/* Allocation Breakdown */}
-            {totalCurrent > 0 && (
-              <View style={[s.allocSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View style={s.allocBar}>
-                  {Object.entries(allocation).map(([type, pct]) => pct > 0 && (
-                    <View key={type} style={{ flex: pct, height: 8, backgroundColor: allocColors[type], borderRadius: 4 }} />
-                  ))}
-                </View>
-                <View style={s.allocLegend}>
-                  {Object.entries(allocation).map(([type, pct]) => pct > 0 && (
-                    <View key={type} style={s.allocItem}>
-                      <View style={[s.allocDot, { backgroundColor: allocColors[type] }]} />
-                      <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>{allocLabels[type]} {pct.toFixed(0)}%</Text>
+              {/* Navigation Cards */}
+              <View style={{ gap: 12, marginTop: 8 }}>
+                {[
+                  { id: 'portfolio', label: 'Mi Portafolio', sub: `${positions.length} activos · ${baseFmt(totalCurrent)}`, icon: 'pie-chart', color: colors.accent, iconSet: 'MI' },
+                  { id: 'goals', label: 'Metas de Inversión', sub: `${goals.length} proyectos activos`, icon: 'flag', color: '#10B981', iconSet: 'MI' },
+                  { id: 'calendar', label: 'Dividendos & Rentas', sub: `Anual est: ${baseFmt(projectedDivs.reduce((a,b)=>a+b, 0))}`, icon: 'calendar-month', color: '#3B82F6', iconSet: 'MCI' },
+                  { id: 'ai', label: 'Asesor Santy', sub: `Excedente: ${baseFmt(projectedSurplus)}`, icon: 'auto-awesome', color: '#8B5CF6', iconSet: 'MI' },
+                ].map(item => (
+                  <TouchableOpacity key={item.id} style={[s.navCard, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => setActiveTab(item.id as any)}>
+                    <View style={[s.navIcon, { backgroundColor: item.color + '12' }]}>
+                      {item.iconSet === 'MCI'
+                        ? <MaterialCommunityIcons name={item.icon as any} size={24} color={item.color} />
+                        : <MaterialIcons name={item.icon as any} size={24} color={item.color} />}
                     </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* Assets List */}
-            <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginTop: 8, marginBottom: 12 }}>Activos ({positions.length})</Text>
-            {positions.map(pos => {
-              const currentPrice = livePrices[pos.id] || pos.avgPrice;
-              const value = pos.shares * currentPrice;
-              const gain = value - (pos.shares * pos.avgPrice);
-              const gainPct = pos.avgPrice > 0 ? ((currentPrice - pos.avgPrice) / pos.avgPrice) * 100 : 0;
-              return (
-                <TouchableOpacity key={pos.id} style={[s.assetCard, { backgroundColor: colors.card, borderColor: colors.border }]} onLongPress={() => setDeletingId(pos.id)}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                    <View style={[s.assetIcon, { backgroundColor: getAssetColor(pos.type) + '12' }]}>{getAssetIcon(pos.type)}</View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900' }}>{pos.ticker}</Text>
-                      <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '600' }} numberOfLines={1}>{pos.name || pos.ticker} · {pos.shares} unid.</Text>
+                      <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800' }}>{item.label}</Text>
+                      <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '600', marginTop: 2 }}>{item.sub}</Text>
                     </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.sub} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* ═══ PORTFOLIO ═══ */}
+          {activeTab === 'portfolio' && (
+            <View>
+              {/* Portfolio Summary */}
+              <View style={[s.portfolioSummary, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={s.portfolioRow}>
+                  <View>
+                    <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800' }}>INVERTIDO</Text>
+                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>{baseFmt(totalInvested)}</Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900' }}>{baseFmt(value)}</Text>
-                    <Text style={{ color: gain >= 0 ? '#10B981' : '#EF4444', fontSize: 11, fontWeight: '800' }}>
-                      {gain >= 0 ? '+' : ''}{gainPct.toFixed(1)}%
-                    </Text>
+                    <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800' }}>ACTUAL</Text>
+                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>{baseFmt(totalCurrent)}</Text>
                   </View>
-                  {deletingId === pos.id && (
-                    <TouchableOpacity onPress={() => handleDeletePosition(pos.id)} style={s.deleteBtn}>
-                      <Ionicons name="trash" size={16} color="#FFF" />
-                    </TouchableOpacity>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-            {positions.length === 0 && (
-              <View style={[s.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <MaterialIcons name="show-chart" size={40} color={colors.sub} />
-                <Text style={{ color: colors.sub, fontSize: 14, fontWeight: '700', marginTop: 12 }}>Agrega tu primer activo</Text>
-                <TouchableOpacity onPress={() => { setModalVisible(true); setSearchResults(POPULAR_ASSETS.slice(0,6)); }} style={[s.emptyBtn, { backgroundColor: colors.accent }]}>
-                  <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 13 }}>+ Buscar Activo</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* ═══ GOALS ═══ */}
-        {activeTab === 'goals' && (
-          <View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
-              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>Mis Metas</Text>
-              <TouchableOpacity onPress={() => setGoalModalVisible(true)}><Text style={{ color: colors.accent, fontWeight: '800', fontSize: 13 }}>+ NUEVA</Text></TouchableOpacity>
-            </View>
-            {goals.map(g => {
-              const prog = Math.min((totalCurrent / (g.target || 1)) * 100, 100);
-              const remaining = Math.max(g.target - totalCurrent, 0);
-              const months = projectedSurplus > 0 ? Math.ceil(remaining / projectedSurplus) : null;
-              return (
-                <TouchableOpacity key={g.id} onLongPress={() => setDeletingGoalId(g.id)} style={[s.goalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                    <View style={[s.goalIcon, { backgroundColor: g.color + '12' }]}><MaterialCommunityIcons name={g.icon as any} size={24} color={g.color} /></View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>{g.name}</Text>
-                      <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '600' }}>Objetivo: {baseFmt(g.target)}</Text>
-                    </View>
-                    {deletingGoalId === g.id ? (
-                      <TouchableOpacity onPress={() => handleDeleteGoal(g.id)} style={{ backgroundColor: '#EF4444', width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' }}>
-                        <Ionicons name="trash" size={18} color="#FFF" />
-                      </TouchableOpacity>
-                    ) : <Text style={{ color: g.color, fontSize: 20, fontWeight: '900' }}>{prog.toFixed(0)}%</Text>}
-                  </View>
-                  <View style={{ height: 8, backgroundColor: colors.bg, borderRadius: 4, marginBottom: 12 }}>
-                    <View style={{ width: `${prog}%`, height: '100%', backgroundColor: g.color, borderRadius: 4 }} />
-                  </View>
-                  <View style={{ backgroundColor: g.color + '08', padding: 12, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: g.color }}>
-                    <Text style={{ color: colors.text, fontSize: 11, fontWeight: '800' }}>💡 SANTY:</Text>
-                    <Text style={{ color: colors.sub, fontSize: 11, lineHeight: 16, marginTop: 2 }}>
-                      {months && months > 0 ? `A tu ritmo actual, alcanzarás esta meta en ~${months} meses.` : `¡Vas por buen camino! Mantén el ritmo.`}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
-
-        {/* ═══ CALENDAR ═══ */}
-        {activeTab === 'calendar' && (
-          <View>
-            <View style={[s.divSummary, { backgroundColor: colors.accent }]}>
-              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '800' }}>DIVIDENDOS ANUALES ESTIMADOS</Text>
-              <Text style={{ color: '#FFF', fontSize: 30, fontWeight: '900', marginTop: 4 }}>{baseFmt(projectedDivs.reduce((a,b)=>a+b, 0))}</Text>
-            </View>
-            {projectedDivs.map((amount, idx) => amount > 0 && (
-              <View key={idx} style={[s.divRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View style={[s.monthBadge, { backgroundColor: colors.accent + '12' }]}>
-                  <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '900' }}>{['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'][idx]}</Text>
                 </View>
-                <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900', flex: 1 }}>{baseFmt(amount)}</Text>
-                <Ionicons name="calendar-outline" size={16} color={colors.sub} />
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* ═══ AI ADVISOR ═══ */}
-        {activeTab === 'ai' && (
-          <View>
-            <View style={[s.santyCard, { backgroundColor: '#8B5CF6' }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <MaterialIcons name="auto-awesome" size={20} color="rgba(255,255,255,0.8)" />
-                <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '800' }}>SANTY INSIGHT</Text>
-              </View>
-              <Text style={{ color: '#FFF', fontSize: 28, fontWeight: '900' }}>{baseFmt(projectedSurplus)}</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12, lineHeight: 18, marginTop: 8 }}>Tu excedente mensual disponible para invertir.</Text>
-            </View>
-
-            <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginTop: 24, marginBottom: 12 }}>Top Acciones del Momento</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -24, paddingHorizontal: 24, marginBottom: 24 }}>
-              {POPULAR_ASSETS.filter(a => a.type === 'stock').slice(0, 6).map((s2, i) => (
-                <View key={i} style={[s.tickerCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Text style={{ color: colors.text, fontSize: 13, fontWeight: '900' }}>{s2.ticker}</Text>
-                  <Text style={{ color: s2.changePercent >= 0 ? '#10B981' : '#EF4444', fontSize: 12, fontWeight: '800', marginTop: 4 }}>
-                    {s2.changePercent >= 0 ? '+' : ''}{s2.changePercent.toFixed(2)}%
+                <View style={[s.profitBadge, { backgroundColor: profitAbs >= 0 ? '#10B98112' : '#EF444412' }]}>
+                  <Text style={{ color: profitAbs >= 0 ? '#10B981' : '#EF4444', fontWeight: '900', fontSize: 13 }}>
+                    {profitAbs >= 0 ? '+' : ''}{baseFmt(profitAbs)} ({profitPct.toFixed(1)}%)
                   </Text>
-                  <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '700', marginTop: 6 }}>{s2.exchange}</Text>
                 </View>
-              ))}
-            </ScrollView>
-
-            <View style={[s.simCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900', marginBottom: 4 }}>Simulador de Capital</Text>
-              <Text style={{ color: colors.sub, fontSize: 11, marginBottom: 16 }}>Ingresa un monto y Santy te arma un portafolio.</Text>
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                <TextInput style={[s.simInput, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Monto a invertir" placeholderTextColor={colors.sub} keyboardType="decimal-pad" value={simAmount}
-                  onChangeText={t => setSimAmount(formatCurrency(parseFloat(t.replace(/\D/g, '') || '0'), 'COP', false).replace('$', ''))} />
-                <TouchableOpacity onPress={handleSimulate} style={[s.simBtn, { backgroundColor: '#8B5CF6' }]}>
-                  <Ionicons name="sparkles" size={22} color="#FFF" />
-                </TouchableOpacity>
               </View>
-              {simResult && (
-                <View style={{ marginTop: 20, backgroundColor: colors.bg, padding: 16, borderRadius: 16 }}>
-                  <Text style={{ color: '#8B5CF6', fontSize: 11, fontWeight: '900', marginBottom: 8 }}>ESTRATEGIA SANTY</Text>
-                  <Text style={{ color: colors.sub, fontSize: 11, marginBottom: 12 }}>{simRationale}</Text>
-                  {simResult.map((r, i) => (
-                    <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>{r.ticker} {r.shares ? `(${r.shares} unid.)` : ''}</Text>
-                      <Text style={{ color: '#8B5CF6', fontSize: 13, fontWeight: '900' }}>{baseFmt(r.amount)}</Text>
+
+              {/* Allocation Breakdown */}
+              {totalCurrent > 0 && (
+                <View style={[s.allocSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <View style={s.allocBar}>
+                    {Object.entries(allocation).map(([type, pct]) => pct > 0 && (
+                      <View key={type} style={{ flex: pct, height: 8, backgroundColor: allocColors[type], borderRadius: 4 }} />
+                    ))}
+                  </View>
+                  <View style={s.allocLegend}>
+                    {Object.entries(allocation).map(([type, pct]) => pct > 0 && (
+                      <View key={type} style={s.allocItem}>
+                        <View style={[s.allocDot, { backgroundColor: allocColors[type] }]} />
+                        <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>{allocLabels[type]} {pct.toFixed(0)}%</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* Assets List */}
+              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginTop: 8, marginBottom: 12 }}>Activos ({positions.length})</Text>
+              {positions.map(pos => {
+                const currentPrice = livePrices[pos.id] || pos.avgPrice;
+                const value = pos.shares * currentPrice;
+                const gain = value - (pos.shares * pos.avgPrice);
+                const gainPct = pos.avgPrice > 0 ? ((currentPrice - pos.avgPrice) / pos.avgPrice) * 100 : 0;
+                return (
+                  <TouchableOpacity key={pos.id} style={[s.assetCard, { backgroundColor: colors.card, borderColor: colors.border }]} onLongPress={() => setDeletingId(pos.id)}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                      <View style={[s.assetIcon, { backgroundColor: getAssetColor(pos.type) + '12' }]}>{getAssetIcon(pos.type)}</View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900' }}>{pos.ticker}</Text>
+                        <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '600' }} numberOfLines={1}>{pos.name || pos.ticker} · {pos.shares} unid.</Text>
+                      </View>
                     </View>
-                  ))}
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900' }}>{baseFmt(value)}</Text>
+                      <Text style={{ color: gain >= 0 ? '#10B981' : '#EF4444', fontSize: 11, fontWeight: '800' }}>
+                        {gain >= 0 ? '+' : ''}{gainPct.toFixed(1)}%
+                      </Text>
+                    </View>
+                    {deletingId === pos.id && (
+                      <TouchableOpacity onPress={() => handleDeletePosition(pos.id)} style={s.deleteBtn}>
+                        <Ionicons name="trash" size={16} color="#FFF" />
+                      </TouchableOpacity>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+              {positions.length === 0 && (
+                <View style={[s.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <MaterialIcons name="show-chart" size={40} color={colors.sub} />
+                  <Text style={{ color: colors.sub, fontSize: 14, fontWeight: '700', marginTop: 12 }}>Agrega tu primer activo</Text>
+                  <TouchableOpacity onPress={() => { setModalVisible(true); setSearchResults(POPULAR_ASSETS.slice(0,6)); }} style={[s.emptyBtn, { backgroundColor: colors.accent }]}>
+                    <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 13 }}>+ Buscar Activo</Text>
+                  </TouchableOpacity>
                 </View>
               )}
             </View>
-          </View>
-        )}
-      </ScrollView>
+          )}
+
+          {/* ═══ GOALS ═══ */}
+          {activeTab === 'goals' && (
+            <View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
+                <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>Mis Metas</Text>
+                <TouchableOpacity onPress={() => setGoalModalVisible(true)}><Text style={{ color: colors.accent, fontWeight: '800', fontSize: 13 }}>+ NUEVA</Text></TouchableOpacity>
+              </View>
+              {goals.map(g => {
+                const prog = Math.min((totalCurrent / (g.target || 1)) * 100, 100);
+                const remaining = Math.max(g.target - totalCurrent, 0);
+                const months = projectedSurplus > 0 ? Math.ceil(remaining / projectedSurplus) : null;
+                return (
+                  <TouchableOpacity key={g.id} onLongPress={() => setDeletingGoalId(g.id)} style={[s.goalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                      <View style={[s.goalIcon, { backgroundColor: g.color + '12' }]}><MaterialCommunityIcons name={g.icon as any} size={24} color={g.color} /></View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>{g.name}</Text>
+                        <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '600' }}>Objetivo: {baseFmt(g.target)}</Text>
+                      </View>
+                      {deletingGoalId === g.id ? (
+                        <TouchableOpacity onPress={() => handleDeleteGoal(g.id)} style={{ backgroundColor: '#EF4444', width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' }}>
+                          <Ionicons name="trash" size={18} color="#FFF" />
+                        </TouchableOpacity>
+                      ) : <Text style={{ color: g.color, fontSize: 20, fontWeight: '900' }}>{prog.toFixed(0)}%</Text>}
+                    </View>
+                    <View style={{ height: 8, backgroundColor: colors.bg, borderRadius: 4, marginBottom: 12 }}>
+                      <View style={{ width: `${prog}%`, height: '100%', backgroundColor: g.color, borderRadius: 4 }} />
+                    </View>
+                    <View style={{ backgroundColor: g.color + '08', padding: 12, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: g.color }}>
+                      <Text style={{ color: colors.text, fontSize: 11, fontWeight: '800' }}>💡 SANTY:</Text>
+                      <Text style={{ color: colors.sub, fontSize: 11, lineHeight: 16, marginTop: 2 }}>
+                        {months && months > 0 ? `A tu ritmo actual, alcanzarás esta meta en ~${months} meses.` : `¡Vas por buen camino! Mantén el ritmo.`}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+
+          {/* ═══ CALENDAR ═══ */}
+          {activeTab === 'calendar' && (
+            <View>
+              <View style={[s.divSummary, { backgroundColor: colors.accent }]}>
+                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '800' }}>DIVIDENDOS ANUALES ESTIMADOS</Text>
+                <Text style={{ color: '#FFF', fontSize: 30, fontWeight: '900', marginTop: 4 }}>{baseFmt(projectedDivs.reduce((a,b)=>a+b, 0))}</Text>
+              </View>
+              {projectedDivs.map((amount, idx) => amount > 0 && (
+                <View key={idx} style={[s.divRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <View style={[s.monthBadge, { backgroundColor: colors.accent + '12' }]}>
+                    <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '900' }}>{['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'][idx]}</Text>
+                  </View>
+                  <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900', flex: 1 }}>{baseFmt(amount)}</Text>
+                  <Ionicons name="calendar-outline" size={16} color={colors.sub} />
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* ═══ AI ADVISOR ═══ */}
+          {activeTab === 'ai' && (
+            <View>
+              <View style={[s.santyCard, { backgroundColor: '#8B5CF6' }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <MaterialIcons name="auto-awesome" size={20} color="rgba(255,255,255,0.8)" />
+                  <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '800' }}>SANTY INSIGHT</Text>
+                </View>
+                <Text style={{ color: '#FFF', fontSize: 28, fontWeight: '900' }}>{baseFmt(projectedSurplus)}</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12, lineHeight: 18, marginTop: 8 }}>Tu excedente mensual disponible para invertir.</Text>
+              </View>
+
+              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginTop: 24, marginBottom: 12 }}>Top Acciones del Momento</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -24, paddingHorizontal: 24, marginBottom: 24 }}>
+                {POPULAR_ASSETS.filter(a => a.type === 'stock').slice(0, 6).map((s2, i) => (
+                  <View key={i} style={[s.tickerCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '900' }}>{s2.ticker}</Text>
+                    <Text style={{ color: s2.changePercent >= 0 ? '#10B981' : '#EF4444', fontSize: 12, fontWeight: '800', marginTop: 4 }}>
+                      {s2.changePercent >= 0 ? '+' : ''}{s2.changePercent.toFixed(2)}%
+                    </Text>
+                    <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '700', marginTop: 6 }}>{s2.exchange}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+
+              <View style={[s.simCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900', marginBottom: 4 }}>Simulador de Capital</Text>
+                <Text style={{ color: colors.sub, fontSize: 11, marginBottom: 16 }}>Ingresa un monto y Santy te arma un portafolio.</Text>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <TextInput style={[s.simInput, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Monto a invertir" placeholderTextColor={colors.sub} keyboardType="decimal-pad" value={simAmount}
+                    onChangeText={t => setSimAmount(formatCurrency(parseFloat(t.replace(/\D/g, '') || '0'), 'COP', false).replace('$', ''))} />
+                  <TouchableOpacity onPress={handleSimulate} style={[s.simBtn, { backgroundColor: '#8B5CF6' }]}>
+                    <Ionicons name="sparkles" size={22} color="#FFF" />
+                  </TouchableOpacity>
+                </View>
+                {simResult && (
+                  <View style={{ marginTop: 20, backgroundColor: colors.bg, padding: 16, borderRadius: 16 }}>
+                    <Text style={{ color: '#8B5CF6', fontSize: 11, fontWeight: '900', marginBottom: 8 }}>ESTRATEGIA SANTY</Text>
+                    <Text style={{ color: colors.sub, fontSize: 11, marginBottom: 12 }}>{simRationale}</Text>
+                    {simResult.map((r, i) => (
+                      <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>{r.ticker} {r.shares ? `(${r.shares} unid.)` : ''}</Text>
+                        <Text style={{ color: '#8B5CF6', fontSize: 13, fontWeight: '900' }}>{baseFmt(r.amount)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* ═══ ADD ASSET MODAL ═══ */}
       <Modal visible={modalVisible} transparent animationType="slide">
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-          style={{ flex: 1 }}
-        >
-          <View style={s.modalOverlay}>
+        <View style={s.modalOverlay}>
+          <TouchableWithoutFeedback onPress={() => { setModalVisible(false); setSelectedAsset(null); setSearchQuery(''); }}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+            style={{ width: '100%', justifyContent: 'flex-end' }}
+          >
             <View style={[s.modalBox, { backgroundColor: colors.card }]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <Text style={[s.modalTitle, { color: colors.text }]}>Buscar Activo</Text>
@@ -693,17 +702,20 @@ export default function InvestScreen() {
                 </View>
               )}
             </View>
-          </View>
-        </KeyboardAvoidingView>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* Goal Modal */}
       <Modal visible={goalModalVisible} transparent animationType="slide">
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-          style={{ flex: 1 }}
-        >
-          <View style={s.modalOverlay}>
+        <View style={s.modalOverlay}>
+          <TouchableWithoutFeedback onPress={() => setGoalModalVisible(false)}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+            style={{ width: '100%', justifyContent: 'flex-end' }}
+          >
             <View style={[s.modalBox, { backgroundColor: colors.card }]}>
               <Text style={[s.modalTitle, { color: colors.text }]}>Nueva Meta</Text>
               <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Nombre" placeholderTextColor={colors.sub} value={newGoal.name} onChangeText={t => setNewGoal({...newGoal, name: t})} />
@@ -713,8 +725,8 @@ export default function InvestScreen() {
                 <TouchableOpacity style={[s.modalBtn, { backgroundColor: colors.accent }]} onPress={handleAddGoal}><Text style={{ color: '#FFF', fontWeight: '900' }}>Crear</Text></TouchableOpacity>
               </View>
             </View>
-          </View>
-        </KeyboardAvoidingView>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -726,6 +738,7 @@ const s = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '900' },
   backBtn: { width: 40, height: 40, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   addBtn: { width: 40, height: 40, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  mainScroll: { paddingHorizontal: 20, paddingBottom: 120 },
   scroll: { paddingHorizontal: 20, paddingBottom: 100 },
 
   // Hub
