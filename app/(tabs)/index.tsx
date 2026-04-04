@@ -331,17 +331,9 @@ export default function HomeScreen() {
       }) || [];
       setPendingItems(urgent);
 
-      // Load Investment Total
-      try {
-        const storedInvest = await AsyncStorage.getItem(`@invest_${user.id}`);
-        if (storedInvest) {
-          const positions = JSON.parse(storedInvest);
-          const total = positions.reduce((sum: number, p: any) => sum + (Number(p.shares || 0) * Number(p.avgPrice || 0)), 0);
-          setInvestmentTotal(total);
-        }
-      } catch (e) { }
-
-    } catch (e) { console.error('Error cargando datos de Supabase:', e); }
+    } catch (e) {
+      console.error('Error cargando datos de Supabase:', e);
+    }
   };
 
   const { dineroActivo, dineroReal, dineroGeneral, ahorroTotal, ingresosMes, gastosMes, ahorroDelMes, saludPorcentaje, saludLabel, saludColor, porcentajeMes, saldoDisponible } = React.useMemo(() => {
