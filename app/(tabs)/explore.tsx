@@ -246,6 +246,49 @@ export default function AddTransactionScreen() {
 
     setIsSaving(true);
 
+    // Bloque de transferencia — primero, antes de la validación de saldo
+    if (type === 'transfer') {
+      if (!destAccount || destAccount === account) {
+        Alert.alert('Error', 'Selecciona una cuenta de destino diferente.');
+        setIsSaving(false);
+        return;
+      }
+      const desc = description.trim() || `Transferencia ${account} → ${destAccount}`;
+      try {
+        const { error: err1 } = await supabase.from('transactions').insert([{
+          user_id: user?.id,
+          type: 'expense',
+          amount: parsed,
+          description: desc,
+          category: 'Transferencia',
+          account: account,
+          date: new Date().toISOString(),
+        }]);
+        if (err1) throw new Error(err1.message);
+
+        const { error: err2 } = await supabase.from('transactions').insert([{
+          user_id: user?.id,
+          type: 'income',
+          amount: parsed,
+          description: desc,
+          category: 'Transferencia',
+          account: destAccount,
+          date: new Date().toISOString(),
+        }]);
+        if (err2) throw new Error(err2.message);
+
+        setAmount(''); setDescription(''); setDestAccount('');
+        if (router.canGoBack()) router.back(); else router.replace('/(tabs)');
+      } catch (e: any) {
+        console.error('Error transfiriendo:', e);
+        Alert.alert('Error al transferir', e?.message || 'No se pudo guardar la transferencia. Intenta nuevamente.');
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
+    // Validación de saldo solo para gastos normales (no transferencias)
     if (type !== 'income' && !cardNames.includes(account)) {
       try {
         const { data: txs, error: txErr } = await supabase
@@ -269,30 +312,6 @@ export default function AddTransactionScreen() {
           }
         }
       } catch (e) { console.error('Error validando saldo:', e); }
-    }
-
-    if (type === 'transfer') {
-      if (!destAccount || destAccount === account) {
-        Alert.alert('Error', 'Selecciona una cuenta de destino diferente.');
-        setIsSaving(false);
-        return;
-      }
-      const desc = description.trim() || `Transferencia ${account} → ${destAccount}`;
-      try {
-        await supabase.from('transactions').insert([{
-          user_id: user?.id, type: 'expense', amount: parsed, description: desc, category: 'Transferencia', account: account, date: new Date().toISOString(),
-        }]);
-        await supabase.from('transactions').insert([{
-          user_id: user?.id, type: 'income', amount: parsed, description: desc, category: 'Transferencia', account: destAccount, date: new Date().toISOString(),
-        }]);
-        setAmount(''); setDescription(''); setDestAccount('');
-        if (router.canGoBack()) router.back(); else router.replace('/(tabs)');
-      } catch (e) { 
-        console.error('Error transfiriendo:', e); 
-      } finally {
-        setIsSaving(false);
-      }
-      return;
     }
 
     const dbType = type === 'income' ? 'income' : 'expense';
