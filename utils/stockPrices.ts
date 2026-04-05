@@ -9,7 +9,7 @@ export interface SearchResult {
   price: number;
   change: number;
   changePercent: number;
-  type: 'stock' | 'crypto' | 'etf' | 'fixed' | 'real_estate';
+  type: 'stock' | 'crypto' | 'etf' | 'fixed' | 'real_estate' | 'fund';
   exchange?: string;
   currency?: string;
 }
@@ -36,6 +36,9 @@ const POPULAR_ASSETS: SearchResult[] = [
   { ticker: 'GOOGL', name: 'Alphabet Inc.', price: 155, change: 1.8, changePercent: 1.17, type: 'stock', exchange: 'NASDAQ', currency: 'USD' },
   { ticker: 'AMZN', name: 'Amazon.com Inc.', price: 185, change: 2.3, changePercent: 1.26, type: 'stock', exchange: 'NASDAQ', currency: 'USD' },
   { ticker: 'NU', name: 'Nu Holdings (NuBank)', price: 12.5, change: 0.3, changePercent: 2.46, type: 'stock', exchange: 'NYSE', currency: 'USD' },
+  { ticker: 'FICACC', name: 'FIC Acciones Colombia', price: 15400, change: 120, changePercent: 0.78, type: 'fund', exchange: 'Trii' },
+  { ticker: 'FICRENTA', name: 'FIC Renta Fija', price: 21500, change: 45, changePercent: 0.21, type: 'fund', exchange: 'Trii' },
+  { ticker: 'ICOLEAP', name: 'iShares MSCI Colombia ETF', price: 25.4, change: 0.15, changePercent: 0.59, type: 'etf', exchange: 'NYSE', currency: 'USD' },
   { ticker: 'BTC', name: 'Bitcoin', price: 67500, change: 1200, changePercent: 1.81, type: 'crypto', currency: 'USD' },
   { ticker: 'ETH', name: 'Ethereum', price: 3350, change: 85, changePercent: 2.6, type: 'crypto', currency: 'USD' },
   { ticker: 'SOL', name: 'Solana', price: 142, change: 5.2, changePercent: 3.8, type: 'crypto', currency: 'USD' },

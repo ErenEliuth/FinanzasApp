@@ -15,9 +15,7 @@ import { formatCurrency, convertCurrency } from '@/utils/currency';
 import { searchAssets, fetchCryptoPrice, POPULAR_ASSETS, SearchResult } from '@/utils/stockPrices';
 import TradingViewWidget from '@/components/TradingViewWidget';
 
-const { width: SCREEN_W } = Dimensions.get('window');
-
-export type AssetType = 'stock' | 'crypto' | 'fixed' | 'real_estate';
+export type AssetType = 'stock' | 'crypto' | 'fixed' | 'real_estate' | 'fund' | 'etf';
 
 interface Position {
   id: string;
@@ -256,6 +254,8 @@ export default function InvestScreen() {
       case 'crypto': return <MaterialCommunityIcons name="bitcoin" size={22} color="#F7931A" />;
       case 'real_estate': return <MaterialIcons name="apartment" size={22} color="#6366F1" />;
       case 'fixed': return <MaterialIcons name="trending-up" size={22} color="#10B981" />;
+      case 'fund': return <MaterialIcons name="pie-chart" size={22} color="#3B82F6" />;
+      case 'etf': return <MaterialIcons name="layers" size={22} color="#8B5CF6" />;
       default: return <MaterialIcons name="show-chart" size={22} color={colors.accent} />;
     }
   };
@@ -263,7 +263,8 @@ export default function InvestScreen() {
   const getAssetColor = (type: AssetType) => {
     switch(type) {
       case 'crypto': return '#F7931A'; case 'real_estate': return '#6366F1';
-      case 'fixed': return '#10B981'; default: return colors.accent;
+      case 'fixed': return '#10B981'; case 'fund': return '#3B82F6'; case 'etf': return '#8B5CF6';
+      default: return colors.accent;
     }
   };
 
@@ -273,7 +274,7 @@ export default function InvestScreen() {
   const profitAbs = totalCurrent - totalInvested;
 
   const getAllocation = () => {
-    const alloc: Record<AssetType, number> = { stock: 0, crypto: 0, fixed: 0, real_estate: 0 };
+    const alloc: Record<AssetType, number> = { stock: 0, crypto: 0, fixed: 0, real_estate: 0, fund: 0, etf: 0 };
     positions.forEach(p => { alloc[p.type] += p.shares * (livePrices[p.id] || p.avgPrice); });
     const total = Object.values(alloc).reduce((a, b) => a + b, 0);
     if (total === 0) return alloc;
@@ -297,7 +298,7 @@ export default function InvestScreen() {
   const getSantyPack = (amount: number) => {
     if (amount <= TRII_FEE) return { items: [], rationale: 'El monto es insuficiente para cubrir la comisión.' };
     const net = amount - TRII_FEE;
-    const pool = [...POPULAR_ASSETS.filter(a => a.type === 'stock')].sort(() => 0.5 - Math.random()).slice(0, 4);
+    const pool = [...POPULAR_ASSETS.filter(a => a.type !== 'crypto' && a.type !== 'real_estate')].sort(() => 0.5 - Math.random()).slice(0, 4);
     const weights = [0.4, 0.3, 0.2, 0.1];
     const items = pool.map((s, i) => ({ ticker: s.ticker, amount: net * weights[i], shares: s.price ? Math.floor((net * weights[i]) / s.price) : undefined }));
     return { items, rationale: `Comisión Trii: ${baseFmt(TRII_FEE)}. Capital neto: ${baseFmt(net)}` };
@@ -310,8 +311,8 @@ export default function InvestScreen() {
     setSimResult(res.items); setSimRationale(res.rationale);
   };
 
-  const allocColors: Record<string, string> = { stock: colors.accent, crypto: '#F7931A', fixed: '#10B981', real_estate: '#6366F1' };
-  const allocLabels: Record<string, string> = { stock: 'Acciones', crypto: 'Crypto', fixed: 'Renta Fija', real_estate: 'Inmuebles' };
+  const allocColors: Record<string, string> = { stock: colors.accent, crypto: '#F7931A', fixed: '#10B981', real_estate: '#6366F1', fund: '#3B82F6', etf: '#8B5CF6' };
+  const allocLabels: Record<string, string> = { stock: 'Acciones', crypto: 'Crypto', fixed: 'Renta Fija', real_estate: 'Inmuebles', fund: 'Fondos', etf: 'ETFs' };
 
   // ─── RENDER ────────────────────────────────────────────────
   return (
@@ -335,9 +336,9 @@ export default function InvestScreen() {
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
         style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        enabled={Platform.OS === 'ios'}
       >
-        <ScrollView contentContainerStyle={s.mainScroll} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={s.mainScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
           {/* ═══ HUB ═══ */}
           {activeTab === 'hub' && (
@@ -563,9 +564,9 @@ export default function InvestScreen() {
                 <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12, lineHeight: 18, marginTop: 8 }}>Tu excedente mensual disponible para invertir.</Text>
               </View>
 
-              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginTop: 24, marginBottom: 12 }}>Top Acciones del Momento</Text>
+              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginTop: 24, marginBottom: 12 }}>Top Activos del Momento</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -24, paddingHorizontal: 24, marginBottom: 24 }}>
-                {POPULAR_ASSETS.filter(a => a.type === 'stock').slice(0, 6).map((s2, i) => (
+                {POPULAR_ASSETS.filter(a => a.type !== 'crypto').slice(0, 6).map((s2, i) => (
                   <View key={i} style={[s.tickerCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <Text style={{ color: colors.text, fontSize: 13, fontWeight: '900' }}>{s2.ticker}</Text>
                     <Text style={{ color: s2.changePercent >= 0 ? '#10B981' : '#EF4444', fontSize: 12, fontWeight: '800', marginTop: 4 }}>
@@ -610,7 +611,7 @@ export default function InvestScreen() {
           <TouchableWithoutFeedback onPress={() => { setModalVisible(false); setSelectedAsset(null); setSearchQuery(''); }}>
             <View style={StyleSheet.absoluteFill} />
           </TouchableWithoutFeedback>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={Platform.OS === 'ios'}>
             <View style={[s.modalBox, { backgroundColor: colors.card }]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <Text style={[s.modalTitle, { color: colors.text }]}>Buscar Activo</Text>
@@ -709,7 +710,7 @@ export default function InvestScreen() {
           <TouchableWithoutFeedback onPress={() => setGoalModalVisible(false)}>
             <View style={StyleSheet.absoluteFill} />
           </TouchableWithoutFeedback>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={Platform.OS === 'ios'}>
             <View style={[s.modalBox, { backgroundColor: colors.card }]}>
             <Text style={[s.modalTitle, { color: colors.text }]}>Nueva Meta</Text>
             <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Nombre" placeholderTextColor={colors.sub} value={newGoal.name} onChangeText={t => setNewGoal({...newGoal, name: t})} />
