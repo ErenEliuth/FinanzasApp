@@ -848,50 +848,6 @@ export default function InvestScreen() {
                   </View>
                 </View>
 
-                {/* Mi balance diario */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 }}>
-                  <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '800' }}>Mi balance diario</Text>
-                  <Ionicons name="information-circle-outline" size={16} color="#666" />
-                </View>
-                
-                {/* Chart Mock */}
-                <View style={{ height: 160, marginBottom: 12, justifyContent: 'center' }}>
-                  <Svg width="100%" height="100%" viewBox="0 0 300 120">
-                    <Path d="M0,100 Q80,80 150,50 T300,10" fill="none" stroke="#D1D5DB" strokeWidth="2.5" />
-                  </Svg>
-                  <View style={{ position: 'absolute', right: 0, top: -10 }}><Text style={{ color: '#888', fontSize: 10 }}>↑ {baseFmt(detailAsset.shares * (livePrices[detailAsset.id] || detailAsset.avgPrice))}</Text></View>
-                  <View style={{ position: 'absolute', right: 0, bottom: -10 }}><Text style={{ color: '#888', fontSize: 10 }}>↓ {baseFmt(detailAsset.shares * detailAsset.avgPrice)}</Text></View>
-                </View>
-
-                {/* Date labels */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24, paddingHorizontal: 10 }}>
-                  <Text style={{ color: '#666', fontSize: 11, fontWeight: '700' }}>26 Mar</Text>
-                  <Text style={{ color: '#666', fontSize: 11, fontWeight: '700' }}>28 Mar</Text>
-                  <Text style={{ color: '#666', fontSize: 11, fontWeight: '700' }}>30 Mar</Text>
-                  <Text style={{ color: '#666', fontSize: 11, fontWeight: '700' }}>1 Abr</Text>
-                  <View style={{ width: 20 }} />
-                </View>
-
-                {/* Period Selector */}
-                <View style={{ flexDirection: 'row', backgroundColor: '#222', borderRadius: 16, padding: 4, marginBottom: 16 }}>
-                  <View style={{ flex: 1, backgroundColor: '#333', borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
-                    <Text style={{ color: '#05F771', fontWeight: '800', fontSize: 12 }}>Semana</Text>
-                  </View>
-                  <View style={{ flex: 1, paddingVertical: 10, alignItems: 'center' }}>
-                    <Text style={{ color: '#888', fontWeight: '700', fontSize: 12 }}>Mes</Text>
-                  </View>
-                  <View style={{ flex: 1, paddingVertical: 10, alignItems: 'center' }}>
-                    <Text style={{ color: '#888', fontWeight: '700', fontSize: 12 }}>Año</Text>
-                  </View>
-                  <View style={{ flex: 1, paddingVertical: 10, alignItems: 'center' }}>
-                    <Text style={{ color: '#888', fontWeight: '700', fontSize: 12 }}>Total</Text>
-                  </View>
-                </View>
-                
-                <Text style={{ color: '#666', fontSize: 11, marginBottom: 30, fontWeight: '600' }}>
-                  <Ionicons name="information-circle" size={12} color="#666" /> La rentabilidad del activo es diaria.
-                </Text>
-
                 {/* Detalle inversión */}
                 <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '800', marginBottom: 16 }}>Detalle inversión</Text>
               </View>
