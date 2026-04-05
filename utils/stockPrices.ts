@@ -66,6 +66,45 @@ export async function fetchCryptoPrice(ticker: string): Promise<{ price: number;
   } catch { return null; }
 }
 
+const YAHOO_MAPPING: Record<string, string> = {
+  'ECOPETROL': 'ECOPETROL.CL',
+  'BCOLOMBIA': 'BCOLOMBIA.CL',
+  'PFBCOLOM': 'PFBCOLOM.CL',
+  'GEB': 'GEB.CL',
+  'ISA': 'ISA.CL',
+  'PFAVAL': 'PFAVAL.CL',
+  'NUTRESA': 'NUTRESA.CL',
+};
+
+/**
+ * Fetch live stock/etf price from Yahoo Finance via public raw proxy
+ */
+export async function fetchStockPrice(ticker: string): Promise<number | null> {
+  try {
+    const yTicker = YAHOO_MAPPING[ticker.toUpperCase()] || ticker.toUpperCase();
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yTicker}?interval=1d`;
+    // Using simple proxy to allow CORS without wrapper
+    const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+    const data = await res.json();
+    if (data.chart?.result?.[0]?.meta?.regularMarketPrice) {
+      return data.chart.result[0].meta.regularMarketPrice;
+    }
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Simulate organic fund growth based on APY (changePercent) since Jan 1 2024
+ */
+export function simulateFundGrowth(basePrice: number, apy: number): number {
+  const start = new Date('2024-01-01T00:00:00Z').getTime();
+  const now = Date.now();
+  const daysPassed = Math.max(1, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
+  return basePrice * Math.pow(1 + apy / 365 / 100, daysPassed);
+}
+
 /**
  * Search assets by query (name or ticker). Returns matching results from popular + live APIs.
  */
@@ -77,7 +116,7 @@ export async function searchAssets(query: string): Promise<SearchResult[]> {
     a => a.ticker.includes(q) || a.name.toUpperCase().includes(q)
   );
 
-  // Try to fetch live crypto prices for matched cryptos
+  // Try to fetch live crypto prices and simulate fund growth
   const enriched = await Promise.all(
     local.map(async (asset) => {
       if (asset.type === 'crypto') {
@@ -85,6 +124,11 @@ export async function searchAssets(query: string): Promise<SearchResult[]> {
         if (live) {
           return { ...asset, price: live.price, changePercent: live.change24h };
         }
+      } else if (asset.type === 'fund') {
+        const simulatedPrice = simulateFundGrowth(asset.price, asset.changePercent);
+        // Calculate the "changePercent" for funds based on the APY simulation vs original price (just an aesthetic metric)
+        const dailyChange = apyToDailyYieldPercent(asset.changePercent);
+        return { ...asset, price: simulatedPrice, changePercent: dailyChange };
       }
       return asset;
     })
@@ -93,15 +137,32 @@ export async function searchAssets(query: string): Promise<SearchResult[]> {
   return enriched.length > 0 ? enriched : local;
 }
 
+function apyToDailyYieldPercent(apy: number) {
+  return ((Math.pow(1 + apy / 100, 1 / 365) - 1) * 100);
+}
+
 /**
- * Get live price for a position (crypto via CoinGecko, stocks via fallback)
+ * Get live price for a position (crypto via CoinGecko, stocks via Yahoo, funds via logic)
  */
 export async function fetchLivePrice(ticker: string, type: string): Promise<number | null> {
   if (type === 'crypto') {
     const data = await fetchCryptoPrice(ticker);
     return data ? data.price : null;
   }
-  // For stocks, return from popular assets cache  
+  
+  if (type === 'fund') {
+    const found = POPULAR_ASSETS.find(a => a.ticker === ticker);
+    if (found) {
+      return simulateFundGrowth(found.price, found.changePercent || 6);
+    }
+  }
+
+  if (type === 'stock' || type === 'etf') {
+    const liveStock = await fetchStockPrice(ticker);
+    if (liveStock) return liveStock;
+  }
+
+  // Fallback for missing references
   const found = POPULAR_ASSETS.find(a => a.ticker === ticker);
   return found ? found.price : null;
 }
