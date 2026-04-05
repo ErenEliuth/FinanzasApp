@@ -63,6 +63,8 @@ export default function InvestScreen() {
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
 
   // Search & Add Asset
+  const [addFlowStep, setAddFlowStep] = useState<'category' | 'search' | 'amount'>('category');
+  const [selectedAssetType, setSelectedAssetType] = useState<AssetType | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -157,17 +159,26 @@ export default function InvestScreen() {
   // Search handler with debounce
   const handleSearch = useCallback(async (q: string) => {
     setSearchQuery(q);
-    if (q.length < 1) { setSearchResults(POPULAR_ASSETS.slice(0, 6)); return; }
+    if (q.length < 1) { 
+        if (selectedAssetType) setSearchResults(POPULAR_ASSETS.filter(a => a.type === selectedAssetType).slice(0, 6));
+        else setSearchResults(POPULAR_ASSETS.slice(0, 6)); 
+        return; 
+    }
     setIsSearching(true);
     const results = await searchAssets(q);
-    setSearchResults(results);
+    if (selectedAssetType) {
+        setSearchResults(results.filter(r => r.type === selectedAssetType));
+    } else {
+        setSearchResults(results);
+    }
     setIsSearching(false);
-  }, []);
+  }, [selectedAssetType]);
 
   const handleSelectAsset = (asset: SearchResult) => {
     setSelectedAsset(asset);
-    setSearchQuery(asset.ticker);
+    setSearchQuery('');
     setSearchResults([]);
+    setAddFlowStep('amount');
   };
 
   const handleSavePosition = async () => {
@@ -329,7 +340,7 @@ export default function InvestScreen() {
            activeTab === 'goals' ? 'Metas' : activeTab === 'calendar' ? 'Dividendos' : 'Asesor Santy'}
         </Text>
         {activeTab === 'portfolio' ? (
-          <TouchableOpacity onPress={() => { setModalVisible(true); setSearchResults(POPULAR_ASSETS.slice(0,6)); }} style={[s.addBtn, { backgroundColor: colors.accent }]}>
+          <TouchableOpacity onPress={() => { setModalVisible(true); setAddFlowStep('category'); }} style={[s.addBtn, { backgroundColor: colors.accent }]}>
             <Ionicons name="add" size={20} color="#FFF" />
           </TouchableOpacity>
         ) : <View style={{ width: 40 }} />}
@@ -487,7 +498,7 @@ export default function InvestScreen() {
                 <View style={[s.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <MaterialIcons name="show-chart" size={40} color={colors.sub} />
                   <Text style={{ color: colors.sub, fontSize: 14, fontWeight: '700', marginTop: 12 }}>Agrega tu primer activo</Text>
-                  <TouchableOpacity onPress={() => { setModalVisible(true); setSearchResults(POPULAR_ASSETS.slice(0,6)); }} style={[s.emptyBtn, { backgroundColor: colors.accent }]}>
+                  <TouchableOpacity onPress={() => { setModalVisible(true); setAddFlowStep('category'); }} style={[s.emptyBtn, { backgroundColor: colors.accent }]}>
                     <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 13 }}>+ Buscar Activo</Text>
                   </TouchableOpacity>
                 </View>
@@ -616,13 +627,53 @@ export default function InvestScreen() {
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={Platform.OS === 'ios'}>
             <View style={[s.modalBox, { backgroundColor: colors.card }]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <Text style={[s.modalTitle, { color: colors.text }]}>Buscar Activo</Text>
+                {addFlowStep !== 'category' ? (
+                  <TouchableOpacity onPress={() => {
+                     if (addFlowStep === 'amount') setAddFlowStep('search');
+                     else setAddFlowStep('category');
+                  }} style={{ marginRight: 10 }}>
+                    <Ionicons name="arrow-back" size={24} color={colors.text} />
+                  </TouchableOpacity>
+                ) : <View style={{ width: 34 }} />}
+                
+                <Text style={[s.modalTitle, { color: colors.text, flex: 1, textAlign: 'center' }]}>
+                  {addFlowStep === 'category' ? '¿Qué quieres agregar?' : addFlowStep === 'search' ? 'Buscar Activo' : 'Detalles'}
+                </Text>
+                
                 <TouchableOpacity onPress={() => { setModalVisible(false); setSelectedAsset(null); setSearchQuery(''); }}>
                   <Ionicons name="close" size={24} color={colors.sub} />
                 </TouchableOpacity>
               </View>
 
-              {!selectedAsset ? (
+              {addFlowStep === 'category' && (
+                <View style={{ gap: 12 }}>
+                  {[
+                    { id: 'stock', title: 'Acciones locales y ext.', icon: 'show-chart', color: colors.accent },
+                    { id: 'fund', title: 'Fondos de Inversión', icon: 'pie-chart', color: '#3B82F6' },
+                    { id: 'etf', title: 'ETFs y Canastas', icon: 'layers', color: '#8B5CF6' },
+                    { id: 'crypto', title: 'Crypto y NFT', icon: 'bitcoin', color: '#F7931A', isMCI: true },
+                    { id: 'fixed', title: 'CDTs y Renta Fija', icon: 'trending-up', color: '#10B981' },
+                    { id: 'real_estate', title: 'Inmuebles', icon: 'apartment', color: '#6366F1' }
+                  ].map(cat => (
+                    <TouchableOpacity key={cat.id} style={[s.navCard, { backgroundColor: colors.bg, borderWidth: 0, paddingVertical: 18 }]} onPress={() => {
+                      setSelectedAssetType(cat.id as AssetType);
+                      setSearchResults(POPULAR_ASSETS.filter(a => a.type === cat.id).slice(0, 8));
+                      setAddFlowStep('search');
+                      setSearchQuery('');
+                    }}>
+                      <View style={[s.navIcon, { backgroundColor: cat.color + '12' }]}>
+                        {cat.isMCI ? <MaterialCommunityIcons name={cat.icon as any} size={24} color={cat.color} /> : <MaterialIcons name={cat.icon as any} size={24} color={cat.color} />}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800' }}>{cat.title}</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color={colors.sub} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {addFlowStep === 'search' && (
                 <>
                   <View style={[s.searchBar, { backgroundColor: colors.bg }]}>
                     <Ionicons name="search" size={18} color={colors.sub} />
@@ -651,9 +702,14 @@ export default function InvestScreen() {
                         </View>
                       </TouchableOpacity>
                     ))}
+                    {searchResults.length === 0 && (
+                      <Text style={{ textAlign: 'center', color: colors.sub, marginTop: 40, fontWeight: '700' }}>No hubieron resultados para esta categoría.</Text>
+                    )}
                   </ScrollView>
                 </>
-              ) : (
+              )}
+              
+              {addFlowStep === 'amount' && selectedAsset && (
                 <View>
                   <View style={[s.selectedAssetBox, { backgroundColor: colors.bg }]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -664,9 +720,6 @@ export default function InvestScreen() {
                         <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>{selectedAsset.ticker}</Text>
                         <Text style={{ color: colors.sub, fontSize: 12 }}>{selectedAsset.name}</Text>
                       </View>
-                      <TouchableOpacity onPress={() => { setSelectedAsset(null); setSearchQuery(''); setSearchResults(POPULAR_ASSETS.slice(0,6)); }}>
-                        <Ionicons name="close-circle" size={22} color={colors.sub} />
-                      </TouchableOpacity>
                     </View>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
                       <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>Precio actual</Text>
@@ -700,7 +753,7 @@ export default function InvestScreen() {
                   )}
 
                   <TouchableOpacity onPress={handleSavePosition} style={[s.confirmBtn, { backgroundColor: colors.accent }]}>
-                    <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>Agregar al Portafolio</Text>
+                    <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '800' }}>Agregar al Portafolio</Text>
                   </TouchableOpacity>
                 </View>
               )}
