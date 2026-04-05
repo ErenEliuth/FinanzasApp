@@ -582,7 +582,7 @@ export default function InvestScreen() {
                 <Text style={{ color: colors.sub, fontSize: 11, marginBottom: 16 }}>Ingresa un monto y Santy te arma un portafolio.</Text>
                 <View style={{ flexDirection: 'row', gap: 10 }}>
                   <TextInput style={[s.simInput, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Monto a invertir" placeholderTextColor={colors.sub} keyboardType="decimal-pad" value={simAmount}
-                    onChangeText={t => setSimAmount(formatCurrency(parseFloat(t.replace(/\D/g, '') || '0'), 'COP', false).replace('$', ''))} />
+                    onChangeText={t => setSimAmount(formatCurrency(parseFloat(t.replace(/\D/g, '') || '0'), 'COP', false).replace('$', ''))} autoCorrect={false} />
                   <TouchableOpacity onPress={handleSimulate} style={[s.simBtn, { backgroundColor: '#8B5CF6' }]}>
                     <Ionicons name="sparkles" size={22} color="#FFF" />
                   </TouchableOpacity>
@@ -624,9 +624,9 @@ export default function InvestScreen() {
                 <>
                   <View style={[s.searchBar, { backgroundColor: colors.bg }]}>
                     <Ionicons name="search" size={18} color={colors.sub} />
-                    <TextInput style={{ flex: 1, color: colors.text, fontSize: 15, fontWeight: '600', marginLeft: 10 }}
+                    <TextInput style={{ flex: 1, color: colors.text, fontSize: 16, fontWeight: '600', marginLeft: 10 }}
                       placeholder="Buscar por nombre o ticker..." placeholderTextColor={colors.sub}
-                      value={searchQuery} onChangeText={handleSearch} autoFocus />
+                      value={searchQuery} onChangeText={handleSearch} autoFocus autoCorrect={false} autoCapitalize="none" textContentType="none" />
                     {isSearching && <ActivityIndicator size="small" color={colors.accent} />}
                   </View>
                   <ScrollView style={{ maxHeight: 260, marginTop: 12 }} showsVerticalScrollIndicator={false}>
@@ -683,7 +683,7 @@ export default function InvestScreen() {
                   <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800', marginTop: 20, marginBottom: 8 }}>Cantidad de unidades</Text>
                   <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]}
                     placeholder="Ej: 10" placeholderTextColor={colors.sub} keyboardType="decimal-pad"
-                    value={addShares} onChangeText={setAddShares} />
+                    value={addShares} onChangeText={setAddShares} autoCorrect={false} />
 
                   {addShares && parseFloat(addShares) > 0 && (
                     <View style={[s.totalPreview, { backgroundColor: colors.bg }]}>
@@ -713,8 +713,8 @@ export default function InvestScreen() {
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={Platform.OS === 'ios'}>
             <View style={[s.modalBox, { backgroundColor: colors.card }]}>
             <Text style={[s.modalTitle, { color: colors.text }]}>Nueva Meta</Text>
-            <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Nombre" placeholderTextColor={colors.sub} value={newGoal.name} onChangeText={t => setNewGoal({...newGoal, name: t})} />
-            <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Objetivo (COP)" placeholderTextColor={colors.sub} keyboardType="decimal-pad" value={newGoal.target} onChangeText={t => setNewGoal({...newGoal, target: t})} />
+            <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Nombre" placeholderTextColor={colors.sub} value={newGoal.name} onChangeText={t => setNewGoal({...newGoal, name: t})} autoCorrect={false} />
+            <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Objetivo (COP)" placeholderTextColor={colors.sub} keyboardType="decimal-pad" value={newGoal.target} onChangeText={t => setNewGoal({...newGoal, target: t})} autoCorrect={false} />
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <TouchableOpacity style={[s.modalBtn, { backgroundColor: colors.bg }]} onPress={() => setGoalModalVisible(false)}><Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text></TouchableOpacity>
               <TouchableOpacity style={[s.modalBtn, { backgroundColor: colors.accent }]} onPress={handleAddGoal}><Text style={{ color: '#FFF', fontWeight: '900' }}>Crear</Text></TouchableOpacity>
@@ -778,7 +778,7 @@ const s = StyleSheet.create({
   santyCard: { padding: 28, borderRadius: 28 },
   tickerCard: { padding: 16, borderRadius: 18, borderWidth: 1, width: 110, marginRight: 10 },
   simCard: { padding: 20, borderRadius: 24, borderWidth: 1 },
-  simInput: { flex: 1, borderRadius: 16, padding: 16, fontWeight: '800', fontSize: 15 },
+  simInput: { flex: 1, borderRadius: 16, padding: 16, fontWeight: '800', fontSize: 16 },
   simBtn: { width: 54, height: 54, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
 
   // Modal
@@ -789,7 +789,7 @@ const s = StyleSheet.create({
   searchItem: { flexDirection: 'row', alignItems: 'center', padding: 14, borderBottomWidth: 1, gap: 12 },
   searchIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   selectedAssetBox: { padding: 20, borderRadius: 20, marginTop: 8 },
-  input: { borderRadius: 16, padding: 16, fontSize: 15, fontWeight: '700', marginBottom: 14 },
+  input: { borderRadius: 16, padding: 16, fontSize: 16, fontWeight: '700', marginBottom: 14 },
   totalPreview: { padding: 16, borderRadius: 16, alignItems: 'center', marginBottom: 16 },
   confirmBtn: { padding: 18, borderRadius: 18, alignItems: 'center', marginTop: 8 },
   modalBtn: { flex: 1, padding: 16, borderRadius: 16, alignItems: 'center' },
