@@ -646,12 +646,12 @@ export default function InvestScreen() {
               </View>
 
               {addFlowStep === 'category' && (
-                <View style={{ gap: 12 }}>
+                <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
                   {[
                     { id: 'stock', title: 'Acciones locales y ext.', icon: 'show-chart', color: colors.accent },
                     { id: 'fund', title: 'Fondos de Inversión', icon: 'pie-chart', color: '#3B82F6' },
                     { id: 'etf', title: 'ETFs y Canastas', icon: 'layers', color: '#8B5CF6' },
-                    { id: 'crypto', title: 'Crypto y NFT', icon: 'bitcoin', color: '#F7931A', isMCI: true },
+                    { id: 'crypto', title: 'Crypto y NFT', icon: 'currency-exchange', color: '#F7931A' },
                     { id: 'fixed', title: 'CDTs y Renta Fija', icon: 'trending-up', color: '#10B981' },
                     { id: 'real_estate', title: 'Inmuebles', icon: 'apartment', color: '#6366F1' }
                   ].map(cat => (
@@ -662,7 +662,7 @@ export default function InvestScreen() {
                       setSearchQuery('');
                     }}>
                       <View style={[s.navIcon, { backgroundColor: cat.color + '12' }]}>
-                        {cat.isMCI ? <MaterialCommunityIcons name={cat.icon as any} size={24} color={cat.color} /> : <MaterialIcons name={cat.icon as any} size={24} color={cat.color} />}
+                        {cat.id === 'crypto' ? <MaterialIcons name="currency-exchange" size={20} color={cat.color} /> : <MaterialIcons name={cat.icon as any} size={24} color={cat.color} />}
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800' }}>{cat.title}</Text>
@@ -670,7 +670,7 @@ export default function InvestScreen() {
                       <Ionicons name="chevron-forward" size={18} color={colors.sub} />
                     </TouchableOpacity>
                   ))}
-                </View>
+                </ScrollView>
               )}
 
               {addFlowStep === 'search' && (
