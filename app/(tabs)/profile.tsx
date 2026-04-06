@@ -358,7 +358,15 @@ export default function ProfileScreen() {
     const getDayTransactions = (date: Date | null) => {
         if (!date) return [];
         const key = toKey(date);
-        return transactions.filter(t => toKey(new Date(t.date)) === key);
+        return transactions.filter(t => 
+            toKey(new Date(t.date)) === key && 
+            t.category !== 'Transferencia' // Excluimos transferencias como pediste
+        );
+    };
+
+    const handleTogglePaid = async (reminder: any) => {
+        const { error } = await supabase.from('reminders').update({ is_paid: !reminder.is_paid }).eq('id', reminder.id);
+        if (!error) loadData();
     };
 
     const getDayReminders = (date: Date | null) => {
@@ -735,10 +743,15 @@ export default function ProfileScreen() {
                                 <Text style={{ color: colorsNav.sub, fontStyle: 'italic', fontSize: 13, paddingVertical: 10 }}>No hay facturas para este día.</Text>
                             ) : (
                                 getDayReminders(selectedDate).map((r, idx) => (
-                                    <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, backgroundColor: colorsNav.bg, paddingHorizontal: 12, borderRadius: 12, marginBottom: 8 }}>
-                                        <View>
-                                            <Text style={{ color: colorsNav.text, fontWeight: '800' }}>{r.title}</Text>
-                                            <Text style={{ color: colorsNav.sub, fontSize: 12 }}>{fmt(r.amount, currency, rates, isHidden)}</Text>
+                                    <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, backgroundColor: colorsNav.bg, paddingHorizontal: 12, borderRadius: 12, marginBottom: 8, opacity: r.is_paid ? 0.6 : 1 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 }}>
+                                            <TouchableOpacity onPress={() => handleTogglePaid(r)}>
+                                                <Ionicons name={r.is_paid ? "checkbox" : "square-outline"} size={22} color={r.is_paid ? "#10B981" : colorsNav.sub} />
+                                            </TouchableOpacity>
+                                            <View>
+                                                <Text style={{ color: colorsNav.text, fontWeight: '800', textDecorationLine: r.is_paid ? 'line-through' : 'none' }}>{r.title}</Text>
+                                                <Text style={{ color: colorsNav.sub, fontSize: 12 }}>{fmt(r.amount, currency, rates, isHidden)}</Text>
+                                            </View>
                                         </View>
                                         <TouchableOpacity onPress={() => handleDeleteReminder(r.id)}>
                                             <MaterialIcons name="delete-outline" size={20} color="#EF4444" />
