@@ -258,6 +258,9 @@ export default function ProfileScreen() {
     const [weeklyModalVisible, setWeeklyModalVisible] = useState(false);
     const [editModalVisible, setEditModalVisible] = useState(false);
 
+    const [libraryModalVisible, setLibraryModalVisible] = useState(false);
+    const [selectedArticle, setSelectedArticle] = useState<any>(null);
+
     const [transactions, setTransactions] = useState<any[]>([]);
     const [activeDays, setActiveDays] = useState<Map<string, number>>(new Map());
     const [newName, setNewName] = useState(user?.user_metadata?.name || '');
@@ -375,6 +378,57 @@ export default function ProfileScreen() {
                     </View>
                     <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
                 </TouchableOpacity>
+
+                {/* 📚 BIBLIOTECA DE SANTY */}
+                <Text style={[styles.sectionTitle, { color: colorsNav.sub, marginTop: 24 }]}>BIBLIOTECA DE SANTY</Text>
+                <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false} 
+                    style={{ marginHorizontal: -20, paddingHorizontal: 20 }}
+                >
+                    {[
+                        {
+                            id: 'emergency',
+                            title: 'Tu Escudo de Choque',
+                            sub: 'Fondo de emergencia por niveles',
+                            icon: 'security',
+                            color: '#10B981',
+                            time: '2 min',
+                            content: `El error más común es creer que el fondo de emergencia DEBE ser de 3 a 6 meses de sueldo desde el día 1. ¡Eso desmotiva a cualquiera!\n\nSanty recomienda el método de los **Niveles de Seguridad**:\n\n🛡️ **Nivel 1: El Escudo de Choque ($500.000 COP)**\nEsta es tu primera meta. Sirve para emergencias inmediatas: un neumático pinchado, un medicamento costoso o un electrodoméstico que falló. Es una cifra lograble que te da paz mental inmediata.\n\n🏠 **Nivel 2: Un Mes de Vida**\nUna vez tengas tu Nivel 1, apunta a cubrir un mes de tus gastos básicos. Esto te da libertad si hay un retraso en un pago.\n\n🛋️ **Nivel 3: El Colchón Pro (3 Meses)**\nAquí es donde la mayoría se queda. Es seguridad real ante una pérdida de empleo.\n\n🚀 **Nivel 4: Libertad Total (6 Meses+)**\nCuando llegas aquí, ya no le temes a los imprevistos financieros.\n\n**Recuerda:** Lo importante no es cuánto ahorras hoy, sino el hábito de proteger tu futuro.`
+                        },
+                        {
+                            id: 'compound',
+                            title: 'La Magia del Tiempo',
+                            sub: 'El interés compuesto explicado',
+                            icon: 'auto-fix-high',
+                            color: '#8B5CF6',
+                            time: '1 min',
+                            content: `Albert Einstein llamó al interés compuesto "la octava maravilla del mundo".\n\nNo necesitas ser un genio de las finanzas para usarlo. Solo necesitas **tiempo**. Cuando inviertes, tu dinero genera ganancias. En lugar de gastarlas, las dejas ahí para que esas ganancias generen *más* ganancias.\n\nCon el paso de los años, esa pequeña semilla se convierte en un bosque. Por eso, el mejor momento para empezar fue ayer, y el segundo mejor momento es **hoy**.`
+                        },
+                        {
+                            id: 'invest_vs_save',
+                            title: '¿Ahorrar o Invertir?',
+                            sub: 'Cuándo dar el gran paso',
+                            icon: 'trending-up',
+                            color: '#3B82F6',
+                            time: '1 min',
+                            content: `Mucha gente confunde estos términos, pero son muy diferentes:\n\n💰 **Ahorrar**: Es guardar dinero para el futuro (seguridad). Se hace en cuentas de fácil acceso.\n\n📈 **Invertir**: Es poner a trabajar tu dinero para que crezca (patrimonio). Implica riesgos pero genera riqueza.\n\n**¿La regla de oro de Santy?** No inviertas dinero que vas a necesitar en los próximos 12 meses. Primero construye tu nivel 1 de seguridad, y luego deja que el excedente busque rentabilidad.`
+                        }
+                    ].map(article => (
+                        <TouchableOpacity 
+                            key={article.id} 
+                            style={[styles.libraryCard, { backgroundColor: colorsNav.card }]}
+                            onPress={() => { setSelectedArticle(article); setLibraryModalVisible(true); }}
+                        >
+                            <View style={[styles.libraryIcon, { backgroundColor: article.color + '15' }]}>
+                                <MaterialIcons name={article.icon as any} size={24} color={article.color} />
+                            </View>
+                            <Text style={[styles.libraryTag, { color: colorsNav.sub }]}>{article.time} lectura</Text>
+                            <Text style={[styles.libraryTitle, { color: colorsNav.text }]}>{article.title}</Text>
+                            <Text style={[styles.librarySub, { color: colorsNav.sub }]} numberOfLines={1}>{article.sub}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
 
                 <Text style={[styles.sectionTitle, { color: colorsNav.sub, marginTop: 24 }]}>AJUSTES DE LA APP</Text>
                 <View style={[styles.profileCard, { backgroundColor: colorsNav.card, paddingVertical: 10 }]}>
@@ -516,6 +570,43 @@ export default function ProfileScreen() {
                     </View>
                 </View>
             </Modal>
+
+            {/* MODAL DE LECTURA DE BIBLIOTECA */}
+            <Modal visible={libraryModalVisible} animationType="slide" transparent>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+                    <View style={[styles.readerSheet, { backgroundColor: colorsNav.bg }]}>
+                        <View style={styles.sheetHandle} />
+                        {selectedArticle && (
+                            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <View style={[styles.libraryIcon, { backgroundColor: selectedArticle.color + '15', width: 44, height: 44 }]}>
+                                        <MaterialIcons name={selectedArticle.icon as any} size={24} color={selectedArticle.color} />
+                                    </View>
+                                    <TouchableOpacity style={styles.closeCircle} onPress={() => setLibraryModalVisible(false)}>
+                                        <Ionicons name="close" size={22} color={colorsNav.text} />
+                                    </TouchableOpacity>
+                                </View>
+                                
+                                <Text style={[styles.readerTitle, { color: colorsNav.text }]}>{selectedArticle.title}</Text>
+                                <Text style={[styles.readerSub, { color: colorsNav.sub }]}>Por Santy · {selectedArticle.time} de lectura</Text>
+                                
+                                <View style={[styles.readerContent, { backgroundColor: colorsNav.card }]}>
+                                    <Text style={[styles.readerText, { color: colorsNav.text }]}>
+                                        {selectedArticle.content}
+                                    </Text>
+                                </View>
+
+                                <TouchableOpacity 
+                                    style={[styles.readerActionBtn, { backgroundColor: colorsNav.accent }]}
+                                    onPress={() => setLibraryModalVisible(false)}
+                                >
+                                    <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 16 }}>Entendido, gracias Santy</Text>
+                                </TouchableOpacity>
+                            </ScrollView>
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -564,4 +655,16 @@ const styles = StyleSheet.create({
     swatchCheck: { position: 'absolute', top: 8, right: 8, width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
     modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20 },
     modalHeaderTitle: { fontSize: 18, fontWeight: '800' },
+    // Library Styles
+    libraryCard: { width: 220, padding: 20, borderRadius: 28, marginRight: 12, elevation: 1 },
+    libraryIcon: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+    libraryTag: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', marginBottom: 4 },
+    libraryTitle: { fontSize: 15, fontWeight: '900', marginBottom: 4 },
+    librarySub: { fontSize: 11, fontWeight: '600' },
+    readerSheet: { borderTopLeftRadius: 36, borderTopRightRadius: 36, padding: 24, paddingTop: 16, height: '85%', width: '100%' },
+    readerTitle: { fontSize: 26, fontWeight: '900', marginTop: 24, marginBottom: 8 },
+    readerSub: { fontSize: 13, fontWeight: '700', marginBottom: 24 },
+    readerContent: { padding: 24, borderRadius: 24, marginBottom: 24 },
+    readerText: { fontSize: 15, lineHeight: 24, fontWeight: '600' },
+    readerActionBtn: { paddingVertical: 18, borderRadius: 18, alignItems: 'center' },
 });
