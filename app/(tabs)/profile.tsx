@@ -37,9 +37,11 @@ const toKey = (d: Date) =>
 const fmt = (n: number, currency: string, rates: Record<string, number>, isHidden: boolean) => 
     formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
 
-function MonthHeatmap({ activeDays, colorsNav }: {
+function MonthHeatmap({ activeDays, colorsNav, onDayPress, reminders }: {
     activeDays: Map<string, number>;
     colorsNav: any;
+    onDayPress: (date: Date) => void;
+    reminders: any[];
 }) {
     const today = new Date();
     const todayKey = toKey(today);
@@ -67,10 +69,10 @@ function MonthHeatmap({ activeDays, colorsNav }: {
                     <Text style={[mSt.monthName, { color: colorsNav.text }]}>
                         {MONTH_NAMES_FULL[month]} {year}
                     </Text>
-                    <Text style={[mSt.subtitle, { color: colorsNav.sub }]}>Actividad financiera</Text>
+                    <Text style={[mSt.subtitle, { color: colorsNav.sub }]}>Tu agenda financiera</Text>
                 </View>
-                <View style={[mSt.pill, { backgroundColor: '#E8F5E9' }]}>
-                    <Text style={[mSt.pillTxt, { color: '#4A7C59' }]}>{totalActive} días activos</Text>
+                <View style={[mSt.pill, { backgroundColor: colorsNav.accent + '20' }]}>
+                    <Text style={[mSt.pillTxt, { color: colorsNav.accent }]}>{totalActive} días activos</Text>
                 </View>
             </View>
             <View style={mSt.weekRow}>
@@ -84,19 +86,28 @@ function MonthHeatmap({ activeDays, colorsNav }: {
                 <View key={row} style={mSt.weekRow}>
                     {cells.slice(row * 7, row * 7 + 7).map((day, col) => {
                         if (day === null) return <View key={col} style={mSt.cell} />;
-                        const k = toKey(new Date(year, month, day));
+                        const dateObj = new Date(year, month, day);
+                        const k = toKey(dateObj);
                         const count = activeDays.get(k) ?? 0;
                         const isToday = k === todayKey;
-                        const isFuture = new Date(year, month, day) > today;
+                        const isFuture = dateObj > today;
+                        const hasReminder = reminders.some(r => r.due_day === day);
+
                         let bgColor = colorsNav.bg;
                         if (isFuture) bgColor = 'transparent';
                         else if (count > 0) bgColor = colorsNav.accent;
+
                         return (
-                            <View key={col} style={mSt.cell}>
+                            <TouchableOpacity 
+                                key={col} 
+                                style={mSt.cell}
+                                onPress={() => onDayPress(dateObj)}
+                            >
                                 <View style={[
                                     mSt.dayCircle,
                                     { backgroundColor: bgColor },
                                     isToday && { borderWidth: 2, borderColor: colorsNav.accent },
+                                    hasReminder && !isFuture && { borderBottomWidth: 3, borderBottomColor: '#000' }
                                 ]}>
                                     <Text style={[
                                         mSt.dayNum,
@@ -106,8 +117,11 @@ function MonthHeatmap({ activeDays, colorsNav }: {
                                     ]}>
                                         {day}
                                     </Text>
+                                    {hasReminder && (
+                                        <View style={[mSt.reminderDot, { backgroundColor: count > 0 ? '#FFF' : colorsNav.text }]} />
+                                    )}
                                 </View>
-                            </View>
+                            </TouchableOpacity>
                         );
                     })}
                 </View>
@@ -127,8 +141,9 @@ const mSt = StyleSheet.create({
     dayHeader: { flex: 1, alignItems: 'center' },
     dayHeaderTxt: { fontSize: 10, fontWeight: '700', opacity: 0.6 },
     cell: { flex: 1, alignItems: 'center' },
-    dayCircle: { width: 30, height: 30, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
+    dayCircle: { width: 30, height: 30, borderRadius: 9, justifyContent: 'center', alignItems: 'center', position: 'relative' },
     dayNum: { fontSize: 11, fontWeight: '600' },
+    reminderDot: { position: 'absolute', bottom: 2, width: 4, height: 4, borderRadius: 2 },
 });
 
 const CAT_INFO: Record<string, any> = {
@@ -261,6 +276,13 @@ export default function ProfileScreen() {
     const [libraryModalVisible, setLibraryModalVisible] = useState(false);
     const [selectedArticle, setSelectedArticle] = useState<any>(null);
 
+    const [dayDetailModalVisible, setDayDetailModalVisible] = useState(false);
+    const [addReminderModalVisible, setAddReminderModalVisible] = useState(false);
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [reminders, setReminders] = useState<any[]>([]);
+    const [newReminderTitle, setNewReminderTitle] = useState('');
+    const [newReminderAmount, setNewReminderAmount] = useState('');
+
     const [transactions, setTransactions] = useState<any[]>([]);
     const [activeDays, setActiveDays] = useState<Map<string, number>>(new Map());
     const [newName, setNewName] = useState(user?.user_metadata?.name || '');
@@ -297,6 +319,52 @@ export default function ProfileScreen() {
         const catMap: Record<string, number> = {};
         weekTxs.forEach(t => { catMap[t.category || 'Otros'] = (catMap[t.category || 'Otros'] || 0) + Math.abs(t.amount || 0); });
         setWeeklySummaryData(Object.entries(catMap).sort((a, b) => b[1] - a[1]));
+
+        // Fetch reminders
+        const { data: remData } = await supabase.from('reminders').select('*').eq('user_id', user.id);
+        setReminders(remData || []);
+    };
+
+    const handleAddReminder = async () => {
+        if (!newReminderTitle.trim() || !user) return;
+        const amount = parseFloat(newReminderAmount.replace(/\D/g, '')) || 0;
+        const day = selectedDate ? selectedDate.getDate() : new Date().getDate();
+        
+        const { error } = await supabase.from('reminders').insert([{
+            user_id: user.id,
+            title: newReminderTitle.trim(),
+            amount: amount,
+            due_day: day
+        }]);
+
+        if (!error) {
+            setAddReminderModalVisible(false);
+            setNewReminderTitle('');
+            setNewReminderAmount('');
+            loadData();
+        }
+    };
+
+    const handleDeleteReminder = async (id: string) => {
+        const { error } = await supabase.from('reminders').delete().eq('id', id);
+        if (!error) loadData();
+    };
+
+    const handleDayPress = (date: Date) => {
+        setSelectedDate(date);
+        setDayDetailModalVisible(true);
+    };
+
+    const getDayTransactions = (date: Date | null) => {
+        if (!date) return [];
+        const key = toKey(date);
+        return transactions.filter(t => toKey(new Date(t.date)) === key);
+    };
+
+    const getDayReminders = (date: Date | null) => {
+        if (!date) return [];
+        const day = date.getDate();
+        return reminders.filter(r => r.due_day === day);
     };
 
     const handleUpdateName = async () => {
@@ -362,7 +430,13 @@ export default function ProfileScreen() {
                     </TouchableOpacity>
                 </View>
 
-                <MonthHeatmap activeDays={activeDays} colorsNav={colorsNav} />
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <Text style={[styles.sectionTitle, { color: colorsNav.sub, marginTop: 0, marginBottom: 0 }]}>TU ACTIVIDAD</Text>
+                    <TouchableOpacity onPress={() => setAddReminderModalVisible(true)}>
+                        <Text style={{ color: colorsNav.accent, fontWeight: '800', fontSize: 12 }}>+ Recordatorio</Text>
+                    </TouchableOpacity>
+                </View>
+                <MonthHeatmap activeDays={activeDays} colorsNav={colorsNav} reminders={reminders} onDayPress={handleDayPress} />
                 
                 {/* Botón de Presupuestos abajo del calendario */}
                 <TouchableOpacity 
@@ -604,6 +678,124 @@ export default function ProfileScreen() {
                                 </TouchableOpacity>
                             </ScrollView>
                         )}
+                    </View>
+                </View>
+            </Modal>
+
+            {/* MODAL DETALLE DEL DÍA */}
+            <Modal visible={dayDetailModalVisible} animationType="fade" transparent>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 }}>
+                    <View style={[styles.modalBox, { backgroundColor: colorsNav.card }]}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <View>
+                                <Text style={[styles.modalTitle, { marginBottom: 0, color: colorsNav.text }]}>
+                                    {selectedDate ? `${selectedDate.getDate()} de ${MONTH_NAMES_FULL[selectedDate.getMonth()]}` : ''}
+                                </Text>
+                                <Text style={{ color: colorsNav.sub, fontSize: 12 }}>Detalle de la jornada</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setDayDetailModalVisible(false)} style={styles.closeCircle}>
+                                <Ionicons name="close" size={24} color={colorsNav.text} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+                            <View style={{ flex: 1, backgroundColor: '#10B98115', padding: 12, borderRadius: 16 }}>
+                                <Text style={{ fontSize: 10, fontWeight: '800', color: '#10B981' }}>INGRESOS</Text>
+                                <Text style={{ fontSize: 16, fontWeight: '900', color: '#10B981' }}>
+                                    {fmt(getDayTransactions(selectedDate).filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0), currency, rates, isHidden)}
+                                </Text>
+                            </View>
+                            <View style={{ flex: 1, backgroundColor: '#EF444415', padding: 12, borderRadius: 16 }}>
+                                <Text style={{ fontSize: 10, fontWeight: '800', color: '#EF4444' }}>GASTOS</Text>
+                                <Text style={{ fontSize: 16, fontWeight: '900', color: '#EF4444' }}>
+                                    {fmt(getDayTransactions(selectedDate).filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(t.amount), 0), currency, rates, isHidden)}
+                                </Text>
+                            </View>
+                        </View>
+
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: colorsNav.sub, marginBottom: 10 }}>MOVIMIENTOS</Text>
+                        <ScrollView style={{ maxHeight: 200 }}>
+                            {getDayTransactions(selectedDate).length === 0 ? (
+                                <Text style={{ color: colorsNav.sub, fontStyle: 'italic', fontSize: 13, paddingVertical: 10 }}>Sin movimientos registrados.</Text>
+                            ) : (
+                                getDayTransactions(selectedDate).map((t, idx) => (
+                                    <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colorsNav.bg }}>
+                                        <Text style={{ color: colorsNav.text, fontWeight: '600' }}>{t.category}</Text>
+                                        <Text style={{ color: t.type === 'income' ? '#10B981' : '#EF4444', fontWeight: '800' }}>
+                                            {t.type === 'income' ? '+' : '-'}{fmt(Math.abs(t.amount), currency, rates, isHidden)}
+                                        </Text>
+                                    </View>
+                                ))
+                            )}
+                        </ScrollView>
+
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: colorsNav.sub, marginTop: 20, marginBottom: 10 }}>COMPROMISOS / FACTURAS</Text>
+                        <ScrollView style={{ maxHeight: 150 }}>
+                            {getDayReminders(selectedDate).length === 0 ? (
+                                <Text style={{ color: colorsNav.sub, fontStyle: 'italic', fontSize: 13, paddingVertical: 10 }}>No hay facturas para este día.</Text>
+                            ) : (
+                                getDayReminders(selectedDate).map((r, idx) => (
+                                    <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, backgroundColor: colorsNav.bg, paddingHorizontal: 12, borderRadius: 12, marginBottom: 8 }}>
+                                        <View>
+                                            <Text style={{ color: colorsNav.text, fontWeight: '800' }}>{r.title}</Text>
+                                            <Text style={{ color: colorsNav.sub, fontSize: 12 }}>{fmt(r.amount, currency, rates, isHidden)}</Text>
+                                        </View>
+                                        <TouchableOpacity onPress={() => handleDeleteReminder(r.id)}>
+                                            <MaterialIcons name="delete-outline" size={20} color="#EF4444" />
+                                        </TouchableOpacity>
+                                    </View>
+                                ))
+                            )}
+                        </ScrollView>
+
+                        <TouchableOpacity 
+                            style={{ backgroundColor: colorsNav.accent, paddingVertical: 14, borderRadius: 16, alignItems: 'center', marginTop: 20 }}
+                            onPress={() => setDayDetailModalVisible(false)}
+                        >
+                            <Text style={{ color: '#FFF', fontWeight: '800' }}>Cerrar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* MODAL NUEVO RECORDATORIO */}
+            <Modal visible={addReminderModalVisible} animationType="slide" transparent>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+                    <View style={[styles.modalBox, { backgroundColor: colorsNav.card, borderTopLeftRadius: 32, borderTopRightRadius: 32 }]}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Nuevo Compromiso</Text>
+                            <TouchableOpacity onPress={() => setAddReminderModalVisible(false)}>
+                                <Ionicons name="close" size={24} color={colorsNav.sub} />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        <Text style={{ fontSize: 12, color: colorsNav.sub, marginBottom: 8 }}>TÍTULO (Ej. Arriendo)</Text>
+                        <TextInput 
+                            style={{ backgroundColor: colorsNav.bg, borderRadius: 12, padding: 15, color: colorsNav.text, marginBottom: 15 }}
+                            value={newReminderTitle}
+                            onChangeText={setNewReminderTitle}
+                            placeholder="Nombre del compromiso"
+                        />
+                        
+                        <Text style={{ fontSize: 12, color: colorsNav.sub, marginBottom: 8 }}>VALOR ESTIMADO</Text>
+                        <TextInput 
+                            style={{ backgroundColor: colorsNav.bg, borderRadius: 12, padding: 15, color: colorsNav.text, marginBottom: 20 }}
+                            value={newReminderAmount}
+                            onChangeText={setNewReminderAmount}
+                            keyboardType="numeric"
+                            placeholder="$ 0"
+                        />
+
+                        <Text style={{ fontSize: 12, color: colorsNav.sub, marginBottom: 15 }}>
+                            Se repetirá todos los meses el día {selectedDate ? selectedDate.getDate() : 'seleccionado'}.
+                        </Text>
+
+                        <TouchableOpacity 
+                            style={{ backgroundColor: colorsNav.accent, paddingVertical: 18, borderRadius: 18, alignItems: 'center' }}
+                            onPress={handleAddReminder}
+                        >
+                            <Text style={{ color: '#FFF', fontWeight: '800' }}>Guardar Compromiso</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
