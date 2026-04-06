@@ -53,6 +53,7 @@
 - ✅ **Rediseño Minimalista y Temas Dinámicos**: Se eliminaron **colores hardcodeados** en pantallas como "Nueva Transacción", "Historial" y "Inversiones", utilizando ahora colores dependientes del tema actual de forma dinámica para evitar layouts rotos.
 - ✅ **Navegación e Interacción**: Implementación de navegación vertical tipo "Hub" y acciones de **mantener presionado (Long-Press)** para eliminar activos sin ensuciar la interfaz visual.
 - ✅ **Corrección Crítica de Moneda**: Se arregló un bug peligroso de formateo, donde inputs con decimales y separadores (ej: 14,230.50) se multiplicaban erróneamente. 
+- ✅ **Eliminación de Datos Muertos**: Se removió la pantalla de detalle de activos (estilo Trii) que mostraba información estática o incompleta, simplificando la interfaz del portafolio.
 
 ---
 

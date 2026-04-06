@@ -472,7 +472,7 @@ export default function InvestScreen() {
                 const gain = value - (pos.shares * pos.avgPrice);
                 const gainPct = pos.avgPrice > 0 ? ((currentPrice - pos.avgPrice) / pos.avgPrice) * 100 : 0;
                 return (
-                  <TouchableOpacity key={pos.id} style={[s.assetCard, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => setDetailAsset(pos)} onLongPress={() => setDeletingId(pos.id)}>
+                  <TouchableOpacity key={pos.id} style={[s.assetCard, { backgroundColor: colors.card, borderColor: colors.border }]} onLongPress={() => setDeletingId(pos.id)}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
                       <View style={[s.assetIcon, { backgroundColor: getAssetColor(pos.type) + '12' }]}>{getAssetIcon(pos.type)}</View>
                       <View style={{ flex: 1 }}>
@@ -782,96 +782,7 @@ export default function InvestScreen() {
         </View>
       </Modal>
 
-      {/* ═══ ASSET DETAIL MODAL (TRII STYLE) ═══ */}
-      <Modal visible={!!detailAsset} transparent animationType="slide" statusBarTranslucent>
-        {detailAsset && (
-          <View style={[s.container, { backgroundColor: '#1A1A1A' }]}>
-            <View style={[s.header, { paddingTop: Platform.OS === 'android' ? 50 : 50 }]}>
-              <TouchableOpacity onPress={() => setDetailAsset(null)} style={{ padding: 10, left: -10 }}>
-                <Ionicons name="chevron-back" size={28} color="#FFF" />
-              </TouchableOpacity>
-              <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '800' }}>{detailAsset.name || detailAsset.ticker}</Text>
-              <View style={{ width: 40 }} />
-            </View>
 
-            <ScrollView contentContainerStyle={{ paddingBottom: 150 }} showsVerticalScrollIndicator={false}>
-              {/* Huge Balance */}
-              <View style={{ alignItems: 'center', marginTop: 24, marginBottom: 24 }}>
-                <Text style={{ color: '#FFF', fontSize: 40, fontWeight: '900', letterSpacing: -1 }}>
-                  {baseFmt(detailAsset.shares * (livePrices[detailAsset.id] || detailAsset.avgPrice))}
-                </Text>
-                {(() => {
-                  const val = detailAsset.shares * (livePrices[detailAsset.id] || detailAsset.avgPrice);
-                  const inv = detailAsset.shares * detailAsset.avgPrice;
-                  const gn = val - inv;
-                  const gnpct = inv > 0 ? (gn / inv) * 100 : 5.94; // fallback for funds without live price mapping
-                  return (
-                    <Text style={{ color: gn >= 0 ? '#05F771' : '#EF4444', fontSize: 14, fontWeight: '800', marginTop: 8 }}>
-                      {gn >= 0 ? '+' : ''} {baseFmt(Math.abs(gn))} ({gn >= 0 ? '+' : ''}{Math.abs(gnpct).toFixed(2)} %)
-                    </Text>
-                  );
-                })()}
-              </View>
-
-              {/* Tabs */}
-              <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#2D2D2D' }}>
-                <View style={{ flex: 1, borderBottomWidth: 2, borderBottomColor: '#05F771', paddingVertical: 14, alignItems: 'center' }}>
-                  <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800' }}>Mi inversión</Text>
-                </View>
-                <View style={{ flex: 1, paddingVertical: 14, alignItems: 'center' }}>
-                  <Text style={{ color: '#888', fontSize: 13, fontWeight: '700' }}>Acerca del {detailAsset.type === 'fund' ? 'fondo' : 'activo'}</Text>
-                </View>
-              </View>
-
-              <View style={{ padding: 20 }}>
-                {/* Total rendimientos */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 30 }}>
-                  <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: '#2A2A2A', justifyContent: 'center', alignItems: 'center' }}>
-                    <Ionicons name="flash" size={18} color="#05F771" />
-                  </View>
-                  <View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={{ color: '#A3A3A3', fontSize: 12, fontWeight: '600' }}>Total de rendimientos acumulados</Text>
-                      <Ionicons name="information-circle-outline" size={14} color="#666" />
-                    </View>
-                    {(() => {
-                      const val = detailAsset.shares * (livePrices[detailAsset.id] || detailAsset.avgPrice);
-                      const inv = detailAsset.shares * detailAsset.avgPrice;
-                      const gn = val - inv;
-                      const gnpct = inv > 0 ? (gn / inv) * 100 : 5.94;
-                      return (
-                        <Text style={{ color: gn >= 0 ? '#05F771' : '#EF4444', fontSize: 13, fontWeight: '800', marginTop: 4 }}>
-                          {gn >= 0 ? '+' : ''} {baseFmt(Math.abs(gn))} ({gn >= 0 ? '+' : ''}{Math.abs(gnpct).toFixed(2)} %)
-                        </Text>
-                      );
-                    })()}
-                  </View>
-                </View>
-
-                {/* Detalle inversión */}
-                <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '800', marginBottom: 16 }}>Detalle inversión</Text>
-              </View>
-            </ScrollView>
-
-            {/* Bottom Actions Floating */}
-            <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#1A1A1A', paddingHorizontal: 20, paddingTop: 16, paddingBottom: Platform.OS === 'ios' ? 40 : 20, borderTopWidth: 1, borderTopColor: '#2D2D2D' }}>
-              <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
-                <TouchableOpacity style={{ flex: 1, backgroundColor: '#05F771', borderRadius: 16, paddingVertical: 16, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }}>
-                  <Ionicons name="arrow-up" size={18} color="#000" />
-                  <Text style={{ color: '#000', fontSize: 16, fontWeight: '900' }}>Depositar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={{ flex: 1, backgroundColor: '#1A1A1A', borderWidth: 1, borderColor: '#05F771', borderRadius: 16, paddingVertical: 16, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }}>
-                  <Ionicons name="arrow-down" size={18} color="#05F771" />
-                  <Text style={{ color: '#05F771', fontSize: 16, fontWeight: '800' }}>Retirar</Text>
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity>
-                <Text style={{ color: '#05F771', textAlign: 'center', fontSize: 14, fontWeight: '800' }}>Ver movimientos</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-      </Modal>
     </SafeAreaView>
   );
 }
