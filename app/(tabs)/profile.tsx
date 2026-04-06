@@ -107,18 +107,18 @@ function MonthHeatmap({ activeDays, colorsNav, onDayPress, reminders }: {
                                     mSt.dayCircle,
                                     { backgroundColor: bgColor },
                                     isToday && { borderWidth: 2, borderColor: colorsNav.accent },
-                                    hasReminder && !isFuture && { borderBottomWidth: 3, borderBottomColor: '#000' }
+                                    hasReminder && { borderBottomWidth: 3, borderBottomColor: colorsNav.accent }
                                 ]}>
                                     <Text style={[
                                         mSt.dayNum,
                                         { color: count > 0 ? '#FFF' : colorsNav.text },
-                                        isFuture && { color: colorsNav.sub + '50' },
+                                        isFuture && { color: colorsNav.sub + (count > 0 ? '' : '50') },
                                         isToday && { fontWeight: '900' }
                                     ]}>
                                         {day}
                                     </Text>
                                     {hasReminder && (
-                                        <View style={[mSt.reminderDot, { backgroundColor: count > 0 ? '#FFF' : colorsNav.text }]} />
+                                        <View style={[mSt.reminderDot, { backgroundColor: count > 0 ? '#FFF' : colorsNav.accent }]} />
                                     )}
                                 </View>
                             </TouchableOpacity>
@@ -445,6 +445,27 @@ export default function ProfileScreen() {
                     </TouchableOpacity>
                 </View>
                 <MonthHeatmap activeDays={activeDays} colorsNav={colorsNav} reminders={reminders} onDayPress={handleDayPress} />
+
+                {/* 📋 LISTA RESUMEN DE COMPROMISOS */}
+                {reminders.length > 0 && (
+                    <View style={[styles.profileCard, { backgroundColor: colorsNav.card, padding: 16, marginTop: -10 }]}>
+                        <Text style={{ fontSize: 13, fontWeight: '800', color: colorsNav.sub, marginBottom: 15 }}>PRÓXIMOS COMPROMISOS</Text>
+                        {reminders.sort((a,b) => a.due_day - b.due_day).slice(0, 3).map((r, i) => (
+                            <TouchableOpacity key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }} onPress={() => handleDayPress(new Date(new Date().getFullYear(), new Date().getMonth(), r.due_day))}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: r.is_paid ? '#10B98120' : colorsNav.accent + '20', justifyContent: 'center', alignItems: 'center' }}>
+                                        <MaterialIcons name={r.is_paid ? "check-circle" : "event-note"} size={20} color={r.is_paid ? "#10B981" : colorsNav.accent} />
+                                    </View>
+                                    <View>
+                                        <Text style={{ fontSize: 14, fontWeight: '800', color: colorsNav.text, textDecorationLine: r.is_paid ? 'line-through' : 'none' }}>{r.title}</Text>
+                                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Día {r.due_day}</Text>
+                                    </View>
+                                </View>
+                                <Text style={{ fontSize: 14, fontWeight: '900', color: colorsNav.text }}>{fmt(r.amount, currency, rates, isHidden)}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                )}
                 
                 {/* Botón de Presupuestos abajo del calendario */}
                 <TouchableOpacity 
