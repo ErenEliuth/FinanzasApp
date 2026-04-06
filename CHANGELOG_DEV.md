@@ -40,6 +40,24 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-04-06 — Sanctuary: Inversiones en la Nube y Pulido UI (v28)
+
+**Archivos modificados:**
+- `app/(tabs)/explore.tsx`, `app/(tabs)/history.tsx`, `app/investments.tsx` (u oscilantes a inversiones)
+- `utils/supabase.ts`, `utils/stockPrices.ts`, `utils/currency.ts`
+- `CHANGELOG_DEV.md` — Registro de la v28.
+
+**Cambios realizados:**
+- ✅ **Migración Inversiones a Supabase**: El módulo de inversiones pasó de `AsyncStorage` a la nube (Supabase). Se añadieron tablas SQL para `assets` permitiendo persistencia real y sincronización en tiempo real.
+- ✅ **API de Yahoo Finance**: Integración para obtener el precio en tiempo real de los activos del portafolio.
+- ✅ **Rediseño Minimalista y Temas Dinámicos**: Se eliminaron **colores hardcodeados** en pantallas como "Nueva Transacción", "Historial" y "Inversiones", utilizando ahora colores dependientes del tema actual de forma dinámica para evitar layouts rotos.
+- ✅ **Navegación e Interacción**: Implementación de navegación vertical tipo "Hub" y acciones de **mantener presionado (Long-Press)** para eliminar activos sin ensuciar la interfaz visual.
+- ✅ **Corrección Crítica de Moneda**: Se arregló un bug peligroso de formateo, donde inputs con decimales y separadores (ej: 14,230.50) se multiplicaban erróneamente. 
+
+---
+
+## 📅 Historial de Cambios
+
 ### 2026-03-29 — Sanctuary: Fix de Fecha y Hora (v27)
 
 **Archivos modificados:**
@@ -517,25 +535,31 @@
 
 ---
 
-## 🐛 Fallos Conocidos
+## 🐛 Fallos Conocidos y Resueltos
 
 | # | Descripción | Estado | Archivo |
 |---|-------------|--------|---------|
 | 1 | `expo-secure-store` versión incompatible (warning al iniciar) | ✅ Corregido | `package.json` |
 | 2 | En web, `Keyboard.dismiss` no aplica (se usa condicional `Platform.OS`) | ✅ Manejado | `explore.tsx` |
 | 3 | Alerts no funcionan en web (se usa `window.confirm` como fallback) | ✅ Manejado | varios |
+| 4 | Errores de parseo de moneda con miles (ej. 14,000.50 convertido a 1400050) | ✅ Corregido | `utils/currency.ts` |
+| 5 | Interfaz con colores rotos al cambiar de modo claro a oscuro en Transacciones | ✅ Corregido | Varios (uso de themes) |
+| 6 | Pantalla encimada por el teclado en inputs de nuevo gasto | ✅ Corregido | `explore.tsx` |
 
 ---
 
-## 📌 Decisiones de Diseño Importantes
+## 📌 Decisiones de Diseño Importantes (REGLAS INTOCABLES)
 
 1. **Dinero Activo** = suma de todas las cuentas EXCEPTO tarjetas de crédito y cuenta "Ahorro"
 2. **Deuda Total** = deudas pendientes + saldo negativo de tarjetas de crédito
 3. **Dinero Real** = (Dinero Activo + Ahorro) - Deuda Total
-4. **Salud Financiera** = porcentaje de (Dinero Real / (Dinero Activo + Ahorro))
+4. **Salud Financiera** = porcentaje de (Dinero Real / (Dinero Activo + Ahorro)). **¡NO TOCAR LA LÓGICA DE USEMEMO AQUÍ!** Ya está optimizada.
 5. **Transferencias** se guardan como 2 transacciones: un expense (origen) y un income (destino), ambos con categoría "Transferencia"
 6. **Ahorros** se guardan como `type: 'expense'` con `category: 'Ahorro'` y `account: 'Ahorro'`
 7. **Sugerencia de ahorro inteligente**: al guardar un ingreso, se analiza ratio deuda/ingreso y superávit para sugerir % de ahorro (5%, 10%, 15%, 20%)
+8. **Colores Temáticos**: NUNCA hardcodear un color (ej: `backgroundColor: '#FFF'`). SIEMPRE usar el hook del tema activo para asegurar consistencia en modo oscuro y otros temas.
+9. **Eliminar Activos en Inversiones**: Se utiliza Long-Press. No agregar botones de basura explícitos por elemento para mantener la visual limpia.
+10. **Reseteo de Formularios**: Los campos de input (como en "Nueva Transacción") DEBEN reiniciarse solos al realizar `onFocus` de la vista para evitar datos fantasma anteriores.
 
 ---
 
