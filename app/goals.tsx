@@ -247,6 +247,49 @@ export default function GoalsScreen() {
                     </View>
                 </View>
 
+                {/* 🛡️ NIVELES DE SEGURIDAD SANTY */}
+                <View style={[styles.securityCard, { backgroundColor: colors.card }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                        <Text style={[styles.securityTitle, { color: colors.text }]}>Seguridad Financiera</Text>
+                        <MaterialIcons name="verified-user" size={20} color={colors.accent} />
+                    </View>
+                    
+                    <View style={styles.levelsRow}>
+                        {[
+                            { id: 1, label: 'Choque', val: 500000, icon: 'shield', color: '#10B981' },
+                            { id: 2, label: '1 Mes', val: 2500000, icon: 'house', color: '#3B82F6' },
+                            { id: 3, label: '3 Meses', val: 7500000, icon: 'pollen', color: '#8B5CF6' },
+                            { id: 4, label: '6 Meses', val: 15000000, icon: 'fort', color: '#F59E0B' },
+                        ].map((lvl) => {
+                            const reached = totalAhorro >= lvl.val;
+                            return (
+                                <View key={lvl.id} style={{ alignItems: 'center', flex: 1 }}>
+                                    <View style={[
+                                        styles.levelCircle, 
+                                        { backgroundColor: reached ? lvl.color : colors.bg, borderColor: reached ? lvl.color : colors.border }
+                                    ]}>
+                                        <MaterialIcons name={lvl.icon as any} size={20} color={reached ? '#FFF' : colors.sub + '40'} />
+                                    </View>
+                                    <Text style={[styles.levelLabel, { color: reached ? colors.text : colors.sub, fontWeight: reached ? '800' : '500' }]}>{lvl.label}</Text>
+                                </View>
+                            );
+                        })}
+                    </View>
+
+                    <View style={[styles.securityAdvice, { backgroundColor: colors.bg }]}>
+                        <Text style={[styles.adviceText, { color: colors.text }]}>
+                            {totalAhorro < 500000 
+                                ? "💡 Santy: Tu primera meta es el Escudo de Choque ($500k). ¡Paso a paso!"
+                                : totalAhorro < 2500000 
+                                ? "🎉 ¡Bien! Tienes un Escudo de Choque. Próxima parada: 1 mes de gastos."
+                                : totalAhorro < 7500000
+                                ? "🚀 ¡Increíble! Ya tienes un mes de seguridad. Vamos por la Paz de los 3 meses."
+                                : "👑 ¡Nivel Fortaleza! Estás en el top de seguridad financiera."
+                            }
+                        </Text>
+                    </View>
+                </View>
+
 
                 {/* ── Lista de Metas ── */}
                 {goals.length === 0 ? (
@@ -519,4 +562,13 @@ const styles = StyleSheet.create({
     prioText: { fontSize: 13, fontWeight: '800' },
     prioBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
     prioBadgeText: { fontSize: 9, fontWeight: '900' },
+    
+    // Security Levels Styles
+    securityCard: { borderRadius: 28, padding: 20, marginBottom: 24 },
+    securityTitle: { fontSize: 16, fontWeight: '800' },
+    levelsRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+    levelCircle: { width: 44, height: 44, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 2, marginBottom: 8 },
+    levelLabel: { fontSize: 10, textAlign: 'center' },
+    securityAdvice: { padding: 14, borderRadius: 16 },
+    adviceText: { fontSize: 12, fontWeight: '600', lineHeight: 18 },
 });
