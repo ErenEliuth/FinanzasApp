@@ -77,6 +77,9 @@ export default function InvestScreen() {
   const [simResult, setSimResult] = useState<{ticker: string, amount: number, shares?: number}[] | null>(null);
   const [simRationale, setSimRationale] = useState('');
 
+  const [showPerfChart, setShowPerfChart] = useState(true);
+  const [showAllocChart, setShowAllocChart] = useState(true);
+
   const baseFmt = (n: number) => formatCurrency(n, 'COP', isHidden);
   const usdToCop = rates?.USD || 3950;
 
@@ -128,7 +131,32 @@ export default function InvestScreen() {
 
       const storedDivs = await AsyncStorage.getItem(`@invest_divs_${user?.id}`);
       if (storedDivs) setTotalDividends(Number(storedDivs));
+
+      const sPerf = await AsyncStorage.getItem(`@invest_show_perf_${user?.id}`);
+      if (sPerf !== null) setShowPerfChart(sPerf === 'true');
+      const sAlloc = await AsyncStorage.getItem(`@invest_show_alloc_${user?.id}`);
+      if (sAlloc !== null) setShowAllocChart(sAlloc === 'true');
     } catch (e) { console.error(e); }
+  };
+
+  const togglePerfChart = async () => {
+    const val = !showPerfChart;
+    setShowPerfChart(val);
+    await AsyncStorage.setItem(`@invest_show_perf_${user?.id}`, String(val));
+    if (Platform.OS !== 'web') {
+        const Haptics = require('expo-haptics');
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const toggleAllocChart = async () => {
+    const val = !showAllocChart;
+    setShowAllocChart(val);
+    await AsyncStorage.setItem(`@invest_show_alloc_${user?.id}`, String(val));
+    if (Platform.OS !== 'web') {
+        const Haptics = require('expo-haptics');
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
   };
 
   const refreshPrices = async (pos: Position[]) => {
@@ -384,48 +412,54 @@ export default function InvestScreen() {
                     </Text>
                   </View>
                   <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '700' }}>{baseFmt(Math.abs(profitAbs))} {profitAbs >= 0 ? 'ganancia' : 'pérdida'}</Text>
+                  
+                  <TouchableOpacity onPress={togglePerfChart} style={{ marginLeft: 'auto', padding: 4 }}>
+                    <Ionicons name={showPerfChart ? "eye-off-outline" : "eye-outline"} size={18} color="rgba(255,255,255,0.6)" />
+                  </TouchableOpacity>
                 </View>
 
                 {/* 📊 MINI GRÁFICA DE RENDIMIENTO (SIMULADA) */}
-                <View style={{ width: '100%', height: 70, marginTop: 15, justifyContent: 'center' }}>
-                  <LineChart
-                    data={{
-                      labels: ["1", "2", "3", "4", "5", "6"],
-                      datasets: [{
-                        data: [
-                          totalCurrent * 0.95 + 100, 
-                          totalCurrent * 0.97 - 50, 
-                          totalCurrent * 0.98 + 20, 
-                          totalCurrent * 0.96 + 80, 
-                          totalCurrent * 0.99 - 10, 
-                          totalCurrent
-                        ]
-                      }]
-                    }}
-                    width={Dimensions.get('window').width - 80}
-                    height={60}
-                    chartConfig={{
-                      backgroundColor: 'transparent',
-                      backgroundGradientFrom: '#FFF',
-                      backgroundGradientTo: '#FFF',
-                      backgroundGradientFromOpacity: 0,
-                      backgroundGradientToOpacity: 0,
-                      paddingRight: 0,
-                      paddingTop: 0,
-                      decimalPlaces: 0,
-                      color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-                      style: { borderRadius: 16 },
-                      propsForBackgroundLines: { strokeOpacity: 0 },
-                      propsForDots: { r: "0" }
-                    }}
-                    bezier
-                    style={{ marginLeft: -20, marginBottom: -10 }}
-                    withInnerLines={false}
-                    withOuterLines={false}
-                    withHorizontalLabels={false}
-                    withVerticalLabels={false}
-                  />
-                </View>
+                {showPerfChart && (
+                  <View style={{ width: '100%', height: 70, marginTop: 15, justifyContent: 'center' }}>
+                    <LineChart
+                      data={{
+                        labels: ["1", "2", "3", "4", "5", "6"],
+                        datasets: [{
+                          data: [
+                            totalCurrent * 0.95 + 100, 
+                            totalCurrent * 0.97 - 50, 
+                            totalCurrent * 0.98 + 20, 
+                            totalCurrent * 0.96 + 80, 
+                            totalCurrent * 0.99 - 10, 
+                            totalCurrent
+                          ]
+                        }]
+                      }}
+                      width={Dimensions.get('window').width - 80}
+                      height={60}
+                      chartConfig={{
+                        backgroundColor: 'transparent',
+                        backgroundGradientFrom: '#FFF',
+                        backgroundGradientTo: '#FFF',
+                        backgroundGradientFromOpacity: 0,
+                        backgroundGradientToOpacity: 0,
+                        paddingRight: 0,
+                        paddingTop: 0,
+                        decimalPlaces: 0,
+                        color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                        style: { borderRadius: 16 },
+                        propsForBackgroundLines: { strokeOpacity: 0 },
+                        propsForDots: { r: "0" }
+                      }}
+                      bezier
+                      style={{ marginLeft: -20, marginBottom: -10 }}
+                      withInnerLines={false}
+                      withOuterLines={false}
+                      withHorizontalLabels={false}
+                      withVerticalLabels={false}
+                    />
+                  </View>
+                )}
               </LinearGradient>
 
               {/* Quick Stats Row */}
@@ -497,31 +531,39 @@ export default function InvestScreen() {
               {/* Allocation Chart (Pie Chart) */}
               {totalCurrent > 0 && (
                 <View style={[s.allocSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900', textAlign: 'center', marginBottom: 20 }}>DISTRIBUCIÓN DEL PORTAFOLIO</Text>
-                  <View style={{ alignItems: 'center' }}>
-                    <PieChart
-                      data={Object.entries(allocation)
-                        .filter(([_, pct]) => pct > 0)
-                        .map(([type, pct]) => ({
-                          name: allocLabels[type],
-                          population: pct,
-                          color: allocColors[type],
-                          legendFontColor: colors.sub,
-                          legendFontSize: 11
-                        }))
-                      }
-                      width={Dimensions.get('window').width - 60}
-                      height={180}
-                      chartConfig={{
-                        color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-                      }}
-                      accessor="population"
-                      backgroundColor="transparent"
-                      paddingLeft="15"
-                      hasLegend={true}
-                      absolute={false}
-                    />
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 20, position: 'relative' }}>
+                    <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900', textAlign: 'center' }}>DISTRIBUCIÓN DEL PORTAFOLIO</Text>
+                    <TouchableOpacity onPress={toggleAllocChart} style={{ position: 'absolute', right: 0 }}>
+                        <Ionicons name={showAllocChart ? "eye-off-outline" : "eye-outline"} size={18} color={colors.sub} />
+                    </TouchableOpacity>
                   </View>
+                  
+                  {showAllocChart && (
+                    <View style={{ alignItems: 'center' }}>
+                      <PieChart
+                        data={Object.entries(allocation)
+                          .filter(([_, pct]) => pct > 0)
+                          .map(([type, pct]) => ({
+                            name: allocLabels[type],
+                            population: pct,
+                            color: allocColors[type],
+                            legendFontColor: colors.sub,
+                            legendFontSize: 11
+                          }))
+                        }
+                        width={Dimensions.get('window').width - 60}
+                        height={180}
+                        chartConfig={{
+                          color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                        }}
+                        accessor="population"
+                        backgroundColor="transparent"
+                        paddingLeft="15"
+                        hasLegend={true}
+                        absolute={false}
+                      />
+                    </View>
+                  )}
                 </View>
               )}
 
