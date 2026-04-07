@@ -31,8 +31,10 @@ const MONTH_NAMES_FULL = [
 ];
 const DAY_HEADERS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
-const toKey = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const toKey = (d: Date) => {
+    // Usamos componentes locales para asegurar consistencia
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 const fmt = (n: number, currency: string, rates: Record<string, number>, isHidden: boolean) => 
     formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
@@ -170,7 +172,8 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
     const currMonth = today.getMonth();
     const currYear = today.getFullYear();
     const thisMonthExpenses = transactions.filter(t => {
-        const d = new Date(t.date);
+        const normalizedDate = t.date.includes('T') ? t.date : `${t.date}T12:00:00`;
+        const d = new Date(normalizedDate);
         return t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && d.getMonth() === currMonth && d.getFullYear() === currYear;
     });
     const thisMonthTotal = thisMonthExpenses.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
@@ -188,7 +191,8 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
         const d = new Date(currYear, currMonth - i, 1);
         chartLabels.push(MONTH_NAMES[d.getMonth()]);
         const monthTotal = transactions.filter(t => {
-            const td = new Date(t.date);
+            const normalizedDate = t.date.includes('T') ? t.date : `${t.date}T12:00:00`;
+            const td = new Date(normalizedDate);
             return t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && td.getMonth() === d.getMonth() && td.getFullYear() === d.getFullYear();
         }).reduce((s, t) => s + Math.abs(t.amount || 0), 0);
         chartData.push(monthTotal);
@@ -309,20 +313,39 @@ export default function ProfileScreen() {
         setTransactions(txs);
         const map = new Map<string, number>();
         txs.forEach(tx => {
-            const k = toKey(new Date(tx.date));
+            // Normalizamos a las 12:00:00 para evitar desajustes de zona horaria
+            const normalizedDate = tx.date.includes('T') ? tx.date : `${tx.date}T12:00:00`;
+            const k = toKey(new Date(normalizedDate));
             map.set(k, (map.get(k) ?? 0) + 1);
         });
         setActiveDays(map);
         const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-        const weekTxs = txs.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && new Date(t.date) >= weekAgo);
+        const weekTxs = txs.filter(t => {
+            const normalizedDate = t.date.includes('T') ? t.date : `${t.date}T12:00:00`;
+            return t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && new Date(normalizedDate) >= weekAgo;
+        });
         setWeeklySpending(weekTxs.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0));
         const catMap: Record<string, number> = {};
         weekTxs.forEach(t => { catMap[t.category || 'Otros'] = (catMap[t.category || 'Otros'] || 0) + Math.abs(t.amount || 0); });
         setWeeklySummaryData(Object.entries(catMap).sort((a, b) => b[1] - a[1]));
 
-        // Fetch reminders
-        const { data: remData } = await supabase.from('reminders').select('*').eq('user_id', user.id);
-        setReminders(remData || []);
+        // Fetch reminders and fixed expenses
+        const [remRes, fixedRes] = await Promise.all([
+            supabase.from('reminders').select('*').eq('user_id', user.id),
+            supabase.from('debts').select('*').eq('user_id', user.id).eq('debt_type', 'fixed')
+        ]);
+
+        const remData = remRes.data || [];
+        const fixedData = (fixedRes.data || []).map(f => ({
+            ...f,
+            is_fixed_expense: true,
+            title: f.client,
+            amount: f.value,
+            due_day: new Date(f.due_date + 'T12:00:00').getDate(),
+            is_paid: f.paid >= f.value
+        }));
+
+        setReminders([...remData, ...fixedData]);
     };
 
     const handleAddReminder = async () => {
@@ -358,13 +381,19 @@ export default function ProfileScreen() {
     const getDayTransactions = (date: Date | null) => {
         if (!date) return [];
         const key = toKey(date);
-        return transactions.filter(t => 
-            toKey(new Date(t.date)) === key && 
-            t.category !== 'Transferencia' // Excluimos transferencias como pediste
-        );
+        return transactions.filter(t => {
+            const normalizedDate = t.date.includes('T') ? t.date : `${t.date}T12:00:00`;
+            return toKey(new Date(normalizedDate)) === key && t.category !== 'Transferencia';
+        });
     };
 
     const handleTogglePaid = async (reminder: any) => {
+        if (reminder.is_fixed_expense) {
+            const newValue = reminder.is_paid ? 0 : reminder.amount;
+            const { error } = await supabase.from('debts').update({ paid: newValue }).eq('id', reminder.id);
+            if (!error) loadData();
+            return;
+        }
         const { error } = await supabase.from('reminders').update({ is_paid: !reminder.is_paid }).eq('id', reminder.id);
         if (!error) loadData();
     };
@@ -440,9 +469,6 @@ export default function ProfileScreen() {
 
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <Text style={[styles.sectionTitle, { color: colorsNav.sub, marginTop: 0, marginBottom: 0 }]}>TU ACTIVIDAD</Text>
-                    <TouchableOpacity onPress={() => setAddReminderModalVisible(true)}>
-                        <Text style={{ color: colorsNav.accent, fontWeight: '800', fontSize: 12 }}>+ Recordatorio</Text>
-                    </TouchableOpacity>
                 </View>
                 <MonthHeatmap activeDays={activeDays} colorsNav={colorsNav} reminders={reminders} onDayPress={handleDayPress} />
 
@@ -774,8 +800,15 @@ export default function ProfileScreen() {
                                                 <Text style={{ color: colorsNav.sub, fontSize: 12 }}>{fmt(r.amount, currency, rates, isHidden)}</Text>
                                             </View>
                                         </View>
-                                        <TouchableOpacity onPress={() => handleDeleteReminder(r.id)}>
-                                            <MaterialIcons name="delete-outline" size={20} color="#EF4444" />
+                                        <TouchableOpacity onPress={() => {
+                                            if (r.is_fixed_expense) {
+                                                router.push('/(tabs)/debts');
+                                                setDayDetailModalVisible(false);
+                                            } else {
+                                                handleDeleteReminder(r.id);
+                                            }
+                                        }}>
+                                            <MaterialIcons name={r.is_fixed_expense ? "arrow-forward" : "delete-outline"} size={20} color={r.is_fixed_expense ? colorsNav.accent : "#EF4444"} />
                                         </TouchableOpacity>
                                     </View>
                                 ))
