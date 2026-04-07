@@ -132,15 +132,20 @@ export default function InvestScreen() {
 
   const refreshPrices = async (pos: Position[]) => {
     const prices: Record<string, number> = {};
+    const { fetchLivePrice } = require('@/utils/stockPrices');
+    
     for (const p of pos) {
-      if (p.type === 'crypto') {
-        const live = await fetchCryptoPrice(p.ticker);
-        prices[p.id] = live ? live.price * usdToCop : p.avgPrice;
-      } else {
-        const found = POPULAR_ASSETS.find(a => a.ticker === p.ticker);
-        if (found) {
-          prices[p.id] = found.currency === 'USD' ? found.price * usdToCop : found.price;
-        } else { prices[p.id] = p.avgPrice; }
+      try {
+        const livePrice = await fetchLivePrice(p.ticker, p.type);
+        if (livePrice !== null) {
+          // Convertimos a COP si es USD (stocks/crypto suelen venir en USD)
+          const isUsd = p.currency === 'USD' || (p.type === 'crypto') || (p.type === 'etf' && p.ticker !== 'ICOLEAP');
+          prices[p.id] = isUsd ? livePrice * usdToCop : livePrice;
+        } else {
+          prices[p.id] = p.avgPrice;
+        }
+      } catch (e) {
+        prices[p.id] = p.avgPrice;
       }
     }
     setLivePrices(prices);
@@ -183,7 +188,14 @@ export default function InvestScreen() {
 
   const handleSavePosition = async () => {
     if (!selectedAsset || !addShares || !user) return;
-    const priceCOP = selectedAsset.type === 'fund' ? 1 : (selectedAsset.currency === 'USD' ? selectedAsset.price * usdToCop : selectedAsset.price);
+    let priceCOP = selectedAsset.currency === 'USD' ? selectedAsset.price * usdToCop : selectedAsset.price;
+    
+    // Si es un fondo, calculamos el precio simulado actual para guardarlo como precio promedio
+    if (selectedAsset.type === 'fund') {
+      const { simulateFundGrowth } = require('@/utils/stockPrices');
+      priceCOP = simulateFundGrowth(selectedAsset.price, selectedAsset.changePercent);
+    }
+    
     const sharesNum = parseFloat(addShares.replace(',', '.'));
     
     const dbEntry = {
@@ -465,31 +477,72 @@ export default function InvestScreen() {
               )}
 
               {/* Assets List */}
-              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginTop: 8, marginBottom: 12 }}>Activos ({positions.length})</Text>
-              {positions.map(pos => {
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 16 }}>
+                <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>Activos ({positions.length})</Text>
+                <TouchableOpacity onPress={() => refreshPrices(positions)}>
+                  <Ionicons name="refresh" size={18} color={colors.accent} />
+                </TouchableOpacity>
+              </View>
+
+              {positions.sort((a,b) => {
+                const valA = a.shares * (livePrices[a.id] || a.avgPrice);
+                const valB = b.shares * (livePrices[b.id] || b.avgPrice);
+                return valB - valA;
+              }).map(pos => {
                 const currentPrice = livePrices[pos.id] || pos.avgPrice;
                 const value = pos.shares * currentPrice;
-                const gain = value - (pos.shares * pos.avgPrice);
-                const gainPct = pos.avgPrice > 0 ? ((currentPrice - pos.avgPrice) / pos.avgPrice) * 100 : 0;
+                const totalCost = pos.shares * pos.avgPrice;
+                const gain = value - totalCost;
+                const gainPct = totalCost > 0 ? (gain / totalCost) * 100 : 0;
+                const assetColor = getAssetColor(pos.type);
+                
                 return (
-                  <TouchableOpacity key={pos.id} style={[s.assetCard, { backgroundColor: colors.card, borderColor: colors.border }]} onLongPress={() => setDeletingId(pos.id)}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                      <View style={[s.assetIcon, { backgroundColor: getAssetColor(pos.type) + '12' }]}>{getAssetIcon(pos.type)}</View>
+                  <TouchableOpacity 
+                    key={pos.id} 
+                    style={[s.assetCard, { backgroundColor: colors.card, borderColor: colors.border }]} 
+                    onLongPress={() => {
+                        if (Platform.OS === 'web') {
+                            if (window.confirm('¿Eliminar esta posición?')) handleDeletePosition(pos.id);
+                        } else {
+                            setDeletingId(pos.id);
+                        }
+                    }}
+                    onPress={() => setDetailAsset(pos)}
+                  >
+                    <View style={s.assetMain}>
+                      <View style={[s.assetIconWrapper, { backgroundColor: assetColor + '15' }]}>
+                        {getAssetIcon(pos.type)}
+                      </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900' }}>{pos.ticker}</Text>
-                        <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '600' }} numberOfLines={1}>{pos.name || pos.ticker} · {pos.shares} unid.</Text>
+                        <Text style={[s.assetTicker, { color: colors.text }]}>{pos.ticker}</Text>
+                        <Text style={[s.assetSub, { color: colors.sub }]} numberOfLines={1}>
+                          {pos.name || pos.ticker} · {pos.shares.toLocaleString()} unid.
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={[s.assetValue, { color: colors.text }]}>{baseFmt(value)}</Text>
+                        <View style={[s.gainBadge, { backgroundColor: gain >= 0.01 ? '#10B98115' : gain <= -0.01 ? '#EF444415' : colors.sub + '15' }]}>
+                          <Text style={{ 
+                            color: gain >= 0.01 ? '#10B981' : gain <= -0.01 ? '#EF4444' : colors.sub, 
+                            fontSize: 11, 
+                            fontWeight: '900' 
+                          }}>
+                            {gain > 0.01 ? '+' : ''}{gainPct.toFixed(2)}%
+                          </Text>
+                        </View>
                       </View>
                     </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900' }}>{baseFmt(value)}</Text>
-                      <Text style={{ color: gain >= 0 ? '#10B981' : '#EF4444', fontSize: 11, fontWeight: '800' }}>
-                        {gain >= 0 ? '+' : ''}{gainPct.toFixed(1)}%
-                      </Text>
-                    </View>
+                    
                     {deletingId === pos.id && (
-                      <TouchableOpacity onPress={() => handleDeletePosition(pos.id)} style={s.deleteBtn}>
-                        <Ionicons name="trash" size={16} color="#FFF" />
-                      </TouchableOpacity>
+                      <View style={s.deleteOverlay}>
+                        <TouchableOpacity onPress={() => setDeletingId(null)} style={s.cancelBtn}>
+                           <Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleDeletePosition(pos.id)} style={s.confirmDeleteBtn}>
+                           <Ionicons name="trash" size={18} color="#FFF" />
+                           <Text style={{ color: '#FFF', fontWeight: '800' }}>Eliminar</Text>
+                        </TouchableOpacity>
+                      </View>
                     )}
                   </TouchableOpacity>
                 );
@@ -797,60 +850,70 @@ const s = StyleSheet.create({
   scroll: { paddingHorizontal: 20, paddingBottom: 100 },
 
   // Hub
-  summaryCard: { padding: 24, borderRadius: 24, borderWidth: 1, marginBottom: 16, alignItems: 'center' },
-  summaryLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1.5, marginBottom: 8 },
-  summaryAmount: { fontSize: 32, fontWeight: '900' },
-  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
+  summaryCard: { padding: 24, borderRadius: 28, borderWidth: 1, marginBottom: 16, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 15, elevation: 2 },
+  summaryLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1.5, marginBottom: 8, opacity: 0.6 },
+  summaryAmount: { fontSize: 34, fontWeight: '900', letterSpacing: -0.5 },
+  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
   chip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  miniAllocBar: { flexDirection: 'row', height: 6, borderRadius: 3, overflow: 'hidden', marginTop: 20, width: '100%', gap: 2 },
+  miniAllocBar: { flexDirection: 'row', height: 6, borderRadius: 3, overflow: 'hidden', marginTop: 24, width: '100%', gap: 2 },
   quickRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  quickStat: { flex: 1, padding: 14, borderRadius: 18, borderWidth: 1, alignItems: 'center', gap: 6 },
+  quickStat: { flex: 1, padding: 14, borderRadius: 20, borderWidth: 1, alignItems: 'center', gap: 6 },
   quickNum: { fontSize: 15, fontWeight: '900' },
   quickLabel: { fontSize: 10, fontWeight: '700' },
-  navCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 20, borderWidth: 1, gap: 14 },
+  navCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 24, borderWidth: 1, gap: 14 },
   navIcon: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
 
   // Portfolio
-  portfolioSummary: { padding: 20, borderRadius: 24, borderWidth: 1, marginBottom: 12 },
+  portfolioSummary: { padding: 24, borderRadius: 28, borderWidth: 1, marginBottom: 16 },
   portfolioRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  profitBadge: { marginTop: 14, padding: 10, borderRadius: 14, alignItems: 'center' },
-  allocSection: { padding: 16, borderRadius: 20, borderWidth: 1, marginBottom: 16 },
+  profitBadge: { marginTop: 16, padding: 12, borderRadius: 16, alignItems: 'center' },
+  allocSection: { padding: 20, borderRadius: 28, borderWidth: 1, marginBottom: 20 },
   allocBar: { flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden', gap: 2 },
-  allocLegend: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 10, gap: 12 },
-  allocItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  allocLegend: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 12, gap: 12, justifyContent: 'center' },
+  allocItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   allocDot: { width: 8, height: 8, borderRadius: 4 },
-  assetCard: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 20, borderWidth: 1, marginBottom: 8 },
-  assetIcon: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  deleteBtn: { position: 'absolute', right: 14, top: 14, backgroundColor: '#EF4444', width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  emptyState: { padding: 40, borderRadius: 24, borderWidth: 1, alignItems: 'center' },
-  emptyBtn: { marginTop: 16, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14 },
+  
+  // Asset Cards Improved
+  assetCard: { borderRadius: 24, padding: 16, marginBottom: 12, borderWidth: 1, overflow: 'hidden' },
+  assetMain: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  assetIconWrapper: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  assetTicker: { fontSize: 15, fontWeight: '900', letterSpacing: -0.3 },
+  assetSub: { fontSize: 11, fontWeight: '700', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.3 },
+  assetValue: { fontSize: 15, fontWeight: '900' },
+  gainBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, marginTop: 4 },
+  deleteOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.85)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 20 },
+  cancelBtn: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12 },
+  confirmDeleteBtn: { backgroundColor: '#EF4444', flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12 },
+  
+  emptyState: { padding: 40, borderRadius: 28, borderWidth: 1, alignItems: 'center', gap: 10 },
+  emptyBtn: { marginTop: 10, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 16 },
 
   // Goals
-  goalCard: { padding: 20, borderRadius: 24, borderWidth: 1, marginBottom: 14 },
+  goalCard: { padding: 20, borderRadius: 28, borderWidth: 1, marginBottom: 16 },
   goalIcon: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
 
   // Calendar
-  divSummary: { padding: 28, borderRadius: 24, marginBottom: 16, alignItems: 'center' },
-  divRow: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 18, borderWidth: 1, marginBottom: 8, gap: 12 },
-  monthBadge: { width: 44, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  divSummary: { padding: 32, borderRadius: 28, marginBottom: 16, alignItems: 'center' },
+  divRow: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 20, borderWidth: 1, marginBottom: 8, gap: 14 },
+  monthBadge: { width: 48, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
 
   // AI
-  santyCard: { padding: 28, borderRadius: 28 },
-  tickerCard: { padding: 16, borderRadius: 18, borderWidth: 1, width: 110, marginRight: 10 },
-  simCard: { padding: 20, borderRadius: 24, borderWidth: 1 },
+  santyCard: { padding: 28, borderRadius: 32 },
+  tickerCard: { padding: 16, borderRadius: 20, borderWidth: 1, width: 115, marginRight: 12 },
+  simCard: { padding: 24, borderRadius: 28, borderWidth: 1 },
   simInput: { flex: 1, borderRadius: 16, padding: 16, fontWeight: '800', fontSize: 16 },
-  simBtn: { width: 54, height: 54, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  simBtn: { width: 56, height: 56, borderRadius: 18, justifyContent: 'center', alignItems: 'center', elevation: 4 },
 
   // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalBox: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 40, maxHeight: '85%' },
-  modalTitle: { fontSize: 20, fontWeight: '900' },
-  searchBar: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 16 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalBox: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 60, maxHeight: '85%' },
+  modalTitle: { fontSize: 22, fontWeight: '900' },
+  searchBar: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 18, height: 56 },
   searchItem: { flexDirection: 'row', alignItems: 'center', padding: 14, borderBottomWidth: 1, gap: 12 },
-  searchIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  selectedAssetBox: { padding: 20, borderRadius: 20, marginTop: 8 },
-  input: { borderRadius: 16, padding: 16, fontSize: 16, fontWeight: '700', marginBottom: 14 },
-  totalPreview: { padding: 16, borderRadius: 16, alignItems: 'center', marginBottom: 16 },
-  confirmBtn: { padding: 18, borderRadius: 18, alignItems: 'center', marginTop: 8 },
-  modalBtn: { flex: 1, padding: 16, borderRadius: 16, alignItems: 'center' },
+  searchIcon: { width: 42, height: 42, borderRadius: 13, justifyContent: 'center', alignItems: 'center' },
+  selectedAssetBox: { padding: 20, borderRadius: 24, marginTop: 12 },
+  input: { borderRadius: 18, padding: 18, fontSize: 18, fontWeight: '800', marginBottom: 16 },
+  totalPreview: { padding: 18, borderRadius: 20, alignItems: 'center', marginBottom: 16 },
+  confirmBtn: { padding: 20, borderRadius: 22, alignItems: 'center', marginTop: 12 },
+  modalBtn: { flex: 1, padding: 18, borderRadius: 18, alignItems: 'center' },
 });
