@@ -3,7 +3,7 @@ import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-ic
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { supabase } from '@/utils/supabase';
 import {
@@ -13,8 +13,9 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { formatCurrency, convertCurrency } from '@/utils/currency';
-import { searchAssets, fetchCryptoPrice, POPULAR_ASSETS, SearchResult } from '@/utils/stockPrices';
-import TradingViewWidget from '@/components/TradingViewWidget';
+import { searchAssets, fetchLivePrice, POPULAR_ASSETS, SearchResult } from '@/utils/stockPrices';
+import { LineChart, PieChart } from 'react-native-chart-kit';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export type AssetType = 'stock' | 'crypto' | 'fixed' | 'real_estate' | 'fund' | 'etf';
 
@@ -369,27 +370,63 @@ export default function InvestScreen() {
           {activeTab === 'hub' && (
             <View>
               {/* Summary Card */}
-              <View style={[s.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[s.summaryLabel, { color: colors.sub }]}>PATRIMONIO TOTAL</Text>
-                <Text style={[s.summaryAmount, { color: colors.text }]}>{baseFmt(totalCurrent + totalDividends)}</Text>
+              <LinearGradient 
+                colors={profitAbs >= 0 ? ['#8B5CF6', '#7C3AED'] : ['#EF4444', '#DC2626']} 
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={[s.summaryCard, { borderColor: 'rgba(255,255,255,0.1)' }]}
+              >
+                <Text style={[s.summaryLabel, { color: 'rgba(255,255,255,0.7)' }]}>PATRIMONIO TOTAL</Text>
+                <Text style={[s.summaryAmount, { color: '#FFF' }]}>{baseFmt(totalCurrent + totalDividends)}</Text>
                 <View style={s.summaryRow}>
-                  <View style={[s.chip, { backgroundColor: profitAbs >= 0 ? '#10B98115' : '#EF444415' }]}>
-                    <Text style={{ color: profitAbs >= 0 ? '#10B981' : '#EF4444', fontSize: 13, fontWeight: '800' }}>
+                  <View style={[s.chip, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
+                    <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800' }}>
                       {profitAbs >= 0 ? '▲' : '▼'} {profitPct.toFixed(1)}%
                     </Text>
                   </View>
-                  <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>{baseFmt(Math.abs(profitAbs))} {profitAbs >= 0 ? 'ganancia' : 'pérdida'}</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '700' }}>{baseFmt(Math.abs(profitAbs))} {profitAbs >= 0 ? 'ganancia' : 'pérdida'}</Text>
                 </View>
 
-                {/* Mini allocation bar */}
-                {totalCurrent > 0 && (
-                  <View style={s.miniAllocBar}>
-                    {Object.entries(allocation).map(([type, pct]) => pct > 0 && (
-                      <View key={type} style={{ flex: pct, height: 6, backgroundColor: allocColors[type], borderRadius: 3 }} />
-                    ))}
-                  </View>
-                )}
-              </View>
+                {/* 📊 MINI GRÁFICA DE RENDIMIENTO (SIMULADA) */}
+                <View style={{ width: '100%', height: 70, marginTop: 15, justifyContent: 'center' }}>
+                  <LineChart
+                    data={{
+                      labels: ["1", "2", "3", "4", "5", "6"],
+                      datasets: [{
+                        data: [
+                          totalCurrent * 0.95 + 100, 
+                          totalCurrent * 0.97 - 50, 
+                          totalCurrent * 0.98 + 20, 
+                          totalCurrent * 0.96 + 80, 
+                          totalCurrent * 0.99 - 10, 
+                          totalCurrent
+                        ]
+                      }]
+                    }}
+                    width={Dimensions.get('window').width - 80}
+                    height={60}
+                    chartConfig={{
+                      backgroundColor: 'transparent',
+                      backgroundGradientFrom: '#FFF',
+                      backgroundGradientTo: '#FFF',
+                      backgroundGradientFromOpacity: 0,
+                      backgroundGradientToOpacity: 0,
+                      paddingRight: 0,
+                      paddingTop: 0,
+                      decimalPlaces: 0,
+                      color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                      style: { borderRadius: 16 },
+                      propsForBackgroundLines: { strokeOpacity: 0 },
+                      propsForDots: { r: "0" }
+                    }}
+                    bezier
+                    style={{ marginLeft: -20, marginBottom: -10 }}
+                    withInnerLines={false}
+                    withOuterLines={false}
+                    withHorizontalLabels={false}
+                    withVerticalLabels={false}
+                  />
+                </View>
+              </LinearGradient>
 
               {/* Quick Stats Row */}
               <View style={s.quickRow}>
@@ -457,21 +494,33 @@ export default function InvestScreen() {
                 </View>
               </View>
 
-              {/* Allocation Breakdown */}
+              {/* Allocation Chart (Pie Chart) */}
               {totalCurrent > 0 && (
                 <View style={[s.allocSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <View style={s.allocBar}>
-                    {Object.entries(allocation).map(([type, pct]) => pct > 0 && (
-                      <View key={type} style={{ flex: pct, height: 8, backgroundColor: allocColors[type], borderRadius: 4 }} />
-                    ))}
-                  </View>
-                  <View style={s.allocLegend}>
-                    {Object.entries(allocation).map(([type, pct]) => pct > 0 && (
-                      <View key={type} style={s.allocItem}>
-                        <View style={[s.allocDot, { backgroundColor: allocColors[type] }]} />
-                        <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>{allocLabels[type]} {pct.toFixed(0)}%</Text>
-                      </View>
-                    ))}
+                  <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900', textAlign: 'center', marginBottom: 20 }}>DISTRIBUCIÓN DEL PORTAFOLIO</Text>
+                  <View style={{ alignItems: 'center' }}>
+                    <PieChart
+                      data={Object.entries(allocation)
+                        .filter(([_, pct]) => pct > 0)
+                        .map(([type, pct]) => ({
+                          name: allocLabels[type],
+                          population: pct,
+                          color: allocColors[type],
+                          legendFontColor: colors.sub,
+                          legendFontSize: 11
+                        }))
+                      }
+                      width={Dimensions.get('window').width - 60}
+                      height={180}
+                      chartConfig={{
+                        color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                      }}
+                      accessor="population"
+                      backgroundColor="transparent"
+                      paddingLeft="15"
+                      hasLegend={true}
+                      absolute={false}
+                    />
                   </View>
                 </View>
               )}
