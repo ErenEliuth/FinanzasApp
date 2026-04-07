@@ -248,6 +248,7 @@ export default function InvestScreen() {
   };
 
   const checkAlerts = async (ticker: string, currentPrice: number) => {
+    // 1. Alertas Manuales (Si existen)
     const activeAlerts = alerts.filter(a => a.ticker === ticker && a.active);
     for (const alert of activeAlerts) {
        let triggered = false;
@@ -257,13 +258,34 @@ export default function InvestScreen() {
        if (triggered) {
           await Notifications.scheduleNotificationAsync({
             content: {
-              title: `🚨 Alerta de Precio: ${ticker}`,
-              body: `¡Llegamos! ${ticker} cruzó tu objetivo de ${formatCurrency(alert.targetPrice, 'COP')}. Precio actual: ${formatCurrency(currentPrice, 'COP')}`,
+              title: `🚨 Alerta: ${ticker}`,
+              body: `¡Llegamos! ${ticker} cruzó tu objetivo de ${formatCurrency(alert.targetPrice, 'COP')}.`,
             },
             trigger: null,
           });
           setAlerts(prev => prev.map(a => a.id === alert.id ? {...a, active: false} : a));
           await supabase.from('price_alerts').update({ active: false }).eq('id', alert.id);
+       }
+    }
+
+    // 2. 🟢 CONSEJO AUTOMÁTICO DE SANTY (BUY THE DIP)
+    const pos = positions.find(p => p.ticker === ticker);
+    if (pos) {
+       const dropPct = ((pos.avgPrice - currentPrice) / pos.avgPrice) * 100;
+       if (dropPct >= 5) { // Si bajó más del 5% de tu promedio
+          const lastAdviceKey = `@santy_advice_${ticker}_${new Date().toDateString()}`;
+          const alreadyAdvised = await AsyncStorage.getItem(lastAdviceKey);
+          
+          if (!alreadyAdvised) {
+              await Notifications.scheduleNotificationAsync({
+                content: {
+                  title: `💡 Consejo de Santy: ¡Oportunidad!`,
+                  body: `${ticker} está un ${dropPct.toFixed(1)}% abajo de tu precio promedio. ¡Es un buen momento para comprar y promediar!`,
+                },
+                trigger: null,
+              });
+              await AsyncStorage.setItem(lastAdviceKey, 'true');
+          }
        }
     }
   };
@@ -616,42 +638,25 @@ export default function InvestScreen() {
                 </View>
               </View>
 
-              {/* Allocation Chart (Pie Chart) */}
+              {/* Allocation Breakdown (Sleek Bar) */}
               {totalCurrent > 0 && (
-                <View style={[s.allocSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 20, position: 'relative' }}>
-                    <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900', textAlign: 'center' }}>DISTRIBUCIÓN DEL PORTAFOLIO</Text>
-                    <TouchableOpacity onPress={toggleAllocChart} style={{ position: 'absolute', right: 0 }}>
-                        <Ionicons name={showAllocChart ? "eye-off-outline" : "eye-outline"} size={18} color={colors.sub} />
-                    </TouchableOpacity>
-                  </View>
-                  
-                  {showAllocChart && (
-                    <View style={{ alignItems: 'center' }}>
-                      <PieChart
-                        data={Object.entries(allocation)
-                          .filter(([_, pct]) => pct > 0)
-                          .map(([type, pct]) => ({
-                            name: allocLabels[type],
-                            population: pct,
-                            color: allocColors[type],
-                            legendFontColor: colors.sub,
-                            legendFontSize: 11
-                          }))
-                        }
-                        width={Dimensions.get('window').width - 60}
-                        height={180}
-                        chartConfig={{
-                          color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-                        }}
-                        accessor="population"
-                        backgroundColor="transparent"
-                        paddingLeft="15"
-                        hasLegend={true}
-                        absolute={false}
-                      />
+                <View style={[s.allocSection, { backgroundColor: colors.card, borderColor: colors.border, paddingVertical: 20 }]}>
+                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '900', textAlign: 'center', marginBottom: 15 }}>DISTRIBUCIÓN DEL PORTAFOLIO</Text>
+                    
+                    <View style={{ height: 12, backgroundColor: colors.bg, borderRadius: 6, marginHorizontal: 20, flexDirection: 'row', overflow: 'hidden' }}>
+                        {Object.entries(allocation).map(([type, pct]) => pct > 0 && (
+                            <View key={type} style={{ width: `${pct}%`, height: '100%', backgroundColor: allocColors[type] }} />
+                        ))}
                     </View>
-                  )}
+
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12, marginTop: 15, paddingHorizontal: 20 }}>
+                        {Object.entries(allocation).map(([type, pct]) => pct > 0 && (
+                            <View key={type} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: allocColors[type] }} />
+                                <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>{allocLabels[type]} {pct.toFixed(0)}%</Text>
+                            </View>
+                        ))}
+                    </View>
                 </View>
               )}
 
