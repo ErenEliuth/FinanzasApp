@@ -16,8 +16,13 @@ import { formatCurrency, convertCurrency } from '@/utils/currency';
 import { searchAssets, fetchLivePrice, POPULAR_ASSETS, SearchResult } from '@/utils/stockPrices';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Notifications from 'expo-notifications';
 
 export type AssetType = 'stock' | 'crypto' | 'fixed' | 'real_estate' | 'fund' | 'etf';
+
+interface PriceAlert {
+  id: string; ticker: string; targetPrice: number; condition: 'above' | 'below'; active: boolean;
+}
 
 interface Position {
   id: string;
@@ -79,11 +84,15 @@ export default function InvestScreen() {
 
   const [showPerfChart, setShowPerfChart] = useState(true);
   const [showAllocChart, setShowAllocChart] = useState(true);
+  const [healthScore, setHealthScore] = useState(0);
+  const [alerts, setAlerts] = useState<PriceAlert[]>([]);
+  const [alertModalVisible, setAlertModalVisible] = useState(false);
+  const [newAlert, setNewAlert] = useState({ ticker: '', target: '', condition: 'above' as 'above' | 'below' });
 
   const baseFmt = (n: number) => formatCurrency(n, 'COP', isHidden);
   const usdToCop = rates?.USD || 3950;
 
-  useEffect(() => { if (isFocused) { loadData(); calculateHealth(); } }, [isFocused]);
+  useEffect(() => { if (isFocused) { loadData(); calculateInvestHealth(); calculateSantyAnalysis(); } }, [isFocused]);
 
   const loadData = async () => {
     try {
@@ -136,7 +145,63 @@ export default function InvestScreen() {
       if (sPerf !== null) setShowPerfChart(sPerf === 'true');
       const sAlloc = await AsyncStorage.getItem(`@invest_show_alloc_${user?.id}`);
       if (sAlloc !== null) setShowAllocChart(sAlloc === 'true');
-    } catch (e) { console.error(e); }
+
+      // Cargar Alertas desde Supabase
+      const { data: aData } = await supabase.from('price_alerts').select('*').eq('user_id', user.id);
+      if (aData) setAlerts(aData.map((a: any) => ({
+        id: a.id, ticker: a.ticker, targetPrice: a.target_price, condition: a.condition, active: a.active
+      })));
+
+      calculateInvestHealth();
+      calculateSantyAnalysis();
+    } catch (e) { 
+        console.log("No se pudo cargar price_alerts o salud - omitiendo."); 
+    }
+  };
+
+  const calculateInvestHealth = async () => {
+    if (!user) return;
+    try {
+      const alloc = getAllocation();
+      let score = 70;
+      const maxAlloc = Math.max(...Object.values(alloc));
+      if (maxAlloc > 45) score -= 20; 
+      else if (maxAlloc < 30) score += 10;
+      const activeTypes = Object.values(alloc).filter(p => p > 5).length;
+      if (activeTypes >= 3) score += 15;
+      if (activeTypes >= 4) score += 5;
+      setHealthScore(Math.min(100, Math.max(0, score)));
+    } catch (e) { }
+  };
+
+  const calculateSantyAnalysis = async () => {
+    if (!user) return;
+    try {
+      const { data: allTx } = await supabase.from('transactions').select('amount, type, category').eq('user_id', user.id);
+      let totalActive = 0;
+      allTx?.forEach(t => { totalActive += t.type === 'income' ? t.amount : -t.amount; });
+      setHealthInfo({ available: totalActive, status: 'Analizado' });
+    } catch (e) { }
+  };
+
+  const handleCreateAlert = async () => {
+    if (!user || !newAlert.ticker || !newAlert.target) return;
+    const targetNum = parseFloat(newAlert.target.replace(/\D/g, ''));
+    
+    const dbAlert = {
+      user_id: user.id,
+      ticker: newAlert.ticker,
+      target_price: targetNum,
+      condition: newAlert.condition,
+      active: true
+    };
+
+    const { data: inserted } = await supabase.from('price_alerts').insert([dbAlert]).select();
+    if (inserted) {
+      setAlerts([...alerts, { id: inserted[0].id, ticker: inserted[0].ticker, targetPrice: inserted[0].target_price, condition: inserted[0].condition, active: true }]);
+      setAlertModalVisible(false);
+      Alert.alert("Éxito", "Alerta de precio creada. Te notificaremos cuando se cruce el umbral.");
+    }
   };
 
   const togglePerfChart = async () => {
@@ -167,9 +232,10 @@ export default function InvestScreen() {
       try {
         const livePrice = await fetchLivePrice(p.ticker, p.type);
         if (livePrice !== null) {
-          // Convertimos a COP si es USD (stocks/crypto suelen venir en USD)
           const isUsd = p.currency === 'USD' || (p.type === 'crypto') || (p.type === 'etf' && p.ticker !== 'ICOLEAP');
-          prices[p.id] = isUsd ? livePrice * usdToCop : livePrice;
+          const currentVal = isUsd ? livePrice * usdToCop : livePrice;
+          prices[p.id] = currentVal;
+          checkAlerts(p.ticker, currentVal); 
         } else {
           prices[p.id] = p.avgPrice;
         }
@@ -178,17 +244,30 @@ export default function InvestScreen() {
       }
     }
     setLivePrices(prices);
+    calculateInvestHealth();
   };
 
-  const calculateHealth = async () => {
-    if (!user) return;
-    try {
-      const { data: allTx } = await supabase.from('transactions').select('amount, type, category').eq('user_id', user.id);
-      let totalActive = 0;
-      allTx?.forEach(t => { totalActive += t.type === 'income' ? t.amount : -t.amount; });
-      setHealthInfo({ available: totalActive, status: 'Analizado' });
-    } catch (e) { }
+  const checkAlerts = async (ticker: string, currentPrice: number) => {
+    const activeAlerts = alerts.filter(a => a.ticker === ticker && a.active);
+    for (const alert of activeAlerts) {
+       let triggered = false;
+       if (alert.condition === 'above' && currentPrice >= alert.targetPrice) triggered = true;
+       if (alert.condition === 'below' && currentPrice <= alert.targetPrice) triggered = true;
+
+       if (triggered) {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: `🚨 Alerta de Precio: ${ticker}`,
+              body: `¡Llegamos! ${ticker} cruzó tu objetivo de ${formatCurrency(alert.targetPrice, 'COP')}. Precio actual: ${formatCurrency(currentPrice, 'COP')}`,
+            },
+            trigger: null,
+          });
+          setAlerts(prev => prev.map(a => a.id === alert.id ? {...a, active: false} : a));
+          await supabase.from('price_alerts').update({ active: false }).eq('id', alert.id);
+       }
+    }
   };
+
 
   // Search handler with debounce
   const handleSearch = useCallback(async (q: string) => {
@@ -418,6 +497,15 @@ export default function InvestScreen() {
                   </TouchableOpacity>
                 </View>
 
+                {/* HEALTH SCORE GAUGE */}
+                <View style={{ width: '100%', height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, marginTop: 25 }}>
+                   <View style={{ width: `${healthScore}%`, height: '100%', backgroundColor: '#FFF', borderRadius: 2 }} />
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+                   <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: '800' }}>SALUD PORTAFOLIO</Text>
+                   <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '900' }}>{healthScore}/100</Text>
+                </View>
+
                 {/* 📊 MINI GRÁFICA DE RENDIMIENTO (SIMULADA) */}
                 {showPerfChart && (
                   <View style={{ width: '100%', height: 70, marginTop: 15, justifyContent: 'center' }}>
@@ -610,16 +698,21 @@ export default function InvestScreen() {
                           {pos.name || pos.ticker} · {pos.shares.toLocaleString()} unid.
                         </Text>
                       </View>
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={[s.assetValue, { color: colors.text }]}>{baseFmt(value)}</Text>
-                        <View style={[s.gainBadge, { backgroundColor: gain >= 0.01 ? '#10B98115' : gain <= -0.01 ? '#EF444415' : colors.sub + '15' }]}>
-                          <Text style={{ 
-                            color: gain >= 0.01 ? '#10B981' : gain <= -0.01 ? '#EF4444' : colors.sub, 
-                            fontSize: 11, 
-                            fontWeight: '900' 
-                          }}>
-                            {gain > 0.01 ? '+' : ''}{gainPct.toFixed(2)}%
-                          </Text>
+                      <View style={{ alignItems: 'flex-end', flexDirection: 'row', gap: 10 }}>
+                        <TouchableOpacity onPress={() => { setNewAlert({ ...newAlert, ticker: pos.ticker }); setAlertModalVisible(true); }}>
+                           <MaterialCommunityIcons name="bell-outline" size={18} color={alerts.some(a => a.ticker === pos.ticker) ? colors.accent : colors.sub} />
+                        </TouchableOpacity>
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={[s.assetValue, { color: colors.text }]}>{baseFmt(value)}</Text>
+                            <View style={[s.gainBadge, { backgroundColor: gain >= 0.01 ? '#10B98115' : gain <= -0.01 ? '#EF444415' : colors.sub + '15' }]}>
+                            <Text style={{ 
+                                color: gain >= 0.01 ? '#10B981' : gain <= -0.01 ? '#EF4444' : colors.sub, 
+                                fontSize: 11, 
+                                fontWeight: '900' 
+                            }}>
+                                {gain > 0.01 ? '+' : ''}{gainPct.toFixed(2)}%
+                            </Text>
+                            </View>
                         </View>
                       </View>
                     </View>
@@ -926,6 +1019,37 @@ export default function InvestScreen() {
         </View>
       </Modal>
 
+
+      {/* Alert Modal */}
+      <Modal visible={alertModalVisible} transparent animationType="fade" statusBarTranslucent>
+        <View style={s.modalOverlay}>
+          <TouchableWithoutFeedback onPress={() => setAlertModalVisible(false)}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={Platform.OS === 'ios'}>
+            <View style={[s.modalBox, { backgroundColor: colors.card }]}>
+              <Text style={[s.modalTitle, { color: colors.text }]}>Alerta para {newAlert.ticker}</Text>
+              <Text style={{ color: colors.sub, fontSize: 13, marginBottom: 15 }}>Avísame cuando el precio esté...</Text>
+              
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+                <TouchableOpacity onPress={() => setNewAlert({...newAlert, condition: 'above'})} style={[s.modalBtn, { backgroundColor: newAlert.condition === 'above' ? colors.accent : colors.bg }]}>
+                    <Text style={{ color: newAlert.condition === 'above' ? '#FFF' : colors.text, fontWeight: '800' }}>Por Encima de</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setNewAlert({...newAlert, condition: 'below'})} style={[s.modalBtn, { backgroundColor: newAlert.condition === 'below' ? colors.accent : colors.bg }]}>
+                    <Text style={{ color: newAlert.condition === 'below' ? '#FFF' : colors.text, fontWeight: '800' }}>Por Debajo de</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text, fontSize: 24 }]} placeholder="Precio Objetivo" placeholderTextColor={colors.sub} keyboardType="decimal-pad" value={newAlert.target} onChangeText={t => setNewAlert({...newAlert, target: t})} autoCorrect={false} />
+              
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                <TouchableOpacity style={[s.modalBtn, { backgroundColor: colors.bg }]} onPress={() => setAlertModalVisible(false)}><Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text></TouchableOpacity>
+                <TouchableOpacity style={[s.modalBtn, { backgroundColor: colors.accent }]} onPress={handleCreateAlert}><Text style={{ color: '#FFF', fontWeight: '900' }}>Configurar Alerta</Text></TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
 
     </SafeAreaView>
   );
