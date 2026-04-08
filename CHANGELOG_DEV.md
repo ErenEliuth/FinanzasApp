@@ -40,6 +40,21 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-04-08 — Sanctuary: Dashboard de Inversiones de Alto Impacto (v29)
+
+**Archivos modificados:**
+- `app/(tabs)/invest.tsx` — Rediseño total del Hub de inversiones.
+- `CHANGELOG_DEV.md` — Registro de la v29.
+
+**Cambios realizados:**
+- ✅ **Dashboard de Inversiones Pro**: Transformación del módulo "Hub" de inversiones en un tablero profesional con métricas clave y visualización mejorada.
+- ✅ **Ruta del Primer Millón**: Promoción activa de la estrategia de inversión mediante tarjetas de consejos interactivas y visibles en primer plano.
+- ✅ **Interactividad Aumentada**: Las tarjetas de consejos ahora son interactivas, permitiendo abrir directamente el flujo de agregar activos para facilitar la ejecución de las recomendaciones.
+- ✅ **Correcciones de Layout y Sintaxis**: Eliminados errores de JSX y desajustes visuales que impedían un despliegue estable y pulcro.
+- ✅ **Estética Premium**: Aplicación de gradientes, micro-animaciones y tipografía moderna para una experiencia de usuario de alto nivel.
+
+---
+
 ### 2026-04-06 — Sanctuary: Inversiones en la Nube y Pulido UI (v28)
 
 **Archivos modificados:**

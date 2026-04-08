@@ -1,6 +1,11 @@
-export const LATEST_VERSION = '2026-03-29-v21'; // Ahorro Inteligente y Validación de Saldo
+export const LATEST_VERSION = '2026-04-08-v29'; // Dashboard de Inversiones de Alto Impacto
 
 export const CHANGELOG_UPDATES = [
+  {
+    title: '🚀 Inversiones Pro',
+    description: 'Hemos transformado el Hub de inversiones en un dashboard profesional con la "Ruta del Primer Millón" integrada. ¡Recibe consejos interactivos para crecer tu patrimonio!',
+    icon: 'trending_up'
+  },
   {
     title: '✨ Ahorro Inteligente',
     description: 'Tus metas ahora tienen prioridad (Baja, Media, Alta). Usa el botón "Distribuir" para repartir tus ahorros automáticamente.',
