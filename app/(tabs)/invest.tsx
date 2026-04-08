@@ -572,6 +572,56 @@ export default function InvestScreen() {
                 )}
               </LinearGradient>
 
+              {/* 🏆 CONSEJO DE SANTY (Prominent Card) */}
+              <View style={[s.santyAdviceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                  <View style={[s.adviceIconWrap, { backgroundColor: colors.accent + '15' }]}>
+                    <MaterialCommunityIcons name="sparkles" size={20} color={colors.accent} />
+                  </View>
+                  <View>
+                    <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900' }}>Consejo de Santy</Text>
+                    <Text style={{ color: colors.sub, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 }}>STRATEGY COMPASS</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setActiveTab('ai')} style={{ marginLeft: 'auto' }}>
+                    <Text style={{ color: colors.accent, fontSize: 11, fontWeight: '800' }}>DETALLES</Text>
+                  </TouchableOpacity>
+                </View>
+                
+                <Text style={{ color: colors.sub, fontSize: 13, lineHeight: 18, marginBottom: 16, fontWeight: '600' }}>
+                  "Para tu primer millón en 2026, equilibra tu portafolio así:"
+                </Text>
+
+                <View style={{ gap: 8 }}>
+                  {[
+                    { title: 'Rentabilidad Fija', desc: '40% · Nu / CDTs', type: 'fixed', icon: 'shield-check', color: '#10B981' },
+                    { title: 'Crecimiento Global', desc: '40% · S&P 500 (VOO)', type: 'etf', icon: 'earth', color: '#3B82F6' },
+                    { title: 'Ingreso Pasivo', desc: '20% · Dividendos', type: 'stock', icon: 'cash-multiple', color: '#8B5CF6' }
+                  ].map((item, i) => (
+                    <TouchableOpacity 
+                      key={i} 
+                      onPress={() => {
+                        setSelectedAssetType(item.type as AssetType);
+                        setSearchResults(POPULAR_ASSETS.filter(a => a.type === item.type).slice(0, 8));
+                        setAddFlowStep('search');
+                        setModalVisible(true);
+                      }}
+                      style={[s.adviceItem, { backgroundColor: colors.bg, borderColor: colors.border }]}
+                    >
+                      <View style={[s.adviceItemIcon, { backgroundColor: item.color + '10' }]}>
+                        <MaterialCommunityIcons name={item.icon as any} size={18} color={item.color} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>{item.title}</Text>
+                        <Text style={{ color: colors.sub, fontSize: 11 }}>{item.desc}</Text>
+                      </View>
+                      <View style={[s.addSmallBtn, { backgroundColor: item.color + '20' }]}>
+                        <MaterialIcons name="add" size={16} color={item.color} />
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
               {/* Quick Stats Row */}
               <View style={s.quickRow}>
                 <View style={[s.quickStat, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -612,32 +662,6 @@ export default function InvestScreen() {
                     <Ionicons name="chevron-forward" size={18} color={colors.sub} />
                   </TouchableOpacity>
                 ))}
-              </View>
-
-              {/* 💡 SANTY INSIGHTS (Based on "Mis Propias Finanzas" 2026 advice) */}
-              <View style={[s.insightSection, { backgroundColor: colors.accent + '05', borderColor: colors.accent + '20' }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                  <MaterialIcons name="lightbulb" size={20} color={colors.accent} />
-                  <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>Consejo de Santy</Text>
-                </View>
-                <Text style={{ color: colors.sub, fontSize: 13, lineHeight: 18, marginBottom: 15 }}>
-                  "Para tu primer millón en el 2026, la clave no es solo elegir la mejor plataforma, sino la constancia. Aquí están los 3 pilares recomendados:"
-                </Text>
-                <View style={{ gap: 10 }}>
-                  {[
-                    { title: 'Rentabilidad Fija', desc: 'Cajitas de Nu o CDTs de alta tasa para tu reserva.', icon: 'shield-check', color: '#10B981' },
-                    { title: 'S&P 500 (VTI/VOO)', desc: 'Invierte en el crecimiento global con pedacitos.', icon: 'trending-up', color: '#3B82F6' },
-                    { title: 'Ingreso Pasivo', desc: 'Acciones colombianas con dividendos para crecer.', icon: 'cash-multiple', color: '#8B5CF6' }
-                  ].map((item, i) => (
-                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, padding: 12, borderRadius: 14 }}>
-                      <MaterialCommunityIcons name={item.icon as any} size={18} color={item.color} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>{item.title}</Text>
-                        <Text style={{ color: colors.sub, fontSize: 11 }}>{item.desc}</Text>
-                      </View>
-                    </View>
-                  ))}
-                </View>
               </View>
             </View>
           )}
@@ -976,8 +1000,6 @@ export default function InvestScreen() {
                 </View>
               </View>
             )}
-        </ScrollView>
-      </KeyboardAvoidingView>
 
       {/* ═══ ADD ASSET MODAL ═══ */}
       <Modal visible={modalVisible} transparent animationType="slide" statusBarTranslucent>
@@ -1175,6 +1197,8 @@ export default function InvestScreen() {
         </View>
       </Modal>
 
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -1255,35 +1279,19 @@ const s = StyleSheet.create({
   totalPreview: { padding: 18, borderRadius: 20, alignItems: 'center', marginBottom: 16 },
   confirmBtn: { padding: 20, borderRadius: 22, alignItems: 'center', marginTop: 12 },
   modalBtn: { flex: 1, padding: 18, borderRadius: 18, alignItems: 'center' },
-  insightSection: {
-    marginTop: 24,
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-  },
-  pathCard: {
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-  },
-  pathIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  primaryBtn: {
-    height: 56,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tipCard: {
-    width: 160,
-    padding: 16,
-    borderRadius: 24,
-    borderWidth: 1,
-    marginRight: 12,
-  },
+  insightSection: { marginTop: 24, borderRadius: 24, padding: 20, borderWidth: 1 },
+  pathCard: { borderRadius: 24, padding: 20, borderWidth: 1 },
+  pathIcon: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  primaryBtn: { height: 56, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  tipCard: { width: 160, padding: 16, borderRadius: 24, borderWidth: 1, marginRight: 12 },
+  strategyMiniCard: { width: 140, padding: 16, borderRadius: 24, borderWidth: 1, marginRight: 12 },
+  strategyIcon: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  
+  // New Advice Section Styles
+  santyAdviceCard: { padding: 20, borderRadius: 28, borderWidth: 1, marginBottom: 16 },
+  adviceIconWrap: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  adviceItem: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 18, borderWidth: 1, gap: 12 },
+  adviceItemIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  addSmallBtn: { width: 28, height: 28, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  adviceQuote: { fontSize: 13, lineHeight: 18, marginBottom: 16, fontWeight: '600', fontStyle: 'italic' },
 });
