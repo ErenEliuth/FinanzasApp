@@ -613,6 +613,32 @@ export default function InvestScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
+
+              {/* 💡 SANTY INSIGHTS (Based on "Mis Propias Finanzas" 2026 advice) */}
+              <View style={[s.insightSection, { backgroundColor: colors.accent + '05', borderColor: colors.accent + '20' }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <MaterialIcons name="lightbulb" size={20} color={colors.accent} />
+                  <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>Consejo de Santy</Text>
+                </View>
+                <Text style={{ color: colors.sub, fontSize: 13, lineHeight: 18, marginBottom: 15 }}>
+                  "Para tu primer millón en el 2026, la clave no es solo elegir la mejor plataforma, sino la constancia. Aquí están los 3 pilares recomendados:"
+                </Text>
+                <View style={{ gap: 10 }}>
+                  {[
+                    { title: 'Rentabilidad Fija', desc: 'Cajitas de Nu o CDTs de alta tasa para tu reserva.', icon: 'shield-check', color: '#10B981' },
+                    { title: 'S&P 500 (VTI/VOO)', desc: 'Invierte en el crecimiento global con pedacitos.', icon: 'trending-up', color: '#3B82F6' },
+                    { title: 'Ingreso Pasivo', desc: 'Acciones colombianas con dividendos para crecer.', icon: 'cash-multiple', color: '#8B5CF6' }
+                  ].map((item, i) => (
+                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, padding: 12, borderRadius: 14 }}>
+                      <MaterialCommunityIcons name={item.icon as any} size={18} color={item.color} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>{item.title}</Text>
+                        <Text style={{ color: colors.sub, fontSize: 11 }}>{item.desc}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
             </View>
           )}
 
@@ -854,6 +880,57 @@ export default function InvestScreen() {
                     ))}
                   </View>
                 )}
+              </View>
+
+              {/* LA RUTA DEL PRIMER MILLÓN */}
+              <View style={{ marginTop: 24 }}>
+                 <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900', marginBottom: 15 }}>La Ruta del Primer Millón 🚀</Text>
+                 <View style={[s.pathCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                   <Text style={{ color: colors.sub, fontSize: 13, lineHeight: 20, marginBottom: 20 }}>
+                     Santy ha analizado las tendencias del 2026 para que alcances tu primer millón con estas 3 estrategias combinadas:
+                   </Text>
+                   
+                   {[
+                     { 
+                       title: '1. El Ancla de Liquidez (40%)', 
+                       desc: 'Usa cuentas de bajo riesgo con liquidación diaria (como las Cajitas Nu o CDTs a 90 días). Esto te da paz mental.',
+                       icon: 'water-percent',
+                       color: '#3B82F6'
+                     },
+                     { 
+                       title: '2. El Motor Americano (40%)', 
+                       desc: 'VTI o VOO a largo plazo. Son las 500 empresas más grandes. Al invertir mes a mes, promedias el mercado.',
+                       icon: 'rocket-launch',
+                       color: '#F59E0B'
+                     },
+                     { 
+                       title: '3. El Orgullo Local (20%)', 
+                       desc: 'Dividendos de empresas locales (Ecopetrol, Bancolombia). Ver caer el dinero extra cada trimestre motiva a cualquiera.',
+                       icon: 'map-marker-radius',
+                       color: '#10B981'
+                     }
+                   ].map((step, idx) => (
+                     <View key={idx} style={{ marginBottom: 20, flexDirection: 'row', gap: 14 }}>
+                       <View style={[s.pathIcon, { backgroundColor: step.color + '15' }]}>
+                         <MaterialCommunityIcons name={step.icon as any} size={22} color={step.color} />
+                       </View>
+                       <View style={{ flex: 1 }}>
+                         <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900' }}>{step.title}</Text>
+                         <Text style={{ color: colors.sub, fontSize: 12, marginTop: 4 }}>{step.desc}</Text>
+                       </View>
+                     </View>
+                   ))}
+
+                   <TouchableOpacity 
+                     style={[s.primaryBtn, { backgroundColor: colors.accent, marginTop: 10 }]}
+                     onPress={() => {
+                       setAddFlowStep('category');
+                       setModalVisible(true);
+                     }}
+                   >
+                     <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 16 }}>Empezar mi Ruta</Text>
+                   </TouchableOpacity>
+                 </View>
               </View>
             </View>
           )}
@@ -1136,4 +1213,28 @@ const s = StyleSheet.create({
   totalPreview: { padding: 18, borderRadius: 20, alignItems: 'center', marginBottom: 16 },
   confirmBtn: { padding: 20, borderRadius: 22, alignItems: 'center', marginTop: 12 },
   modalBtn: { flex: 1, padding: 18, borderRadius: 18, alignItems: 'center' },
+  insightSection: {
+    marginTop: 24,
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+  },
+  pathCard: {
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+  },
+  pathIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  primaryBtn: {
+    height: 56,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
