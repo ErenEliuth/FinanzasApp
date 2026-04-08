@@ -929,11 +929,53 @@ export default function InvestScreen() {
                      }}
                    >
                      <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 16 }}>Empezar mi Ruta</Text>
-                   </TouchableOpacity>
-                 </View>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* 📚 PRINCIPIOS DE INVERSIÓN 2026 */}
+                <View style={{ marginTop: 24 }}>
+                   <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900', marginBottom: 15 }}>Principios de Oro 💡</Text>
+                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -24, paddingHorizontal: 24 }}>
+                     {[
+                       { title: 'Empieza hoy', desc: 'No esperes el momento "perfecto". El tiempo en el mercado vence al "market timing".', icon: 'clock-fast' },
+                       { title: 'Hábito > Monto', desc: 'Es mejor invertir $50k constantes cada mes que $1M una sola vez y olvidar.', icon: 'repeat' },
+                       { title: 'Interés Compuesto', desc: 'Reinvertir tus ganancias es lo que realmente te hará libre.', icon: 'auto-fix' },
+                       { title: 'Diversifica Real', desc: 'Ten algo en pesos (CDT) y algo en dólares (S&P 500) siempre.', icon: 'web' }
+                     ].map((tip, i) => (
+                       <View key={i} style={[s.tipCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                         <MaterialCommunityIcons name={tip.icon as any} size={28} color={colors.accent} />
+                         <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900', marginTop: 12 }}>{tip.title}</Text>
+                         <Text style={{ color: colors.sub, fontSize: 11, marginTop: 4, lineHeight: 15 }}>{tip.desc}</Text>
+                       </View>
+                     ))}
+                   </ScrollView>
+                </View>
+
+                {/* 🛠️ HERRAMIENTAS RECOMENDADAS */}
+                <View style={{ marginTop: 24, marginBottom: 40 }}>
+                   <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900', marginBottom: 15 }}>Plataformas Clave</Text>
+                   <View style={{ gap: 10 }}>
+                     {[
+                       { name: 'Trii / Hapi', use: 'Para comprar Acciones y ETFs (S&P 500).', icon: 'rocket' },
+                       { name: 'Nu / RappiPay', use: 'Para tus "Cajitas" de alta rentabilidad.', icon: 'piggy-bank' },
+                       { name: 'Tyba', use: 'Para fondos mutuos y CDTs digitales.', icon: 'leaf' }
+                     ].map((tool, i) => (
+                       <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, padding: 16, borderRadius: 20, borderWidth: 1, borderColor: colors.border }}>
+                         <View style={{ backgroundColor: colors.accent + '15', padding: 10, borderRadius: 12 }}>
+                           <MaterialCommunityIcons name={tool.icon as any} size={20} color={colors.accent} />
+                         </View>
+                         <View style={{ flex: 1 }}>
+                           <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>{tool.name}</Text>
+                           <Text style={{ color: colors.sub, fontSize: 12 }}>{tool.use}</Text>
+                         </View>
+                         <MaterialIcons name="arrow-forward" size={18} color={colors.sub} />
+                       </View>
+                     ))}
+                   </View>
+                </View>
               </View>
-            </View>
-          )}
+            )}
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -1236,5 +1278,12 @@ const s = StyleSheet.create({
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  tipCard: {
+    width: 160,
+    padding: 16,
+    borderRadius: 24,
+    borderWidth: 1,
+    marginRight: 12,
   },
 });
