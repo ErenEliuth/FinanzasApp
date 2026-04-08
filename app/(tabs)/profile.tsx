@@ -5,6 +5,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -414,9 +415,44 @@ export default function ProfileScreen() {
 
     const handlePickAvatar = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7 });
-        if (!result.canceled && result.assets[0]) {
-            setAvatarUri(result.assets[0].uri);
-            await AsyncStorage.setItem(`@avatar_${user?.id}`, result.assets[0].uri);
+        if (!result.canceled && result.assets[0] && user) {
+            const sourceUri = result.assets[0].uri;
+            
+            // Usamos cast a any para evitar errores de tipado si la versión de types está desactualizada
+            const fs = FileSystem as any;
+            const docDir = fs.documentDirectory;
+
+            // Si no hay documentDirectory (ej. en Web), usamos la URI temporal
+            if (!docDir) {
+                setAvatarUri(sourceUri);
+                await AsyncStorage.setItem(`@avatar_${user.id}`, sourceUri);
+                return;
+            }
+
+            // Definir una ruta permanente en el dispositivo
+            const fileName = `avatar_${user.id}_${Date.now()}.jpg`;
+            const destUri = `${docDir}${fileName}`;
+            
+            try {
+                // Copiar el archivo de la ruta temporal a la permanente
+                await FileSystem.copyAsync({
+                    from: sourceUri,
+                    to: destUri
+                });
+                
+                // Si había un avatar previo, lo borramos para no llenar el espacio
+                if (avatarUri && avatarUri.startsWith(docDir)) {
+                    try { await FileSystem.deleteAsync(avatarUri, { idempotent: true }); } catch (e) {}
+                }
+
+                setAvatarUri(destUri);
+                await AsyncStorage.setItem(`@avatar_${user.id}`, destUri);
+            } catch (error) {
+                console.error("Error saving avatar:", error);
+                // Fallback a la URI temporal si falla la copia
+                setAvatarUri(sourceUri);
+                await AsyncStorage.setItem(`@avatar_${user.id}`, sourceUri);
+            }
         }
     };
 
