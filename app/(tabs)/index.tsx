@@ -105,7 +105,7 @@ export default function HomeScreen() {
       const isEnabled = await AsyncStorage.getItem('user_reminders');
       const isDismissed = await AsyncStorage.getItem('@dismissed_reminder_prompt');
       if (isEnabled !== 'true' && isDismissed !== 'true') {
-        setShowReminderPrompt(true);
+        // setShowReminderPrompt(true); // Removido por limpieza
       }
     } catch (e) { }
   };
@@ -115,7 +115,7 @@ export default function HomeScreen() {
     if (granted) {
       await Notifications.scheduleDailyReminder(20, 30);
       await AsyncStorage.setItem('user_reminders', 'true');
-      setShowReminderPrompt(false);
+      // setShowReminderPrompt(false); // Removido por limpieza
       Alert.alert("✅ ¡Activado!", "Te avisaremos a las 8:30 PM.");
     } else {
       Alert.alert("⚠️ Permiso denegado", "Activa las notificaciones en ajustes.");
@@ -124,7 +124,7 @@ export default function HomeScreen() {
 
   const handleDismissReminders = async () => {
     await AsyncStorage.setItem('@dismissed_reminder_prompt', 'true');
-    setShowReminderPrompt(false);
+    // setShowReminderPrompt(false); // Removido por limpieza
   };
 
   const checkChangelog = async () => {
@@ -195,7 +195,6 @@ export default function HomeScreen() {
       });
 
       setAccountTotals(accs);
-      setRecentTx(allTx?.slice(0, 5) || []);
       setAllTransactions(allTx || []);
 
       let parsedCards: CreditCard[] = [];
@@ -267,7 +266,6 @@ export default function HomeScreen() {
       const totalDue = remainingDebts.reduce((sum, d) => sum + (Number(d.value) - Number(d.paid || 0)), 0) + cardObligations;
 
       setDebtTotal(totalDue);
-      setUpcomingDebts([]);
 
       const parseDateStr = (dateStr: string) => {
         if (!dateStr) return new Date();
