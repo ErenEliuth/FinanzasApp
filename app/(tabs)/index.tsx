@@ -71,15 +71,13 @@ export default function HomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isDesktop = width > 1024; // Aumentado para evitar falsos positivos en móviles de alta resolución
-  const { user, theme, currency, rates, isHidden, toggleHiddenMode, logout } = useAuth();
+  const { user, currency, rates, isHidden, toggleHiddenMode, logout } = useAuth();
   const colorsNav = useThemeColors();
   const isDark = colorsNav.isDark;
 
   const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
 
   const [debtTotal, setDebtTotal] = useState(0);
-  const [recentTx, setRecentTx] = useState<any[]>([]);
-  const [upcomingDebts, setUpcomingDebts] = useState<any[]>([]);
   const [accountTotals, setAccountTotals] = useState<any>({});
   const [breakdownVisible, setBreakdownVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
@@ -88,9 +86,7 @@ export default function HomeScreen() {
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [cardBalances, setCardBalances] = useState<Record<string, number>>({});
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
-  const [isRealBalanceCollapsed, setIsRealBalanceCollapsed] = useState(true);
   const [changelogVisible, setChangelogVisible] = useState(false);
-  const [showReminderPrompt, setShowReminderPrompt] = useState(false);
   const [investmentTotal, setInvestmentTotal] = useState(0);
 
   const scrollRef = useRef<any>(null);
