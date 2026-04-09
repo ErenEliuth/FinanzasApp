@@ -545,72 +545,135 @@ export default function HomeScreen() {
           {/* LADO IZQUIERDO: CONTENIDO PRINCIPAL (70%) */}
           <View style={isDesktop ? styles.desktopMainCol : undefined}>
             
-            <View style={{ marginBottom: 25 }}>
+            <View style={{ marginBottom: isDesktop ? 25 : 8 }}>
                <Text style={[styles.greeting, { color: colorsNav.text }]}>Hola, {displayName.split(' ')[0]} 👋</Text>
                <Text style={[styles.subtitle, { color: colorsNav.sub }]}>Tu resumen financiero hoy</Text>
             </View>
 
-            {/* Gran Tarjeta Borgoña */}
+            {/* Gran Tarjeta Hero */}
             <TouchableOpacity 
-              style={[styles.mainHeroCard, { backgroundColor: isDark ? '#5D1220' : '#8B1A2E' }]}
+              style={[
+                isDesktop ? styles.mainHeroCard : styles.mainHeroCardMobile,
+                { backgroundColor: isDark ? '#5D1220' : '#8B1A2E' }
+              ]}
               activeOpacity={0.9}
               onPress={() => setBreakdownVisible(true)}
             >
               <View style={styles.heroHeader}>
-                <Text style={styles.heroLabel}>Dinero Activo</Text>
+                <Text style={[styles.heroLabel, !isDesktop && { textTransform: 'uppercase', fontSize: 12, fontWeight: '800', letterSpacing: 1 }]}>Dinero Activo</Text>
                 <View style={styles.heroTrend}>
                   <MaterialIcons name="trending-up" size={14} color="#FFF" />
-                  <Text style={styles.heroTrendTxt}>+12.4%</Text>
+                  <Text style={styles.heroTrendTxt}>{porcentajeMes}% este mes</Text>
                 </View>
               </View>
-              <Text style={styles.heroAmount}>{fmt(dineroActivo)}</Text>
+              <Text style={[styles.heroAmount, !isDesktop && { fontSize: 42 }]}>{fmt(dineroActivo)}</Text>
               <View style={styles.heroVisual} />
             </TouchableOpacity>
 
-            {/* Fila de 3 Mini Estadísticas */}
-            <View style={styles.statsRowRefined}>
-              <TouchableOpacity style={[styles.statBoxRefined, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/goals')}>
-                <View style={[styles.statIconWrapRefined, { backgroundColor: '#E0F2FE' }]}>
-                  <MaterialIcons name="savings" size={20} color="#0EA5E9" />
-                </View>
-                <Text style={styles.statLabelRefined}>AHORROS</Text>
-                <Text style={[styles.statValueRefined, { color: colorsNav.text }]}>{fmt(ahorroTotal)}</Text>
-              </TouchableOpacity>
+            {/* ── Estadísticas ─── */}
+            {isDesktop ? (
+              /* Desktop: 3 columnas side by side */
+              <View style={styles.statsRowRefined}>
+                <TouchableOpacity style={[styles.statBoxRefined, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/goals')}>
+                  <View style={[styles.statIconWrapRefined, { backgroundColor: '#E0F2FE' }]}>
+                    <MaterialIcons name="savings" size={20} color="#0EA5E9" />
+                  </View>
+                  <Text style={styles.statLabelRefined}>AHORROS</Text>
+                  <Text style={[styles.statValueRefined, { color: colorsNav.text }]}>{fmt(ahorroTotal)}</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity style={[styles.statBoxRefined, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/(tabs)/debts')}>
-                <View style={[styles.statIconWrapRefined, { backgroundColor: '#FEE2E2' }]}>
-                  <MaterialIcons name="credit-score" size={20} color="#EF4444" />
-                </View>
-                <Text style={styles.statLabelRefined}>DEUDAS</Text>
-                <Text style={[styles.statValueRefined, { color: colorsNav.text }]}>{fmt(debtTotal)}</Text>
-              </TouchableOpacity>
+                <TouchableOpacity style={[styles.statBoxRefined, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/(tabs)/debts')}>
+                  <View style={[styles.statIconWrapRefined, { backgroundColor: '#FEE2E2' }]}>
+                    <MaterialIcons name="credit-score" size={20} color="#EF4444" />
+                  </View>
+                  <Text style={styles.statLabelRefined}>DEUDAS</Text>
+                  <Text style={[styles.statValueRefined, { color: colorsNav.text }]}>{fmt(debtTotal)}</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity style={[styles.statBoxRefined, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/invest' as any)}>
-                <View style={[styles.statIconWrapRefined, { backgroundColor: '#F3E8FF' }]}>
-                  <MaterialIcons name="insights" size={20} color="#8B5CF6" />
-                </View>
-                <Text style={styles.statLabelRefined}>INVERSIONES</Text>
-                <Text style={[styles.statValueRefined, { color: colorsNav.text }]}>{fmt(investmentTotal)}</Text>
-              </TouchableOpacity>
-            </View>
+                <TouchableOpacity style={[styles.statBoxRefined, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/invest' as any)}>
+                  <View style={[styles.statIconWrapRefined, { backgroundColor: '#F3E8FF' }]}>
+                    <MaterialIcons name="insights" size={20} color="#8B5CF6" />
+                  </View>
+                  <Text style={styles.statLabelRefined}>INVERSIONES</Text>
+                  <Text style={[styles.statValueRefined, { color: colorsNav.text }]}>{fmt(investmentTotal)}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              /* Mobile: 2 cols (Ahorros + Deudas) + full-width Inversiones */
+              <View style={{ marginBottom: 20 }}>
+                <View style={styles.mobileStatsRow}>
+                  <TouchableOpacity style={[styles.mobileStatBox, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/goals')}>
+                    <View style={[styles.statIconWrapRefined, { backgroundColor: '#E0F2FE' }]}>
+                      <MaterialIcons name="savings" size={22} color="#0EA5E9" />
+                    </View>
+                    <Text style={styles.statLabelRefined}>AHORROS</Text>
+                    <Text style={[styles.mobileStatValue, { color: colorsNav.text }]}>{fmt(ahorroTotal)}</Text>
+                  </TouchableOpacity>
 
-            {/* Fila de 2: Salud y Cuentas */}
-            <View style={styles.lowerGridRefined}>
-              <View style={[styles.healthGridCardRefined, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
+                  <TouchableOpacity style={[styles.mobileStatBox, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/(tabs)/debts')}>
+                    <View style={[styles.statIconWrapRefined, { backgroundColor: '#FEE2E2' }]}>
+                      <MaterialIcons name="credit-score" size={22} color="#EF4444" />
+                    </View>
+                    <Text style={styles.statLabelRefined}>DEUDAS</Text>
+                    <Text style={[styles.mobileStatValue, { color: '#EF4444' }]}>{fmt(debtTotal)}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity 
+                  style={[styles.mobileInvestRow, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} 
+                  onPress={() => router.push('/invest' as any)}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                    <View style={[styles.statIconWrapRefined, { backgroundColor: '#E0E7FF' }]}>
+                      <MaterialIcons name="trending-up" size={22} color="#6366F1" />
+                    </View>
+                    <View>
+                      <Text style={[styles.statLabelRefined, { marginBottom: 2 }]}>INVERSIONES</Text>
+                      <Text style={[styles.mobileStatValue, { color: colorsNav.text }]}>{fmt(investmentTotal)}</Text>
+                    </View>
+                  </View>
+                  <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* ── Salud Financiera + Mis Cuentas ─── */}
+            <View style={isDesktop ? styles.lowerGridRefined : undefined}>
+              {/* Salud Financiera */}
+              <View style={[
+                isDesktop ? styles.healthGridCardRefined : styles.mobileHealthCard,
+                { backgroundColor: isDark ? colorsNav.card : '#FFF' }
+              ]}>
                 <Text style={[styles.gridTitleRefined, { color: colorsNav.text }]}>Salud Financiera</Text>
-                <View style={styles.healthCenterRefined}>
-                  <CircularProgress percentage={saludPorcentaje} size={150} strokeWidth={16} color={saludColor} />
+                <View style={isDesktop ? styles.healthCenterRefined : styles.mobileHealthCenter}>
+                  <CircularProgress percentage={saludPorcentaje} size={isDesktop ? 150 : 90} strokeWidth={isDesktop ? 16 : 12} color={saludColor} />
                   <View style={styles.healthInnerRefined}>
-                    <Text style={[styles.healthScoreRefined, { color: colorsNav.text }]}>{saludPorcentaje}</Text>
+                    <Text style={[styles.healthScoreRefined, { color: saludColor, fontSize: isDesktop ? 40 : 22 }]}>{saludPorcentaje}%</Text>
                     <Text style={[styles.healthSuffixRefined, { color: saludColor }]}>{saludLabel}</Text>
                   </View>
                 </View>
-                <Text style={[styles.healthTipRefined, { color: colorsNav.sub }]}>
-                   {saludPorcentaje >= 70 ? 'Estás en el top 5% de usuarios este mes. ¡Sigue así!' : 'Es un buen momento para revisar tus gastos.'}
-                </Text>
+                {!isDesktop && (
+                  <View style={styles.mobileHealthDetails}>
+                    <Text style={[styles.mobileHealthLabel, { color: colorsNav.sub }]}>SALDO DISPONIBLE</Text>
+                    <Text style={[styles.mobileHealthAmount, { color: saldoDisponible >= 0 ? colorsNav.text : '#EF4444' }]}>{fmt(saldoDisponible)}</Text>
+                    <TouchableOpacity style={[styles.mobileHealthBtn, { borderColor: colorsNav.border }]} onPress={() => setBreakdownVisible(true)}>
+                      <Text style={{ color: colorsNav.text, fontWeight: '700', fontSize: 13 }}>Ver detalles</Text>
+                      <Text style={{ color: colorsNav.text, fontSize: 14 }}>  →</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+                {isDesktop && (
+                  <Text style={[styles.healthTipRefined, { color: colorsNav.sub }]}>
+                    {saludPorcentaje >= 70 ? 'Estás en el top 5% de usuarios este mes. ¡Sigue así!' : 'Es un buen momento para revisar tus gastos.'}
+                  </Text>
+                )}
               </View>
 
-              <View style={[styles.accountsGridCardRefined, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
+              {/* Mis Cuentas */}
+              <View style={[
+                isDesktop ? styles.accountsGridCardRefined : styles.mobileAccountsCard,
+                { backgroundColor: isDark ? colorsNav.card : '#FFF' }
+              ]}>
                 <View style={styles.rowBetweenRefined}>
                   <Text style={[styles.gridTitleRefined, { color: colorsNav.text }]}>Mis Cuentas</Text>
                   <TouchableOpacity onPress={() => router.push('/cards' as any)}>
@@ -649,8 +712,9 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* LADO DERECHO: BARRA LATERAL (30%) */}
-          <View style={isDesktop ? styles.desktopSidebarCol : undefined}>
+          {/* LADO DERECHO: BARRA LATERAL (30%) - Solo Desktop */}
+          {isDesktop && (
+          <View style={styles.desktopSidebarCol}>
             <View style={[styles.sidebarCardRefined, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
               <View style={[styles.rowBetweenRefined, { marginBottom: 20 }]}>
                 <Text style={[styles.gridTitleRefined, { color: colorsNav.text }]}>Historial Completo</Text>
@@ -660,10 +724,10 @@ export default function HomeScreen() {
               </View>
 
               <ScrollView showsVerticalScrollIndicator={false} style={styles.sidebarHistoryListRefined}>
-                {(isDesktop ? allTransactions : recentTx).length === 0 ? (
+                {allTransactions.length === 0 ? (
                   <Text style={{ color: colorsNav.sub, textAlign: 'center', marginTop: 40 }}>Sin movimientos</Text>
                 ) : (
-                  (isDesktop ? allTransactions.slice(0, 12) : recentTx).map((tx, idx) => {
+                  allTransactions.slice(0, 12).map((tx, idx) => {
                     const iconInfo = getTxIconInfo(tx);
                     return (
                       <View key={tx.id || idx} style={[styles.txItemRefined, { borderBottomColor: colorsNav.border + '30' }]}>
@@ -698,6 +762,7 @@ export default function HomeScreen() {
               </View>
             </View>
           </View>
+          )}
         </View>
 
         <View style={{ height: 100 }} />
@@ -882,6 +947,20 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
+  mainHeroCardMobile: {
+    width: '100%',
+    borderRadius: 24,
+    padding: 28,
+    paddingVertical: 32,
+    justifyContent: 'flex-start',
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
+    overflow: 'hidden',
+    position: 'relative',
+  },
   heroHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -946,6 +1025,84 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  mobileHealthCard: {
+    padding: 20,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  mobileHealthCenter: {
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mobileHealthDetails: {
+    flex: 1,
+  },
+  mobileHealthLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  mobileHealthAmount: {
+    fontSize: 24,
+    fontWeight: '900',
+    marginBottom: 12,
+  },
+  mobileHealthBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    alignSelf: 'flex-start',
+  },
+  mobileAccountsCard: {
+    padding: 20,
+    borderRadius: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  mobileStatsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  mobileStatBox: {
+    flex: 1,
+    padding: 18,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  mobileStatValue: {
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  mobileInvestRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 18,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   healthCenterRefined: {
     position: 'relative',
@@ -1054,9 +1211,10 @@ const styles = StyleSheet.create({
 
   // Base Styles
   container: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 100 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 100 },
   desktopScrollContainer: { width: '100%', alignSelf: 'center', paddingHorizontal: 30, paddingTop: 30 },
   desktopHeader: { marginBottom: 30, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)', paddingHorizontal: 20, marginHorizontal: -20 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
   logoIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   logoText: { fontSize: 22, fontWeight: '900' },
   mainActionBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, height: 50, borderRadius: 16, gap: 10 },
