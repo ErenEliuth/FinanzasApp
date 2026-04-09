@@ -875,26 +875,57 @@ export default function HomeScreen() {
       <Modal visible={breakdownVisible} transparent animationType="fade" onRequestClose={() => setBreakdownVisible(false)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setBreakdownVisible(false)}>
           <View style={[styles.modalCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
-            <Text style={[styles.modalTitle, { color: colorsNav.text, textAlign: 'center', marginBottom: 20 }]}>Distribución de Dinero</Text>
-            <View style={styles.breakdownList}>
-              {Object.entries(accountTotals)
-                .filter(([name]) => name !== 'Ahorro' && !userCards.includes(name))
-                .map(([name, total]) => (
-                  <View key={name} style={[styles.breakdownItem, { borderBottomColor: isDark ? colorsNav.border : '#F0E8DC' }]}>
-                    <View style={styles.breakdownLeft}>
-                      <View style={[styles.accIcon, { backgroundColor: name === 'Efectivo' ? '#E8F5E9' : '#F0E6FF' }]}>
-                        <MaterialIcons
-                          name={name === 'Efectivo' ? 'money' : name === 'Transferencia' ? 'account-balance' : 'wallet' as any}
-                          size={20}
-                          color={name === 'Efectivo' ? colorsNav.accent : '#8B5CF6'}
-                        />
-                      </View>
-                      <Text style={[styles.accName, { color: colorsNav.text }]}>{name}</Text>
-                    </View>
-                    <Text style={[styles.accValue, { color: colorsNav.text }]}>{fmt(total as number)}</Text>
-                  </View>
-                ))}
+            <View style={{ alignItems: 'center', marginBottom: 25 }}>
+              <View style={[styles.statIconWrapRefined, { backgroundColor: colorsNav.accent + '15', width: 50, height: 50, borderRadius: 18 }]}>
+                <MaterialIcons name="analytics" size={28} color={colorsNav.accent} />
+              </View>
+              <Text style={[styles.modalTitle, { color: colorsNav.text, textAlign: 'center' }]}>Salud Financiera</Text>
             </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Apartado 1: Liquidez */}
+              <View style={[styles.refinedBreakdownBox, { backgroundColor: isDark ? '#2A2A42' : '#F8FAFC' }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={[styles.breakdownLabel, { color: colorsNav.sub }]}>LIQUIDEZ (REAL)</Text>
+                  <MaterialIcons name="account-balance-wallet" size={16} color={colorsNav.accent} />
+                </View>
+                <Text style={[styles.breakdownValue, { color: dineroReal >= 0 ? colorsNav.text : '#EF4444' }]}>{fmt(dineroReal)}</Text>
+                <Text style={styles.breakdownMath}>Efectivo/Cuentas - Deudas</Text>
+              </View>
+
+              {/* Apartado 2: Patrimonio */}
+              <View style={[styles.refinedBreakdownBox, { backgroundColor: isDark ? '#2A2A42' : '#F8FAFC' }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={[styles.breakdownLabel, { color: colorsNav.sub }]}>PATRIMONIO GENERAL</Text>
+                  <MaterialIcons name="account-balance" size={16} color={colorsNav.accent} />
+                </View>
+                <Text style={[styles.breakdownValue, { color: dineroGeneral >= 0 ? colorsNav.text : '#EF4444' }]}>{fmt(dineroGeneral)}</Text>
+                <Text style={styles.breakdownMath}>Tus Bienes - Deudas Totales</Text>
+              </View>
+
+              <Text style={{ fontSize: 13, fontWeight: '900', color: colorsNav.sub, marginTop: 15, marginBottom: 10, letterSpacing: 1 }}>DESGLOSE DE CUENTAS</Text>
+              
+              <View style={styles.breakdownList}>
+                {Object.entries(accountTotals)
+                  .filter(([name]) => name !== 'Ahorro' && !userCards.includes(name))
+                  .map(([name, total]) => (
+                    <View key={name} style={[styles.breakdownItem, { borderBottomColor: isDark ? colorsNav.border : '#F0E8DC' }]}>
+                      <View style={styles.breakdownLeft}>
+                        <View style={[styles.accIcon, { backgroundColor: name === 'Efectivo' ? '#E8F5E9' : '#F0E6FF' }]}>
+                          <MaterialIcons
+                            name={name === 'Efectivo' ? 'money' : (name === 'Transferencia' || name === 'Bancaria') ? 'account-balance' : 'wallet' as any}
+                            size={20}
+                            color={name === 'Efectivo' ? colorsNav.accent : '#8B5CF6'}
+                          />
+                        </View>
+                        <Text style={[styles.accName, { color: colorsNav.text }]}>{name}</Text>
+                      </View>
+                      <Text style={[styles.accValue, { color: colorsNav.text }]}>{fmt(total as number)}</Text>
+                    </View>
+                  ))}
+              </View>
+            </ScrollView>
+
             <TouchableOpacity
               style={[styles.modalCloseBtn, { backgroundColor: isDark ? colorsNav.border : '#F5EDE0' }]}
               onPress={() => setBreakdownVisible(false)}
@@ -1266,7 +1297,30 @@ const styles = StyleSheet.create({
   txSub: { fontSize: 12, opacity: 0.6, fontWeight: '600' },
   txAmount: { fontSize: 16, fontWeight: '900' },
 
-  // Breakdown
+  // Breakdown Refined
+  refinedBreakdownBox: {
+    padding: 20,
+    borderRadius: 20,
+    marginBottom: 15,
+  },
+  breakdownLabel: {
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+    marginBottom: 8,
+  },
+  breakdownValue: {
+    fontSize: 28,
+    fontWeight: '900',
+    marginBottom: 6,
+    letterSpacing: -1,
+  },
+  breakdownMath: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+  },
   breakdownList: { marginTop: 10 },
   breakdownItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1 },
   breakdownLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
