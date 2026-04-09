@@ -478,23 +478,26 @@ export default function HomeScreen() {
       >
 
         {/* ── Header Sanctuary ─────────────────────────────────────── */}
-        <View style={styles.header}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={[styles.header, isDesktop && styles.desktopHeader, Platform.OS === 'web' && { backdropFilter: 'blur(20px)', backgroundColor: isDark ? 'rgba(26, 26, 46, 0.8)' : 'rgba(255, 248, 240, 0.8)', position: 'sticky', top: 0, zIndex: 1000 } as any]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <View style={[styles.logoIcon, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }]}>
-              <MaterialIcons name="shield" size={20} color={isDark ? '#A09B8C' : '#8B7355'} />
+              <MaterialIcons name="shield" size={22} color={isDark ? '#D4C5A9' : '#8B7355'} />
             </View>
-            <Text style={[styles.logoText, { color: isDark ? '#D4C5A9' : '#8B7355' }]}>Sanctuary</Text>
+            <View>
+              <Text style={[styles.logoText, { color: isDark ? '#FFF' : '#2D2D2D' }]}>Sanctuary</Text>
+              {isDesktop && <Text style={{ fontSize: 10, color: colorsNav.sub, fontWeight: '700', letterSpacing: 1.5 }}>WORKSTATION</Text>}
+            </View>
           </View>
-          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
             <TouchableOpacity
-              style={[styles.headerIconBtn, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0', width: 44, height: 44 }]}
+              style={[styles.headerIconBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }, Platform.OS === 'web' && { cursor: 'pointer' } as any]}
               onPress={toggleHiddenMode}
             >
               <Ionicons name={isHidden ? "eye-off-outline" : "eye-outline"} size={18} color={isDark ? '#D4C5A9' : '#8B7355'} />
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.headerIconBtn, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0', width: 44, height: 44 }]}
+              style={[styles.headerIconBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }, Platform.OS === 'web' && { cursor: 'pointer' } as any]}
               onPress={() => setNotificationsVisible(true)}
             >
               <Ionicons name="notifications-outline" size={18} color={isDark ? '#D4C5A9' : '#8B7355'} />
@@ -502,29 +505,29 @@ export default function HomeScreen() {
             </TouchableOpacity>
 
             {isDesktop && (
-              <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flexDirection: 'row', gap: 12, marginLeft: 15 }}>
                 <TouchableOpacity
-                  style={[styles.headerIconBtn, { backgroundColor: colorsNav.accent, width: 'auto', paddingHorizontal: 16, borderRadius: 12 }]}
+                  style={[styles.headerActionBtn, { backgroundColor: colorsNav.accent }, Platform.OS === 'web' && { cursor: 'pointer', transition: 'all 0.2s' } as any]}
                   onPress={() => router.push('/explore')}
                 >
                   <MaterialIcons name="add" size={20} color="#FFF" />
-                  <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800', marginLeft: 6 }}>Nuevo Movimiento</Text>
+                  <Text style={styles.headerActionText}>Movimiento</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.headerIconBtn, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0', width: 'auto', paddingHorizontal: 14, borderRadius: 12 }]}
+                  style={[styles.headerActionBtn, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }, Platform.OS === 'web' && { cursor: 'pointer', transition: 'all 0.2s' } as any]}
                   onPress={() => router.push('/invest' as any)}
                 >
                   <MaterialIcons name="show-chart" size={18} color={isDark ? '#D4C5A9' : '#8B7355'} />
-                  <Text style={{ color: isDark ? '#D4C5A9' : '#8B7355', fontSize: 13, fontWeight: '700', marginLeft: 6 }}>Inversiones</Text>
+                  <Text style={[styles.headerActionText, { color: isDark ? '#D4C5A9' : '#8B7355' }]}>Inversiones</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.headerIconBtn, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0', width: 'auto', paddingHorizontal: 14, borderRadius: 12 }]}
+                  style={[styles.headerActionBtn, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }, Platform.OS === 'web' && { cursor: 'pointer', transition: 'all 0.2s' } as any]}
                   onPress={() => router.push('/profile')}
                 >
                   <Ionicons name="person-outline" size={18} color={isDark ? '#D4C5A9' : '#8B7355'} />
-                  <Text style={{ color: isDark ? '#D4C5A9' : '#8B7355', fontSize: 13, fontWeight: '700', marginLeft: 6 }}>Perfil</Text>
+                  <Text style={[styles.headerActionText, { color: isDark ? '#D4C5A9' : '#8B7355' }]}>Perfil</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -602,6 +605,26 @@ export default function HomeScreen() {
               </View>
               <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
             </TouchableOpacity>
+
+            {/* ── Grid de Accesos Rápidos (Solo PC) ────────────────────── */}
+            {isDesktop && (
+              <View style={styles.desktopQuickGrid}>
+                <TouchableOpacity 
+                  style={[styles.quickCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }, Platform.OS === 'web' && { cursor: 'pointer', transition: 'transform 0.2s' } as any]} 
+                  onPress={() => router.push('/(tabs)/history')}
+                >
+                  <MaterialIcons name="receipt-long" size={24} color={colorsNav.accent} />
+                  <Text style={[styles.quickLabel, { color: colorsNav.text }]}>Historial</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.quickCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }, Platform.OS === 'web' && { cursor: 'pointer', transition: 'transform 0.2s' } as any]} 
+                  onPress={() => router.push('/goals' as any)}
+                >
+                  <MaterialIcons name="flag" size={24} color="#F59E0B" />
+                  <Text style={[styles.quickLabel, { color: colorsNav.text }]}>Metas</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Prompt Recordatorios */}
             {showReminderPrompt && (
@@ -700,32 +723,74 @@ export default function HomeScreen() {
           {isDesktop && (
             <View style={styles.colCards}>
               <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: colorsNav.text }]}>Mis Cuentas</Text>
-                <TouchableOpacity onPress={() => router.push('/cards')}>
-                  <Text style={styles.seeAll}>Gestionar</Text>
+                <View>
+                  <Text style={[styles.sectionTitle, { color: colorsNav.text }]}>Mis Cuentas</Text>
+                  <Text style={{ fontSize: 12, color: colorsNav.sub, fontWeight: '500' }}>{cards.length} cuentas registradas</Text>
+                </View>
+                <TouchableOpacity 
+                   style={[styles.manageBtn, { backgroundColor: colorsNav.accent + '10' }]}
+                   onPress={() => router.push('/cards')}
+                >
+                  <Text style={[styles.seeAll, { color: colorsNav.accent }]}>Gestionar</Text>
                 </TouchableOpacity>
               </View>
               
-              <View style={styles.desktopCardsList}>
+              <View style={styles.desktopCardsGrid}>
                 {cards.length === 0 ? (
-                  <Text style={[styles.emptyText, { color: colorsNav.sub }]}>No hay cuentas registradas</Text>
+                  <View style={[styles.emptyCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
+                    <MaterialIcons name="account-balance-wallet" size={32} color={colorsNav.sub} />
+                    <Text style={[styles.emptyText, { color: colorsNav.sub }]}>No hay cuentas</Text>
+                  </View>
                 ) : (
                   cards.map(card => {
                     const debt = cardBalances[card.name] || 0;
                     return (
-                      <View key={card.id} style={[styles.miniCard, { backgroundColor: card.color }]}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <TouchableOpacity 
+                        key={card.id} 
+                        style={[styles.miniCard, { backgroundColor: card.color }]}
+                        activeOpacity={0.8}
+                        onPress={() => router.push('/cards')}
+                      >
+                        <View style={styles.miniCardHeader}>
+                          <View style={styles.miniCardBrandWrap}>
+                            <MaterialIcons name={card.brand === 'visa' ? 'credit-card' : 'account-balance'} size={14} color="rgba(255,255,255,0.8)" />
+                            <Text style={styles.miniCardBrand}>{card.brand.toUpperCase()}</Text>
+                          </View>
                           <Text style={styles.miniCardName}>{card.name}</Text>
-                          <Text style={styles.miniCardBrand}>{card.brand.toUpperCase()}</Text>
                         </View>
-                        <View>
-                          <Text style={styles.miniCardLabel}>DEUDA</Text>
+                        <View style={styles.miniCardBody}>
+                          <Text style={styles.miniCardLabel}>SALDO UTILIZADO</Text>
                           <Text style={styles.miniCardAmount}>{fmt(debt)}</Text>
                         </View>
-                      </View>
+                        <View style={styles.miniCardFooter}>
+                           <View style={[styles.miniCardIndicator, { backgroundColor: 'rgba(255,255,255,0.3)' }]} />
+                        </View>
+                      </TouchableOpacity>
                     );
                   })
                 )}
+              </View>
+
+              {/* Salud Financiera en Columna Central para rellenar espacio en PC */}
+              <View style={[styles.healthCard, { backgroundColor: isDark ? colorsNav.card : '#FFF', marginTop: 24 }]}>
+                <Text style={[styles.healthTitle, { color: colorsNav.text }]}>Rendimiento de Salud</Text>
+                <View style={styles.healthContent}>
+                  <View style={styles.healthCircleWrap}>
+                    <CircularProgress percentage={saludPorcentaje} size={100} strokeWidth={10} color={saludColor} />
+                    <View style={styles.healthCircleLabel}>
+                      <Text style={[styles.healthPercentage, { color: saludColor, fontSize: 20 }]}>{saludPorcentaje}%</Text>
+                      <Text style={[styles.healthStatus, { color: saludColor }]}>{saludLabel}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.healthDetails}>
+                    <Text style={[styles.healthDetailLabel, { color: colorsNav.sub }]}>RESUMEN DE ESTADO</Text>
+                    <Text style={[styles.healthDetailValue, { color: colorsNav.text, fontSize: 18 }]}>
+                      {saludPorcentaje >= 70 ? 'Tus finanzas están en un punto excelente.' : 
+                       saludPorcentaje >= 40 ? 'Tienes un margen de mejora aceptable.' : 
+                       'Es momento de revisar tus gastos urgentes.'}
+                    </Text>
+                  </View>
+                </View>
               </View>
             </View>
           )}
@@ -944,39 +1009,131 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 30,
     alignItems: 'flex-start',
+    marginTop: 10,
   },
   colSummary: {
-    flex: 1.1,
+    flex: 1,
+    maxWidth: 400,
   },
   colCards: {
-    flex: 0.9,
+    flex: 1.2,
   },
   colHistory: {
-    flex: 1.2,
+    flex: 1,
+    maxWidth: 450,
   },
 
   // Desktop Cards
-  desktopCardsList: {
-    gap: 12,
+  desktopCardsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
   },
   miniCard: {
-    borderRadius: 18,
-    padding: 18,
-    height: 120,
+    borderRadius: 24,
+    padding: 20,
+    width: '48%',
+    minWidth: 200,
+    height: 165,
     justifyContent: 'space-between',
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  miniCardName: { color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: '700', letterSpacing: 0.5 },
-  miniCardBrand: { color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '800' },
-  miniCardLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 9, fontWeight: '700', letterSpacing: 1, marginBottom: 2 },
-  miniCardAmount: { color: '#FFF', fontSize: 20, fontWeight: '900' },
+  miniCardHeader: {
+    gap: 6,
+  },
+  miniCardBrandWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    opacity: 0.85,
+  },
+  miniCardName: { color: '#FFF', fontSize: 18, fontWeight: '900', letterSpacing: 0.5 },
+  miniCardBrand: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
+  miniCardBody: {
+    marginTop: 12,
+  },
+  miniCardLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
+  miniCardAmount: { color: '#FFF', fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
+  miniCardFooter: {
+    height: 5,
+    width: '100%',
+    borderRadius: 3,
+    marginTop: 10,
+    overflow: 'hidden',
+  },
+  miniCardIndicator: {
+    height: '100%',
+    width: '45%',
+    borderRadius: 3,
+  },
+  emptyCard: {
+    width: '100%',
+    padding: 60,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(0,0,0,0.08)',
+  },
+  manageBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 14,
+  },
 
   desktopScrollHistory: {
-    maxHeight: 600,
-    overflow: 'hidden',
+    maxHeight: 1000,
+  },
+  desktopQuickGrid: {
+    flexDirection: 'row',
+    gap: 15,
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  quickCard: {
+    flex: 1,
+    padding: 20,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  quickLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  desktopHeader: {
+    marginBottom: 40,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+    paddingHorizontal: 20,
+    marginHorizontal: -20,
+  },
+  headerActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    height: 48,
+    borderRadius: 16,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  headerActionText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '900',
   },
 
   // ── Header ──────────────────────────────────────────────────
