@@ -646,78 +646,63 @@ export default function HomeScreen() {
               </View>
             )}
 
-            {/* ── Salud Financiera + Mis Cuentas ─── */}
-            <View style={isDesktop ? styles.lowerGridRefined : undefined}>
-              {/* Salud Financiera */}
-              <View style={[
-                isDesktop ? styles.healthGridCardRefined : styles.mobileHealthCard,
-                { backgroundColor: isDark ? colorsNav.card : '#FFF' }
-              ]}>
-                <Text style={[styles.gridTitleRefined, { color: colorsNav.text }]}>Salud Financiera</Text>
-                <View style={isDesktop ? styles.healthCenterRefined : styles.mobileHealthCenter}>
-                  <CircularProgress percentage={saludPorcentaje} size={isDesktop ? 150 : 100} strokeWidth={isDesktop ? 16 : 12} color={saludColor} />
-                  <View style={styles.healthInnerRefined}>
-                    <Text style={[styles.healthScoreRefined, { color: saludColor, fontSize: isDesktop ? 40 : 22 }]}>{saludPorcentaje}%</Text>
-                    <Text style={[styles.healthSuffixRefined, { color: saludColor, fontSize: 8 }]}>{saludLabel}</Text>
-                  </View>
+            {/* ── Salud Financiera ─── */}
+            <View style={[
+              styles.mobileHealthCard,
+              { backgroundColor: isDark ? colorsNav.card : '#FFF' }
+            ]}>
+              <View style={styles.mobileHealthCenter}>
+                <CircularProgress percentage={saludPorcentaje} size={100} strokeWidth={14} color={saludColor} />
+                <View style={styles.healthInnerRefined}>
+                  <Text style={[styles.healthScoreRefined, { color: saludColor, fontSize: 24 }]}>{saludPorcentaje}%</Text>
+                  <Text style={[styles.healthSuffixRefined, { color: saludColor, fontSize: 8 }]}>{saludLabel}</Text>
                 </View>
-                {!isDesktop && (
-                  <View style={styles.mobileHealthDetails}>
-                    <Text style={[styles.mobileHealthLabel, { color: colorsNav.sub }]}>SALDO DISPONIBLE</Text>
-                    <Text style={[styles.mobileHealthAmount, { color: saldoDisponible >= 0 ? colorsNav.text : '#EF4444' }]}>{fmt(saldoDisponible)}</Text>
-                    <TouchableOpacity style={[styles.mobileHealthBtn, { borderColor: colorsNav.border + '50' }]} onPress={() => setBreakdownVisible(true)}>
-                      <Text style={{ color: colorsNav.text, fontWeight: '700', fontSize: 13 }}>Ver detalles</Text>
-                      <MaterialIcons name="arrow-forward" size={14} color={colorsNav.text} style={{ marginLeft: 5 }} />
-                    </TouchableOpacity>
-                  </View>
-                )}
-                {isDesktop && (
-                  <Text style={[styles.healthTipRefined, { color: colorsNav.sub }]}>
-                    {saludPorcentaje >= 70 ? 'Estás en el top 5% de usuarios este mes. ¡Sigue así!' : 'Es un buen momento para revisar tus gastos.'}
-                  </Text>
-                )}
               </View>
+              <View style={styles.mobileHealthDetails}>
+                <Text style={styles.mobileHealthLabel}>SALDO DISPONIBLE</Text>
+                <Text style={[styles.mobileHealthAmount, { color: saldoDisponible >= 0 ? colorsNav.text : '#EF4444' }]}>{fmt(saldoDisponible)}</Text>
+                <TouchableOpacity 
+                  style={[styles.mobileHealthBtn, { borderColor: colorsNav.border + '50' }]} 
+                  onPress={() => setBreakdownVisible(true)}
+                >
+                  <Text style={{ color: colorsNav.text, fontWeight: '700', fontSize: 13 }}>Ver detalles</Text>
+                  <MaterialIcons name="arrow-forward" size={14} color={colorsNav.text} style={{ marginLeft: 5 }} />
+                </TouchableOpacity>
+              </View>
+            </View>
 
-              {/* Mis Cuentas */}
-              <View style={[
-                isDesktop ? styles.accountsGridCardRefined : styles.mobileAccountsCard,
-                { backgroundColor: isDark ? colorsNav.card : '#FFF' }
-              ]}>
-                <View style={styles.rowBetweenRefined}>
-                  <Text style={[styles.gridTitleRefined, { color: colorsNav.text }]}>Mis Cuentas</Text>
-                  <TouchableOpacity onPress={() => router.push('/cards' as any)}>
-                    <Text style={{ color: colorsNav.accent, fontWeight: '800', fontSize: 13 }}>Gestionar</Text>
-                  </TouchableOpacity>
-                </View>
-                
-                {cards.length > 0 ? (
-                  <View style={styles.ccContainerRefined}>
-                     <TouchableOpacity 
-                        style={[styles.ccWrapperRefined, { backgroundColor: cards[0].color || '#6366F1' }]}
-                        activeOpacity={0.9}
-                        onPress={() => router.push('/cards' as any)}
-                      >
-                        <MaterialIcons name="contactless" size={24} color="#FFF" style={{ opacity: 0.8 }} />
-                        <View>
-                           <Text style={styles.ccLabelRefined}>Saldo Pendiente</Text>
-                           <Text style={styles.ccAmountRefined}>{fmt(cardBalances[cards[0].name] || 0)}</Text>
-                        </View>
-                        <View style={styles.ccFooterRefined}>
-                           <Text style={styles.ccNumberRefined}>**** {Math.floor(Math.random() * 9000) + 1000}</Text>
-                           <Text style={styles.ccBrandRefined}>{cards[0].brand.toUpperCase()} PLATINUM</Text>
-                        </View>
-                     </TouchableOpacity>
-                     <TouchableOpacity style={[styles.payBtnSimpleRefined, { backgroundColor: isDark ? '#2A2A42' : '#F1F5F9' }]} onPress={() => router.push('/cards' as any)}>
-                        <Text style={[styles.payBtnSimpleTxtRefined, { color: colorsNav.text }]}>Pagar Deuda</Text>
-                     </TouchableOpacity>
-                  </View>
-                ) : (
-                  <TouchableOpacity style={styles.emptyCCRefined} onPress={() => router.push('/cards' as any)}>
-                    <MaterialIcons name="add-card" size={32} color={colorsNav.sub} />
-                    <Text style={{ color: colorsNav.sub, fontWeight: '700', marginTop: 10 }}>Añadir cuenta</Text>
-                  </TouchableOpacity>
-                )}
+            {/* ── Últimas Transacciones (7) ─── */}
+            <View style={{ marginTop: 10, paddingBottom: 120 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <Text style={{ fontSize: 22, fontWeight: '900', color: colorsNav.text }}>Últimas Transacciones</Text>
+                <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
+                  <Text style={{ color: '#EF4444', fontWeight: '700', fontSize: 14 }}>Ver todas</Text>
+                </TouchableOpacity>
               </View>
+              
+              {allTransactions.slice(0, 7).map((tx, idx) => {
+                const iconInfo = getTxIconInfo(tx);
+                return (
+                  <View key={tx.id || idx} style={[styles.mobileTxItem, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
+                    <View style={[styles.txIconRoundRefined, { backgroundColor: isDark ? colorsNav.cardBg : iconInfo.bg, width: 44, height: 44 }]}>
+                      <MaterialIcons name={iconInfo.icon as any} size={20} color={iconInfo.color} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontWeight: '800', fontSize: 16, color: colorsNav.text }} numberOfLines={1}>
+                        {tx.description === 'Sin descripción' || !tx.description ? tx.category : tx.description}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: colorsNav.sub, marginTop: 2 }}>HOY</Text>
+                    </View>
+                    <Text style={{ 
+                      fontWeight: '900', 
+                      fontSize: 16, 
+                      color: tx.type === 'expense' ? colorsNav.text : colorsNav.accent 
+                    }}>
+                      {tx.type === 'expense' ? '-' : '+'}{fmt(tx.amount)}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           </View>
 
