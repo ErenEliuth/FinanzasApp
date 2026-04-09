@@ -478,56 +478,61 @@ export default function HomeScreen() {
       >
 
         {/* ── Header Sanctuary ─────────────────────────────────────── */}
-        <View style={[styles.header, isDesktop && styles.desktopHeader, Platform.OS === 'web' && { backdropFilter: 'blur(20px)', backgroundColor: isDark ? 'rgba(26, 26, 46, 0.8)' : 'rgba(255, 248, 240, 0.8)', position: 'sticky', top: 0, zIndex: 1000 } as any]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={[styles.header, isDesktop && styles.desktopHeader, Platform.OS === 'web' && { backdropFilter: 'blur(25px)', backgroundColor: isDark ? 'rgba(26, 26, 46, 0.85)' : 'rgba(255, 248, 240, 0.85)', position: 'sticky', top: 0, zIndex: 1000 } as any]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
             <View style={[styles.logoIcon, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }]}>
-              <MaterialIcons name="shield" size={22} color={isDark ? '#D4C5A9' : '#8B7355'} />
+              <MaterialIcons name="shield" size={24} color={isDark ? '#D4C5A9' : '#8B7355'} />
             </View>
             <View>
-              <Text style={[styles.logoText, { color: isDark ? '#FFF' : '#2D2D2D' }]}>Sanctuary</Text>
-              {isDesktop && <Text style={{ fontSize: 10, color: colorsNav.sub, fontWeight: '700', letterSpacing: 1.5 }}>WORKSTATION</Text>}
+              <Text style={[styles.logoText, { color: isDark ? '#FFF' : '#2D2D2D', fontSize: 20 }]}>Sanctuary</Text>
+              {isDesktop && <Text style={{ fontSize: 9, color: colorsNav.sub, fontWeight: '800', letterSpacing: 2, marginTop: -2 }}>PREMIUM FINTECH</Text>}
             </View>
           </View>
-          <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-            <TouchableOpacity
-              style={[styles.headerIconBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }, Platform.OS === 'web' && { cursor: 'pointer' } as any]}
-              onPress={toggleHiddenMode}
-            >
-              <Ionicons name={isHidden ? "eye-off-outline" : "eye-outline"} size={18} color={isDark ? '#D4C5A9' : '#8B7355'} />
-            </TouchableOpacity>
+          
+          <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+            {/* OJO Y NOTIFICACIONES - Mobile & Desktop */}
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity
+                style={[styles.headerIconBtnSmall, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }]}
+                onPress={toggleHiddenMode}
+              >
+                <Ionicons name={isHidden ? "eye-off-outline" : "eye-outline"} size={18} color={isDark ? '#D4C5A9' : '#8B7355'} />
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.headerIconBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }, Platform.OS === 'web' && { cursor: 'pointer' } as any]}
-              onPress={() => setNotificationsVisible(true)}
-            >
-              <Ionicons name="notifications-outline" size={18} color={isDark ? '#D4C5A9' : '#8B7355'} />
-              {pendingItems.length > 0 && <View style={styles.notifBadge} />}
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.headerIconBtnSmall, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }]}
+                onPress={() => setNotificationsVisible(true)}
+              >
+                <Ionicons name="notifications-outline" size={18} color={isDark ? '#D4C5A9' : '#8B7355'} />
+                {pendingItems.length > 0 && <View style={styles.notifBadge} />}
+              </TouchableOpacity>
+            </View>
 
+            {/* ACCIONES PRINCIPALES - Estilo exacto como en la imagen */}
             {isDesktop && (
-              <View style={{ flexDirection: 'row', gap: 12, marginLeft: 15 }}>
+              <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center', marginLeft: 10 }}>
                 <TouchableOpacity
-                  style={[styles.headerActionBtn, { backgroundColor: colorsNav.accent }, Platform.OS === 'web' && { cursor: 'pointer', transition: 'all 0.2s' } as any]}
+                  style={[styles.mainActionBtn, { backgroundColor: colorsNav.accent }]}
                   onPress={() => router.push('/explore')}
                 >
-                  <MaterialIcons name="add" size={20} color="#FFF" />
-                  <Text style={styles.headerActionText}>Movimiento</Text>
+                  <MaterialIcons name="add" size={22} color="#FFF" />
+                  <Text style={styles.mainActionText}>Nuevo Movimiento</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.headerActionBtn, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }, Platform.OS === 'web' && { cursor: 'pointer', transition: 'all 0.2s' } as any]}
+                  style={[styles.subActionBtn, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }]}
                   onPress={() => router.push('/invest' as any)}
                 >
                   <MaterialIcons name="show-chart" size={18} color={isDark ? '#D4C5A9' : '#8B7355'} />
-                  <Text style={[styles.headerActionText, { color: isDark ? '#D4C5A9' : '#8B7355' }]}>Inversiones</Text>
+                  <Text style={[styles.subActionText, { color: isDark ? '#D4C5A9' : '#8B7355' }]}>Inversiones</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.headerActionBtn, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }, Platform.OS === 'web' && { cursor: 'pointer', transition: 'all 0.2s' } as any]}
+                  style={[styles.subActionBtn, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }]}
                   onPress={() => router.push('/profile')}
                 >
                   <Ionicons name="person-outline" size={18} color={isDark ? '#D4C5A9' : '#8B7355'} />
-                  <Text style={[styles.headerActionText, { color: isDark ? '#D4C5A9' : '#8B7355' }]}>Perfil</Text>
+                  <Text style={[styles.subActionText, { color: isDark ? '#D4C5A9' : '#8B7355' }]}>Perfil</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -1130,10 +1135,42 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 2,
   },
-  headerActionText: {
+  mainActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 22,
+    height: 52,
+    borderRadius: 18,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  mainActionText: {
     color: '#FFF',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  subActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    height: 52,
+    borderRadius: 18,
+    gap: 10,
+  },
+  subActionText: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  headerIconBtnSmall: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   // ── Header ──────────────────────────────────────────────────
