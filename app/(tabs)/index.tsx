@@ -539,307 +539,163 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ── View Row Responsive en PC ───────────────────────────── */}
-        <View style={isDesktop ? styles.desktopMainRow : undefined}>
+        {/* ── View Row Responsive en PC (70/30 Split) ────────────────── */}
+        <View style={isDesktop ? styles.desktopMainRowRefined : undefined}>
           
-          {/* LADO IZQUIERDO EN PC - RESUMEN */}
-          <View style={isDesktop ? styles.colSummary : undefined}>
-            {/* ── Greeting ─────────────────────────────────────────────── */}
-            <View style={styles.greetingSection}>
-              <Text style={[styles.greeting, { color: colorsNav.text }]}>
-                Hola, {displayName.split(' ')[0]} 👋
-              </Text>
-              <Text style={[styles.subtitle, { color: colorsNav.sub }]}>Tu resumen financiero hoy</Text>
+          {/* LADO IZQUIERDO: CONTENIDO PRINCIPAL (70%) */}
+          <View style={isDesktop ? styles.desktopMainCol : undefined}>
+            
+            <View style={{ marginBottom: 25 }}>
+               <Text style={[styles.greeting, { color: colorsNav.text }]}>Hola, {displayName.split(' ')[0]} 👋</Text>
+               <Text style={[styles.subtitle, { color: colorsNav.sub }]}>Tu resumen financiero hoy</Text>
             </View>
 
-            {/* ── Balance Card (Green) ─────────────────────────────────── */}
-            <TouchableOpacity
-              style={[styles.balanceCard, { backgroundColor: colorsNav.greenCard }]}
+            {/* Gran Tarjeta Borgoña */}
+            <TouchableOpacity 
+              style={[styles.mainHeroCard, { backgroundColor: isDark ? '#5D1220' : '#8B1A2E' }]}
               activeOpacity={0.9}
               onPress={() => setBreakdownVisible(true)}
             >
-              <Text style={styles.balanceLabel}>DINERO ACTIVO</Text>
-              <Text style={styles.balanceAmount}>{fmt(dineroActivo)}</Text>
-              <View style={styles.balanceBadge}>
-                <MaterialIcons name="trending-up" size={14} color={colorsNav.accent} />
-                <Text style={styles.balanceBadgeText}>
-                  {Number(porcentajeMes) >= 0 ? '+' : ''}{porcentajeMes}% este mes
+              <View style={styles.heroHeader}>
+                <Text style={styles.heroLabel}>Dinero Activo</Text>
+                <View style={styles.heroTrend}>
+                  <MaterialIcons name="trending-up" size={14} color="#FFF" />
+                  <Text style={styles.heroTrendTxt}>+12.4%</Text>
+                </View>
+              </View>
+              <Text style={styles.heroAmount}>{fmt(dineroActivo)}</Text>
+              <View style={styles.heroVisual} />
+            </TouchableOpacity>
+
+            {/* Fila de 3 Mini Estadísticas */}
+            <View style={styles.statsRowRefined}>
+              <TouchableOpacity style={[styles.statBoxRefined, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/goals')}>
+                <View style={[styles.statIconWrapRefined, { backgroundColor: '#E0F2FE' }]}>
+                  <MaterialIcons name="savings" size={20} color="#0EA5E9" />
+                </View>
+                <Text style={styles.statLabelRefined}>AHORROS</Text>
+                <Text style={[styles.statValueRefined, { color: colorsNav.text }]}>{fmt(ahorroTotal)}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={[styles.statBoxRefined, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/(tabs)/debts')}>
+                <View style={[styles.statIconWrapRefined, { backgroundColor: '#FEE2E2' }]}>
+                  <MaterialIcons name="credit-score" size={20} color="#EF4444" />
+                </View>
+                <Text style={styles.statLabelRefined}>DEUDAS</Text>
+                <Text style={[styles.statValueRefined, { color: colorsNav.text }]}>{fmt(debtTotal)}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={[styles.statBoxRefined, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/invest' as any)}>
+                <View style={[styles.statIconWrapRefined, { backgroundColor: '#F3E8FF' }]}>
+                  <MaterialIcons name="insights" size={20} color="#8B5CF6" />
+                </View>
+                <Text style={styles.statLabelRefined}>INVERSIONES</Text>
+                <Text style={[styles.statValueRefined, { color: colorsNav.text }]}>{fmt(investmentTotal)}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Fila de 2: Salud y Cuentas */}
+            <View style={styles.lowerGridRefined}>
+              <View style={[styles.healthGridCardRefined, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
+                <Text style={[styles.gridTitleRefined, { color: colorsNav.text }]}>Salud Financiera</Text>
+                <View style={styles.healthCenterRefined}>
+                  <CircularProgress percentage={saludPorcentaje} size={150} strokeWidth={16} color={saludColor} />
+                  <View style={styles.healthInnerRefined}>
+                    <Text style={[styles.healthScoreRefined, { color: colorsNav.text }]}>{saludPorcentaje}</Text>
+                    <Text style={[styles.healthSuffixRefined, { color: saludColor }]}>{saludLabel}</Text>
+                  </View>
+                </View>
+                <Text style={[styles.healthTipRefined, { color: colorsNav.sub }]}>
+                   {saludPorcentaje >= 70 ? 'Estás en el top 5% de usuarios este mes. ¡Sigue así!' : 'Es un buen momento para revisar tus gastos.'}
                 </Text>
               </View>
-            </TouchableOpacity>
 
-            {/* ── Ahorros & Deudas Row ─────────────────────────────────── */}
-            <View style={styles.widgetsRow}>
-              <TouchableOpacity
-                style={[styles.widgetCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}
-                activeOpacity={0.8}
-                onPress={() => router.push('/goals')}
-              >
-                <View style={[styles.widgetIconWrap, { backgroundColor: isDark ? '#3A5A4A' : '#E8F5E9' }]}>
-                  <MaterialIcons name="savings" size={22} color={colorsNav.accent} />
-                </View>
-                <Text style={[styles.widgetLabel, { color: colorsNav.sub }]}>AHORROS</Text>
-                <Text style={[styles.widgetValue, { color: colorsNav.text }]}>{fmt(ahorroTotal)}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.widgetCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}
-                activeOpacity={0.8}
-                onPress={() => router.push('/(tabs)/debts')}
-              >
-                <View style={[styles.widgetIconWrap, { backgroundColor: isDark ? '#5A3A3A' : '#FFEBEE' }]}>
-                  <MaterialIcons name="credit-card" size={22} color="#EF4444" />
-                </View>
-                <Text style={[styles.widgetLabel, { color: colorsNav.sub }]}>DEUDAS</Text>
-                <Text style={[styles.widgetValueAlert, { color: '#EF4444' }]}>{fmt(debtTotal)}</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* ── Inversiones Widget ─────────────────────────────────── */}
-            <TouchableOpacity
-              style={[styles.investmentWidget, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}
-              activeOpacity={0.8}
-              onPress={() => router.push('/invest' as any)}
-            >
-              <View style={[styles.widgetIconWrap, { backgroundColor: isDark ? '#2A3447' : '#E3F2FD', marginBottom: 0 }]}>
-                <MaterialIcons name="show-chart" size={22} color="#3B82F6" />
-              </View>
-              <View style={{ flex: 1, marginLeft: 14 }}>
-                <Text style={[styles.widgetLabel, { color: colorsNav.sub, marginBottom: 2 }]}>INVERSIONES</Text>
-                <Text style={[styles.widgetValue, { color: colorsNav.text }]}>{fmt(investmentTotal)}</Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
-            </TouchableOpacity>
-
-            {/* ── Grid de Accesos Rápidos (Solo PC) ────────────────────── */}
-            {isDesktop && (
-              <View style={styles.desktopQuickGrid}>
-                <TouchableOpacity 
-                  style={[styles.quickCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }, Platform.OS === 'web' && { cursor: 'pointer', transition: 'transform 0.2s' } as any]} 
-                  onPress={() => router.push('/(tabs)/history')}
-                >
-                  <MaterialIcons name="receipt-long" size={24} color={colorsNav.accent} />
-                  <Text style={[styles.quickLabel, { color: colorsNav.text }]}>Historial</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.quickCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }, Platform.OS === 'web' && { cursor: 'pointer', transition: 'transform 0.2s' } as any]} 
-                  onPress={() => router.push('/goals' as any)}
-                >
-                  <MaterialIcons name="flag" size={24} color="#F59E0B" />
-                  <Text style={[styles.quickLabel, { color: colorsNav.text }]}>Metas</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Prompt Recordatorios */}
-            {showReminderPrompt && (
-              <View style={[styles.reminderPrompt, { backgroundColor: isDark ? colorsNav.card : '#FFF', borderColor: isDark ? colorsNav.border : '#F0E8DC', borderWidth: 1 }]}>
-                <View style={styles.reminderHeader}>
-                  <View style={[styles.reminderIcon, { backgroundColor: colorsNav.accent + '20' }]}>
-                    <Ionicons name="notifications" size={24} color={colorsNav.accent} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.reminderTitle, { color: colorsNav.text }]}>¿Activar recordatorios?</Text>
-                    <Text style={[styles.reminderSub, { color: colorsNav.sub }]}>Te avisaremos suavemente cada noche para anotar tus gastos.</Text>
-                  </View>
-                  <TouchableOpacity onPress={handleDismissReminders} style={{ padding: 4 }}>
-                    <Ionicons name="close" size={20} color={colorsNav.sub} />
+              <View style={[styles.accountsGridCardRefined, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
+                <View style={styles.rowBetweenRefined}>
+                  <Text style={[styles.gridTitleRefined, { color: colorsNav.text }]}>Mis Cuentas</Text>
+                  <TouchableOpacity onPress={() => router.push('/cards' as any)}>
+                    <Text style={{ color: colorsNav.accent, fontWeight: '800', fontSize: 13 }}>Gestionar</Text>
                   </TouchableOpacity>
                 </View>
-                <View style={styles.reminderActions}>
-                  <TouchableOpacity style={[styles.remBtnNo, { backgroundColor: isDark ? '#2A2A42' : '#F5F5F7' }]} onPress={handleDismissReminders}>
-                    <Text style={[styles.remBtnTextNo, { color: colorsNav.sub }]}>Ahora no</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.remBtnYes, { backgroundColor: colorsNav.accent }]} onPress={handleAcceptReminders}>
-                    <Text style={styles.remBtnTextYes}>¡Sí, claro!</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
-            {/* ── Salud Financiera ──────────────────────────────────────── */}
-            <View style={[styles.healthCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
-              <Text style={[styles.healthTitle, { color: colorsNav.text }]}>Salud Financiera</Text>
-              <View style={styles.healthContent}>
-                <View style={styles.healthCircleWrap}>
-                  <CircularProgress percentage={saludPorcentaje} size={90} strokeWidth={9} color={saludColor} />
-                  <View style={styles.healthCircleLabel}>
-                    <Text style={[styles.healthPercentage, { color: saludColor }]}>{saludPorcentaje}%</Text>
-                    <Text style={[styles.healthStatus, { color: saludColor }]}>{saludLabel}</Text>
-                  </View>
-                </View>
-                <View style={styles.healthDetails}>
-                  <Text style={[styles.healthDetailLabel, { color: colorsNav.sub }]}>SALDO DISPONIBLE</Text>
-                  <Text style={[styles.healthDetailValue, { color: colorsNav.text }]}>{fmt(saldoDisponible)}</Text>
-                  <TouchableOpacity
-                    style={[styles.healthDetailBtn, { borderColor: isDark ? colorsNav.border : '#E0D8CC' }]}
-                    onPress={() => setIsRealBalanceCollapsed(!isRealBalanceCollapsed)}
-                  >
-                    <Text style={[styles.healthDetailBtnText, { color: colorsNav.sub }]}>Ver detalles</Text>
-                    <MaterialIcons name="arrow-forward" size={14} color={colorsNav.sub} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-
-            {/* ── Detalles expandidos ──────────────────────────────────── */}
-            {!isRealBalanceCollapsed && (
-              <View style={[styles.healthExpandedCard, { backgroundColor: isDark ? colorsNav.card : '#FFF', borderColor: isDark ? colorsNav.border : '#F0E8DC' }]}>
-                <View style={{ alignItems: 'center', marginBottom: 14 }}>
-                  <Text style={[styles.healthExpandedTitle, { color: colorsNav.text }]}>Balance Real</Text>
-                  <Text style={[styles.healthExpandedAmount, { color: dineroReal >= 0 ? colorsNav.text : '#EF4444' }]}>
-                    {fmt(dineroReal)}
-                  </Text>
-                </View>
-
-                <View style={{ alignItems: 'center', marginBottom: 20, paddingTop: 10, borderTopWidth: 1, borderTopColor: isDark ? colorsNav.border : '#F0E8DC' }}>
-                  <Text style={[styles.healthExpandedTitle, { color: colorsNav.text, fontSize: 13 }]}>Patrimonio Total</Text>
-                  <Text style={[styles.healthExpandedAmount, { fontSize: 20, color: dineroGeneral >= 0 ? colorsNav.accent : '#EF4444' }]}>
-                    {fmt(dineroGeneral)}
-                  </Text>
-                </View>
-
-                <View style={[styles.healthExpandedGrid, { backgroundColor: isDark ? '#2A2A42' : '#FAF5ED' }]}>
-                  <View style={styles.healthExpandedItem}>
-                    <Text style={[styles.healthExpandedItemLabel, { color: colorsNav.sub }]}>Disponible</Text>
-                    <Text style={[styles.healthExpandedItemValue, { color: colorsNav.text }]}>{fmt(dineroActivo)}</Text>
-                  </View>
-                  <View style={{ width: 1, backgroundColor: isDark ? colorsNav.border : '#E8E0D4', height: '60%', alignSelf: 'center' }} />
-                  <View style={styles.healthExpandedItem}>
-                    <Text style={[styles.healthExpandedItemLabel, { color: colorsNav.sub }]}>Ahorro</Text>
-                    <Text style={[styles.healthExpandedItemValue, { color: '#8B5CF6' }]}>{fmt(ahorroTotal)}</Text>
-                  </View>
-                  <View style={{ width: 1, backgroundColor: isDark ? colorsNav.border : '#E8E0D4', height: '60%', alignSelf: 'center' }} />
-                  <View style={styles.healthExpandedItem}>
-                    <Text style={[styles.healthExpandedItemLabel, { color: colorsNav.sub }]}>Inversión</Text>
-                    <Text style={[styles.healthExpandedItemValue, { color: '#3B82F6' }]}>{fmt(investmentTotal)}</Text>
-                  </View>
-                  <View style={{ width: 1, backgroundColor: isDark ? colorsNav.border : '#E8E0D4', height: '60%', alignSelf: 'center' }} />
-                  <View style={styles.healthExpandedItem}>
-                    <Text style={[styles.healthExpandedItemLabel, { color: colorsNav.sub }]}>Deudas</Text>
-                    <Text style={[styles.healthExpandedItemValue, { color: '#EF4444' }]} numberOfLines={1}>−{fmt(debtTotal)}</Text>
-                  </View>
-                </View>
-              </View>
-            )}
-          </View>
-
-          {/* COLUMNA CENTRAL (TARJETAS) EN PC */}
-          {isDesktop && (
-            <View style={styles.colCards}>
-              <View style={styles.sectionHeader}>
-                <View>
-                  <Text style={[styles.sectionTitle, { color: colorsNav.text }]}>Mis Cuentas</Text>
-                  <Text style={{ fontSize: 12, color: colorsNav.sub, fontWeight: '500' }}>{cards.length} cuentas registradas</Text>
-                </View>
-                <TouchableOpacity 
-                   style={[styles.manageBtn, { backgroundColor: colorsNav.accent + '10' }]}
-                   onPress={() => router.push('/cards')}
-                >
-                  <Text style={[styles.seeAll, { color: colorsNav.accent }]}>Gestionar</Text>
-                </TouchableOpacity>
-              </View>
-              
-              <View style={styles.desktopCardsGrid}>
-                {cards.length === 0 ? (
-                  <View style={[styles.emptyCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
-                    <MaterialIcons name="account-balance-wallet" size={32} color={colorsNav.sub} />
-                    <Text style={[styles.emptyText, { color: colorsNav.sub }]}>No hay cuentas</Text>
+                
+                {cards.length > 0 ? (
+                  <View style={styles.ccContainerRefined}>
+                     <TouchableOpacity 
+                        style={[styles.ccWrapperRefined, { backgroundColor: cards[0].color || '#6366F1' }]}
+                        activeOpacity={0.9}
+                        onPress={() => router.push('/cards' as any)}
+                      >
+                        <MaterialIcons name="contactless" size={24} color="#FFF" style={{ opacity: 0.8 }} />
+                        <View>
+                           <Text style={styles.ccLabelRefined}>Saldo Pendiente</Text>
+                           <Text style={styles.ccAmountRefined}>{fmt(cardBalances[cards[0].name] || 0)}</Text>
+                        </View>
+                        <View style={styles.ccFooterRefined}>
+                           <Text style={styles.ccNumberRefined}>**** {Math.floor(Math.random() * 9000) + 1000}</Text>
+                           <Text style={styles.ccBrandRefined}>{cards[0].brand.toUpperCase()} PLATINUM</Text>
+                        </View>
+                     </TouchableOpacity>
+                     <TouchableOpacity style={[styles.payBtnSimpleRefined, { backgroundColor: isDark ? '#2A2A42' : '#F1F5F9' }]} onPress={() => router.push('/cards' as any)}>
+                        <Text style={[styles.payBtnSimpleTxtRefined, { color: colorsNav.text }]}>Pagar Deuda</Text>
+                     </TouchableOpacity>
                   </View>
                 ) : (
-                  cards.map(card => {
-                    const debt = cardBalances[card.name] || 0;
+                  <TouchableOpacity style={styles.emptyCCRefined} onPress={() => router.push('/cards' as any)}>
+                    <MaterialIcons name="add-card" size={32} color={colorsNav.sub} />
+                    <Text style={{ color: colorsNav.sub, fontWeight: '700', marginTop: 10 }}>Añadir cuenta</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </View>
+
+          {/* LADO DERECHO: BARRA LATERAL (30%) */}
+          <View style={isDesktop ? styles.desktopSidebarCol : undefined}>
+            <View style={[styles.sidebarCardRefined, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
+              <View style={[styles.rowBetweenRefined, { marginBottom: 20 }]}>
+                <Text style={[styles.gridTitleRefined, { color: colorsNav.text }]}>Historial Completo</Text>
+                <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
+                  <Text style={{ color: colorsNav.accent, fontWeight: '800', fontSize: 13 }}>Ver todo</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false} style={styles.sidebarHistoryListRefined}>
+                {(isDesktop ? allTransactions : recentTx).length === 0 ? (
+                  <Text style={{ color: colorsNav.sub, textAlign: 'center', marginTop: 40 }}>Sin movimientos</Text>
+                ) : (
+                  (isDesktop ? allTransactions.slice(0, 12) : recentTx).map((tx, idx) => {
+                    const iconInfo = getTxIconInfo(tx);
                     return (
-                      <TouchableOpacity 
-                        key={card.id} 
-                        style={[styles.miniCard, { backgroundColor: card.color }]}
-                        activeOpacity={0.8}
-                        onPress={() => router.push('/cards')}
-                      >
-                        <View style={styles.miniCardHeader}>
-                          <View style={styles.miniCardBrandWrap}>
-                            <MaterialIcons name={card.brand === 'visa' ? 'credit-card' : 'account-balance'} size={14} color="rgba(255,255,255,0.8)" />
-                            <Text style={styles.miniCardBrand}>{card.brand.toUpperCase()}</Text>
-                          </View>
-                          <Text style={styles.miniCardName}>{card.name}</Text>
+                      <View key={tx.id || idx} style={[styles.txItemRefined, { borderBottomColor: colorsNav.border + '30' }]}>
+                        <View style={[styles.txIconRoundRefined, { backgroundColor: isDark ? colorsNav.cardBg : iconInfo.bg }]}>
+                          <MaterialIcons name={iconInfo.icon as any} size={20} color={iconInfo.color} />
                         </View>
-                        <View style={styles.miniCardBody}>
-                          <Text style={styles.miniCardLabel}>SALDO UTILIZADO</Text>
-                          <Text style={styles.miniCardAmount}>{fmt(debt)}</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.txNameRefined, { color: colorsNav.text }]} numberOfLines={1}>
+                             {tx.description === 'Sin descripción' || !tx.description ? tx.category : tx.description}
+                          </Text>
+                          <Text style={styles.txDateRefined}>{tx.category} • {formatTxDate(tx)}</Text>
                         </View>
-                        <View style={styles.miniCardFooter}>
-                           <View style={[styles.miniCardIndicator, { backgroundColor: 'rgba(255,255,255,0.3)' }]} />
-                        </View>
-                      </TouchableOpacity>
+                        <Text style={[styles.txAmtRefined, { color: tx.type === 'expense' ? '#EF4444' : colorsNav.accent }]}>
+                          {tx.type === 'expense' ? '-' : '+'}{fmt(tx.amount)}
+                        </Text>
+                      </View>
                     );
                   })
                 )}
-              </View>
-
-              {/* Salud Financiera en Columna Central para rellenar espacio en PC */}
-              <View style={[styles.healthCard, { backgroundColor: isDark ? colorsNav.card : '#FFF', marginTop: 24 }]}>
-                <Text style={[styles.healthTitle, { color: colorsNav.text }]}>Rendimiento de Salud</Text>
-                <View style={styles.healthContent}>
-                  <View style={styles.healthCircleWrap}>
-                    <CircularProgress percentage={saludPorcentaje} size={100} strokeWidth={10} color={saludColor} />
-                    <View style={styles.healthCircleLabel}>
-                      <Text style={[styles.healthPercentage, { color: saludColor, fontSize: 20 }]}>{saludPorcentaje}%</Text>
-                      <Text style={[styles.healthStatus, { color: saludColor }]}>{saludLabel}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.healthDetails}>
-                    <Text style={[styles.healthDetailLabel, { color: colorsNav.sub }]}>RESUMEN DE ESTADO</Text>
-                    <Text style={[styles.healthDetailValue, { color: colorsNav.text, fontSize: 18 }]}>
-                      {saludPorcentaje >= 70 ? 'Tus finanzas están en un punto excelente.' : 
-                       saludPorcentaje >= 40 ? 'Tienes un margen de mejora aceptable.' : 
-                       'Es momento de revisar tus gastos urgentes.'}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-          )}
-
-          {/* LADO DERECHO EN PC - TRANSACCIONES */}
-          <View style={isDesktop ? styles.colHistory : undefined}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colorsNav.text }]}>
-                {isDesktop ? 'Historial Completo' : 'Últimas Transacciones'}
-              </Text>
-              {!isDesktop && (
-                <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
-                  <Text style={styles.seeAll}>Ver todas</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            <View style={[styles.transactionList, isDesktop && styles.desktopScrollHistory]}>
-              {(isDesktop ? allTransactions : recentTx).length === 0 ? (
-                <Text style={[styles.emptyText, { color: colorsNav.sub }]}>No hay transacciones</Text>
-              ) : (
-                (isDesktop ? allTransactions.slice(0, 50) : recentTx).map((tx) => {
-                  const iconInfo = getTxIconInfo(tx);
-                  return (
-                    <View key={tx.id} style={[styles.txItem, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
-                      <View style={[styles.txIcon, { backgroundColor: isDark ? colorsNav.cardBg : iconInfo.bg }]}>
-                        <MaterialIcons name={iconInfo.icon as any} size={20} color={iconInfo.color} />
+              </ScrollView>
+              
+              <View style={styles.sidebarChartBoxRefined}>
+                 <Text style={styles.sidebarChartTitleRefined}>ANÁLISIS SEMANAL</Text>
+                 <View style={styles.fakeChartRefined}>
+                    {[40, 60, 50, 90, 45, 70, 55].map((h, i) => (
+                      <View key={i} style={{ alignItems: 'center', gap: 5 }}>
+                        <View style={[styles.chartBarRefined, { height: h, backgroundColor: i === 3 ? (isDark ? colorsNav.accent : '#8B1A2E') : (isDark ? '#3A3A52' : '#E5E7EB') }]} />
+                        <Text style={{ fontSize: 8, color: colorsNav.sub, fontWeight: '800' }}>{['L', 'M', 'M', 'J', 'V', 'S', 'D'][i]}</Text>
                       </View>
-                      <View style={styles.txMeta}>
-                        <Text style={[styles.txTitle, { color: colorsNav.text }]} numberOfLines={1}>
-                          {tx.description === 'Sin descripción' || !tx.description ? tx.category : tx.description}
-                        </Text>
-                        <Text style={[styles.txSub, { color: colorsNav.sub }]}>{formatTxDate(tx)}</Text>
-                      </View>
-                      <Text style={[
-                        styles.txAmount,
-                        tx.category === 'Ahorro' ? { color: '#8B5CF6' } : (tx.type === 'income' ? { color: colorsNav.accent } : { color: '#EF4444' }),
-                      ]}>
-                        {tx.type === 'income' ? '+' : '-'}{fmt(tx.amount)}
-                      </Text>
-                    </View>
-                  );
-                })
-              )}
+                    ))}
+                 </View>
+              </View>
             </View>
           </View>
         </View>
@@ -998,606 +854,251 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scrollContent: {
-    padding: 20,
-    paddingTop: Platform.OS === 'android' ? 50 : 20,
-    paddingBottom: 100,
-  },
-  desktopScrollContainer: {
-    width: '100%',
-    alignSelf: 'center',
-    paddingHorizontal: 30,
-    paddingTop: 30,
-  },
-  desktopMainRow: {
+  // ── DESKTOP RESTRUCTURE REFINED (70/30) ──────────────────
+  desktopMainRowRefined: {
     flexDirection: 'row',
     gap: 30,
     alignItems: 'flex-start',
     marginTop: 10,
   },
-  colSummary: {
-    flex: 1,
-    maxWidth: 400,
+  desktopMainCol: {
+    flex: 0.7,
+    paddingRight: 10,
   },
-  colCards: {
-    flex: 1.2,
+  desktopSidebarCol: {
+    flex: 0.3,
   },
-  colHistory: {
-    flex: 1,
-    maxWidth: 450,
-  },
-
-  // Desktop Cards
-  desktopCardsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  miniCard: {
-    borderRadius: 24,
-    padding: 20,
-    width: '48%',
-    minWidth: 200,
-    height: 165,
-    justifyContent: 'space-between',
+  mainHeroCard: {
+    width: '100%',
+    borderRadius: 36,
+    padding: 40,
+    height: 260,
+    justifyContent: 'center',
+    marginBottom: 25,
     shadowColor: '#000',
     shadowOpacity: 0.15,
-    shadowRadius: 12,
+    shadowRadius: 15,
     elevation: 8,
-  },
-  miniCardHeader: {
-    gap: 6,
-  },
-  miniCardBrandWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    opacity: 0.85,
-  },
-  miniCardName: { color: '#FFF', fontSize: 18, fontWeight: '900', letterSpacing: 0.5 },
-  miniCardBrand: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
-  miniCardBody: {
-    marginTop: 12,
-  },
-  miniCardLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
-  miniCardAmount: { color: '#FFF', fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
-  miniCardFooter: {
-    height: 5,
-    width: '100%',
-    borderRadius: 3,
-    marginTop: 10,
     overflow: 'hidden',
+    position: 'relative',
   },
-  miniCardIndicator: {
-    height: '100%',
-    width: '45%',
-    borderRadius: 3,
-  },
-  emptyCard: {
-    width: '100%',
-    padding: 60,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(0,0,0,0.08)',
-  },
-  manageBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 14,
-  },
-
-  desktopScrollHistory: {
-    maxHeight: 1000,
-  },
-  desktopQuickGrid: {
-    flexDirection: 'row',
-    gap: 15,
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  quickCard: {
-    flex: 1,
-    padding: 20,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  quickLabel: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  desktopHeader: {
-    marginBottom: 40,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
-    paddingHorizontal: 20,
-    marginHorizontal: -20,
-  },
-  headerActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 18,
-    height: 48,
-    borderRadius: 16,
-    gap: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  mainActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 22,
-    height: 52,
-    borderRadius: 18,
-    gap: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  mainActionText: {
-    color: '#FFF',
-    fontSize: 15,
-    fontWeight: '900',
-    letterSpacing: 0.3,
-  },
-  subActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 18,
-    height: 52,
-    borderRadius: 18,
-    gap: 10,
-  },
-  subActionText: {
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  headerIconBtnSmall: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // ── Header ──────────────────────────────────────────────────
-  header: {
+  heroHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-  },
-  logoIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoText: {
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  headerIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  notifBadge: {
-    position: 'absolute',
-    top: -1,
-    right: -1,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#EF4444',
-    borderWidth: 2,
-    borderColor: '#FFF8F0',
-  },
-
-  // ── Greeting ────────────────────────────────────────────────
-  greetingSection: {
-    marginBottom: 20,
-  },
-  greeting: {
-    fontSize: 28,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 14,
-    marginTop: 4,
-    fontWeight: '500',
-  },
-
-  // ── Balance Card (Green) ────────────────────────────────────
-  balanceCard: {
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 16,
-    shadowColor: '#2D5A3D',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  balanceLabel: {
-    color: 'rgba(255,255,255,0.65)',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1.5,
     marginBottom: 8,
+    zIndex: 2,
   },
-  balanceAmount: {
-    color: '#FFFFFF',
-    fontSize: 36,
-    fontWeight: '900',
-    letterSpacing: -1,
-    marginBottom: 14,
-  },
-  balanceBadge: {
+  heroLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '700', letterSpacing: 0.5 },
+  heroAmount: { color: '#FFF', fontSize: 62, fontWeight: '900', letterSpacing: -2, zIndex: 2 },
+  heroTrend: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-end',
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
-    gap: 4,
-  },
-  balanceBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2D5A3D',
-  },
-
-  // ── Widget Cards ────────────────────────────────────────────
-  widgetsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  widgetCard: {
-    flex: 1,
-    borderRadius: 20,
-    padding: 18,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  widgetIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  widgetLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  widgetValue: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  widgetValueAlert: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
-
-  // ── Health Card ─────────────────────────────────────────────
-  healthCard: {
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  healthTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    marginBottom: 16,
-  },
-  healthContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-  },
-  healthCircleWrap: {
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  healthCircleLabel: {
-    position: 'absolute',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  healthPercentage: {
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  healthStatus: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    marginTop: -2,
-  },
-  healthDetails: {
-    flex: 1,
-  },
-  healthDetailLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  healthDetailValue: {
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-    marginBottom: 12,
-  },
-  healthDetailBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
     borderRadius: 12,
-    borderWidth: 1,
-    alignSelf: 'flex-start',
   },
-  healthDetailBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
+  heroTrendTxt: { color: '#FFF', fontSize: 13, fontWeight: '800' },
+  heroVisual: {
+    position: 'absolute',
+    right: -50,
+    top: -30,
+    width: 220,
+    height: 220,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 110,
   },
 
-  // ── Health Expanded ─────────────────────────────────────────
-  healthExpandedCard: {
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 16,
-    borderWidth: 1,
-  },
-  healthExpandedTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  healthExpandedAmount: {
-    fontSize: 26,
-    fontWeight: '900',
-    letterSpacing: -0.5,
-  },
-  healthExpandedSub: {
-    fontSize: 11,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  healthExpandedGrid: {
+  statsRowRefined: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 12,
-    borderRadius: 14,
+    gap: 15,
+    marginBottom: 25,
   },
-  healthExpandedItem: {
-    alignItems: 'center',
+  statBoxRefined: {
     flex: 1,
-    paddingHorizontal: 4,
-  },
-  healthExpandedItemLabel: {
-    fontSize: 9,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    marginBottom: 4,
-  },
-  healthExpandedItemValue: {
-    fontSize: 11,
-    fontWeight: '800',
-  },
-
-  // ── Sections ────────────────────────────────────────────────
-  sectionContainer: { marginTop: 8 },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  seeAll: {
-    fontSize: 13,
-    color: '#EF4444',
-    fontWeight: '700',
-  },
-
-  // ── Transactions ────────────────────────────────────────────
-  transactionList: { gap: 10 },
-  txItem: {
-    borderRadius: 18,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
+    padding: 22,
+    borderRadius: 24,
     shadowColor: '#000',
     shadowOpacity: 0.03,
     shadowRadius: 8,
     elevation: 2,
   },
-  txIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  txMeta: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  txTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  txSub: {
-    fontSize: 11,
-    marginTop: 2,
-    textTransform: 'uppercase',
-    fontWeight: '500',
-    letterSpacing: 0.3,
-  },
-  txAmount: {
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  emptyText: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 20,
-  },
-
-  // ── Modals ──────────────────────────────────────────────────
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  modalCard: {
-    width: '100%',
-    borderRadius: 32,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
-    elevation: 8,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: '900',
-    letterSpacing: -0.5,
-  },
-  modalSub: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  modalCloseBtn: {
-    height: 56,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  modalCloseBtnText: {
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-
-  // ── Changelog Specific ──────────────────────────────────────
-  changelogItem: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 20,
-    padding: 16,
-    borderRadius: 20,
-  },
-  changelogIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  changelogTextWrap: {
-    flex: 1,
-  },
-  changelogItemTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  changelogItemDesc: {
-    fontSize: 12,
-    lineHeight: 18,
-    fontWeight: '500',
-  },
-
-  // ── Breakdown ───────────────────────────────────────────────
-  breakdownList: {
-    marginBottom: 16,
-  },
-  breakdownItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-  },
-  breakdownLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  accIcon: {
+  statIconWrapRefined: {
     width: 38,
     height: 38,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 10,
   },
-  accName: {
-    fontSize: 16,
-    fontWeight: '600',
+  statLabelRefined: { color: '#94A3B8', fontSize: 10, fontWeight: '800', letterSpacing: 1, marginBottom: 4 },
+  statValueRefined: { fontSize: 18, fontWeight: '900' },
+
+  lowerGridRefined: {
+    flexDirection: 'row',
+    gap: 20,
   },
-  accValue: {
-    fontSize: 16,
-    fontWeight: '700',
+  healthGridCardRefined: {
+    flex: 1,
+    padding: 24,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  healthCenterRefined: {
+    position: 'relative',
+    marginVertical: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  healthInnerRefined: {
+    position: 'absolute',
+    alignItems: 'center',
+  },
+  healthScoreRefined: { fontSize: 40, fontWeight: '900' },
+  healthSuffixRefined: { fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  healthTipRefined: { fontSize: 12, textAlign: 'center', fontWeight: '600', lineHeight: 18, opacity: 0.7 },
+
+  accountsGridCardRefined: {
+    flex: 1.2,
+    padding: 24,
+    borderRadius: 28,
+  },
+  ccContainerRefined: {
+    marginTop: 15,
+    flex: 1,
+  },
+  ccWrapperRefined: {
+    borderRadius: 20,
+    padding: 20,
+    height: 160,
+    justifyContent: 'space-between',
+  },
+  ccLabelRefined: { color: 'rgba(255,255,255,0.7)', fontSize: 10, fontWeight: '700' },
+  ccAmountRefined: { color: '#FFF', fontSize: 28, fontWeight: '900', marginTop: 2 },
+  ccFooterRefined: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  ccNumberRefined: { color: '#FFF', fontSize: 12, fontWeight: '700', opacity: 0.8 },
+  ccBrandRefined: { color: '#FFF', fontSize: 8, fontWeight: '900', letterSpacing: 1 },
+  payBtnSimpleRefined: {
+    marginTop: 12,
+    padding: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  payBtnSimpleTxtRefined: { fontWeight: '800', fontSize: 13 },
+
+  sidebarCardRefined: {
+    flex: 1,
+    borderRadius: 28,
+    padding: 24,
+    minHeight: 800,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  sidebarHistoryListRefined: {
+    flex: 1,
+  },
+  txItemRefined: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  txIconRoundRefined: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  txNameRefined: { fontSize: 14, fontWeight: '700' },
+  txDateRefined: { color: '#94A3B8', fontSize: 10, marginTop: 1, fontWeight: '600' },
+  txAmtRefined: { fontSize: 14, fontWeight: '800' },
+
+  sidebarChartBoxRefined: {
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
+  },
+  sidebarChartTitleRefined: { fontSize: 10, fontWeight: '800', color: '#94A3B8', letterSpacing: 1.5, marginBottom: 15, textAlign: 'center' },
+  fakeChartRefined: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    height: 80,
+    paddingHorizontal: 5,
+  },
+  chartBarRefined: {
+    width: 16,
+    borderRadius: 5,
   },
 
-  // Reminder Prompt
-  reminderPrompt: {
-    marginHorizontal: 0, borderRadius: 28, padding: 22, marginBottom: 20,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3,
+  gridTitleRefined: { fontSize: 16, fontWeight: '900', marginBottom: 2 },
+  rowBetweenRefined: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  emptyCCRefined: {
+    flex: 1,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 15,
   },
-  reminderHeader: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 18 },
-  reminderIcon: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-  reminderTitle: { fontSize: 16, fontWeight: '800' },
-  reminderSub: { fontSize: 12, marginTop: 2, lineHeight: 16 },
-  reminderActions: { flexDirection: 'row', gap: 10 },
-  remBtnNo: { flex: 1, paddingVertical: 14, borderRadius: 16, alignItems: 'center' },
+
+  // Base Styles
+  container: { flex: 1 },
+  scrollContent: { padding: 20, paddingBottom: 100 },
+  desktopScrollContainer: { width: '100%', alignSelf: 'center', paddingHorizontal: 30, paddingTop: 30 },
+  desktopHeader: { marginBottom: 30, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)', paddingHorizontal: 20, marginHorizontal: -20 },
+  logoIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  logoText: { fontSize: 22, fontWeight: '900' },
+  mainActionBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, height: 50, borderRadius: 16, gap: 10 },
+  mainActionText: { color: '#FFF', fontSize: 14, fontWeight: '900' },
+  subActionBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 50, borderRadius: 16, gap: 8 },
+  subActionText: { fontSize: 13, fontWeight: '800' },
+  headerIconBtnSmall: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  greeting: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
+  subtitle: { fontSize: 14, marginTop: 2, fontWeight: '600' },
+  notifBadge: { position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' },
+
+  // Modals
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalCard: { width: '100%', borderRadius: 28, padding: 24, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
+  modalTitle: { fontSize: 20, fontWeight: '900' },
+  modalCloseBtn: { height: 50, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginTop: 15 },
+  modalCloseBtnText: { fontWeight: '800' },
+
+  // Changelog
+  changelogItem: { flexDirection: 'row', gap: 15, marginBottom: 15, padding: 12, borderRadius: 16 },
+  changelogIconWrap: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  changelogTextWrap: { flex: 1 },
+  changelogItemTitle: { fontSize: 14, fontWeight: '800', marginBottom: 2 },
+  changelogItemDesc: { fontSize: 12, fontWeight: '500', opacity: 0.8 },
+
+  // Transaction Lists (Mobile Legacy)
+  txItem: { flexDirection: 'row', alignItems: 'center', padding: 16, marginBottom: 16, borderRadius: 24 },
+  txIcon: { width: 44, height: 44, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  txMeta: { flex: 1 },
+  txTitle: { fontSize: 15, fontWeight: '800', marginBottom: 2 },
+  txSub: { fontSize: 12, opacity: 0.6, fontWeight: '600' },
+  txAmount: { fontSize: 16, fontWeight: '900' },
+
+  // Breakdown
+  breakdownList: { marginTop: 10 },
+  breakdownItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1 },
+  breakdownLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  accIcon: { width: 36, height: 36, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  accName: { fontSize: 14, fontWeight: '700' },
+  accValue: { fontSize: 14, fontWeight: '800' },
+
+  // Reminders / Others
   remBtnTextNo: { fontSize: 13, fontWeight: '700' },
   remBtnYes: { flex: 1.5, paddingVertical: 14, borderRadius: 16, alignItems: 'center' },
   remBtnTextYes: { color: '#FFF', fontSize: 13, fontWeight: '800' },
