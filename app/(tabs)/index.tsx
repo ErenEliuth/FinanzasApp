@@ -472,7 +472,11 @@ export default function HomeScreen() {
       >
 
         {/* ── Header Sanctuary ─────────────────────────────────────── */}
-        <View style={[styles.header, isDesktop && styles.desktopHeader, Platform.OS === 'web' && { backdropFilter: 'blur(25px)', backgroundColor: isDark ? 'rgba(26, 26, 46, 0.85)' : 'rgba(255, 248, 240, 0.85)', position: 'sticky', top: 0, zIndex: 1000 } as any]}>
+        <View style={[
+          styles.header, 
+          isDesktop && styles.desktopHeader, 
+          { backgroundColor: colorsNav.bg } 
+        ]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
             <View style={[styles.logoIcon, { backgroundColor: isDark ? '#3A3A52' : '#F5EDE0' }]}>
               <MaterialIcons name="shield" size={24} color={isDark ? '#D4C5A9' : '#8B7355'} />
@@ -681,15 +685,25 @@ export default function HomeScreen() {
               {allTransactions.slice(0, 7).map((tx, idx) => {
                 const iconInfo = getTxIconInfo(tx);
                 return (
-                  <View key={tx.id || idx} style={[styles.mobileTxItem, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
-                    <View style={[styles.txIconRoundRefined, { backgroundColor: isDark ? colorsNav.cardBg : iconInfo.bg, width: 44, height: 44 }]}>
-                      <MaterialIcons name={iconInfo.icon as any} size={20} color={iconInfo.color} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontWeight: '800', fontSize: 16, color: colorsNav.text }} numberOfLines={1}>
-                        {tx.description === 'Sin descripción' || !tx.description ? tx.category : tx.description}
-                      </Text>
-                      <Text style={{ fontSize: 11, color: colorsNav.sub, marginTop: 2 }}>HOY</Text>
+                  <View key={tx.id || idx} style={[
+                    styles.mobileTxItem, 
+                    { 
+                      backgroundColor: isDark ? colorsNav.card : '#FFF',
+                      flexDirection: 'row', 
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }
+                  ]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15, flex: 1 }}>
+                      <View style={[styles.txIconRoundRefined, { backgroundColor: isDark ? colorsNav.cardBg : iconInfo.bg, width: 44, height: 44 }]}>
+                        <MaterialIcons name={iconInfo.icon as any} size={20} color={iconInfo.color} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontWeight: '800', fontSize: 15, color: colorsNav.text }} numberOfLines={1}>
+                          {tx.description === 'Sin descripción' || !tx.description ? tx.category : tx.description}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: colorsNav.sub, marginTop: 2 }}>HOY</Text>
+                      </View>
                     </View>
                     <Text style={{ 
                       fontWeight: '900', 
