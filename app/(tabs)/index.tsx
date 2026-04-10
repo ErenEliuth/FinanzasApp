@@ -438,14 +438,14 @@ export default function HomeScreen() {
   // Icon helper for transactions
   const getTxIconInfo = (tx: any) => {
     if (tx.type === 'income') {
-      if (tx.category === 'Transferencia') return { icon: 'swap-horiz', bg: colorsNav.accent + '20', color: colorsNav.accent };
-      return { icon: 'call-received', bg: colorsNav.accent + '20', color: colorsNav.accent };
+      if (tx.category === 'Transferencia') return { icon: 'swap-horiz', bg: '#EBE4FF', color: '#7C4DFF' };
+      return { icon: 'call-received', bg: '#EBE4FF', color: '#7C4DFF' };
     }
     if (tx.category === 'Ahorro') return { icon: 'savings', bg: '#F0E6FF', color: '#8B5CF6' };
-    if (tx.category === 'Comida' || tx.category === 'Supermercado') return { icon: 'shopping-cart', bg: '#FFF0E0', color: '#F59E0B' };
-    if (tx.category === 'Transporte') return { icon: 'directions-car', bg: '#E0F7FA', color: '#00BCD4' };
-    if (tx.category === 'Salud') return { icon: 'favorite', bg: '#FCE4EC', color: '#E91E63' };
-    if (tx.category === 'Hogar') return { icon: 'home', bg: '#E8F5E9', color: '#4CAF50' };
+    if (tx.category === 'Comida' || tx.category === 'Supermercado') return { icon: 'shopping-cart', bg: '#FFF3E0', color: '#FB8C00' };
+    if (tx.category === 'Transporte') return { icon: 'directions-car', bg: '#E1F5FE', color: '#0288D1' };
+    if (tx.category === 'Salud') return { icon: 'favorite', bg: '#FFD6E8', color: '#E91E63' };
+    if (tx.category === 'Hogar') return { icon: 'home', bg: '#E1F5E1', color: '#4CAF50' };
     if (tx.category === 'Transferencia') return { icon: 'swap-horiz', bg: '#E3F0FF', color: '#3B82F6' };
     return { icon: 'bolt', bg: '#FFF8E1', color: '#FF9800' };
   };
@@ -566,7 +566,7 @@ export default function HomeScreen() {
                 <View style={styles.mobileTrendContainer}>
                   <View style={styles.mobileTrendBubble}>
                     <MaterialIcons name={Number(porcentajeMes) >= 0 ? "trending-up" : "trending-down"} size={14} color={colorsNav.accent} />
-                    <Text style={[styles.mobileTrendTxt, { color: '#004D40' }]}>{porcentajeMes}% este mes</Text>
+                    <Text style={[styles.mobileTrendTxt, { color: colorsNav.text }]}>{porcentajeMes}% este mes</Text>
                   </View>
                 </View>
               )}
@@ -653,64 +653,121 @@ export default function HomeScreen() {
               styles.mobileHealthCard,
               { backgroundColor: isDark ? colorsNav.card : '#FFF' }
             ]}>
-              <View style={styles.mobileHealthCenter}>
-                <CircularProgress percentage={saludPorcentaje} size={100} strokeWidth={14} color={saludColor} />
-                <View style={styles.healthInnerRefined}>
-                  <Text style={[styles.healthScoreRefined, { color: saludColor, fontSize: 24 }]}>{saludPorcentaje}%</Text>
-                  <Text style={[styles.healthSuffixRefined, { color: saludColor, fontSize: 8 }]}>{saludLabel}</Text>
+              <Text style={{ fontSize: 18, fontWeight: '900', color: colorsNav.text, marginBottom: 20 }}>Salud Financiera</Text>
+              
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 24, width: '100%' }}>
+                <View style={styles.mobileHealthCenter}>
+                  <CircularProgress percentage={saludPorcentaje} size={100} strokeWidth={14} color={saludColor} />
+                  <View style={styles.healthInnerRefined}>
+                    <Text style={[styles.healthScoreRefined, { color: saludColor, fontSize: 22 }]}>{saludPorcentaje}%</Text>
+                    <Text style={[styles.healthSuffixRefined, { color: saludColor, fontSize: 8 }]}>{saludLabel}</Text>
+                  </View>
                 </View>
-              </View>
-              <View style={styles.mobileHealthDetails}>
-                <Text style={styles.mobileHealthLabel}>SALDO DISPONIBLE</Text>
-                <Text style={[styles.mobileHealthAmount, { color: saldoDisponible >= 0 ? colorsNav.text : '#EF4444' }]}>{fmt(saldoDisponible)}</Text>
-                <TouchableOpacity 
-                  style={[styles.mobileHealthBtn, { borderColor: colorsNav.border + '50' }]} 
-                  onPress={() => setBreakdownVisible(true)}
-                >
-                  <Text style={{ color: colorsNav.text, fontWeight: '700', fontSize: 13 }}>Ver detalles</Text>
-                  <MaterialIcons name="arrow-forward" size={14} color={colorsNav.text} style={{ marginLeft: 5 }} />
-                </TouchableOpacity>
+                <View style={styles.mobileHealthDetails}>
+                  <Text style={[styles.mobileHealthLabel, { color: colorsNav.sub }]}>SALDO DISPONIBLE</Text>
+                  <Text style={[styles.mobileHealthAmount, { color: saldoDisponible >= 0 ? colorsNav.text : '#EF4444' }]}>{fmt(saldoDisponible)}</Text>
+                  <TouchableOpacity 
+                    style={[styles.mobileHealthBtn, { borderColor: colorsNav.border + '50', backgroundColor: 'transparent' }]} 
+                    onPress={() => setBreakdownVisible(!breakdownVisible)}
+                  >
+                    <Text style={{ color: colorsNav.text, fontWeight: '700', fontSize: 13 }}>{breakdownVisible ? 'Ocultar' : 'Ver detalles'}</Text>
+                    <MaterialIcons name={breakdownVisible ? "keyboard-arrow-up" : "keyboard-arrow-right"} size={18} color={colorsNav.text} style={{ marginLeft: 5 }} />
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
 
+              {/* Desglose de Salud Financiera (Inline / Desplegable) */}
+              {breakdownVisible && (
+                <View style={{ marginTop: -10, marginBottom: 25, paddingHorizontal: 4 }}>
+                  <View style={[styles.refinedBreakdownBox, { backgroundColor: isDark ? colorsNav.card : '#FFF', borderLeftWidth: 4, borderLeftColor: colorsNav.accent }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={[styles.breakdownLabel, { color: colorsNav.sub }]}>LIQUIDEZ (REAL)</Text>
+                      <MaterialIcons name="account-balance-wallet" size={16} color={colorsNav.accent} />
+                    </View>
+                    <Text style={[styles.breakdownValue, { color: dineroReal >= 0 ? colorsNav.text : '#EF4444' }]}>{fmt(dineroReal)}</Text>
+                    <Text style={styles.breakdownMath}>Efectivo/Cuentas - Deudas</Text>
+                  </View>
+
+                  <View style={[styles.refinedBreakdownBox, { backgroundColor: isDark ? colorsNav.card : '#FFF', borderLeftWidth: 4, borderLeftColor: '#8B5CF6' }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={[styles.breakdownLabel, { color: colorsNav.sub }]}>PATRIMONIO GENERAL</Text>
+                      <MaterialIcons name="account-balance" size={16} color="#8B5CF6" />
+                    </View>
+                    <Text style={[styles.breakdownValue, { color: dineroGeneral >= 0 ? colorsNav.text : '#EF4444' }]}>{fmt(dineroGeneral)}</Text>
+                    <Text style={styles.breakdownMath}>Disponible + Ahorro + Inversión - Deudas</Text>
+                  </View>
+
+                  <Text style={{ fontSize: 12, fontWeight: '900', color: colorsNav.sub, marginTop: 10, marginBottom: 15, letterSpacing: 1.2, marginLeft: 10 }}>DESGLOSE DE CUENTAS</Text>
+                  
+                  <View style={{ backgroundColor: isDark ? colorsNav.card : '#FFF', borderRadius: 24, padding: 15, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 10, elevation: 2 }}>
+                    {Object.entries(accountTotals)
+                      .filter(([name]) => name !== 'Ahorro' && !userCards.includes(name))
+                      .map(([name, total], idx, arr) => (
+                        <View key={name} style={[styles.breakdownItem, { borderBottomColor: colorsNav.border + '30', borderBottomWidth: idx === arr.length - 1 ? 0 : 1, paddingVertical: 12 }]}>
+                          <View style={styles.breakdownLeft}>
+                            <View style={[styles.accIcon, { backgroundColor: name === 'Efectivo' ? '#E8F5E9' : '#F0E6FF', width: 34, height: 34, borderRadius: 10 }]}>
+                              <MaterialIcons
+                                name={name === 'Efectivo' ? 'money' : (name === 'Transferencia' || name === 'Bancaria') ? 'account-balance' : 'wallet' as any}
+                                size={18}
+                                color={name === 'Efectivo' ? colorsNav.accent : '#8B5CF6'}
+                              />
+                            </View>
+                            <Text style={[styles.accName, { color: colorsNav.text, fontSize: 14 }]}>{name}</Text>
+                          </View>
+                          <Text style={[styles.accValue, { color: colorsNav.text }]}>{fmt(total as number)}</Text>
+                        </View>
+                      ))}
+                  </View>
+                </View>
+              )}
+
             {/* ── Últimas Transacciones (7) ─── */}
             <View style={{ marginTop: 10, paddingBottom: 120 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <Text style={{ fontSize: 22, fontWeight: '900', color: colorsNav.text }}>Últimas Transacciones</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25, marginTop: 10 }}>
+                <Text style={{ fontSize: 26, fontWeight: '900', color: colorsNav.text }}>Últimas Transacciones</Text>
                 <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
-                  <Text style={{ color: '#EF4444', fontWeight: '700', fontSize: 14 }}>Ver todas</Text>
+                  <Text style={{ color: '#EF4444', fontWeight: '800', fontSize: 15 }}>Ver todas</Text>
                 </TouchableOpacity>
               </View>
               
               {allTransactions.slice(0, 7).map((tx, idx) => {
                 const iconInfo = getTxIconInfo(tx);
+                const isExpense = tx.type === 'expense';
                 return (
-                  <View key={tx.id || idx} style={[
-                    styles.mobileTxItem, 
-                    { 
-                      backgroundColor: isDark ? colorsNav.card : '#FFF',
-                      flexDirection: 'row', 
-                      alignItems: 'center',
-                      justifyContent: 'space-between'
-                    }
-                  ]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15, flex: 1 }}>
-                      <View style={[styles.txIconRoundRefined, { backgroundColor: isDark ? colorsNav.cardBg : iconInfo.bg, width: 44, height: 44 }]}>
-                        <MaterialIcons name={iconInfo.icon as any} size={20} color={iconInfo.color} />
+                  <View key={tx.id || idx} style={{ 
+                    flexDirection: 'row', 
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 20,
+                    paddingHorizontal: 4
+                  }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, flex: 1 }}>
+                      <View style={{ 
+                        backgroundColor: isDark ? colorsNav.card : iconInfo.bg, 
+                        width: 54, 
+                        height: 54, 
+                        borderRadius: 27, 
+                        justifyContent: 'center', 
+                        alignItems: 'center' 
+                      }}>
+                        <MaterialIcons name={iconInfo.icon as any} size={24} color={iconInfo.color} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontWeight: '800', fontSize: 15, color: colorsNav.text }} numberOfLines={1}>
+                        <Text style={{ fontWeight: '900', fontSize: 18, color: colorsNav.text }} numberOfLines={1}>
                           {tx.description === 'Sin descripción' || !tx.description ? tx.category : tx.description}
                         </Text>
-                        <Text style={{ fontSize: 11, color: colorsNav.sub, marginTop: 2 }}>HOY</Text>
+                        <Text style={{ fontSize: 13, color: colorsNav.sub, fontWeight: '700', marginTop: 2 }}>HOY</Text>
                       </View>
                     </View>
                     <Text style={{ 
                       fontWeight: '900', 
-                      fontSize: 16, 
-                      color: tx.type === 'expense' ? colorsNav.text : colorsNav.accent 
+                      fontSize: 19, 
+                      color: isExpense ? colorsNav.text : colorsNav.accent,
+                      textAlign: 'right',
+                      letterSpacing: -0.5
                     }}>
-                      {tx.type === 'expense' ? '-' : '+'}{fmt(tx.amount)}
+                      {isExpense ? '- ' : '+ '}{fmt(tx.amount)}
                     </Text>
                   </View>
                 );
@@ -885,70 +942,7 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      {/* ── Breakdown Modal ────────────────────────────────────── */}
-      <Modal visible={breakdownVisible} transparent animationType="fade" onRequestClose={() => setBreakdownVisible(false)}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setBreakdownVisible(false)}>
-          <View style={[styles.modalCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
-            <View style={{ alignItems: 'center', marginBottom: 25 }}>
-              <View style={[styles.statIconWrapRefined, { backgroundColor: colorsNav.accent + '15', width: 50, height: 50, borderRadius: 18 }]}>
-                <MaterialIcons name="analytics" size={28} color={colorsNav.accent} />
-              </View>
-              <Text style={[styles.modalTitle, { color: colorsNav.text, textAlign: 'center' }]}>Salud Financiera</Text>
-            </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Apartado 1: Liquidez */}
-              <View style={[styles.refinedBreakdownBox, { backgroundColor: isDark ? '#2A2A42' : '#F8FAFC' }]}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={[styles.breakdownLabel, { color: colorsNav.sub }]}>LIQUIDEZ (REAL)</Text>
-                  <MaterialIcons name="account-balance-wallet" size={16} color={colorsNav.accent} />
-                </View>
-                <Text style={[styles.breakdownValue, { color: dineroReal >= 0 ? colorsNav.text : '#EF4444' }]}>{fmt(dineroReal)}</Text>
-                <Text style={styles.breakdownMath}>Efectivo/Cuentas - Deudas</Text>
-              </View>
-
-              {/* Apartado 2: Patrimonio */}
-              <View style={[styles.refinedBreakdownBox, { backgroundColor: isDark ? '#2A2A42' : '#F8FAFC' }]}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={[styles.breakdownLabel, { color: colorsNav.sub }]}>PATRIMONIO GENERAL</Text>
-                  <MaterialIcons name="account-balance" size={16} color={colorsNav.accent} />
-                </View>
-                <Text style={[styles.breakdownValue, { color: dineroGeneral >= 0 ? colorsNav.text : '#EF4444' }]}>{fmt(dineroGeneral)}</Text>
-                <Text style={styles.breakdownMath}>Tus Bienes - Deudas Totales</Text>
-              </View>
-
-              <Text style={{ fontSize: 13, fontWeight: '900', color: colorsNav.sub, marginTop: 15, marginBottom: 10, letterSpacing: 1 }}>DESGLOSE DE CUENTAS</Text>
-              
-              <View style={styles.breakdownList}>
-                {Object.entries(accountTotals)
-                  .filter(([name]) => name !== 'Ahorro' && !userCards.includes(name))
-                  .map(([name, total]) => (
-                    <View key={name} style={[styles.breakdownItem, { borderBottomColor: isDark ? colorsNav.border : '#F0E8DC' }]}>
-                      <View style={styles.breakdownLeft}>
-                        <View style={[styles.accIcon, { backgroundColor: name === 'Efectivo' ? '#E8F5E9' : '#F0E6FF' }]}>
-                          <MaterialIcons
-                            name={name === 'Efectivo' ? 'money' : (name === 'Transferencia' || name === 'Bancaria') ? 'account-balance' : 'wallet' as any}
-                            size={20}
-                            color={name === 'Efectivo' ? colorsNav.accent : '#8B5CF6'}
-                          />
-                        </View>
-                        <Text style={[styles.accName, { color: colorsNav.text }]}>{name}</Text>
-                      </View>
-                      <Text style={[styles.accValue, { color: colorsNav.text }]}>{fmt(total as number)}</Text>
-                    </View>
-                  ))}
-              </View>
-            </ScrollView>
-
-            <TouchableOpacity
-              style={[styles.modalCloseBtn, { backgroundColor: isDark ? colorsNav.border : '#F5EDE0' }]}
-              onPress={() => setBreakdownVisible(false)}
-            >
-              <Text style={[styles.modalCloseBtnText, { color: colorsNav.text }]}>Cerrar</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
 
 
     </SafeAreaView>
@@ -1085,10 +1079,7 @@ const styles = StyleSheet.create({
   },
   mobileHealthCard: {
     padding: 24,
-    borderRadius: 32, // Más redondeado
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 24,
+    borderRadius: 32,
     marginBottom: 20,
     shadowColor: '#000',
     shadowOpacity: 0.06,
