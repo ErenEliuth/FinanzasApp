@@ -582,29 +582,7 @@ export default function HomeScreen() {
               <View style={styles.heroVisual} />
             </TouchableOpacity>
 
-            {/* Desglose de Cuentas (Dinero Activo) */}
-            {activeMoneyBreakdownVisible && (
-              <View style={{ backgroundColor: isDark ? colorsNav.card : '#FFF', borderRadius: 24, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 10, elevation: 2 }}>
-                <Text style={{ fontSize: 12, fontWeight: '900', color: colorsNav.sub, marginBottom: 15, letterSpacing: 1.2, marginLeft: 5 }}>DESGLOSE DE CUENTAS</Text>
-                {Object.entries(accountTotals)
-                  .filter(([name]) => name !== 'Ahorro' && !userCards.includes(name))
-                  .map(([name, total], idx, arr) => (
-                    <View key={name} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomColor: colorsNav.border + '30', borderBottomWidth: idx === arr.length - 1 ? 0 : 1, paddingVertical: 12 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
-                        <View style={{ backgroundColor: name === 'Efectivo' ? '#E8F5E9' : '#F0E6FF', width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center' }}>
-                          <MaterialIcons
-                            name={name === 'Efectivo' ? 'money' : (name === 'Transferencia' || name === 'Bancaria') ? 'account-balance' : 'wallet' as any}
-                            size={20}
-                            color={name === 'Efectivo' ? colorsNav.accent : '#8B5CF6'}
-                          />
-                        </View>
-                        <Text style={{ color: colorsNav.text, fontSize: 14, fontWeight: '800' }}>{name}</Text>
-                      </View>
-                      <Text style={{ color: colorsNav.text, fontSize: 15, fontWeight: '900' }}>{fmt(total as number)}</Text>
-                    </View>
-                  ))}
-              </View>
-            )}
+
 
             {/* ── Estadísticas ─── */}
             {isDesktop ? (
@@ -985,9 +963,41 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
-
-
-
+      {/* ── Modal de Distribución de Dinero ─── */}
+      <Modal visible={activeMoneyBreakdownVisible} transparent animationType="fade" onRequestClose={() => setActiveMoneyBreakdownVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: isDark ? colorsNav.card : '#FFF', maxWidth: 450 }]}>
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              <Text style={[styles.modalTitle, { color: colorsNav.text, fontSize: 18, marginBottom: 15 }]}>Distribución de Dinero</Text>
+            </View>
+            <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
+              {Object.entries(accountTotals)
+                .filter(([name]) => name !== 'Ahorro' && !userCards.includes(name))
+                .map(([name, total], idx, arr) => (
+                  <View key={name} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomColor: colorsNav.border + '30', borderBottomWidth: idx === arr.length - 1 ? 0 : 1, paddingVertical: 14 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                      <View style={{ backgroundColor: name === 'Efectivo' ? '#E8F5E9' : '#F0E6FF', width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' }}>
+                        <MaterialIcons
+                          name={name === 'Efectivo' ? 'money' : (name === 'Transferencia' || name === 'Bancaria') ? 'account-balance' : 'wallet' as any}
+                          size={24}
+                          color={name === 'Efectivo' ? colorsNav.accent : '#8B5CF6'}
+                        />
+                      </View>
+                      <Text style={{ color: colorsNav.text, fontSize: 16, fontWeight: '800' }}>{name}</Text>
+                    </View>
+                    <Text style={{ color: colorsNav.text, fontSize: 16, fontWeight: '900' }}>{fmt(total as number)}</Text>
+                  </View>
+                ))}
+            </ScrollView>
+            <TouchableOpacity 
+              style={[styles.modalCloseBtn, { backgroundColor: isDark ? '#3A3A52' : '#FDF8F3', marginTop: 20 }]} 
+              onPress={() => setActiveMoneyBreakdownVisible(false)}
+            >
+              <Text style={[styles.modalCloseBtnText, { color: colorsNav.text, fontSize: 15 }]}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
     </SafeAreaView>
   );
