@@ -80,6 +80,7 @@ export default function HomeScreen() {
   const [debtTotal, setDebtTotal] = useState(0);
   const [accountTotals, setAccountTotals] = useState<any>({});
   const [breakdownVisible, setBreakdownVisible] = useState(false);
+  const [activeMoneyBreakdownVisible, setActiveMoneyBreakdownVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [pendingItems, setPendingItems] = useState<any[]>([]);
   const [userCards, setUserCards] = useState<string[]>([]);
@@ -555,7 +556,7 @@ export default function HomeScreen() {
                 { backgroundColor: isDesktop ? (isDark ? '#5D1220' : '#8B1A2E') : colorsNav.greenCard }
               ]}
               activeOpacity={0.9}
-              onPress={() => setBreakdownVisible(true)}
+              onPress={() => setActiveMoneyBreakdownVisible(!activeMoneyBreakdownVisible)}
             >
               <View style={styles.heroHeader}>
                 <Text style={[styles.heroLabel, !isDesktop && { textTransform: 'uppercase', fontSize: 11, fontWeight: '900', color: 'rgba(255,255,255,0.8)', letterSpacing: 1.2 }]}>Dinero Activo</Text>
@@ -580,6 +581,30 @@ export default function HomeScreen() {
               
               <View style={styles.heroVisual} />
             </TouchableOpacity>
+
+            {/* Desglose de Cuentas (Dinero Activo) */}
+            {activeMoneyBreakdownVisible && (
+              <View style={{ backgroundColor: isDark ? colorsNav.card : '#FFF', borderRadius: 24, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 10, elevation: 2 }}>
+                <Text style={{ fontSize: 12, fontWeight: '900', color: colorsNav.sub, marginBottom: 15, letterSpacing: 1.2, marginLeft: 5 }}>DESGLOSE DE CUENTAS</Text>
+                {Object.entries(accountTotals)
+                  .filter(([name]) => name !== 'Ahorro' && !userCards.includes(name))
+                  .map(([name, total], idx, arr) => (
+                    <View key={name} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomColor: colorsNav.border + '30', borderBottomWidth: idx === arr.length - 1 ? 0 : 1, paddingVertical: 12 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                        <View style={{ backgroundColor: name === 'Efectivo' ? '#E8F5E9' : '#F0E6FF', width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center' }}>
+                          <MaterialIcons
+                            name={name === 'Efectivo' ? 'money' : (name === 'Transferencia' || name === 'Bancaria') ? 'account-balance' : 'wallet' as any}
+                            size={20}
+                            color={name === 'Efectivo' ? colorsNav.accent : '#8B5CF6'}
+                          />
+                        </View>
+                        <Text style={{ color: colorsNav.text, fontSize: 14, fontWeight: '800' }}>{name}</Text>
+                      </View>
+                      <Text style={{ color: colorsNav.text, fontSize: 15, fontWeight: '900' }}>{fmt(total as number)}</Text>
+                    </View>
+                  ))}
+              </View>
+            )}
 
             {/* ── Estadísticas ─── */}
             {isDesktop ? (
