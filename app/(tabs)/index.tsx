@@ -653,13 +653,13 @@ export default function HomeScreen() {
               styles.mobileHealthCard,
               { backgroundColor: isDark ? colorsNav.card : '#FFF' }
             ]}>
-              <Text style={{ fontSize: 18, fontWeight: '900', color: colorsNav.text, marginBottom: 20 }}>Salud Financiera</Text>
+              <Text style={{ fontSize: 18, fontWeight: '900', color: colorsNav.text, marginBottom: 16 }}>Salud Financiera</Text>
               
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 24, width: '100%' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 20, width: '100%' }}>
                 <View style={styles.mobileHealthCenter}>
-                  <CircularProgress percentage={saludPorcentaje} size={100} strokeWidth={14} color={saludColor} />
+                  <CircularProgress percentage={saludPorcentaje} size={84} strokeWidth={10} color={saludColor} />
                   <View style={styles.healthInnerRefined}>
-                    <Text style={[styles.healthScoreRefined, { color: saludColor, fontSize: 22 }]}>{saludPorcentaje}%</Text>
+                    <Text style={[styles.healthScoreRefined, { color: saludColor, fontSize: 18 }]}>{saludPorcentaje}%</Text>
                     <Text style={[styles.healthSuffixRefined, { color: saludColor, fontSize: 8 }]}>{saludLabel}</Text>
                   </View>
                 </View>
@@ -670,8 +670,8 @@ export default function HomeScreen() {
                     style={[styles.mobileHealthBtn, { borderColor: colorsNav.border + '50', backgroundColor: 'transparent' }]} 
                     onPress={() => setBreakdownVisible(!breakdownVisible)}
                   >
-                    <Text style={{ color: colorsNav.text, fontWeight: '700', fontSize: 13 }}>{breakdownVisible ? 'Ocultar' : 'Ver detalles'}</Text>
-                    <MaterialIcons name={breakdownVisible ? "keyboard-arrow-up" : "keyboard-arrow-right"} size={18} color={colorsNav.text} style={{ marginLeft: 5 }} />
+                    <Text style={{ color: colorsNav.sub, fontWeight: '700', fontSize: 12 }}>{breakdownVisible ? 'Ocultar' : 'Ver detalles'}</Text>
+                    <MaterialIcons name={breakdownVisible ? "keyboard-arrow-up" : "arrow-forward"} size={14} color={colorsNav.sub} style={{ marginLeft: 6 }} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1083,47 +1083,47 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mobileHealthCard: {
-    padding: 24,
-    borderRadius: 32,
+    padding: 20,
+    borderRadius: 24,
     marginBottom: 20,
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
     elevation: 2,
   },
   mobileHealthCenter: {
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
-    width: 100,
-    height: 100,
+    width: 84,
+    height: 84,
   },
   mobileHealthDetails: {
     flex: 1,
     justifyContent: 'center',
   },
   mobileHealthLabel: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.2,
     marginBottom: 4,
     opacity: 0.7,
   },
   mobileHealthAmount: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '900',
-    marginBottom: 14,
+    marginBottom: 10,
     letterSpacing: -0.5,
   },
   mobileHealthBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderRadius: 50,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(0,0,0,0.02)',
+    backgroundColor: 'transparent',
   },
   mobileAccountsCard: {
     padding: 24,
