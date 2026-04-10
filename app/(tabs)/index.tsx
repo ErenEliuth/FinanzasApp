@@ -560,13 +560,13 @@ export default function HomeScreen() {
               <View style={styles.heroHeader}>
                 <Text style={[styles.heroLabel, !isDesktop && { textTransform: 'uppercase', fontSize: 11, fontWeight: '900', color: 'rgba(255,255,255,0.8)', letterSpacing: 1.2 }]}>Dinero Activo</Text>
               </View>
-              <Text style={[styles.heroAmount, !isDesktop && { fontSize: 38, marginTop: 5 }]}>{fmt(dineroActivo)}</Text>
+              <Text style={[styles.heroAmount, !isDesktop && { fontSize: 44, marginTop: 8 }]}>{fmt(dineroActivo)}</Text>
               
               {!isDesktop && (
                 <View style={styles.mobileTrendContainer}>
                   <View style={styles.mobileTrendBubble}>
-                    <MaterialIcons name={Number(porcentajeMes) >= 0 ? "trending-up" : "trending-down"} size={12} color={colorsNav.accent} />
-                    <Text style={[styles.mobileTrendTxt, { color: colorsNav.text, fontSize: 11 }]}>{porcentajeMes}% este mes</Text>
+                    <MaterialIcons name={Number(porcentajeMes) >= 0 ? "trending-up" : "trending-down"} size={14} color={colorsNav.accent} />
+                    <Text style={[styles.mobileTrendTxt, { color: colorsNav.text, fontSize: 12 }]}>{porcentajeMes}% este mes</Text>
                   </View>
                 </View>
               )}
@@ -653,14 +653,14 @@ export default function HomeScreen() {
               styles.mobileHealthCard,
               { backgroundColor: isDark ? colorsNav.card : '#FFF' }
             ]}>
-              <Text style={{ fontSize: 18, fontWeight: '900', color: colorsNav.text, marginBottom: 16 }}>Salud Financiera</Text>
+              <Text style={{ fontSize: 17, fontWeight: '900', color: colorsNav.text, marginBottom: 14 }}>Salud Financiera</Text>
               
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 20, width: '100%' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, width: '100%' }}>
                 <View style={styles.mobileHealthCenter}>
-                  <CircularProgress percentage={saludPorcentaje} size={84} strokeWidth={10} color={saludColor} />
+                  <CircularProgress percentage={saludPorcentaje} size={76} strokeWidth={9} color={saludColor} />
                   <View style={styles.healthInnerRefined}>
-                    <Text style={[styles.healthScoreRefined, { color: saludColor, fontSize: 18 }]}>{saludPorcentaje}%</Text>
-                    <Text style={[styles.healthSuffixRefined, { color: saludColor, fontSize: 8 }]}>{saludLabel}</Text>
+                    <Text style={[styles.healthScoreRefined, { color: saludColor, fontSize: 16 }]}>{saludPorcentaje}%</Text>
+                    <Text style={[styles.healthSuffixRefined, { color: saludColor, fontSize: 7 }]}>{saludLabel}</Text>
                   </View>
                 </View>
                 <View style={styles.mobileHealthDetails}>
@@ -986,8 +986,8 @@ const styles = StyleSheet.create({
   mainHeroCardMobile: {
     width: '100%',
     borderRadius: 32,
-    padding: 20,
-    height: 145, 
+    padding: 24,
+    height: 175, 
     justifyContent: 'center',
     marginBottom: 16,
     shadowColor: '#000',
@@ -999,8 +999,8 @@ const styles = StyleSheet.create({
   },
   mobileTrendContainer: {
     position: 'absolute',
-    bottom: 16,
-    right: 20,
+    bottom: 20,
+    right: 24,
     zIndex: 3,
   },
   mobileTrendBubble: {
@@ -1083,9 +1083,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mobileHealthCard: {
-    padding: 20,
+    padding: 18,
     borderRadius: 24,
-    marginBottom: 20,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOpacity: 0.04,
     shadowRadius: 10,
@@ -1095,8 +1095,8 @@ const styles = StyleSheet.create({
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
-    width: 84,
-    height: 84,
+    width: 76,
+    height: 76,
   },
   mobileHealthDetails: {
     flex: 1,
@@ -1141,9 +1141,9 @@ const styles = StyleSheet.create({
   },
   mobileStatBox: {
     flex: 1,
-    padding: 16,
-    height: 100,
-    borderRadius: 24,
+    padding: 20,
+    height: 115,
+    borderRadius: 28,
     justifyContent: 'space-between',
     shadowColor: '#000',
     shadowOpacity: 0.04,
@@ -1159,9 +1159,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    height: 70,
-    borderRadius: 24,
+    padding: 20,
+    height: 82,
+    borderRadius: 28,
     shadowColor: '#000',
     shadowOpacity: 0.04,
     shadowRadius: 10,
