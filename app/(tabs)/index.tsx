@@ -560,13 +560,13 @@ export default function HomeScreen() {
               <View style={styles.heroHeader}>
                 <Text style={[styles.heroLabel, !isDesktop && { textTransform: 'uppercase', fontSize: 11, fontWeight: '900', color: 'rgba(255,255,255,0.8)', letterSpacing: 1.2 }]}>Dinero Activo</Text>
               </View>
-              <Text style={[styles.heroAmount, !isDesktop && { fontSize: 48, marginTop: 10 }]}>{fmt(dineroActivo)}</Text>
+              <Text style={[styles.heroAmount, !isDesktop && { fontSize: 38, marginTop: 5 }]}>{fmt(dineroActivo)}</Text>
               
               {!isDesktop && (
                 <View style={styles.mobileTrendContainer}>
                   <View style={styles.mobileTrendBubble}>
-                    <MaterialIcons name={Number(porcentajeMes) >= 0 ? "trending-up" : "trending-down"} size={14} color={colorsNav.accent} />
-                    <Text style={[styles.mobileTrendTxt, { color: colorsNav.text }]}>{porcentajeMes}% este mes</Text>
+                    <MaterialIcons name={Number(porcentajeMes) >= 0 ? "trending-up" : "trending-down"} size={12} color={colorsNav.accent} />
+                    <Text style={[styles.mobileTrendTxt, { color: colorsNav.text, fontSize: 11 }]}>{porcentajeMes}% este mes</Text>
                   </View>
                 </View>
               )}
@@ -611,22 +611,22 @@ export default function HomeScreen() {
               </View>
             ) : (
               /* Mobile: 2 cols (Ahorros + Deudas) + full-width Inversiones */
-              <View style={{ marginBottom: 20 }}>
+              <View style={{ marginBottom: 16 }}>
                 <View style={styles.mobileStatsRow}>
                   <TouchableOpacity style={[styles.mobileStatBox, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/goals')}>
-                    <View style={[styles.statIconWrapRefined, { backgroundColor: '#E8F5E9', borderRadius: 14 }]}>
-                      <MaterialIcons name="savings" size={22} color="#2D5A3D" />
+                    <View style={[styles.statIconWrapRefined, { backgroundColor: '#E8F5E9', borderRadius: 10, width: 32, height: 32 }]}>
+                      <MaterialIcons name="savings" size={18} color="#2D5A3D" />
                     </View>
-                    <Text style={[styles.statLabelRefined, { fontSize: 10, marginTop: 8 }]}>AHORROS</Text>
-                    <Text style={[styles.mobileStatValue, { color: colorsNav.text }]}>{fmt(ahorroTotal)}</Text>
+                    <Text style={[styles.statLabelRefined, { fontSize: 9, marginTop: 6 }]}>AHORROS</Text>
+                    <Text style={[styles.mobileStatValue, { color: colorsNav.text, fontSize: 16 }]}>{fmt(ahorroTotal)}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity style={[styles.mobileStatBox, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/(tabs)/debts')}>
-                    <View style={[styles.statIconWrapRefined, { backgroundColor: '#FFEBEE', borderRadius: 14 }]}>
-                      <MaterialIcons name="credit-card" size={22} color="#D32F2F" />
+                    <View style={[styles.statIconWrapRefined, { backgroundColor: '#FFEBEE', borderRadius: 10, width: 32, height: 32 }]}>
+                      <MaterialIcons name="credit-card" size={18} color="#D32F2F" />
                     </View>
-                    <Text style={[styles.statLabelRefined, { fontSize: 10, marginTop: 8 }]}>DEUDAS</Text>
-                    <Text style={[styles.mobileStatValue, { color: '#D32F2F' }]}>{fmt(debtTotal)}</Text>
+                    <Text style={[styles.statLabelRefined, { fontSize: 9, marginTop: 6 }]}>DEUDAS</Text>
+                    <Text style={[styles.mobileStatValue, { color: '#D32F2F', fontSize: 16 }]}>{fmt(debtTotal)}</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -634,16 +634,16 @@ export default function HomeScreen() {
                   style={[styles.mobileInvestRow, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} 
                   onPress={() => router.push('/invest' as any)}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                    <View style={[styles.statIconWrapRefined, { backgroundColor: '#E3F2FD', borderRadius: 14 }]}>
-                      <MaterialIcons name="show-chart" size={22} color="#1976D2" />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={[styles.statIconWrapRefined, { backgroundColor: '#E3F2FD', borderRadius: 10, width: 32, height: 32, marginBottom: 0 }]}>
+                      <MaterialIcons name="show-chart" size={18} color="#1976D2" />
                     </View>
                     <View>
-                      <Text style={[styles.statLabelRefined, { fontSize: 10, letterSpacing: 0.8 }]}>INVERSIONES</Text>
-                      <Text style={[styles.mobileStatValue, { color: colorsNav.text }]}>{fmt(investmentTotal)}</Text>
+                      <Text style={[styles.statLabelRefined, { fontSize: 9, letterSpacing: 0.5, marginBottom: 2 }]}>INVERSIONES</Text>
+                      <Text style={[styles.mobileStatValue, { color: colorsNav.text, fontSize: 16, marginTop: 0 }]}>{fmt(investmentTotal)}</Text>
                     </View>
                   </View>
-                  <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
+                  <MaterialIcons name="chevron-right" size={20} color={colorsNav.sub} />
                 </TouchableOpacity>
               </View>
             )}
@@ -724,10 +724,10 @@ export default function HomeScreen() {
 
             {/* ── Últimas Transacciones (7) ─── */}
             <View style={{ marginTop: 10, paddingBottom: 120 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <Text style={{ fontSize: 20, fontWeight: '900', color: colorsNav.text }}>Últimas Transacciones</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text style={{ fontSize: 18, fontWeight: '900', color: colorsNav.text }}>Últimas Transacciones</Text>
                 <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
-                  <Text style={{ color: '#EF4444', fontWeight: '700', fontSize: 13 }}>Ver todas</Text>
+                  <Text style={{ color: '#EF4444', fontWeight: '700', fontSize: 12 }}>Ver todas</Text>
                 </TouchableOpacity>
               </View>
               
@@ -740,35 +740,35 @@ export default function HomeScreen() {
                     flexDirection: 'row', 
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: 20,
+                    padding: 16,
                     borderRadius: 24,
-                    marginBottom: 16,
+                    marginBottom: 10,
                     shadowColor: '#000',
                     shadowOpacity: 0.04,
                     shadowRadius: 10,
                     elevation: 2
                   }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15, flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
                       <View style={{ 
                         backgroundColor: isDark ? colorsNav.cardBg : iconInfo.bg, 
-                        width: 48, 
-                        height: 48, 
-                        borderRadius: 16, 
+                        width: 44, 
+                        height: 44, 
+                        borderRadius: 14, 
                         justifyContent: 'center', 
                         alignItems: 'center' 
                       }}>
-                        <MaterialIcons name={iconInfo.icon as any} size={22} color={iconInfo.color} />
+                        <MaterialIcons name={iconInfo.icon as any} size={20} color={iconInfo.color} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontWeight: '900', fontSize: 16, color: colorsNav.text }} numberOfLines={1}>
+                        <Text style={{ fontWeight: '900', fontSize: 15, color: colorsNav.text }} numberOfLines={1}>
                           {tx.description === 'Sin descripción' || !tx.description ? tx.category : tx.description}
                         </Text>
-                        <Text style={{ fontSize: 11, color: colorsNav.sub, fontWeight: '700', marginTop: 2 }}>HOY</Text>
+                        <Text style={{ fontSize: 10, color: colorsNav.sub, fontWeight: '700', marginTop: 2 }}>HOY</Text>
                       </View>
                     </View>
                     <Text style={{ 
                       fontWeight: '900', 
-                      fontSize: 17, 
+                      fontSize: 15, 
                       color: isExpense ? colorsNav.text : colorsNav.accent,
                       textAlign: 'right',
                     }}>
@@ -985,11 +985,11 @@ const styles = StyleSheet.create({
   },
   mainHeroCardMobile: {
     width: '100%',
-    borderRadius: 36, // Más redondeado como la foto
-    padding: 24,
-    height: 200, // Proporción más ajustada
+    borderRadius: 32,
+    padding: 20,
+    height: 145, 
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOpacity: 0.12,
     shadowRadius: 12,
@@ -999,7 +999,7 @@ const styles = StyleSheet.create({
   },
   mobileTrendContainer: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 16,
     right: 20,
     zIndex: 3,
   },
@@ -1141,9 +1141,9 @@ const styles = StyleSheet.create({
   },
   mobileStatBox: {
     flex: 1,
-    padding: 20,
-    height: 140, // Más alto para ser más cuadrado
-    borderRadius: 32, // Bordes muy redondeados
+    padding: 16,
+    height: 100,
+    borderRadius: 24,
     justifyContent: 'space-between',
     shadowColor: '#000',
     shadowOpacity: 0.04,
@@ -1159,9 +1159,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    height: 85,
-    borderRadius: 30,
+    padding: 16,
+    height: 70,
+    borderRadius: 24,
     shadowColor: '#000',
     shadowOpacity: 0.04,
     shadowRadius: 10,
@@ -1285,8 +1285,8 @@ const styles = StyleSheet.create({
   subActionBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 50, borderRadius: 16, gap: 8 },
   subActionText: { fontSize: 13, fontWeight: '800' },
   headerIconBtnSmall: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  greeting: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
-  subtitle: { fontSize: 14, marginTop: 2, fontWeight: '600' },
+  greeting: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
+  subtitle: { fontSize: 13, marginTop: 2, fontWeight: '600' },
   notifBadge: { position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' },
 
   // Modals
