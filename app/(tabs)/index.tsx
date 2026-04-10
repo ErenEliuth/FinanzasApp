@@ -724,10 +724,10 @@ export default function HomeScreen() {
 
             {/* ── Últimas Transacciones (7) ─── */}
             <View style={{ marginTop: 10, paddingBottom: 120 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25, marginTop: 10 }}>
-                <Text style={{ fontSize: 26, fontWeight: '900', color: colorsNav.text }}>Últimas Transacciones</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <Text style={{ fontSize: 20, fontWeight: '900', color: colorsNav.text }}>Últimas Transacciones</Text>
                 <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
-                  <Text style={{ color: '#EF4444', fontWeight: '800', fontSize: 15 }}>Ver todas</Text>
+                  <Text style={{ color: '#EF4444', fontWeight: '700', fontSize: 13 }}>Ver todas</Text>
                 </TouchableOpacity>
               </View>
               
@@ -736,38 +736,43 @@ export default function HomeScreen() {
                 const isExpense = tx.type === 'expense';
                 return (
                   <View key={tx.id || idx} style={{ 
+                    backgroundColor: isDark ? colorsNav.card : '#FFF',
                     flexDirection: 'row', 
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    marginBottom: 20,
-                    paddingHorizontal: 4
+                    padding: 20,
+                    borderRadius: 24,
+                    marginBottom: 16,
+                    shadowColor: '#000',
+                    shadowOpacity: 0.04,
+                    shadowRadius: 10,
+                    elevation: 2
                   }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15, flex: 1 }}>
                       <View style={{ 
-                        backgroundColor: isDark ? colorsNav.card : iconInfo.bg, 
-                        width: 54, 
-                        height: 54, 
-                        borderRadius: 27, 
+                        backgroundColor: isDark ? colorsNav.cardBg : iconInfo.bg, 
+                        width: 48, 
+                        height: 48, 
+                        borderRadius: 16, 
                         justifyContent: 'center', 
                         alignItems: 'center' 
                       }}>
-                        <MaterialIcons name={iconInfo.icon as any} size={24} color={iconInfo.color} />
+                        <MaterialIcons name={iconInfo.icon as any} size={22} color={iconInfo.color} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontWeight: '900', fontSize: 18, color: colorsNav.text }} numberOfLines={1}>
+                        <Text style={{ fontWeight: '900', fontSize: 16, color: colorsNav.text }} numberOfLines={1}>
                           {tx.description === 'Sin descripción' || !tx.description ? tx.category : tx.description}
                         </Text>
-                        <Text style={{ fontSize: 13, color: colorsNav.sub, fontWeight: '700', marginTop: 2 }}>HOY</Text>
+                        <Text style={{ fontSize: 11, color: colorsNav.sub, fontWeight: '700', marginTop: 2 }}>HOY</Text>
                       </View>
                     </View>
                     <Text style={{ 
                       fontWeight: '900', 
-                      fontSize: 19, 
+                      fontSize: 17, 
                       color: isExpense ? colorsNav.text : colorsNav.accent,
                       textAlign: 'right',
-                      letterSpacing: -0.5
                     }}>
-                      {isExpense ? '- ' : '+ '}{fmt(tx.amount)}
+                      {isExpense ? '-' : '+'}{fmt(tx.amount)}
                     </Text>
                   </View>
                 );
