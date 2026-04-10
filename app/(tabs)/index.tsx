@@ -564,9 +564,9 @@ export default function HomeScreen() {
               
               {!isDesktop && (
                 <View style={styles.mobileTrendContainer}>
-                  <View style={styles.mobileTrendBubble}>
-                    <MaterialIcons name={Number(porcentajeMes) >= 0 ? "trending-up" : "trending-down"} size={14} color={colorsNav.accent} />
-                    <Text style={[styles.mobileTrendTxt, { color: colorsNav.text, fontSize: 12 }]}>{porcentajeMes}% este mes</Text>
+                  <View style={[styles.mobileTrendBubble, { paddingHorizontal: 12, paddingVertical: 6, gap: 2 }]}>
+                    <MaterialIcons name={Number(porcentajeMes) >= 0 ? "trending-up" : "trending-down"} size={12} color={colorsNav.accent} />
+                    <Text style={[styles.mobileTrendTxt, { color: colorsNav.text, fontSize: 10 }]}>{porcentajeMes}% este mes</Text>
                   </View>
                 </View>
               )}
@@ -679,45 +679,59 @@ export default function HomeScreen() {
 
               {/* Desglose de Salud Financiera (Inline / Desplegable) */}
               {breakdownVisible && (
-                <View style={{ marginTop: -10, marginBottom: 25, paddingHorizontal: 4 }}>
-                  <View style={[styles.refinedBreakdownBox, { backgroundColor: isDark ? colorsNav.card : '#FFF', borderLeftWidth: 4, borderLeftColor: colorsNav.accent }]}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={[styles.breakdownLabel, { color: colorsNav.sub }]}>LIQUIDEZ (REAL)</Text>
-                      <MaterialIcons name="account-balance-wallet" size={16} color={colorsNav.accent} />
-                    </View>
-                    <Text style={[styles.breakdownValue, { color: dineroReal >= 0 ? colorsNav.text : '#EF4444' }]}>{fmt(dineroReal)}</Text>
-                    <Text style={styles.breakdownMath}>Efectivo/Cuentas - Deudas</Text>
+                <View style={{ 
+                  backgroundColor: isDark ? colorsNav.card : '#FFF', 
+                  borderRadius: 24,
+                  padding: 24,
+                  marginBottom: 20,
+                  shadowColor: '#000',
+                  shadowOpacity: 0.04,
+                  shadowRadius: 10,
+                  elevation: 2,
+                  borderWidth: 1,
+                  borderColor: isDark ? 'transparent' : 'rgba(0,0,0,0.05)'
+                }}>
+                  <View style={{ alignItems: 'center', marginBottom: 20 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: colorsNav.text }}>Dinero General (Patrimonio)</Text>
+                    <Text style={{ fontSize: 24, fontWeight: '900', marginTop: 6, color: dineroGeneral >= 0 ? colorsNav.text : '#EF4444' }}>{fmt(dineroGeneral)}</Text>
+                    <Text style={{ fontSize: 10, fontWeight: '600', marginTop: 6, color: '#64748B' }}>Suma de Disponible, Ahorro e Inversión - Deuda</Text>
                   </View>
-
-                  <View style={[styles.refinedBreakdownBox, { backgroundColor: isDark ? colorsNav.card : '#FFF', borderLeftWidth: 4, borderLeftColor: '#8B5CF6' }]}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={[styles.breakdownLabel, { color: colorsNav.sub }]}>PATRIMONIO GENERAL</Text>
-                      <MaterialIcons name="account-balance" size={16} color="#8B5CF6" />
-                    </View>
-                    <Text style={[styles.breakdownValue, { color: dineroGeneral >= 0 ? colorsNav.text : '#EF4444' }]}>{fmt(dineroGeneral)}</Text>
-                    <Text style={styles.breakdownMath}>Disponible + Ahorro + Inversión - Deudas</Text>
-                  </View>
-
-                  <Text style={{ fontSize: 12, fontWeight: '900', color: colorsNav.sub, marginTop: 10, marginBottom: 15, letterSpacing: 1.2, marginLeft: 10 }}>DESGLOSE DE CUENTAS</Text>
                   
-                  <View style={{ backgroundColor: isDark ? colorsNav.card : '#FFF', borderRadius: 24, padding: 15, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 10, elevation: 2 }}>
-                    {Object.entries(accountTotals)
-                      .filter(([name]) => name !== 'Ahorro' && !userCards.includes(name))
-                      .map(([name, total], idx, arr) => (
-                        <View key={name} style={[styles.breakdownItem, { borderBottomColor: colorsNav.border + '30', borderBottomWidth: idx === arr.length - 1 ? 0 : 1, paddingVertical: 12 }]}>
-                          <View style={styles.breakdownLeft}>
-                            <View style={[styles.accIcon, { backgroundColor: name === 'Efectivo' ? '#E8F5E9' : '#F0E6FF', width: 34, height: 34, borderRadius: 10 }]}>
-                              <MaterialIcons
-                                name={name === 'Efectivo' ? 'money' : (name === 'Transferencia' || name === 'Bancaria') ? 'account-balance' : 'wallet' as any}
-                                size={18}
-                                color={name === 'Efectivo' ? colorsNav.accent : '#8B5CF6'}
-                              />
-                            </View>
-                            <Text style={[styles.accName, { color: colorsNav.text, fontSize: 14 }]}>{name}</Text>
-                          </View>
-                          <Text style={[styles.accValue, { color: colorsNav.text }]}>{fmt(total as number)}</Text>
-                        </View>
-                      ))}
+                  <View style={{ 
+                    flexDirection: 'row', 
+                    backgroundColor: isDark ? colorsNav.cardBg : '#FDF8F3', 
+                    borderRadius: 16, 
+                    paddingHorizontal: 16,
+                    paddingVertical: 14, 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap'
+                  }}>
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', letterSpacing: 0.5, marginBottom: 4 }}>DISPONIBLE</Text>
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: colorsNav.text }}>{fmt(dineroActivo)}</Text>
+                    </View>
+                    
+                    <View style={{ width: 1, height: 20, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }} />
+                    
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', letterSpacing: 0.5, marginBottom: 4 }}>AHORRO</Text>
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#8B5CF6' }}>{fmt(ahorroTotal)}</Text>
+                    </View>
+                    
+                    <View style={{ width: 1, height: 20, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }} />
+                    
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', letterSpacing: 0.5, marginBottom: 4 }}>INVERSIÓN</Text>
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#3B82F6' }}>{fmt(investmentTotal)}</Text>
+                    </View>
+                    
+                    <Text style={{ fontSize: 14, fontWeight: '900', color: '#EF4444', marginHorizontal: 4 }}>-</Text>
+                    
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', letterSpacing: 0.5, marginBottom: 4 }}>DEUDA</Text>
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#EF4444' }}>{fmt(debtTotal)}</Text>
+                    </View>
                   </View>
                 </View>
               )}
