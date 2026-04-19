@@ -252,16 +252,11 @@ export default function HomeScreen() {
 
       const remainingDebts = allDebts?.filter(d => Number(d.paid || 0) < Number(d.value)) || [];
 
-      // Calcular Deuda de Tarjetas (Solo el PAGO MÍNIMO)
+      // Calcular Deuda de Tarjetas (Saldo Total Real)
       let cardObligations = 0;
       parsedCards.forEach(card => {
         const balance = balances[card.name] || 0;
-        if (card.manualMinPayment && card.manualMinPayment > 0) {
-          cardObligations += card.manualMinPayment;
-        } else {
-          const pct = card.minPaymentPct || 10;
-          cardObligations += Math.round(balance * (pct / 100));
-        }
+        cardObligations += balance;
       });
 
       const totalDue = remainingDebts.reduce((sum, d) => sum + (Number(d.value) - Number(d.paid || 0)), 0) + cardObligations;
