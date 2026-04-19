@@ -522,6 +522,13 @@ export default function CardsScreen() {
                                 })}
                             </ScrollView>
                         </View>
+                        <TouchableOpacity 
+                            style={[styles.deleteBtn, { borderColor: '#EF4444' }]} 
+                            onPress={() => handleDeleteCard(currentCard)}
+                        >
+                            <MaterialIcons name="delete-outline" size={18} color="#EF4444" />
+                            <Text style={[styles.deleteBtnTxt, { color: '#EF4444' }]}>ELIMINAR ESTA TARJETA</Text>
+                        </TouchableOpacity>
                     </View>
                 ) : (
                     <View style={styles.empty}>
@@ -714,6 +721,8 @@ const styles = StyleSheet.create({
     colorDot: { width: 34, height: 34, borderRadius: 17 },
     modalFooter: { flexDirection: 'row', gap: 12 },
     mBtn: { flex: 1, padding: 18, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+    deleteBtn: { flexDirection: 'row', gap: 8, padding: 16, borderRadius: 18, borderWidth: 1.5, justifyContent: 'center', alignItems: 'center', marginTop: 30, borderStyle: 'dashed' },
+    deleteBtnTxt: { fontWeight: '800', fontSize: 13 },
     accPill: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)' },
     empty: { padding: 80, alignItems: 'center', gap: 20 },
     emptyTxt: { fontWeight: '800', fontSize: 18, textAlign: 'center' },
