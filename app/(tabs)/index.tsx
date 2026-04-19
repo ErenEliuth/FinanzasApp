@@ -156,12 +156,19 @@ export default function HomeScreen() {
       if (txError) throw txError;
 
       let cardNames: string[] = [];
+      let recognizedAccounts: string[] = ['Efectivo'];
       try {
-        const storedCards = await AsyncStorage.getItem(`@cards_${user.id}`);
+        const [storedCards, storedAccs] = await Promise.all([
+            AsyncStorage.getItem(`@cards_${user.id}`),
+            AsyncStorage.getItem('@custom_accounts')
+        ]);
         if (storedCards) {
           const parsed = JSON.parse(storedCards);
           cardNames = parsed.map((c: any) => c.name);
           setUserCards(cardNames);
+        }
+        if (storedAccs) {
+            recognizedAccounts = ['Efectivo', ...JSON.parse(storedAccs)];
         }
       } catch (e) { }
 
@@ -1006,7 +1013,12 @@ export default function HomeScreen() {
             </View>
             <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
               {Object.entries(accountTotals)
-                .filter(([name]) => name !== 'Ahorro' && !userCards.includes(name))
+                .filter(([name]) => 
+                    recognizedAccounts.includes(name) && 
+                    !userCards.includes(name) && 
+                    name !== 'Ahorro' && 
+                    name !== 'Crédito'
+                )
                 .map(([name, total], idx, arr) => (
                   <View key={name} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomColor: colorsNav.border + '30', borderBottomWidth: idx === arr.length - 1 ? 0 : 1, paddingVertical: 14 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
