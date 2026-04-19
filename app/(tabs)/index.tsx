@@ -79,6 +79,7 @@ export default function HomeScreen() {
 
   const [debtTotal, setDebtTotal] = useState(0);
   const [accountTotals, setAccountTotals] = useState<any>({});
+  const [recognizedAccounts, setRecognizedAccounts] = useState<string[]>(['Efectivo']);
   const [breakdownVisible, setBreakdownVisible] = useState(false);
   const [activeMoneyBreakdownVisible, setActiveMoneyBreakdownVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
@@ -156,7 +157,7 @@ export default function HomeScreen() {
       if (txError) throw txError;
 
       let cardNames: string[] = [];
-      let recognizedAccounts: string[] = ['Efectivo'];
+      let accsList: string[] = ['Efectivo'];
       try {
         const [storedCards, storedAccs] = await Promise.all([
             AsyncStorage.getItem(`@cards_${user.id}`),
@@ -168,7 +169,8 @@ export default function HomeScreen() {
           setUserCards(cardNames);
         }
         if (storedAccs) {
-            recognizedAccounts = ['Efectivo', ...JSON.parse(storedAccs)];
+            accsList = ['Efectivo', ...JSON.parse(storedAccs)];
+            setRecognizedAccounts(accsList);
         }
       } catch (e) { }
 
