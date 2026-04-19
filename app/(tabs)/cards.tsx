@@ -265,15 +265,24 @@ export default function CardsScreen() {
     };
 
     const handleDeleteCard = (card: CreditCard) => {
-        Alert.alert('Eliminar Tarjeta', `¿Eliminar ${card.name}?`, [
-            { text: 'No' },
-            { text: 'Sí', style: 'destructive', onPress: async () => {
-                const updated = cards.filter(c => c.id !== card.id);
-                setCards(updated);
-                await AsyncStorage.setItem(`@cards_${user?.id}`, JSON.stringify(updated));
-                loadData();
-            }}
-        ]);
+        const executeDelete = async () => {
+            const updated = cards.filter(c => c.id !== card.id);
+            setCards(updated);
+            await AsyncStorage.setItem(`@cards_${user?.id}`, JSON.stringify(updated));
+            loadData();
+            if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        };
+
+        if (Platform.OS === 'web') {
+            if (window.confirm(`¿Estás seguro de que quieres eliminar la tarjeta ${card.name}?`)) {
+                executeDelete();
+            }
+        } else {
+            Alert.alert('Eliminar Tarjeta', `¿Eliminar ${card.name}?`, [
+                { text: 'No', style: 'cancel' },
+                { text: 'Sí', style: 'destructive', onPress: executeDelete }
+            ]);
+        }
     };
 
     const handlePayCard = async () => {
