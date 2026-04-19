@@ -532,26 +532,73 @@ export default function CardsScreen() {
                 <View style={{ height: 100 }} />
             </ScrollView>
 
-            <Modal visible={addModalVisible} transparent animationType="slide">
-                <View style={styles.overlay}>
-                    <View style={[styles.modal, { backgroundColor: colorsNav.card }]}>
-                        <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Nueva Tarjeta</Text>
-                        <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="Nombre" placeholderTextColor={colorsNav.sub} value={newName} onChangeText={setNewName} />
-                        <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="Límite" placeholderTextColor={colorsNav.sub} keyboardType="numeric" value={newLimit} onChangeText={handleLimitChange} />
-                        <View style={{ flexDirection: 'row', gap: 10 }}>
-                            <TextInput style={[styles.input, { flex: 1, backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="Día Corte" placeholderTextColor={colorsNav.sub} keyboardType="numeric" value={newCutDay} onChangeText={setNewCutDay} />
-                            <TextInput style={[styles.input, { flex: 1, backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="Día Pago" placeholderTextColor={colorsNav.sub} keyboardType="numeric" value={newDueDay} onChangeText={setNewDueDay} />
-                        </View>
-                        <View style={styles.inputContainerModal}>
-                            <Text style={{ fontSize: 12, fontWeight: '800', color: colorsNav.sub, marginBottom: 8, marginLeft: 4 }}>INTERÉS ANUAL (E.A. %)</Text>
-                            <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="Ej: 28" placeholderTextColor={colorsNav.sub} keyboardType="numeric" value={newInterest} onChangeText={setNewInterest} />
-                        </View>
-                        <View style={styles.modalFooter}>
-                            <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.bg }]} onPress={() => setAddModalVisible(false)}><Text style={{ color: colorsNav.text }}>Cancelar</Text></TouchableOpacity>
-                            <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.accent }]} onPress={handleAddCard}><Text style={{ color: '#FFF', fontWeight: '800' }}>Crear</Text></TouchableOpacity>
-                        </View>
+            <Modal visible={addModalVisible} transparent animationType="fade">
+                <TouchableWithoutFeedback onPress={() => setAddModalVisible(false)}>
+                    <View style={styles.overlay}>
+                        <TouchableWithoutFeedback>
+                            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={[styles.modal, { backgroundColor: colorsNav.card }]}>
+                                <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Nueva Tarjeta de Crédito</Text>
+                                
+                                <ScrollView showsVerticalScrollIndicator={false}>
+                                    <View style={styles.inputGroup}>
+                                        <Text style={[styles.inputLabel, { color: colorsNav.sub }]}>NOMBRE DE LA TARJETA</Text>
+                                        <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="Ej: NuBank Platinum" placeholderTextColor={colorsNav.sub} value={newName} onChangeText={setNewName} />
+                                    </View>
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={[styles.inputLabel, { color: colorsNav.sub }]}>LÍMITE DE CRÉDITO</Text>
+                                        <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="$ 0" placeholderTextColor={colorsNav.sub} keyboardType="numeric" value={newLimit} onChangeText={handleLimitChange} />
+                                    </View>
+
+                                    <View style={{ flexDirection: 'row', gap: 15, marginBottom: 20 }}>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={[styles.inputLabel, { color: colorsNav.sub }]}>DÍA CORTE</Text>
+                                            <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="1 - 31" placeholderTextColor={colorsNav.sub} keyboardType="numeric" value={newCutDay} onChangeText={setNewCutDay} maxLength={2} />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={[styles.inputLabel, { color: colorsNav.sub }]}>DÍA PAGO</Text>
+                                            <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="1 - 31" placeholderTextColor={colorsNav.sub} keyboardType="numeric" value={newDueDay} onChangeText={setNewDueDay} maxLength={2} />
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={[styles.inputLabel, { color: colorsNav.sub }]}>INTERÉS ANUAL (E.A. %)</Text>
+                                        <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="Ej: 28" placeholderTextColor={colorsNav.sub} keyboardType="numeric" value={newInterest} onChangeText={setNewInterest} />
+                                    </View>
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={[styles.inputLabel, { color: colorsNav.sub }]}>MARCA Y COLOR</Text>
+                                        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                                            {(['visa', 'mastercard', 'amex'] as const).map(b => (
+                                                <TouchableOpacity 
+                                                    key={b} 
+                                                    style={[styles.brandBtn, { borderColor: newBrand === b ? colorsNav.accent : colorsNav.border, backgroundColor: newBrand === b ? colorsNav.accent + '10' : 'transparent' }]}
+                                                    onPress={() => setNewBrand(b)}
+                                                >
+                                                    <Text style={{ fontSize: 10, fontWeight: '800', color: newBrand === b ? colorsNav.accent : colorsNav.sub }}>{b.toUpperCase()}</Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                        <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
+                                            {CARD_COLORS.map(c => (
+                                                <TouchableOpacity key={c} onPress={() => setNewColor(c)} style={[styles.colorDot, { backgroundColor: c }, newColor === c && { borderWidth: 3, borderColor: colorsNav.text }]} />
+                                            ))}
+                                        </View>
+                                    </View>
+
+                                    <View style={[styles.modalFooter, { marginTop: 20 }]}>
+                                        <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.bg, borderWidth: 1, borderColor: colorsNav.border }]} onPress={() => setAddModalVisible(false)}>
+                                            <Text style={{ color: colorsNav.text, fontWeight: '700' }}>Cancelar</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.accent }]} onPress={handleAddCard}>
+                                            <Text style={{ color: '#FFF', fontWeight: '900' }}>Crear Tarjeta</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </ScrollView>
+                            </KeyboardAvoidingView>
+                        </TouchableWithoutFeedback>
                     </View>
-                </View>
+                </TouchableWithoutFeedback>
             </Modal>
 
             <Modal visible={payModalVisible} transparent animationType="slide">
@@ -657,12 +704,16 @@ const styles = StyleSheet.create({
     barVal: { fontSize: 10, fontWeight: '900', color: '#666', marginTop: 8 },
     barMonth: { fontSize: 9, fontWeight: '800', color: '#999', marginTop: 4 },
 
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 },
-    modal: { borderRadius: 32, padding: 24 },
-    modalTitle: { fontSize: 22, fontWeight: '900', marginBottom: 20 },
-    input: { borderWidth: 1, borderRadius: 18, padding: 16, marginBottom: 12, fontSize: 16, fontWeight: '600' },
-    modalFooter: { flexDirection: 'row', gap: 12, marginTop: 10 },
-    mBtn: { flex: 1, padding: 18, borderRadius: 18, alignItems: 'center' },
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 },
+    modal: { borderRadius: 32, padding: 24, maxHeight: '90%' },
+    modalTitle: { fontSize: 24, fontWeight: '900', marginBottom: 20, letterSpacing: -0.5 },
+    inputGroup: { marginBottom: 18 },
+    inputLabel: { fontSize: 10, fontWeight: '800', marginBottom: 8, marginLeft: 4, letterSpacing: 0.5 },
+    input: { borderWidth: 1, borderRadius: 16, padding: 16, fontSize: 16, fontWeight: '600' },
+    brandBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1 },
+    colorDot: { width: 34, height: 34, borderRadius: 17 },
+    modalFooter: { flexDirection: 'row', gap: 12 },
+    mBtn: { flex: 1, padding: 18, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
     accPill: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)' },
     empty: { padding: 80, alignItems: 'center', gap: 20 },
     emptyTxt: { fontWeight: '800', fontSize: 18, textAlign: 'center' },
