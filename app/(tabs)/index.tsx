@@ -252,15 +252,24 @@ export default function HomeScreen() {
 
       const remainingDebts = allDebts?.filter(d => Number(d.paid || 0) < Number(d.value)) || [];
 
-      // Calcular Deuda de Tarjetas (Solo Obligación Mensual Facturada)
+      // Calcular Deuda de Tarjetas (Solo Obligación Mensual Facturada en el mes actual)
       let cardObligations = 0;
       const todayDate = new Date();
       const currentDay = todayDate.getDate();
 
       parsedCards.forEach(card => {
-        // Solo sumamos la obligación si ya pasó la fecha de corte (ya está facturado)
-        // O si el usuario lo prefiere ver como compromiso del mes
-        if (currentDay >= card.cutDay || currentDay <= card.dueDay) {
+        // Solo sumamos la obligación si estamos en el mes donde vence el pago
+        // Generalmente, si la fecha de pago (dueDay) es el 4, y hoy es Abril 19, 
+        // el usuario quiere verlo a partir de Mayo 1ero.
+        
+        // Lógica: Solo mostramos si hoy es >= cutDay (factura cerrada) Y estamos cerca del pago,
+        // o si simplemente queremos ver lo que vence "este mes" calendario.
+        const isDueThisMonth = currentDay <= card.dueDay || currentDay >= card.cutDay;
+        
+        // Pero el usuario fue específico: "si pagan los 4... no me debería salir si no el otro mes"
+        // Esto implica una regla de mes calendario:
+        if (currentDay <= card.dueDay) { 
+          // Si hoy es antes del dueDay, estamos en el mes del pago
           const txs = allTx?.filter(tx => tx.account === card.name) || [];
           let monthlyQuota = 0;
 
@@ -278,7 +287,6 @@ export default function HomeScreen() {
                   monthlyQuota += tx.amount / cuotas;
                 }
               } else {
-                // Compras normales (a 1 cuota) se pagan completas este mes
                 monthlyQuota += tx.amount;
               }
             } else if (tx.type === 'income' || tx.type === 'transfer') {
