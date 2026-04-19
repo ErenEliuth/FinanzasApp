@@ -50,6 +50,7 @@ export default function CardsScreen() {
     const isDark = colorsNav.isDark;
 
     const [cards, setCards] = useState<CreditCard[]>([]);
+    const now = new Date();
     const [cardBalances, setCardBalances] = useState<Record<string, number>>({});
     const [cardTransactions, setCardTransactions] = useState<Record<string, any[]>>({});
     
@@ -161,7 +162,6 @@ export default function CardsScreen() {
     const getMonthlyProjection = (card: CreditCard) => {
         const txs = cardTransactions[card.name] || [];
         const months = Array(12).fill(0);
-        const now = new Date();
 
         txs.forEach(tx => {
             const match = tx.description?.match(/\[CUOTAS:(\d+)(?::RATE:([\d.]+))?\]/);
