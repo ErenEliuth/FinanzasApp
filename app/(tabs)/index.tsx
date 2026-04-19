@@ -252,11 +252,42 @@ export default function HomeScreen() {
 
       const remainingDebts = allDebts?.filter(d => Number(d.paid || 0) < Number(d.value)) || [];
 
-      // Calcular Deuda de Tarjetas (Saldo Total Real)
+      // Calcular Deuda de Tarjetas (Solo Obligación Mensual Facturada)
       let cardObligations = 0;
+      const todayDate = new Date();
+      const currentDay = todayDate.getDate();
+
       parsedCards.forEach(card => {
-        const balance = balances[card.name] || 0;
-        cardObligations += balance;
+        // Solo sumamos la obligación si ya pasó la fecha de corte (ya está facturado)
+        // O si el usuario lo prefiere ver como compromiso del mes
+        if (currentDay >= card.cutDay || currentDay <= card.dueDay) {
+          const txs = allTx?.filter(tx => tx.account === card.name) || [];
+          let monthlyQuota = 0;
+
+          txs.forEach(tx => {
+            if (tx.type === 'expense') {
+              const match = tx.description?.match(/\[CUOTAS:(\d+)(?::RATE:([\d.]+))?\]/);
+              if (match) {
+                const cuotas = parseInt(match[1], 10);
+                const ea = parseFloat(match[2] || '0') / 100;
+                if (ea > 0 && cuotas > 1) {
+                  const mv = Math.pow(1 + ea, 1/12) - 1;
+                  const cuota = (tx.amount * mv) / (1 - Math.pow(1 + mv, -cuotas));
+                  monthlyQuota += cuota;
+                } else {
+                  monthlyQuota += tx.amount / cuotas;
+                }
+              } else {
+                // Compras normales (a 1 cuota) se pagan completas este mes
+                monthlyQuota += tx.amount;
+              }
+            } else if (tx.type === 'income' || tx.type === 'transfer') {
+              monthlyQuota -= tx.amount;
+            }
+          });
+
+          cardObligations += Math.max(0, monthlyQuota);
+        }
       });
 
       const totalDue = remainingDebts.reduce((sum, d) => sum + (Number(d.value) - Number(d.paid || 0)), 0) + cardObligations;
