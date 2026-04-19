@@ -241,6 +241,8 @@ export default function CardsScreen() {
             await AsyncStorage.setItem('@custom_accounts', JSON.stringify([...customAccounts, newCard.name]));
         }
 
+        if (user?.id) await syncUp(user.id);
+
         if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setAddModalVisible(false);
         setNewName(''); setNewLimit(''); setNewCutDay(''); setNewDueDay('');
@@ -269,6 +271,7 @@ export default function CardsScreen() {
             const updated = cards.filter(c => c.id !== card.id);
             setCards(updated);
             await AsyncStorage.setItem(`@cards_${user?.id}`, JSON.stringify(updated));
+            if (user?.id) await syncUp(user.id);
             loadData();
             if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         };
