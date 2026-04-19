@@ -8,6 +8,8 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatCurrency, getCurrencyInfo, convertCurrency, convertToBase } from '@/utils/currency';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import {
     Alert,
     Dimensions,
@@ -35,6 +37,7 @@ type CreditCard = {
     cutDay: number;
     dueDay: number;
     color: string;
+    interestRate: number; // Tasa E.A. %
 };
 
 const CARD_COLORS = ['#2D5A3D', '#4A7C59', '#1E293B', '#8B5CF6', '#F59E0B', '#EF4444'];
@@ -57,6 +60,7 @@ export default function CardsScreen() {
     const [newDueDay, setNewDueDay] = useState('');
     const [newBrand, setNewBrand] = useState<'visa' | 'mastercard' | 'amex' | 'other'>('visa');
     const [newColor, setNewColor] = useState(CARD_COLORS[0]);
+    const [newInterest, setNewInterest] = useState('28'); // Default E.A. en Colombia ~28-35%
 
     const [payModalVisible, setPayModalVisible] = useState(false);
     const [selectedCard, setSelectedCard] = useState<CreditCard | null>(null);
@@ -109,6 +113,86 @@ export default function CardsScreen() {
         } catch (e) { console.error(e); }
     };
 
+    const calculateNextPayment = (card: CreditCard) => {
+        const txs = cardTransactions[card.name] || [];
+        let total = 0;
+        
+        txs.forEach(tx => {
+            if (tx.type === 'expense') {
+                const match = tx.description?.match(/\[CUOTAS:(\d+)(?::RATE:([\d.]+))?\]/);
+                if (match) {
+                    const cuotas = parseInt(match[1], 10);
+                    const ea = parseFloat(match[2] || '0') / 100;
+                    if (ea > 0 && cuotas > 1) {
+                        const mv = Math.pow(1 + ea, 1/12) - 1;
+                        const p = tx.amount;
+                        const cuota = (p * mv) / (1 - Math.pow(1 + mv, -cuotas));
+                        total += cuota;
+                    } else {
+                        total += tx.amount / cuotas;
+                    }
+                } else {
+                    total += tx.amount;
+                }
+            } else if (tx.type === 'income' || tx.type === 'transfer') {
+                total -= tx.amount;
+            }
+        });
+        
+        return Math.max(0, total);
+    };
+
+    const getShoppingAdvice = (card: CreditCard) => {
+        const today = new Date().getDate();
+        const cut = card.cutDay;
+        
+        // Si el día de corte es mayor que el actual, falta para el corte
+        // Si el día actual está cerca del corte (pocos días antes), es mal momento.
+        // Si el día actual es justo después del corte, es el Día de Oro.
+        
+        let diff = cut - today;
+        if (diff < 0) diff += 30; // Ajustar si ya pasó el corte este mes
+
+        if (diff === 0 || diff >= 28) return { type: 'gold', msg: '¡DÍA DE ORO! Tienes 45 días para pagar si compras hoy.' };
+        if (diff <= 3) return { type: 'warn', msg: 'MAL MOMENTO: El corte es pronto. Pagarás esto en pocos días.' };
+        return { type: 'info', msg: `Faltan ${diff} días para tu cierre de ciclo. Compra con calma.` };
+    };
+
+    const getMonthlyProjection = (card: CreditCard) => {
+        const txs = cardTransactions[card.name] || [];
+        const months = Array(12).fill(0);
+        const now = new Date();
+
+        txs.forEach(tx => {
+            const match = tx.description?.match(/\[CUOTAS:(\d+)(?::RATE:([\d.]+))?\]/);
+            if (match && tx.type === 'expense') {
+                const n = parseInt(match[1], 10);
+                const ea = parseFloat(match[2] || '0') / 100;
+                const txDate = new Date(tx.date);
+                
+                let monthlyAmt = tx.amount / n;
+                if (ea > 0) {
+                    const mv = Math.pow(1 + ea, 1/12) - 1;
+                    monthlyAmt = (tx.amount * mv) / (1 - Math.pow(1 + mv, -n));
+                }
+
+                for (let i = 0; i < n; i++) {
+                    const payDate = new Date(txDate.getFullYear(), txDate.getMonth() + i + 1, 1);
+                    const monthsDiff = (payDate.getFullYear() - now.getFullYear()) * 12 + (payDate.getMonth() - now.getMonth());
+                    
+                    if (monthsDiff >= 0 && monthsDiff < 12) {
+                        months[monthsDiff] += monthlyAmt;
+                    }
+                }
+            } else if (tx.type === 'expense' && !match) {
+                // Compras a 1 cuota caen en el mes 0 (próximo pago)
+                months[0] += tx.amount;
+            }
+        });
+
+        return months;
+    };
+
     const scrollRef = useRef<any>(null);
 
     useEffect(() => { 
@@ -144,6 +228,7 @@ export default function CardsScreen() {
             cutDay: cut,
             dueDay: due,
             color: newColor,
+            interestRate: parseFloat(newInterest) || 0,
         };
 
         const updated = [...cards, newCard];
@@ -156,9 +241,27 @@ export default function CardsScreen() {
             await AsyncStorage.setItem('@custom_accounts', JSON.stringify([...customAccounts, newCard.name]));
         }
 
+        if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setAddModalVisible(false);
         setNewName(''); setNewLimit(''); setNewCutDay(''); setNewDueDay('');
         loadData();
+    };
+
+    const getDaysUntil = (day: number) => {
+        const today = new Date();
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+        let target = new Date(currentYear, currentMonth, day);
+        if (target < today) {
+            target = new Date(currentYear, currentMonth + 1, day);
+        }
+        const diffTime = target.getTime() - today.getTime();
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    };
+
+    const getUtilization = (limit: number, balance: number) => {
+        if (limit === 0) return 0;
+        return (balance / limit) * 100;
     };
 
     const handleDeleteCard = (card: CreditCard) => {
@@ -202,53 +305,92 @@ export default function CardsScreen() {
                 </TouchableOpacity>
             </View>
 
-            {/* Selector de Tarjetas */}
-            <View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabScroll}>
-                    {cards.map(c => (
-                        <TouchableOpacity key={c.id} style={[styles.tab, activeTab === c.id && { backgroundColor: c.color }]} onPress={() => setActiveTab(c.id)}>
-                            <Text style={[styles.tabTxt, { color: activeTab === c.id ? '#FFF' : colorsNav.sub }]}>{c.name}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </ScrollView>
-            </View>
+            {/* Carousel de Tarjetas */}
+            {cards.length > 0 ? (
+                <View style={{ height: 260 }}>
+                    <ScrollView 
+                        horizontal 
+                        showsHorizontalScrollIndicator={false} 
+                        snapToInterval={width * 0.85 + 16}
+                        decelerationRate="fast"
+                        contentContainerStyle={styles.carouselContainer}
+                    >
+                        {cards.map(c => {
+                            const debt = cardBalances[c.name] || 0;
+                            const utilization = getUtilization(c.limit, debt);
+                            const daysToPay = getDaysUntil(c.dueDay);
+                            
+                            return (
+                                <TouchableOpacity 
+                                    key={c.id} 
+                                    activeOpacity={0.9}
+                                    style={[styles.cardWrapper, activeTab === c.id && styles.activeCard]}
+                                    onPress={() => {
+                                        setActiveTab(c.id);
+                                        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                    }}
+                                    onLongPress={() => handleDeleteCard(c)}
+                                >
+                                    <LinearGradient
+                                        colors={[c.color, shadeColor(c.color, -30)]}
+                                        style={styles.cardFacePremium}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                    >
+                                        <View style={styles.cardTop}>
+                                            <View>
+                                                <Text style={styles.cardBankName}>{c.name.toUpperCase()}</Text>
+                                                <Text style={styles.cardBrandName}>{c.brand.toUpperCase()}</Text>
+                                            </View>
+                                            <MaterialIcons name="contactless" size={24} color="rgba(255,255,255,0.7)" />
+                                        </View>
+                                        
+                                        <View>
+                                            <Text style={utilstyles.label}>SALDO AL CORTE</Text>
+                                            <Text style={utilstyles.debtAmount}>{fmt(debt)}</Text>
+                                        </View>
+
+                                        <View style={utilstyles.footer}>
+                                            <View>
+                                                <Text style={utilstyles.smallLabel}>DISPONIBLE</Text>
+                                                <Text style={utilstyles.availableAmt}>{fmt(c.limit - debt)}</Text>
+                                            </View>
+                                            <View style={{ alignItems: 'flex-end' }}>
+                                                <Text style={utilstyles.smallLabel}>PAGO MES</Text>
+                                                <Text style={utilstyles.availableAmt}>{fmt(calculateNextPayment(c))}</Text>
+                                            </View>
+                                        </View>
+                                    </LinearGradient>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </ScrollView>
+                </View>
+            ) : null}
 
             <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
                 {currentCard ? (
-                    <View style={{ gap: 20 }}>
-                        {/* Visa/Mastercard Design Card */}
-                        <TouchableOpacity 
-                            style={[styles.cardFace, { backgroundColor: currentCard.color }]}
-                            onLongPress={() => handleDeleteCard(currentCard)}
-                            activeOpacity={0.9}
-                        >
-                            <View style={styles.cardInfo}>
-                                <Text style={styles.cardBank}>{currentCard.name.toUpperCase()}</Text>
-                                <Text style={styles.cardBrand}>{currentCard.brand.toUpperCase()}</Text>
+                    <View style={{ gap: 24 }}>
+                        {/* Indicador de Utilización */}
+                        <View style={[styles.utilContainer, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
+                            <View style={styles.utilHeader}>
+                                <Text style={[styles.utilTitle, { color: colorsNav.text }]}>Uso de Crédito</Text>
+                                <Text style={[styles.utilPct, { color: getUtilization(currentCard.limit, cardBalances[currentCard.name] || 0) > 80 ? '#EF4444' : colorsNav.accent }]}>
+                                    {getUtilization(currentCard.limit, cardBalances[currentCard.name] || 0).toFixed(1)}%
+                                </Text>
                             </View>
-                            <View>
-                                <Text style={styles.cardLabel}>DEUDA ACTUAL</Text>
-                                <Text style={styles.cardDebt}>{fmt(cardBalances[currentCard.name] || 0)}</Text>
+                            <View style={styles.utilBarBG}>
+                                <LinearGradient
+                                    colors={getUtilization(currentCard.limit, cardBalances[currentCard.name] || 0) > 80 ? ['#EF4444', '#DC2626'] : [colorsNav.accent, shadeColor(colorsNav.accent, -20)]}
+                                    style={[styles.utilBarFill, { width: `${Math.min(getUtilization(currentCard.limit, cardBalances[currentCard.name] || 0), 100)}%` }]}
+                                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                                />
                             </View>
-                            <View style={styles.cardRow}>
-                                <View>
-                                    <Text style={styles.cardLabel}>DISPONIBLE</Text>
-                                    <Text style={styles.cardLimit}>{fmt(currentCard.limit - (cardBalances[currentCard.name] || 0))}</Text>
-                                </View>
-                                <View style={{ alignItems: 'flex-end' }}>
-                                    <View style={{ flexDirection: 'row', gap: 15 }}>
-                                        <View>
-                                            <Text style={styles.cardLabel}>CORTE</Text>
-                                            <Text style={styles.cardSmallTxt}>Día {currentCard.cutDay}</Text>
-                                        </View>
-                                        <View>
-                                            <Text style={styles.cardLabel}>PAGO</Text>
-                                            <Text style={styles.cardSmallTxt}>Día {currentCard.dueDay}</Text>
-                                        </View>
-                                    </View>
-                                </View>
+                            <View style={styles.utilLabels}>
+                                <Text style={{ color: colorsNav.sub, fontSize: 11 }}>Usado: {fmt(cardBalances[currentCard.name] || 0)}</Text>
+                                <Text style={{ color: colorsNav.sub, fontSize: 11 }}>Límite: {fmt(currentCard.limit)}</Text>
                             </View>
-                        </TouchableOpacity>
+                        </View>
 
                         {/* Instructional Message */}
                         <View style={[styles.infoBox, { backgroundColor: colorsNav.accent + '15' }]}>
@@ -256,6 +398,38 @@ export default function CardsScreen() {
                             <Text style={[styles.infoTxt, { color: colorsNav.accent }]}>
                                 Para que una compra con esta tarjeta se refleje aquí, ve al menú de <Text style={{ fontWeight: '800' }}>Gastos</Text> y selecciónala como cuenta de pago.
                             </Text>
+                        </View>
+
+                        {/* Día de Oro Advice */}
+                        {(() => {
+                            const advice = getShoppingAdvice(currentCard);
+                            return (
+                                <View style={[styles.adviceBox, { 
+                                    backgroundColor: advice.type === 'gold' ? '#F59E0B20' : advice.type === 'warn' ? '#EF444415' : colorsNav.card,
+                                    borderColor: advice.type === 'gold' ? '#F59E0B60' : advice.type === 'warn' ? '#EF444460' : colorsNav.border
+                                }]}>
+                                    <MaterialIcons 
+                                        name={advice.type === 'gold' ? 'stars' : advice.type === 'warn' ? 'warning' : 'info'} 
+                                        size={20} 
+                                        color={advice.type === 'gold' ? '#F59E0B' : advice.type === 'warn' ? '#EF4444' : colorsNav.sub} 
+                                    />
+                                    <Text style={[styles.adviceTxt, { color: advice.type === 'gold' ? '#B45309' : advice.type === 'warn' ? '#B91C1C' : colorsNav.text }]}>
+                                        {advice.msg}
+                                    </Text>
+                                </View>
+                            );
+                        })()}
+
+                        {/* Resumen de Pago Próximo */}
+                        <View style={[styles.nextPayCard, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
+                            <View>
+                                <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '700' }}>PRÓXIMO PAGO ESTIMADO</Text>
+                                <Text style={{ color: colorsNav.text, fontSize: 24, fontWeight: '900', marginTop: 4 }}>{fmt(calculateNextPayment(currentCard))}</Text>
+                            </View>
+                            <View style={[styles.dateChip, { backgroundColor: colorsNav.accent + '15' }]}>
+                                <MaterialIcons name="event" size={16} color={colorsNav.accent} />
+                                <Text style={{ color: colorsNav.accent, fontWeight: '800', fontSize: 12 }}>Día {currentCard.dueDay}</Text>
+                            </View>
                         </View>
 
                         {/* Actions */}
@@ -274,21 +448,80 @@ export default function CardsScreen() {
                                 <Text style={{ color: colorsNav.sub }}>No hay movimientos registrados para esta tarjeta.</Text>
                             </View>
                         ) : (
-                            (cardTransactions[currentCard.name] || []).map(tx => (
-                                <View key={tx.id} style={[styles.txRow, { borderBottomColor: colorsNav.border }]}>
-                                    <View style={[styles.txIcon, { backgroundColor: tx.type === 'expense' ? '#EF444415' : '#4CAF5015' }]}>
-                                        <MaterialIcons name={tx.type === 'expense' ? 'remove' : 'add'} size={18} color={tx.type === 'expense' ? '#EF4444' : '#4CAF50'} />
+                            (cardTransactions[currentCard.name] || []).map(tx => {
+                                const match = tx.description?.match(/\[CUOTAS:(\d+)(?::RATE:([\d.]+))?\]/);
+                                const cuotas = match ? parseInt(match[1], 10) : 1;
+                                const ea = match ? parseFloat(match[2] || '0') / 100 : 0;
+                                const cleanDesc = tx.description?.replace(/\[CUOTAS:\d+(?::RATE:[\d.]+)?\]\s*/, '') || tx.category;
+                                
+                                let cuotaVal = tx.amount / cuotas;
+                                let totalReal = tx.amount;
+                                
+                                if (ea > 0 && cuotas > 1) {
+                                    const mv = Math.pow(1 + ea, 1/12) - 1;
+                                    cuotaVal = (tx.amount * mv) / (1 - Math.pow(1 + mv, -cuotas));
+                                    totalReal = cuotaVal * cuotas;
+                                }
+
+                                return (
+                                    <View key={tx.id} style={[styles.txRow, { borderBottomColor: colorsNav.border }]}>
+                                        <View style={[styles.txIcon, { backgroundColor: tx.type === 'expense' ? '#EF444415' : '#4CAF5015' }]}>
+                                            <MaterialIcons name={tx.type === 'expense' ? 'credit-card' : 'account-balance-wallet'} size={18} color={tx.type === 'expense' ? '#EF4444' : '#4CAF50'} />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={[styles.txName, { color: colorsNav.text }]}>{cleanDesc}</Text>
+                                            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                                                <Text style={[styles.txDate, { color: colorsNav.sub }]}>{new Date(tx.date).toLocaleDateString()}</Text>
+                                                {cuotas > 1 && (
+                                                    <View style={[styles.cuotaBadge, { backgroundColor: ea > 0 ? '#EF444410' : 'rgba(0,0,0,0.05)' }]}>
+                                                        <Text style={[styles.cuotaBadgeTxt, { color: ea > 0 ? '#EF4444' : '#666' }]}>{cuotas} cuotas {ea > 0 ? `@ ${(ea*100).toFixed(1)}%` : '(Sin interés)'}</Text>
+                                                    </View>
+                                                )}
+                                            </View>
+                                        </View>
+                                        <View style={{ alignItems: 'flex-end' }}>
+                                            <Text style={[styles.txAmt, { color: tx.type === 'expense' ? colorsNav.text : '#4CAF50' }]}>
+                                                {tx.type === 'expense' ? '-' : '+'}{fmt(tx.amount)}
+                                            </Text>
+                                            {cuotas > 1 && (
+                                                <View style={{ alignItems: 'flex-end' }}>
+                                                    <Text style={{ fontSize: 10, color: colorsNav.accent, fontWeight: '800' }}>{fmt(cuotaVal)} / mes</Text>
+                                                    {ea > 0 && <Text style={{ fontSize: 9, color: '#EF4444', fontWeight: '700' }}>Total: {fmt(totalReal)}</Text>}
+                                                </View>
+                                            )}
+                                        </View>
                                     </View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={[styles.txName, { color: colorsNav.text }]}>{tx.description || tx.category}</Text>
-                                        <Text style={[styles.txDate, { color: colorsNav.sub }]}>{new Date(tx.date).toLocaleDateString()}</Text>
-                                    </View>
-                                    <Text style={[styles.txAmt, { color: tx.type === 'expense' ? '#EF4444' : '#4CAF50' }]}>
-                                        {tx.type === 'expense' ? '-' : '+'}{fmt(tx.amount)}
-                                    </Text>
-                                </View>
-                            ))
+                                );
+                            })
                         )}
+
+                        {/* Proyección de Libertad */}
+                        <Text style={[styles.secTitle, { color: colorsNav.text, marginTop: 30 }]}>MAPA DE LIBERTAD (12 MESES)</Text>
+                        <Text style={{ color: colorsNav.sub, fontSize: 12, marginBottom: 15 }}>Proyección de cargos mensuales fijos por cuotas.</Text>
+                        
+                        <View style={styles.projectionCont}>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                {getMonthlyProjection(currentCard).map((val, idx) => {
+                                    const monthDate = new Date();
+                                    monthDate.setMonth(now.getMonth() + idx);
+                                    const mName = monthDate.toLocaleString('es-CO', { month: 'short' }).toUpperCase();
+                                    
+                                    // Altura máxima de la barra 100px
+                                    const maxVal = Math.max(...getMonthlyProjection(currentCard), 1);
+                                    const barHeight = (val / maxVal) * 80;
+
+                                    return (
+                                        <View key={idx} style={styles.projectionItem}>
+                                            <View style={styles.barContainer}>
+                                                <View style={[styles.barFill, { height: barHeight, backgroundColor: colorsNav.accent }]} />
+                                            </View>
+                                            <Text style={styles.barVal}>{val > 0 ? (val > 1000000 ? (val/1000000).toFixed(1)+'M' : (val/1000).toFixed(0)+'k') : '0'}</Text>
+                                            <Text style={styles.barMonth}>{mName}</Text>
+                                        </View>
+                                    );
+                                })}
+                            </ScrollView>
+                        </View>
                     </View>
                 ) : (
                     <View style={styles.empty}>
@@ -308,6 +541,10 @@ export default function CardsScreen() {
                         <View style={{ flexDirection: 'row', gap: 10 }}>
                             <TextInput style={[styles.input, { flex: 1, backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="Día Corte" placeholderTextColor={colorsNav.sub} keyboardType="numeric" value={newCutDay} onChangeText={setNewCutDay} />
                             <TextInput style={[styles.input, { flex: 1, backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="Día Pago" placeholderTextColor={colorsNav.sub} keyboardType="numeric" value={newDueDay} onChangeText={setNewDueDay} />
+                        </View>
+                        <View style={styles.inputContainerModal}>
+                            <Text style={{ fontSize: 12, fontWeight: '800', color: colorsNav.sub, marginBottom: 8, marginLeft: 4 }}>INTERÉS ANUAL (E.A. %)</Text>
+                            <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="Ej: 28" placeholderTextColor={colorsNav.sub} keyboardType="numeric" value={newInterest} onChangeText={setNewInterest} />
                         </View>
                         <View style={styles.modalFooter}>
                             <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.bg }]} onPress={() => setAddModalVisible(false)}><Text style={{ color: colorsNav.text }}>Cancelar</Text></TouchableOpacity>
@@ -341,43 +578,92 @@ export default function CardsScreen() {
     );
 }
 
+// Global utility for colors
+function shadeColor(color: string, percent: number) {
+    let R = parseInt(color.substring(1,3),16);
+    let G = parseInt(color.substring(3,5),16);
+    let B = parseInt(color.substring(5,7),16);
+    R = parseInt(String(R * (100 + percent) / 100));
+    G = parseInt(String(G * (100 + percent) / 100));
+    B = parseInt(String(B * (100 + percent) / 100));
+    R = (R<255)?R:255;  G = (G<255)?G:255;  B = (B<255)?B:255;
+    const r = ((R.toString(16).length===1)?"0"+R.toString(16):R.toString(16));
+    const g = ((G.toString(16).length===1)?"0"+G.toString(16):G.toString(16));
+    const b = ((B.toString(16).length===1)?"0"+B.toString(16):B.toString(16));
+    return "#"+r+g+b;
+}
+
+const utilstyles = StyleSheet.create({
+    label: { color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
+    debtAmount: { color: '#FFF', fontSize: 26, fontWeight: '900' },
+    footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+    smallLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 9, fontWeight: '700' },
+    availableAmt: { color: '#FFF', fontSize: 14, fontWeight: '800' },
+    chip: { backgroundColor: 'rgba(0,0,0,0.15)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
+    chipText: { color: '#FFF', fontSize: 10, fontWeight: '800' },
+});
+
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 50 },
-    headerTitle: { fontSize: 28, fontWeight: '900' },
-    headerSub: { fontSize: 13, marginTop: 2 },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: Platform.OS === 'android' ? 50 : 20 },
+    headerTitle: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
+    headerSub: { fontSize: 13, marginTop: 2, fontWeight: '500' },
     addBtn: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-    tabScroll: { paddingHorizontal: 20, gap: 10, marginBottom: 10 },
-    tab: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
-    tabTxt: { fontWeight: '800', fontSize: 13 },
-    scroll: { padding: 20 },
-    cardFace: { borderRadius: 28, padding: 24, height: 210, justifyContent: 'space-between', elevation: 10, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 15 },
-    cardInfo: { flexDirection: 'row', justifyContent: 'space-between' },
-    cardBank: { color: '#FFF', fontWeight: '900', letterSpacing: 1 },
-    cardBrand: { color: 'rgba(255,255,255,0.6)', fontWeight: '800', fontSize: 11 },
-    cardLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
-    cardDebt: { color: '#FFF', fontSize: 32, fontWeight: '900' },
-    cardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-    cardLimit: { color: '#FFF', fontSize: 16, fontWeight: '800' },
-    cardSmallTxt: { color: '#FFF', fontSize: 14, fontWeight: '800' },
-    infoBox: { flexDirection: 'row', gap: 12, padding: 18, borderRadius: 20, alignItems: 'center' },
-    infoTxt: { flex: 1, fontSize: 13, lineHeight: 18 },
-    payBtnLarge: { flexDirection: 'row', gap: 10, padding: 20, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-    payBtnTxtLarge: { color: '#FFF', fontWeight: '900', fontSize: 14 },
-    secTitle: { fontSize: 14, fontWeight: '900', marginTop: 10 },
-    txRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 16, borderBottomWidth: 1 },
-    txIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-    txName: { fontSize: 14, fontWeight: '700' },
-    txDate: { fontSize: 11, marginTop: 2 },
-    txAmt: { fontSize: 15, fontWeight: '800' },
-    emptyMovements: { padding: 40, alignItems: 'center' },
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
+    
+    // Carousel
+    carouselContainer: { paddingHorizontal: 20, gap: 16, height: 240, alignItems: 'center' },
+    cardWrapper: { width: width * 0.85, height: 210, borderRadius: 28, overflow: 'hidden' },
+    activeCard: { transform: [{ scale: 1.02 }], elevation: 8, shadowColor: '#000', shadowOpacity: 0.2 },
+    cardFacePremium: { flex: 1, padding: 24, justifyContent: 'space-between' },
+    cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+    cardBankName: { color: '#FFF', fontWeight: '900', fontSize: 13, letterSpacing: 1.5 },
+    cardBrandName: { color: 'rgba(255,255,255,0.6)', fontWeight: '800', fontSize: 10, marginTop: 2 },
+
+    scroll: { padding: 20, paddingBottom: 150 },
+    
+    // Utilization
+    utilContainer: { padding: 20, borderRadius: 28, borderWidth: 1, gap: 12 },
+    utilHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    utilTitle: { fontSize: 14, fontWeight: '800' },
+    utilPct: { fontSize: 14, fontWeight: '900' },
+    utilBarBG: { height: 8, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 4, overflow: 'hidden' },
+    utilBarFill: { height: '100%', borderRadius: 4 },
+    utilLabels: { flexDirection: 'row', justifyContent: 'space-between' },
+
+    nextPayCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 24, borderRadius: 28, borderWidth: 1 },
+    dateChip: { flexDirection: 'row', gap: 6, alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12 },
+
+    infoBox: { flexDirection: 'row', gap: 12, padding: 18, borderRadius: 24, alignItems: 'center' },
+    infoTxt: { flex: 1, fontSize: 13, lineHeight: 18, fontWeight: '500' },
+    payBtnLarge: { flexDirection: 'row', gap: 10, padding: 18, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
+    payBtnTxtLarge: { color: '#FFF', fontWeight: '900', fontSize: 15 },
+    secTitle: { fontSize: 18, fontWeight: '900', marginTop: 15, letterSpacing: -0.3 },
+    txRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, borderBottomWidth: 1 },
+    txIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+    txName: { fontSize: 14, fontWeight: '800' },
+    txDate: { fontSize: 11, marginTop: 2, fontWeight: '600' },
+    cuotaBadge: { backgroundColor: 'rgba(0,0,0,0.05)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 2 },
+    cuotaBadgeTxt: { fontSize: 9, fontWeight: '800', color: '#666' },
+    txAmt: { fontSize: 15, fontWeight: '900' },
+    emptyMovements: { padding: 40, alignItems: 'center', gap: 10 },
+
+    adviceBox: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, borderWidth: 1, marginBottom: 15 },
+    adviceTxt: { fontSize: 13, fontWeight: '800', flex: 1 },
+
+    projectionCont: { backgroundColor: 'rgba(0,0,0,0.02)', padding: 20, borderRadius: 28, marginBottom: 30 },
+    projectionItem: { alignItems: 'center', width: 45, marginRight: 15 },
+    barContainer: { height: 80, width: 12, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 6, justifyContent: 'flex-end', overflow: 'hidden' },
+    barFill: { width: '100%', borderRadius: 6 },
+    barVal: { fontSize: 10, fontWeight: '900', color: '#666', marginTop: 8 },
+    barMonth: { fontSize: 9, fontWeight: '800', color: '#999', marginTop: 4 },
+
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 },
     modal: { borderRadius: 32, padding: 24 },
-    modalTitle: { fontSize: 20, fontWeight: '900', marginBottom: 20 },
-    input: { borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 12 },
+    modalTitle: { fontSize: 22, fontWeight: '900', marginBottom: 20 },
+    input: { borderWidth: 1, borderRadius: 18, padding: 16, marginBottom: 12, fontSize: 16, fontWeight: '600' },
     modalFooter: { flexDirection: 'row', gap: 12, marginTop: 10 },
-    mBtn: { flex: 1, padding: 16, borderRadius: 16, alignItems: 'center' },
-    accPill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#DDD' },
+    mBtn: { flex: 1, padding: 18, borderRadius: 18, alignItems: 'center' },
+    accPill: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)' },
     empty: { padding: 80, alignItems: 'center', gap: 20 },
-    emptyTxt: { fontWeight: '700', fontSize: 16 },
+    emptyTxt: { fontWeight: '800', fontSize: 18, textAlign: 'center' },
 });

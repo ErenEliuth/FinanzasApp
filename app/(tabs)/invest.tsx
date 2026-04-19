@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { formatCurrency, convertCurrency } from '@/utils/currency';
-import { searchAssets, fetchLivePrice, POPULAR_ASSETS, SearchResult } from '@/utils/stockPrices';
+import { searchAssets, fetchLivePrice, POPULAR_ASSETS, SearchResult, fetchBvcMarketOverview } from '@/utils/stockPrices';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
@@ -88,11 +88,51 @@ export default function InvestScreen() {
   const [alerts, setAlerts] = useState<PriceAlert[]>([]);
   const [alertModalVisible, setAlertModalVisible] = useState(false);
   const [newAlert, setNewAlert] = useState({ ticker: '', target: '', condition: 'above' as 'above' | 'below' });
+  
+  // BVC Market Status
+  const [bvcMarket, setBvcMarket] = useState<SearchResult[]>([]);
+  const [lastBvcUpdate, setLastBvcUpdate] = useState<Date>(new Date());
+  const [bvcCountdown, setBvcCountdown] = useState(900); 
 
   const baseFmt = (n: number) => formatCurrency(n, 'COP', isHidden);
   const usdToCop = rates?.USD || 3950;
 
-  useEffect(() => { if (isFocused) { loadData(); calculateInvestHealth(); calculateSantyAnalysis(); } }, [isFocused]);
+  useEffect(() => { 
+    if (isFocused) { 
+      loadData(); 
+      calculateInvestHealth(); 
+      calculateSantyAnalysis(); 
+      updateBvc();
+    } 
+  }, [isFocused]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setBvcCountdown(prev => {
+        if (prev <= 1) {
+          updateBvc();
+          return 900;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const updateBvc = async () => {
+    const data = await fetchBvcMarketOverview();
+    setBvcMarket(data);
+    setLastBvcUpdate(new Date());
+  };
+
+  const getMarketStatus = () => {
+    const now = new Date();
+    const hour = now.getHours();
+    const day = now.getDay();
+    if (day === 0 || day === 6) return { label: 'CERRADO', color: '#EF4444' };
+    if (hour >= 9 && hour < 16) return { label: 'ABIERTO', color: '#10B981' };
+    return { label: 'CERRADO', color: '#EF4444' };
+  };
 
   const loadData = async () => {
     try {
@@ -571,6 +611,88 @@ export default function InvestScreen() {
                   </View>
                 )}
               </LinearGradient>
+
+              {/* 🕒 BVC MARKET STATUS SECTION */}
+              <View style={[s.bvcMarketSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+                  <View>
+                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>Mercado BVC 🇨🇴</Text>
+                    <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>Cómo amaneció la bolsa hoy</Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <View style={[s.statusBadge, { backgroundColor: getMarketStatus().color + '15' }]}>
+                      <View style={[s.statusDot, { backgroundColor: getMarketStatus().color }]} />
+                      <Text style={{ color: getMarketStatus().color, fontSize: 10, fontWeight: '900' }}>{getMarketStatus().label}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                      <MaterialCommunityIcons name="clock-outline" size={12} color={colors.sub} />
+                      <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '700' }}>Actualiza en {Math.floor(bvcCountdown / 60)}:{(bvcCountdown % 60).toString().padStart(2, '0')}</Text>
+                    </View>
+                  </View>
+                </View>
+
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20, paddingHorizontal: 20 }}>
+                  {bvcMarket.map((asset, i) => (
+                    <View key={i} style={[s.bvcAssetCard, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+                      <Text style={{ color: colors.text, fontSize: 13, fontWeight: '900' }}>{asset.ticker}</Text>
+                      <Text style={{ color: colors.text, fontSize: 11, fontWeight: '700', marginTop: 2 }}>{baseFmt(asset.price)}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
+                        <MaterialCommunityIcons 
+                          name={asset.changePercent >= 0 ? "trending-up" : "trending-down"} 
+                          size={12} 
+                          color={asset.changePercent >= 0 ? '#10B981' : '#EF4444'} 
+                        />
+                        <Text style={{ color: asset.changePercent >= 0 ? '#10B981' : '#EF4444', fontSize: 11, fontWeight: '800' }}>
+                          {asset.changePercent >= 0 ? '+' : ''}{asset.changePercent.toFixed(2)}%
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                  {bvcMarket.length === 0 && (
+                    <Text style={{ color: colors.sub, fontSize: 12, paddingVertical: 10 }}>Cargando datos del mercado...</Text>
+                  )}
+                </ScrollView>
+              </View>
+
+              {/* 🟦 MUNDO TRII SECTION */}
+              <View style={[s.triiCorner, { backgroundColor: '#0047FF10', borderColor: '#0047FF30', borderWidth: 1 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                  <View style={{ backgroundColor: '#0047FF', width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}>
+                    <MaterialCommunityIcons name="lightning-bolt" size={20} color="#FFF" />
+                  </View>
+                  <View>
+                    <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900' }}>Inversiones con Trii</Text>
+                    <Text style={{ color: '#0047FF', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 }}>TU PUERTE A LA BVC</Text>
+                  </View>
+                </View>
+
+                <View style={{ gap: 10 }}>
+                  <View style={s.triiInfoRow}>
+                    <MaterialCommunityIcons name="cash-fast" size={16} color={colors.sub} />
+                    <Text style={[s.triiInfoText, { color: colors.sub }]}>Comisión mínima: <Text style={{ color: colors.text, fontWeight: '800' }}>$14,875 COP</Text></Text>
+                  </View>
+                  <View style={s.triiInfoRow}>
+                    <MaterialCommunityIcons name="clock-check-outline" size={16} color={colors.sub} />
+                    <Text style={[s.triiInfoText, { color: colors.sub }]}>Horario de mercado: <Text style={{ color: colors.text, fontWeight: '800' }}>9:30 AM - 4:00 PM</Text></Text>
+                  </View>
+                  <View style={s.triiInfoRow}>
+                    <MaterialCommunityIcons name="shield-check-outline" size={16} color={colors.sub} />
+                    <Text style={[s.triiInfoText, { color: colors.sub }]}>Regulado por <Text style={{ color: colors.text, fontWeight: '800' }}>SFC (Superfinanciera)</Text></Text>
+                  </View>
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 15 }}>
+                  <TouchableOpacity style={[s.triiPill, { backgroundColor: '#0047FF20' }]}>
+                    <Text style={{ color: '#0047FF', fontSize: 10, fontWeight: '900' }}>ACCIONES COL</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[s.triiPill, { backgroundColor: '#0047FF20' }]}>
+                    <Text style={{ color: '#0047FF', fontSize: 10, fontWeight: '900' }}>FONDOS VISTA</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[s.triiPill, { backgroundColor: '#0047FF20' }]}>
+                    <Text style={{ color: '#0047FF', fontSize: 10, fontWeight: '900' }}>REPO</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
 
               {/* 🏆 CONSEJO DE SANTY (Prominent Card) */}
               <View style={[s.santyAdviceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -1294,4 +1416,16 @@ const s = StyleSheet.create({
   adviceItemIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   addSmallBtn: { width: 28, height: 28, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   adviceQuote: { fontSize: 13, lineHeight: 18, marginBottom: 16, fontWeight: '600', fontStyle: 'italic' },
+  
+  // BVC Market Section
+  bvcMarketSection: { padding: 20, borderRadius: 28, borderWidth: 1, marginBottom: 16 },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  bvcAssetCard: { width: 120, padding: 12, borderRadius: 20, borderWidth: 1, marginRight: 10 },
+  
+  // Trii Corner
+  triiCorner: { padding: 20, borderRadius: 28, marginBottom: 16 },
+  triiInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  triiInfoText: { fontSize: 12, fontWeight: '600' },
+  triiPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
 });

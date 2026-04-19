@@ -67,27 +67,37 @@ export async function fetchCryptoPrice(ticker: string): Promise<{ price: number;
 }
 
 const YAHOO_MAPPING: Record<string, string> = {
-  'ECOPETROL': 'ECOPETROL.CL',
-  'BCOLOMBIA': 'BCOLOMBIA.CL',
-  'PFBCOLOM': 'PFBCOLOM.CL',
-  'GEB': 'GEB.CL',
-  'ISA': 'ISA.CL',
-  'PFAVAL': 'PFAVAL.CL',
-  'NUTRESA': 'NUTRESA.CL',
+  'ECOPETROL': 'ECOPETROL.CB',
+  'BCOLOMBIA': 'BCOLOMBIA.CB',
+  'PFBCOLOM': 'PFBCOLOM.CB',
+  'GEB': 'GEB.CB',
+  'ISA': 'ISA.CB',
+  'PFAVAL': 'PFAVAL.CB',
+  'NUTRESA': 'NUTRESA.CB',
+  'GRUPOSURA': 'GRUPOSURA.CB',
+  'PFGRUPSUR': 'PFGRUPSUR.CB',
+  'CELSIA': 'CELSIA.CB',
+  'CNEC': 'CNEC.CB',
+  'BVC': 'BVC.CB',
 };
 
 /**
  * Fetch live stock/etf price from Yahoo Finance via public raw proxy
  */
-export async function fetchStockPrice(ticker: string): Promise<number | null> {
+export async function fetchStockPrice(ticker: string): Promise<{ price: number; change: number; changePercent: number } | null> {
   try {
     const yTicker = YAHOO_MAPPING[ticker.toUpperCase()] || ticker.toUpperCase();
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yTicker}?interval=1d`;
-    // Using simple proxy to allow CORS without wrapper
     const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
     const data = await res.json();
-    if (data.chart?.result?.[0]?.meta?.regularMarketPrice) {
-      return data.chart.result[0].meta.regularMarketPrice;
+    
+    const result = data.chart?.result?.[0];
+    if (result && result.meta?.regularMarketPrice) {
+      return {
+        price: result.meta.regularMarketPrice,
+        change: result.meta.regularMarketPrice - result.meta.chartPreviousClose,
+        changePercent: ((result.meta.regularMarketPrice - result.meta.chartPreviousClose) / result.meta.chartPreviousClose) * 100
+      };
     }
     return null;
   } catch (error) {
@@ -159,12 +169,36 @@ export async function fetchLivePrice(ticker: string, type: string): Promise<numb
 
   if (type === 'stock' || type === 'etf') {
     const liveStock = await fetchStockPrice(ticker);
-    if (liveStock) return liveStock;
+    if (liveStock) return liveStock.price;
   }
 
   // Fallback for missing references
   const found = POPULAR_ASSETS.find(a => a.ticker === ticker);
   return found ? found.price : null;
+}
+
+/**
+ * Fetch a summary of the Colombian market (BVC)
+ */
+export async function fetchBvcMarketOverview(): Promise<SearchResult[]> {
+  const bvcTickers = ['ECOPETROL', 'BCOLOMBIA', 'PFBCOLOM', 'GEB', 'ISA', 'PFAVAL', 'NUTRESA', 'GRUPOSURA'];
+  const data = await Promise.all(bvcTickers.map(async (ticker) => {
+    const live = await fetchStockPrice(ticker);
+    const popular = POPULAR_ASSETS.find(p => p.ticker === ticker);
+    if (live) {
+      return {
+        ticker,
+        name: popular?.name || ticker,
+        price: live.price,
+        change: live.change,
+        changePercent: live.changePercent,
+        type: 'stock' as const,
+        exchange: 'BVC'
+      };
+    }
+    return popular || null;
+  }));
+  return data.filter((x): x is SearchResult => x !== null);
 }
 
 export { POPULAR_ASSETS };

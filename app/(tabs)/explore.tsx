@@ -62,6 +62,9 @@ export default function AddTransactionScreen() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newAccountName, setNewAccountName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [installments, setInstallments] = useState('1');
+  const [interestRate, setInterestRate] = useState('0');
+  const [cardPool, setCardPool] = useState<any[]>([]);
   
   const scrollRef = useRef<any>(null);
 
@@ -72,6 +75,7 @@ export default function AddTransactionScreen() {
       setDescription('');
       setCategory('');
       setDestAccount('');
+      setInstallments('1');
     }
   }, [isFocused]);
 
@@ -101,7 +105,11 @@ export default function AddTransactionScreen() {
         ]);
         if (rawCats) setCustomCategories(JSON.parse(rawCats));
         if (rawAccs) setCustomAccounts(JSON.parse(rawAccs));
-        if (rawCards) setCardNames(JSON.parse(rawCards).map((c: any) => c.name));
+        if (rawCards) {
+          const parsed = JSON.parse(rawCards);
+          setCardNames(parsed.map((c: any) => c.name));
+          setCardPool(parsed);
+        }
       } catch (e) {
         console.error('Error al cargar datos persistidos:', e);
       }
@@ -321,7 +329,18 @@ export default function AddTransactionScreen() {
 
     const dbType = type === 'income' ? 'income' : 'expense';
     const dbCategory = type === 'ahorro' ? 'Ahorro' : (category || (type === 'income' ? 'Ingreso' : 'General'));
-    const desc = description.trim() || dbCategory;
+    
+    // Formatear descripción con info de cuotas si aplica
+    let finalDescription = description.trim() || dbCategory;
+    const isCreditCard = cardNames.includes(account);
+    const instNum = parseInt(installments, 10);
+    const rate = parseFloat(interestRate) || 0;
+    
+    if (type === 'expense' && isCreditCard && instNum > 1) {
+        finalDescription = `[CUOTAS:${instNum}:RATE:${rate}] ${finalDescription}`;
+    }
+
+    const desc = finalDescription;
 
     try {
       const { error } = await supabase.from('transactions').insert([{
@@ -454,12 +473,16 @@ export default function AddTransactionScreen() {
                 <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>Cuenta</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
                   {['Efectivo', ...customAccounts.filter(a => !cardNames.includes(a))].map(acc => (
-                    <TouchableOpacity
-                      key={acc}
-                      style={[styles.chip, { backgroundColor: account === acc ? typeColor : colorsNav.card }]}
-                      onPress={() => setAccount(acc)}
-                      onLongPress={() => customAccounts.includes(acc) && handleDeleteCustomAccount(acc)}
-                    >
+                      <TouchableOpacity
+                        key={acc}
+                        style={[styles.chip, { backgroundColor: account === acc ? typeColor : colorsNav.card }]}
+                        onPress={() => {
+                            setAccount(acc);
+                            const card = cardPool.find(c => c.name === acc);
+                            if (card) setInterestRate(card.interestRate?.toString() || '28');
+                        }}
+                        onLongPress={() => customAccounts.includes(acc) && handleDeleteCustomAccount(acc)}
+                      >
                       <Text style={[styles.chipText, { color: account === acc ? '#FFF' : colorsNav.text }]}>{acc}</Text>
                     </TouchableOpacity>
                   ))}
@@ -474,11 +497,15 @@ export default function AddTransactionScreen() {
                   <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>Tarjetas de Crédito</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
                     {cardNames.map(acc => (
-                      <TouchableOpacity
-                        key={acc}
-                        style={[styles.chip, { backgroundColor: account === acc ? typeColor : colorsNav.card }]}
-                        onPress={() => setAccount(acc)}
-                      >
+                        <TouchableOpacity
+                          key={acc}
+                          style={[styles.chip, { backgroundColor: account === acc ? typeColor : colorsNav.card }]}
+                          onPress={() => {
+                            setAccount(acc);
+                            const card = cardPool.find(c => c.name === acc);
+                            if (card) setInterestRate(card.interestRate?.toString() || '28');
+                          }}
+                        >
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                           <MaterialIcons name="credit-card" size={14} color={account === acc ? '#FFF' : colorsNav.text} />
                           <Text style={[styles.chipText, { color: account === acc ? '#FFF' : colorsNav.text }]}>{acc}</Text>
@@ -525,6 +552,70 @@ export default function AddTransactionScreen() {
                     ))}
                   </ScrollView>
               </View>
+              )}
+
+              {/* Selector de Cuotas para Tarjetas */}
+              {type === 'expense' && cardNames.includes(account) && (
+                <View style={[styles.section, { backgroundColor: colorsNav.card, padding: 20, borderRadius: 24, marginTop: 10 }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={[styles.sectionTitle, { color: colorsNav.text, marginLeft: 0 }]}>Número de Cuotas</Text>
+                        <View style={{ backgroundColor: colorsNav.accent + '20', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
+                            <Text style={{ color: colorsNav.accent, fontWeight: '800', fontSize: 12 }}>{installments} {parseInt(installments, 10) === 1 ? 'Cuota' : 'Cuotas'}</Text>
+                        </View>
+                    </View>
+                    
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 10 }}>
+                        {['1', '2', '3', '6', '12', '24', '36'].map(num => (
+                            <TouchableOpacity 
+                                key={num} 
+                                style={[styles.instChip, { backgroundColor: installments === num ? colorsNav.accent : colorsNav.bg, borderColor: colorsNav.border }]} 
+                                onPress={() => setInstallments(num)}
+                            >
+                                <Text style={{ color: installments === num ? '#FFF' : colorsNav.text, fontWeight: '800' }}>{num}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+
+                    {parseInt(installments, 10) > 1 && (() => {
+                        const ea = parseFloat(interestRate) / 100;
+                        const mv = Math.pow(1 + ea, 1/12) - 1;
+                        const n = parseInt(installments, 10);
+                        const p = parsed;
+                        
+                        // Fórmula cuota fija (amortización francesa)
+                        const cuota = mv > 0 ? (p * mv) / (1 - Math.pow(1 + mv, -n)) : p / n;
+                        const totalReal = cuota * n;
+
+                        return (
+                            <View style={{ marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: colorsNav.border + '50' }}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+                                    <Text style={{ color: colorsNav.sub, fontSize: 12, fontWeight: '600' }}>Tasa interés (E.A. %)</Text>
+                                    <TextInput 
+                                        style={{ color: colorsNav.text, fontWeight: '800', textAlign: 'right', minWidth: 40 }}
+                                        value={interestRate}
+                                        onChangeText={setInterestRate}
+                                        keyboardType="numeric"
+                                    />
+                                </View>
+                                
+                                <View style={{ gap: 4 }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                        <Text style={{ color: colorsNav.sub, fontSize: 12 }}>Pago mensual:</Text>
+                                        <Text style={{ color: colorsNav.text, fontWeight: '800' }}>{fmt(cuota)}</Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                        <Text style={{ color: colorsNav.sub, fontSize: 12 }}>Total a pagar (con intereses):</Text>
+                                        <Text style={{ color: colorsNav.accent, fontWeight: '900' }}>{fmt(totalReal)}</Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                        <Text style={{ color: colorsNav.sub, fontSize: 12 }}>Intereses totales:</Text>
+                                        <Text style={{ color: '#EF4444', fontWeight: '800' }}>{fmt(totalReal - p)}</Text>
+                                    </View>
+                                </View>
+                            </View>
+                        );
+                    })()}
+                </View>
               )}
             </View>
 
@@ -639,6 +730,7 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 100 },
   chipText: { fontSize: 14, fontWeight: '700' },
   addChip: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'transparent', borderWidth: 1, borderColor: '#D1D5DB', justifyContent: 'center', alignItems: 'center' },
+  instChip: { width: 45, height: 45, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
 
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 20, borderRadius: 100, marginTop: 40, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width:0, height:4 } },
   saveBtnText: { color: '#FFF', fontSize: 18, fontWeight: '900', letterSpacing: -0.5 },
