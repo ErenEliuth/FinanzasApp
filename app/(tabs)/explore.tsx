@@ -577,10 +577,18 @@ export default function AddTransactionScreen() {
                     </ScrollView>
 
                     {parseInt(installments, 10) > 1 && (() => {
+                        let cleanStr = amount;
+                        if (currency === 'COP') {
+                            cleanStr = amount.replace(/\./g, '').replace(',', '.');
+                        } else {
+                            cleanStr = amount.replace(/,/g, '');
+                        }
+                        const typedVal = parseFloat(cleanStr) || 0;
+                        const p = convertToBase(typedVal, currency, rates);
+                        
                         const ea = parseFloat(interestRate) / 100;
                         const mv = Math.pow(1 + ea, 1/12) - 1;
                         const n = parseInt(installments, 10);
-                        const p = parsed;
                         
                         // Fórmula cuota fija (amortización francesa)
                         const cuota = mv > 0 ? (p * mv) / (1 - Math.pow(1 + mv, -n)) : p / n;
