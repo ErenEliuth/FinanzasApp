@@ -88,7 +88,7 @@ export default function InvestScreen() {
   // BVC Market Status
   const [bvcMarket, setBvcMarket] = useState<SearchResult[]>([]);
   const [lastBvcUpdate, setLastBvcUpdate] = useState<Date>(new Date());
-  const [bvcCountdown, setBvcCountdown] = useState(900); 
+  const [bvcCountdown, setBvcCountdown] = useState(60); 
 
   const baseFmt = (n: number) => formatCurrency(n, 'COP', isHidden);
   const usdToCop = rates?.USD || 3950;
@@ -106,7 +106,7 @@ export default function InvestScreen() {
       setBvcCountdown(prev => {
         if (prev <= 1) {
           updateBvc();
-          return 900;
+          return 60;
         }
         return prev - 1;
       });
