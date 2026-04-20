@@ -151,6 +151,7 @@ export default function InvestScreen() {
         }));
         setPositions(parsed);
         refreshPrices(parsed);
+        handleDividendSync(parsed);
       }
 
       const storedDivs = await AsyncStorage.getItem(`@invest_divs_${user?.id}`);
@@ -170,6 +171,62 @@ export default function InvestScreen() {
       calculateInvestHealth();
     } catch (e) { 
         console.log("No se pudo cargar price_alerts o salud - omitiendo."); 
+    }
+  };
+
+  const handleDividendSync = async (pos: Position[]) => {
+    if (!user) return;
+    try {
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      const lastCheckStr = await AsyncStorage.getItem(`@invest_last_div_sync_${user.id}`);
+      
+      if (!lastCheckStr) {
+        await AsyncStorage.setItem(`@invest_last_div_sync_${user.id}`, `${currentMonth}-${currentYear}`);
+        return;
+      }
+
+      const [lastMonth, lastYear] = lastCheckStr.split('-').map(Number);
+      if (currentMonth === lastMonth && currentYear === lastYear) return;
+
+      let monthsToProcess: number[] = [];
+      let checkM = lastMonth;
+      let checkY = lastYear;
+
+      while (checkM !== currentMonth || checkY !== currentYear) {
+        checkM++;
+        if (checkM > 11) { checkM = 0; checkY++; }
+        monthsToProcess.push(checkM);
+        if (checkM === currentMonth && checkY === currentYear) break;
+      }
+      
+      if (monthsToProcess.length === 0) return;
+
+      let extraDivs = 0;
+      pos.forEach(p => {
+        const dConfig = MOCK_DIVS[p.ticker];
+        if (dConfig) {
+          const payPerMonth = dConfig.yield / (dConfig.months.length || 1);
+          monthsToProcess.forEach(m => {
+            if (dConfig.months.includes(m)) {
+              extraDivs += p.shares * payPerMonth;
+            }
+          });
+        }
+      });
+
+      if (extraDivs > 0) {
+        const currentStored = await AsyncStorage.getItem(`@invest_divs_${user.id}`);
+        const newTotal = (Number(currentStored) || 0) + extraDivs;
+        setTotalDividends(newTotal);
+        await AsyncStorage.setItem(`@invest_divs_${user.id}`, String(newTotal));
+        Alert.alert("💸 Dividendos Cobrados", `Se han sumado ${formatCurrency(extraDivs, 'COP')} a tu patrimonio por fechas de pago cumplidas.`);
+      }
+
+      await AsyncStorage.setItem(`@invest_last_div_sync_${user.id}`, `${currentMonth}-${currentYear}`);
+    } catch (e) {
+      console.log("Error en sync de dividendos:", e);
     }
   };
 
@@ -570,11 +627,9 @@ export default function InvestScreen() {
                       <Text style={{ color: colors.text, fontSize: 13, fontWeight: '900' }}>{asset.ticker}</Text>
                       <Text style={{ color: colors.text, fontSize: 11, fontWeight: '700', marginTop: 2 }}>{baseFmt(asset.price)}</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
-                        <MaterialCommunityIcons 
-                          name={asset.changePercent >= 0 ? "trending-up" : "trending-down"} 
-                          size={12} 
-                          color={asset.changePercent >= 0 ? '#10B981' : '#EF4444'} 
-                        />
+                        <Text style={{ color: asset.changePercent >= 0 ? '#10B981' : '#EF4444', fontSize: 10, fontWeight: '900' }}>
+                          {asset.changePercent >= 0 ? '▲' : '▼'}
+                        </Text>
                         <Text style={{ color: asset.changePercent >= 0 ? '#10B981' : '#EF4444', fontSize: 11, fontWeight: '800' }}>
                           {asset.changePercent >= 0 ? '+' : ''}{asset.changePercent.toFixed(2)}%
                         </Text>
