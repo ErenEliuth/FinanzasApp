@@ -463,7 +463,7 @@ export default function CardsScreen() {
                     </View>
                 )}
                 <View style={{ height: 100 }} />
-            </ScrollView>
+            </View>
 
             <Modal visible={addModalVisible} transparent animationType="fade">
                 <TouchableWithoutFeedback onPress={() => setAddModalVisible(false)}>
