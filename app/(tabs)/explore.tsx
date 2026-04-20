@@ -80,10 +80,9 @@ export default function AddTransactionScreen() {
   }, [isFocused]);
 
   // ─── Sugerencia Inteligente de Ahorro ───
-  const [showAiModal, setShowAiModal] = useState(false);
-  const [suggestedAmount, setSuggestedAmount] = useState(0);
-  const [suggestedPct, setSuggestedPct] = useState(0);
   const [incomeJustSaved, setIncomeJustSaved] = useState(0);
+  const [smartSavingsPref, setSmartSavingsPref] = useState<'enabled' | 'disabled' | 'unset'>('unset');
+  const [showPreferenceModal, setShowPreferenceModal] = useState(false);
   const router = useRouter();
   const { user, currency, rates, isHidden } = useAuth();
   const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
@@ -98,10 +97,11 @@ export default function AddTransactionScreen() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [rawCats, rawAccs, rawCards] = await Promise.all([
+        const [rawCats, rawAccs, rawCards, rawPref] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEY),
           AsyncStorage.getItem(ACCOUNT_STORAGE_KEY),
-          AsyncStorage.getItem(`@cards_${user?.id}`)
+          AsyncStorage.getItem(`@cards_${user?.id}`),
+          AsyncStorage.getItem('@smart_savings_enabled')
         ]);
         if (rawCats) setCustomCategories(JSON.parse(rawCats));
         if (rawAccs) setCustomAccounts(JSON.parse(rawAccs));
@@ -110,6 +110,7 @@ export default function AddTransactionScreen() {
           setCardNames(parsed.map((c: any) => c.name));
           setCardPool(parsed);
         }
+        if (rawPref) setSmartSavingsPref(rawPref as any);
       } catch (e) {
         console.error('Error al cargar datos persistidos:', e);
       }
@@ -374,7 +375,7 @@ export default function AddTransactionScreen() {
           });
           const debtTotal = allDebts?.reduce((sum, d) => sum + (d.value - d.paid), 0) || 0;
           const realMoney = (totalActive + totalAhorro) - debtTotal;
-          const healthPct = totalActive > 0 ? (realMoney / (totalActive + totalAhorro)) * 100 : 0;
+          const healthPct = (totalActive + totalAhorro) > 0 ? (realMoney / (totalActive + totalAhorro)) * 100 : 0;
 
           const pct = healthPct >= 70 ? 20 : healthPct >= 40 ? 15 : 10;
           const suggest = Math.round(parsed * (pct / 100));
@@ -382,7 +383,16 @@ export default function AddTransactionScreen() {
           setSuggestedAmount(suggest);
           setSuggestedPct(pct);
           setIncomeJustSaved(parsed);
-          setShowAiModal(true);
+          
+          // Si no hay preferencia, preguntar
+          if (smartSavingsPref === 'unset') {
+            setShowPreferenceModal(true);
+          } else if (smartSavingsPref === 'enabled') {
+            setShowAiModal(true);
+          } else {
+            router.back();
+          }
+
           setIsSaving(false);
           return;
         } catch (e) { console.error('Error calculando sugerencia:', e); }
@@ -405,12 +415,24 @@ export default function AddTransactionScreen() {
       }]);
       if (error) throw error;
       setShowAiModal(false);
-      if (router.canGoBack()) router.back(); else router.replace('/(tabs)');
+      router.replace('/(tabs)');
     } catch (e) {
       console.error('Error guardando ahorro sugerido:', e);
       Alert.alert('Error', 'No se pudo guardar el ahorro.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSmartSavingsPref = async (enabled: boolean) => {
+    const val = enabled ? 'enabled' : 'disabled';
+    setSmartSavingsPref(val);
+    await AsyncStorage.setItem('@smart_savings_enabled', val);
+    setShowPreferenceModal(false);
+    if (enabled) {
+      setShowAiModal(true);
+    } else {
+      router.back();
     }
   };
 
@@ -687,6 +709,36 @@ export default function AddTransactionScreen() {
                     <Text style={{ color: '#FFF', fontWeight: '800' }}>Guardar</Text>
                   </TouchableOpacity>
                 </View>
+             </View>
+          </View>
+        </Modal>
+
+        <Modal visible={showPreferenceModal} transparent animationType="fade">
+          <View style={styles.overlay}>
+             <View style={[styles.modalBox, { backgroundColor: colorsNav.card, alignItems: 'center' }]}>
+                <View style={[styles.aiIcon, { backgroundColor: '#8B5CF620' }]}>
+                  <MaterialIcons name="auto-awesome" size= {32} color="#8B5CF6" />
+                </View>
+                <Text style={[styles.modalTitle, { color: colorsNav.text }]}>¿Activar Ahorro Inteligente?</Text>
+                <Text style={[styles.modalSub, { color: colorsNav.sub, textAlign: 'center' }]}>
+                  Podemos sugerirte cuánto ahorrar automáticamente cada vez que recibas dinero para ayudarte a cumplir tus metas.
+                </Text>
+
+                <View style={styles.modalBtns}>
+                  <TouchableOpacity 
+                    style={[styles.mBtn, { backgroundColor: colorsNav.bg, borderWidth: 1, borderColor: colorsNav.border }]} 
+                    onPress={() => handleSmartSavingsPref(false)}
+                  >
+                    <Text style={{ color: colorsNav.text, fontWeight: '700' }}>No, gracias</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.mBtn, { backgroundColor: '#8B5CF6' }]} 
+                    onPress={() => handleSmartSavingsPref(true)}
+                  >
+                    <Text style={{ color: '#FFF', fontWeight: '900' }}>Sí, activar</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={{ fontSize: 10, color: colorsNav.sub, marginTop: 10 }}>Puedes cambiar esto luego en Ahorros.</Text>
              </View>
           </View>
         </Modal>

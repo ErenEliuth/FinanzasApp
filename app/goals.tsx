@@ -40,6 +40,7 @@ export default function GoalsScreen() {
     const [newGoalImage, setNewGoalImage] = useState<string | null>(null);
     const [newGoalPriority, setNewGoalPriority] = useState<'high' | 'medium' | 'low'>('medium');
     const [isProcessing, setIsProcessing] = useState(false);
+    const [smartSavingsEnabled, setSmartSavingsEnabled] = useState<boolean | null>(null);
 
     const [payModalVisible, setPayModalVisible] = useState(false);
     const [withdrawModalVisible, setWithdrawModalVisible] = useState(false);
@@ -63,6 +64,10 @@ export default function GoalsScreen() {
             const { data: txData } = await supabase.from('transactions').select('amount').eq('user_id', user.id).eq('category', 'Ahorro');
             const total = txData?.reduce((s, tx) => s + tx.amount, 0) || 0;
             setTotalAhorro(total);
+
+            // Cargar estado de ahorro inteligente
+            const rawPref = await AsyncStorage.getItem('@smart_savings_enabled');
+            setSmartSavingsEnabled(rawPref === 'enabled');
         } catch (e) { console.error(e); }
     };
 
@@ -179,6 +184,12 @@ export default function GoalsScreen() {
         }
     };
 
+    const toggleSmartSavings = async () => {
+        const newState = !smartSavingsEnabled;
+        setSmartSavingsEnabled(newState);
+        await AsyncStorage.setItem('@smart_savings_enabled', newState ? 'enabled' : 'disabled');
+    };
+
     const handleDelete = (goal: any) => {
         const msg = `¿Eliminar "${goal.name}"? Los fondos volverán al Ahorro Disponible.`;
         if (Platform.OS === 'web') {
@@ -244,6 +255,46 @@ export default function GoalsScreen() {
                                 )}
                             </View>
                         </View>
+                    </View>
+                </View>
+
+                {/* ── Ahorro Inteligente Toggle ── */}
+                <View style={[styles.securityCard, { backgroundColor: colors.card, marginBottom: 16 }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                            <View style={[styles.iconBox, { backgroundColor: '#8B5CF620' }]}>
+                                <MaterialIcons name="auto-awesome" size={20} color="#8B5CF6" />
+                            </View>
+                            <View>
+                                <Text style={[styles.securityTitle, { color: colors.text, fontSize: 15 }]}>Ahorro Inteligente</Text>
+                                <Text style={[styles.levelLabel, { color: colors.sub, textAlign: 'left', marginTop: 2 }]}>Sugerencias automáticas en ingresos</Text>
+                            </View>
+                        </View>
+                        <TouchableOpacity 
+                            onPress={toggleSmartSavings}
+                            style={{ 
+                                width: 50, 
+                                height: 28, 
+                                borderRadius: 14, 
+                                backgroundColor: smartSavingsEnabled ? '#8B5CF6' : colors.bg,
+                                justifyContent: 'center',
+                                paddingHorizontal: 4,
+                                borderWidth: 1,
+                                borderColor: smartSavingsEnabled ? '#8B5CF6' : colors.border
+                            }}
+                        >
+                            <View style={{ 
+                                width: 20, 
+                                height: 20, 
+                                borderRadius: 10, 
+                                backgroundColor: '#FFF',
+                                alignSelf: smartSavingsEnabled ? 'flex-end' : 'flex-start',
+                                elevation: 2,
+                                shadowColor: '#000',
+                                shadowOpacity: 0.2,
+                                shadowRadius: 2
+                            }} />
+                        </TouchableOpacity>
                     </View>
                 </View>
 
