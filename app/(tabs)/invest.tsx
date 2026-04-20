@@ -55,13 +55,9 @@ export default function InvestScreen() {
 
   const [positions, setPositions] = useState<Position[]>([]);
   const [detailAsset, setDetailAsset] = useState<Position | null>(null);
-  const [activeTab, setActiveTab] = useState<'hub' | 'portfolio' | 'goals' | 'calendar' | 'ai'>('hub');
+  const [activeTab, setActiveTab] = useState<'hub' | 'portfolio' | 'calendar'>('hub');
   const [modalVisible, setModalVisible] = useState(false);
 
-  const [goals, setGoals] = useState<InvestGoal[]>([]);
-  const [goalModalVisible, setGoalModalVisible] = useState(false);
-  const [newGoal, setNewGoal] = useState({ name: '', target: '', icon: 'home' });
-  const [deletingGoalId, setDeletingGoalId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [totalDividends, setTotalDividends] = useState<number>(0);
@@ -101,7 +97,6 @@ export default function InvestScreen() {
     if (isFocused) { 
       loadData(); 
       calculateInvestHealth(); 
-      calculateSantyAnalysis(); 
       updateBvc();
     } 
   }, [isFocused]);
@@ -138,26 +133,6 @@ export default function InvestScreen() {
     try {
       if (!user) return;
       
-      // Cargar Metas desde Supabase
-      const { data: gData, error: gError } = await supabase
-        .from('investment_goals')
-        .select('*')
-        .eq('user_id', user.id);
-      
-      if (!gError && gData && gData.length > 0) {
-        setGoals(gData);
-      } else {
-        const defGoal = { 
-          user_id: user.id, 
-          name: 'Libertad Financiera', 
-          target: 50000000, 
-          icon: 'shield', 
-          color: '#8B5CF6' 
-        };
-        const { data: inserted } = await supabase.from('investment_goals').insert([defGoal]).select();
-        if (inserted) setGoals(inserted);
-      }
-
       // Cargar Posiciones desde Supabase
       const { data: pData, error: pError } = await supabase
         .from('investments')
@@ -193,7 +168,6 @@ export default function InvestScreen() {
       })));
 
       calculateInvestHealth();
-      calculateSantyAnalysis();
     } catch (e) { 
         console.log("No se pudo cargar price_alerts o salud - omitiendo."); 
     }
@@ -214,15 +188,7 @@ export default function InvestScreen() {
     } catch (e) { }
   };
 
-  const calculateSantyAnalysis = async () => {
-    if (!user) return;
-    try {
-      const { data: allTx } = await supabase.from('transactions').select('amount, type, category').eq('user_id', user.id);
-      let totalActive = 0;
-      allTx?.forEach(t => { totalActive += t.type === 'income' ? t.amount : -t.amount; });
-      setHealthInfo({ available: totalActive, status: 'Analizado' });
-    } catch (e) { }
-  };
+
 
   const handleCreateAlert = async () => {
     if (!user || !newAlert.ticker || !newAlert.target) return;
@@ -410,39 +376,7 @@ export default function InvestScreen() {
     }
   };
 
-  const handleAddGoal = async () => {
-    if (!newGoal.name || !newGoal.target || !user) return;
-    const targetNum = parseFloat(newGoal.target.replace(/\D/g, ''));
-    const color = ['#8B5CF6', '#10B981', '#3B82F6', '#F59E0B', '#EF4444'][goals.length % 5];
-    
-    const dbGoal = {
-      user_id: user.id,
-      name: newGoal.name,
-      target: targetNum,
-      icon: newGoal.icon,
-      color: color
-    };
 
-    const { data: inserted, error } = await supabase.from('investment_goals').insert([dbGoal]).select();
-    
-    if (!error && inserted) {
-      setGoals([...goals, inserted[0]]);
-      setGoalModalVisible(false); setNewGoal({ name: '', target: '', icon: 'home' });
-    } else {
-      Alert.alert("Error", "No se pudo crear la meta en la nube.");
-    }
-  };
-
-  const handleDeleteGoal = async (id: string) => {
-    const { error } = await supabase.from('investment_goals').delete().eq('id', id);
-    if (!error) {
-      const updated = goals.filter(g => g.id !== id);
-      setGoals(updated);
-      setDeletingGoalId(null);
-    } else {
-      Alert.alert("Error", "No se pudo eliminar la meta.");
-    }
-  };
 
   const getAssetIcon = (type: AssetType) => {
     switch(type) {
@@ -518,8 +452,7 @@ export default function InvestScreen() {
           <Ionicons name={activeTab === 'hub' ? "close" : "arrow-back"} size={20} color={colors.text} />
         </TouchableOpacity>
         <Text style={[s.headerTitle, { color: colors.text }]}>
-          {activeTab === 'hub' ? 'Inversiones' : activeTab === 'portfolio' ? 'Portafolio' :
-           activeTab === 'goals' ? 'Metas' : activeTab === 'calendar' ? 'Dividendos' : 'Asesor Santy'}
+          {activeTab === 'hub' ? 'Inversiones' : activeTab === 'portfolio' ? 'Portafolio' : 'Dividendos'}
         </Text>
         {activeTab === 'portfolio' ? (
           <TouchableOpacity onPress={() => { setModalVisible(true); setAddFlowStep('category'); }} style={[s.addBtn, { backgroundColor: colors.accent }]}>
@@ -654,107 +587,12 @@ export default function InvestScreen() {
                 </ScrollView>
               </View>
 
-              {/* 🟦 MUNDO TRII SECTION */}
-              <View style={[s.triiCorner, { backgroundColor: '#0047FF10', borderColor: '#0047FF30', borderWidth: 1 }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                  <View style={{ backgroundColor: '#0047FF', width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}>
-                    <MaterialCommunityIcons name="lightning-bolt" size={20} color="#FFF" />
-                  </View>
-                  <View>
-                    <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900' }}>Inversiones con Trii</Text>
-                    <Text style={{ color: '#0047FF', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 }}>TU PUERTE A LA BVC</Text>
-                  </View>
-                </View>
-
-                <View style={{ gap: 10 }}>
-                  <View style={s.triiInfoRow}>
-                    <MaterialCommunityIcons name="cash-fast" size={16} color={colors.sub} />
-                    <Text style={[s.triiInfoText, { color: colors.sub }]}>Comisión mínima: <Text style={{ color: colors.text, fontWeight: '800' }}>$14,875 COP</Text></Text>
-                  </View>
-                  <View style={s.triiInfoRow}>
-                    <MaterialCommunityIcons name="clock-check-outline" size={16} color={colors.sub} />
-                    <Text style={[s.triiInfoText, { color: colors.sub }]}>Horario de mercado: <Text style={{ color: colors.text, fontWeight: '800' }}>9:30 AM - 4:00 PM</Text></Text>
-                  </View>
-                  <View style={s.triiInfoRow}>
-                    <MaterialCommunityIcons name="shield-check-outline" size={16} color={colors.sub} />
-                    <Text style={[s.triiInfoText, { color: colors.sub }]}>Regulado por <Text style={{ color: colors.text, fontWeight: '800' }}>SFC (Superfinanciera)</Text></Text>
-                  </View>
-                </View>
-
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 15 }}>
-                  <TouchableOpacity style={[s.triiPill, { backgroundColor: '#0047FF20' }]}>
-                    <Text style={{ color: '#0047FF', fontSize: 10, fontWeight: '900' }}>ACCIONES COL</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[s.triiPill, { backgroundColor: '#0047FF20' }]}>
-                    <Text style={{ color: '#0047FF', fontSize: 10, fontWeight: '900' }}>FONDOS VISTA</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[s.triiPill, { backgroundColor: '#0047FF20' }]}>
-                    <Text style={{ color: '#0047FF', fontSize: 10, fontWeight: '900' }}>REPO</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* 🏆 CONSEJO DE SANTY (Prominent Card) */}
-              <View style={[s.santyAdviceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                  <View style={[s.adviceIconWrap, { backgroundColor: colors.accent + '15' }]}>
-                    <MaterialCommunityIcons name="sparkles" size={20} color={colors.accent} />
-                  </View>
-                  <View>
-                    <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900' }}>Consejo de Santy</Text>
-                    <Text style={{ color: colors.sub, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 }}>STRATEGY COMPASS</Text>
-                  </View>
-                  <TouchableOpacity onPress={() => setActiveTab('ai')} style={{ marginLeft: 'auto' }}>
-                    <Text style={{ color: colors.accent, fontSize: 11, fontWeight: '800' }}>DETALLES</Text>
-                  </TouchableOpacity>
-                </View>
-                
-                <Text style={{ color: colors.sub, fontSize: 13, lineHeight: 18, marginBottom: 16, fontWeight: '600' }}>
-                  "Para tu primer millón en 2026, equilibra tu portafolio así:"
-                </Text>
-
-                <View style={{ gap: 8 }}>
-                  {[
-                    { title: 'Rentabilidad Fija', desc: '40% · Nu / CDTs', type: 'fixed', icon: 'shield-check', color: '#10B981' },
-                    { title: 'Crecimiento Global', desc: '40% · S&P 500 (VOO)', type: 'etf', icon: 'earth', color: '#3B82F6' },
-                    { title: 'Ingreso Pasivo', desc: '20% · Dividendos', type: 'stock', icon: 'cash-multiple', color: '#8B5CF6' }
-                  ].map((item, i) => (
-                    <TouchableOpacity 
-                      key={i} 
-                      onPress={() => {
-                        setSelectedAssetType(item.type as AssetType);
-                        setSearchResults(POPULAR_ASSETS.filter(a => a.type === item.type).slice(0, 8));
-                        setAddFlowStep('search');
-                        setModalVisible(true);
-                      }}
-                      style={[s.adviceItem, { backgroundColor: colors.bg, borderColor: colors.border }]}
-                    >
-                      <View style={[s.adviceItemIcon, { backgroundColor: item.color + '10' }]}>
-                        <MaterialCommunityIcons name={item.icon as any} size={18} color={item.color} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>{item.title}</Text>
-                        <Text style={{ color: colors.sub, fontSize: 11 }}>{item.desc}</Text>
-                      </View>
-                      <View style={[s.addSmallBtn, { backgroundColor: item.color + '20' }]}>
-                        <MaterialIcons name="add" size={16} color={item.color} />
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
               {/* Quick Stats Row */}
               <View style={s.quickRow}>
                 <View style={[s.quickStat, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <MaterialIcons name="pie-chart" size={18} color={colors.accent} />
                   <Text style={[s.quickNum, { color: colors.text }]}>{positions.length}</Text>
                   <Text style={[s.quickLabel, { color: colors.sub }]}>Activos</Text>
-                </View>
-                <View style={[s.quickStat, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <MaterialIcons name="flag" size={18} color="#10B981" />
-                  <Text style={[s.quickNum, { color: colors.text }]}>{goals.length}</Text>
-                  <Text style={[s.quickLabel, { color: colors.sub }]}>Metas</Text>
                 </View>
                 <View style={[s.quickStat, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <MaterialIcons name="payments" size={18} color="#3B82F6" />
@@ -766,16 +604,12 @@ export default function InvestScreen() {
               {/* Navigation Cards */}
               <View style={{ gap: 12, marginTop: 8 }}>
                 {[
-                  { id: 'portfolio', label: 'Mi Portafolio', sub: `${positions.length} activos · ${baseFmt(totalCurrent)}`, icon: 'pie-chart', color: colors.accent, iconSet: 'MI' },
-                  { id: 'goals', label: 'Metas de Inversión', sub: `${goals.length} proyectos activos`, icon: 'flag', color: '#10B981', iconSet: 'MI' },
-                  { id: 'calendar', label: 'Dividendos & Rentas', sub: `Anual est: ${baseFmt(projectedDivs.reduce((a,b)=>a+b, 0))}`, icon: 'calendar-month', color: '#3B82F6', iconSet: 'MI' },
-                  { id: 'ai', label: 'Asesor Santy', sub: `Excedente: ${baseFmt(projectedSurplus)}`, icon: 'auto-awesome', color: '#8B5CF6', iconSet: 'MI' },
+                  { id: 'portfolio', label: 'Mi Portafolio', sub: `${positions.length} activos · ${baseFmt(totalCurrent)}`, icon: 'pie-chart', color: colors.accent },
+                  { id: 'calendar', label: 'Dividendos & Rentas', sub: `Anual est: ${baseFmt(projectedDivs.reduce((a,b)=>a+b, 0))}`, icon: 'calendar-month', color: '#3B82F6' },
                 ].map(item => (
                   <TouchableOpacity key={item.id} style={[s.navCard, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => setActiveTab(item.id as any)}>
                     <View style={[s.navIcon, { backgroundColor: item.color + '12' }]}>
-                      {item.iconSet === 'MCI'
-                        ? <MaterialCommunityIcons name={item.icon as any} size={24} color={item.color} />
-                        : <MaterialIcons name={item.icon as any} size={24} color={item.color} />}
+                      <MaterialIcons name={item.icon as any} size={24} color={item.color} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800' }}>{item.label}</Text>
@@ -920,46 +754,6 @@ export default function InvestScreen() {
             </View>
           )}
 
-          {/* ═══ GOALS ═══ */}
-          {activeTab === 'goals' && (
-            <View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
-                <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>Mis Metas</Text>
-                <TouchableOpacity onPress={() => setGoalModalVisible(true)}><Text style={{ color: colors.accent, fontWeight: '800', fontSize: 13 }}>+ NUEVA</Text></TouchableOpacity>
-              </View>
-              {goals.map(g => {
-                const prog = Math.min((totalCurrent / (g.target || 1)) * 100, 100);
-                const remaining = Math.max(g.target - totalCurrent, 0);
-                const months = projectedSurplus > 0 ? Math.ceil(remaining / projectedSurplus) : null;
-                return (
-                  <TouchableOpacity key={g.id} onLongPress={() => setDeletingGoalId(g.id)} style={[s.goalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                      <View style={[s.goalIcon, { backgroundColor: g.color + '12' }]}><MaterialCommunityIcons name={g.icon as any} size={24} color={g.color} /></View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>{g.name}</Text>
-                        <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '600' }}>Objetivo: {baseFmt(g.target)}</Text>
-                      </View>
-                      {deletingGoalId === g.id ? (
-                        <TouchableOpacity onPress={() => handleDeleteGoal(g.id)} style={{ backgroundColor: '#EF4444', width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' }}>
-                          <Ionicons name="trash" size={18} color="#FFF" />
-                        </TouchableOpacity>
-                      ) : <Text style={{ color: g.color, fontSize: 20, fontWeight: '900' }}>{prog.toFixed(0)}%</Text>}
-                    </View>
-                    <View style={{ height: 8, backgroundColor: colors.bg, borderRadius: 4, marginBottom: 12 }}>
-                      <View style={{ width: `${prog}%`, height: '100%', backgroundColor: g.color, borderRadius: 4 }} />
-                    </View>
-                    <View style={{ backgroundColor: g.color + '08', padding: 12, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: g.color }}>
-                      <Text style={{ color: colors.text, fontSize: 11, fontWeight: '800' }}>💡 SANTY:</Text>
-                      <Text style={{ color: colors.sub, fontSize: 11, lineHeight: 16, marginTop: 2 }}>
-                        {months && months > 0 ? `A tu ritmo actual, alcanzarás esta meta en ~${months} meses.` : `¡Vas por buen camino! Mantén el ritmo.`}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
-
           {/* ═══ CALENDAR ═══ */}
           {activeTab === 'calendar' && (
             <View>
@@ -978,150 +772,6 @@ export default function InvestScreen() {
               ))}
             </View>
           )}
-
-          {/* ═══ AI ADVISOR ═══ */}
-          {activeTab === 'ai' && (
-            <View>
-              <View style={[s.santyCard, { backgroundColor: '#8B5CF6' }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  <MaterialIcons name="auto-awesome" size={20} color="rgba(255,255,255,0.8)" />
-                  <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '800' }}>SANTY INSIGHT</Text>
-                </View>
-                <Text style={{ color: '#FFF', fontSize: 28, fontWeight: '900' }}>{baseFmt(projectedSurplus)}</Text>
-                <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12, lineHeight: 18, marginTop: 8 }}>Tu excedente mensual disponible para invertir.</Text>
-              </View>
-
-              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginTop: 24, marginBottom: 12 }}>Top Activos del Momento</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -24, paddingHorizontal: 24, marginBottom: 24 }}>
-                {POPULAR_ASSETS.filter(a => a.type !== 'crypto').slice(0, 6).map((s2, i) => (
-                  <View key={i} style={[s.tickerCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '900' }}>{s2.ticker}</Text>
-                    <Text style={{ color: s2.changePercent >= 0 ? '#10B981' : '#EF4444', fontSize: 12, fontWeight: '800', marginTop: 4 }}>
-                      {s2.changePercent >= 0 ? '+' : ''}{s2.changePercent.toFixed(2)}%
-                    </Text>
-                    <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '700', marginTop: 6 }}>{s2.exchange}</Text>
-                  </View>
-                ))}
-              </ScrollView>
-
-              <View style={[s.simCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900', marginBottom: 4 }}>Simulador de Capital</Text>
-                <Text style={{ color: colors.sub, fontSize: 11, marginBottom: 16 }}>Ingresa un monto y Santy te arma un portafolio.</Text>
-                <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <TextInput style={[s.simInput, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Monto a invertir" placeholderTextColor={colors.sub} keyboardType="decimal-pad" value={simAmount}
-                    onChangeText={t => setSimAmount(formatCurrency(parseFloat(t.replace(/\D/g, '') || '0'), 'COP', false).replace('$', ''))} autoCorrect={false} />
-                  <TouchableOpacity onPress={handleSimulate} style={[s.simBtn, { backgroundColor: '#8B5CF6' }]}>
-                    <Ionicons name="sparkles" size={22} color="#FFF" />
-                  </TouchableOpacity>
-                </View>
-                {simResult && (
-                  <View style={{ marginTop: 20, backgroundColor: colors.bg, padding: 16, borderRadius: 16 }}>
-                    <Text style={{ color: '#8B5CF6', fontSize: 11, fontWeight: '900', marginBottom: 8 }}>ESTRATEGIA SANTY</Text>
-                    <Text style={{ color: colors.sub, fontSize: 11, marginBottom: 12 }}>{simRationale}</Text>
-                    {simResult.map((r, i) => (
-                      <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>{r.ticker} {r.shares ? `(${r.shares} unid.)` : ''}</Text>
-                        <Text style={{ color: '#8B5CF6', fontSize: 13, fontWeight: '900' }}>{baseFmt(r.amount)}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </View>
-
-              {/* LA RUTA DEL PRIMER MILLÓN */}
-              <View style={{ marginTop: 24 }}>
-                 <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900', marginBottom: 15 }}>La Ruta del Primer Millón 🚀</Text>
-                 <View style={[s.pathCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                   <Text style={{ color: colors.sub, fontSize: 13, lineHeight: 20, marginBottom: 20 }}>
-                     Santy ha analizado las tendencias del 2026 para que alcances tu primer millón con estas 3 estrategias combinadas:
-                   </Text>
-                   
-                   {[
-                     { 
-                       title: '1. El Ancla de Liquidez (40%)', 
-                       desc: 'Usa cuentas de bajo riesgo con liquidación diaria (como las Cajitas Nu o CDTs a 90 días). Esto te da paz mental.',
-                       icon: 'water-percent',
-                       color: '#3B82F6'
-                     },
-                     { 
-                       title: '2. El Motor Americano (40%)', 
-                       desc: 'VTI o VOO a largo plazo. Son las 500 empresas más grandes. Al invertir mes a mes, promedias el mercado.',
-                       icon: 'rocket-launch',
-                       color: '#F59E0B'
-                     },
-                     { 
-                       title: '3. El Orgullo Local (20%)', 
-                       desc: 'Dividendos de empresas locales (Ecopetrol, Bancolombia). Ver caer el dinero extra cada trimestre motiva a cualquiera.',
-                       icon: 'map-marker-radius',
-                       color: '#10B981'
-                     }
-                   ].map((step, idx) => (
-                     <View key={idx} style={{ marginBottom: 20, flexDirection: 'row', gap: 14 }}>
-                       <View style={[s.pathIcon, { backgroundColor: step.color + '15' }]}>
-                         <MaterialCommunityIcons name={step.icon as any} size={22} color={step.color} />
-                       </View>
-                       <View style={{ flex: 1 }}>
-                         <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900' }}>{step.title}</Text>
-                         <Text style={{ color: colors.sub, fontSize: 12, marginTop: 4 }}>{step.desc}</Text>
-                       </View>
-                     </View>
-                   ))}
-
-                   <TouchableOpacity 
-                     style={[s.primaryBtn, { backgroundColor: colors.accent, marginTop: 10 }]}
-                     onPress={() => {
-                       setAddFlowStep('category');
-                       setModalVisible(true);
-                     }}
-                   >
-                     <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 16 }}>Empezar mi Ruta</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {/* 📚 PRINCIPIOS DE INVERSIÓN 2026 */}
-                <View style={{ marginTop: 24 }}>
-                   <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900', marginBottom: 15 }}>Principios de Oro 💡</Text>
-                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -24, paddingHorizontal: 24 }}>
-                     {[
-                       { title: 'Empieza hoy', desc: 'No esperes el momento "perfecto". El tiempo en el mercado vence al "market timing".', icon: 'clock-fast' },
-                       { title: 'Hábito > Monto', desc: 'Es mejor invertir $50k constantes cada mes que $1M una sola vez y olvidar.', icon: 'repeat' },
-                       { title: 'Interés Compuesto', desc: 'Reinvertir tus ganancias es lo que realmente te hará libre.', icon: 'auto-fix' },
-                       { title: 'Diversifica Real', desc: 'Ten algo en pesos (CDT) y algo en dólares (S&P 500) siempre.', icon: 'web' }
-                     ].map((tip, i) => (
-                       <View key={i} style={[s.tipCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                         <MaterialCommunityIcons name={tip.icon as any} size={28} color={colors.accent} />
-                         <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900', marginTop: 12 }}>{tip.title}</Text>
-                         <Text style={{ color: colors.sub, fontSize: 11, marginTop: 4, lineHeight: 15 }}>{tip.desc}</Text>
-                       </View>
-                     ))}
-                   </ScrollView>
-                </View>
-
-                {/* 🛠️ HERRAMIENTAS RECOMENDADAS */}
-                <View style={{ marginTop: 24, marginBottom: 40 }}>
-                   <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900', marginBottom: 15 }}>Plataformas Clave</Text>
-                   <View style={{ gap: 10 }}>
-                     {[
-                       { name: 'Trii / Hapi', use: 'Para comprar Acciones y ETFs (S&P 500).', icon: 'rocket' },
-                       { name: 'Nu / RappiPay', use: 'Para tus "Cajitas" de alta rentabilidad.', icon: 'piggy-bank' },
-                       { name: 'Tyba', use: 'Para fondos mutuos y CDTs digitales.', icon: 'leaf' }
-                     ].map((tool, i) => (
-                       <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, padding: 16, borderRadius: 20, borderWidth: 1, borderColor: colors.border }}>
-                         <View style={{ backgroundColor: colors.accent + '15', padding: 10, borderRadius: 12 }}>
-                           <MaterialCommunityIcons name={tool.icon as any} size={20} color={colors.accent} />
-                         </View>
-                         <View style={{ flex: 1 }}>
-                           <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>{tool.name}</Text>
-                           <Text style={{ color: colors.sub, fontSize: 12 }}>{tool.use}</Text>
-                         </View>
-                         <MaterialIcons name="arrow-forward" size={18} color={colors.sub} />
-                       </View>
-                     ))}
-                   </View>
-                </View>
-              </View>
-            )}
 
       {/* ═══ ADD ASSET MODAL ═══ */}
       <Modal visible={modalVisible} transparent animationType="slide" statusBarTranslucent>
@@ -1267,25 +917,7 @@ export default function InvestScreen() {
         </View>
       </Modal>
 
-      {/* Goal Modal */}
-      <Modal visible={goalModalVisible} transparent animationType="slide" statusBarTranslucent>
-        <View style={s.modalOverlay}>
-          <TouchableWithoutFeedback onPress={() => setGoalModalVisible(false)}>
-            <View style={StyleSheet.absoluteFill} />
-          </TouchableWithoutFeedback>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={Platform.OS === 'ios'}>
-            <View style={[s.modalBox, { backgroundColor: colors.card }]}>
-            <Text style={[s.modalTitle, { color: colors.text }]}>Nueva Meta</Text>
-            <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Nombre" placeholderTextColor={colors.sub} value={newGoal.name} onChangeText={t => setNewGoal({...newGoal, name: t})} autoCorrect={false} />
-            <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]} placeholder="Objetivo (COP)" placeholderTextColor={colors.sub} keyboardType="decimal-pad" value={newGoal.target} onChangeText={t => setNewGoal({...newGoal, target: t})} autoCorrect={false} />
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <TouchableOpacity style={[s.modalBtn, { backgroundColor: colors.bg }]} onPress={() => setGoalModalVisible(false)}><Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text></TouchableOpacity>
-              <TouchableOpacity style={[s.modalBtn, { backgroundColor: colors.accent }]} onPress={handleAddGoal}><Text style={{ color: '#FFF', fontWeight: '900' }}>Crear</Text></TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-        </View>
-      </Modal>
+
 
 
       {/* Alert Modal */}
