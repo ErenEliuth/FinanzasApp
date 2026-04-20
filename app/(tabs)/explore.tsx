@@ -80,6 +80,9 @@ export default function AddTransactionScreen() {
   }, [isFocused]);
 
   // ─── Sugerencia Inteligente de Ahorro ───
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [suggestedAmount, setSuggestedAmount] = useState(0);
+  const [suggestedPct, setSuggestedPct] = useState(0);
   const [incomeJustSaved, setIncomeJustSaved] = useState(0);
   const [smartSavingsPref, setSmartSavingsPref] = useState<'enabled' | 'disabled' | 'unset'>('unset');
   const [showPreferenceModal, setShowPreferenceModal] = useState(false);
