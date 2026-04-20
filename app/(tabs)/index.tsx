@@ -374,7 +374,7 @@ export default function HomeScreen() {
     }
   };
 
-  const { dineroActivo, dineroReal, dineroGeneral, ahorroTotal, ingresosMes, gastosMes, ahorroDelMes, saludPorcentaje, saludLabel, saludColor, porcentajeMes, saldoDisponible } = React.useMemo(() => {
+  const { dineroActivo, dineroReal, dineroGeneral, ahorroTotal, ingresosMes, gastosMes, ahorroDelMes, saludPorcentaje, saludLabel, saludColor, porcentajeMes, saldoDisponible, derivedAccountTotals } = React.useMemo(() => {
     const today = new Date();
     const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();
@@ -405,7 +405,7 @@ export default function HomeScreen() {
       }
     });
 
-    const activeMoney = Object.entries(accountTotals)
+    const activeMoney = Object.entries(accs)
       .filter(([accName]) => recognizedAccounts.includes(accName) && !userCards.includes(accName) && accName !== 'Ahorro')
       .reduce((sum, [_, amt]) => {
         const val = Number(amt);
@@ -446,9 +446,10 @@ export default function HomeScreen() {
       saludLabel: healthLbl,
       saludColor: healthClr,
       porcentajeMes: monthPct,
-      saldoDisponible: realMoney // Usamos el balance real como saldo disponible
+      saldoDisponible: realMoney,
+      derivedAccountTotals: accs
     };
-  }, [allTransactions, debtTotal, accountTotals, userCards, investmentTotal, recognizedAccounts]);
+  }, [allTransactions, debtTotal, userCards, investmentTotal, recognizedAccounts]);
 
   const handleLogout = async () => {
     if (Platform.OS === 'web') {
@@ -1014,7 +1015,7 @@ export default function HomeScreen() {
               <Text style={[styles.modalTitle, { color: colorsNav.text, fontSize: 18, marginBottom: 15 }]}>Distribución de Dinero</Text>
             </View>
             <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
-              {Object.entries(accountTotals)
+              {Object.entries(derivedAccountTotals)
                 .filter(([name]) => 
                     recognizedAccounts.includes(name) && 
                     !userCards.includes(name) && 
