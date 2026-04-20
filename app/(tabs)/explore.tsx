@@ -187,9 +187,14 @@ export default function AddTransactionScreen() {
     if (Platform.OS === 'web') {
       if (window.confirm(`¿Quitar la cuenta "${acc}"?`)) {
         (async () => {
-          const updated = customAccounts.filter(a => a !== acc);
-          await persistCustomAccounts(updated);
-          if (account === acc) setAccount('Efectivo');
+          try {
+            await supabase.from('transactions').delete().eq('user_id', user?.id).eq('account', acc);
+            const updated = customAccounts.filter(a => a !== acc);
+            await persistCustomAccounts(updated);
+            if (account === acc) setAccount('Efectivo');
+          } catch (error) {
+            console.error('Error deleting account transactions:', error);
+          }
         })();
       }
       return;
@@ -198,9 +203,15 @@ export default function AddTransactionScreen() {
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Eliminar', style: 'destructive', onPress: async () => {
-          const updated = customAccounts.filter(a => a !== acc);
-          await persistCustomAccounts(updated);
-          if (account === acc) setAccount('Efectivo');
+          try {
+            await supabase.from('transactions').delete().eq('user_id', user?.id).eq('account', acc);
+            const updated = customAccounts.filter(a => a !== acc);
+            await persistCustomAccounts(updated);
+            if (account === acc) setAccount('Efectivo');
+          } catch (error) {
+            console.error('Error deleting account transactions:', error);
+            Alert.alert('Error', 'No se pudieron eliminar los movimientos de la cuenta.');
+          }
         }
       }
     ]);

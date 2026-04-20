@@ -268,12 +268,30 @@ export default function CardsScreen() {
 
     const handleDeleteCard = (card: CreditCard) => {
         const executeDelete = async () => {
-            const updated = cards.filter(c => c.id !== card.id);
-            setCards(updated);
-            await AsyncStorage.setItem(`@cards_${user?.id}`, JSON.stringify(updated));
-            if (user?.id) await syncUp(user.id);
-            loadData();
-            if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            try {
+                // Borrar transacciones de la tarjeta
+                await supabase.from('transactions').delete().eq('user_id', user?.id).eq('account', card.name);
+
+                // Quitar de cuentas personalizadas
+                const storedAccs = await AsyncStorage.getItem('@custom_accounts');
+                if (storedAccs) {
+                    const parsedAccs = JSON.parse(storedAccs);
+                    const updatedAccs = parsedAccs.filter((a: string) => a !== card.name);
+                    await AsyncStorage.setItem('@custom_accounts', JSON.stringify(updatedAccs));
+                }
+
+                // Borrar la tarjeta
+                const updated = cards.filter(c => c.id !== card.id);
+                setCards(updated);
+                await AsyncStorage.setItem(`@cards_${user?.id}`, JSON.stringify(updated));
+                
+                if (user?.id) await syncUp(user.id);
+                loadData();
+                if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } catch (error) {
+                console.error('Error deleting card:', error);
+                Alert.alert('Error', 'No se pudo eliminar la tarjeta por completo.');
+            }
         };
 
         if (Platform.OS === 'web') {

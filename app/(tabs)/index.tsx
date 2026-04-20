@@ -406,7 +406,7 @@ export default function HomeScreen() {
     });
 
     const activeMoney = Object.entries(accountTotals)
-      .filter(([accName]) => !userCards.includes(accName) && accName !== 'Ahorro')
+      .filter(([accName]) => recognizedAccounts.includes(accName) && !userCards.includes(accName) && accName !== 'Ahorro')
       .reduce((sum, [_, amt]) => {
         const val = Number(amt);
         return sum + (isNaN(val) ? 0 : val);
@@ -448,7 +448,7 @@ export default function HomeScreen() {
       porcentajeMes: monthPct,
       saldoDisponible: realMoney // Usamos el balance real como saldo disponible
     };
-  }, [allTransactions, debtTotal, accountTotals, userCards, investmentTotal]);
+  }, [allTransactions, debtTotal, accountTotals, userCards, investmentTotal, recognizedAccounts]);
 
   const handleLogout = async () => {
     if (Platform.OS === 'web') {
