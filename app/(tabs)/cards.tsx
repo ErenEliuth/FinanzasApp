@@ -398,67 +398,45 @@ export default function CardsScreen() {
                 </View>
             ) : null}
 
-            <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+            <View style={styles.scroll}>
                 {currentCard ? (
                     <View style={{ gap: 24 }}>
-                        {/* Indicador de Utilización */}
-                        <View style={[styles.utilContainer, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
-                            <View style={styles.utilHeader}>
-                                <Text style={[styles.utilTitle, { color: colorsNav.text }]}>Uso de Crédito</Text>
-                                <Text style={[styles.utilPct, { color: getUtilization(currentCard.limit, cardBalances[currentCard.name] || 0) > 80 ? '#EF4444' : colorsNav.accent }]}>
-                                    {getUtilization(currentCard.limit, cardBalances[currentCard.name] || 0).toFixed(1)}%
+                        {/* Dashboard Compacto */}
+                        <View style={[styles.dashboardCard, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
+                            {/* Uso de Crédito */}
+                            <View style={styles.dashboardRow}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.dashboardLabel, { color: colorsNav.sub }]}>USO DE CRÉDITO</Text>
+                                    <View style={styles.utilBarBG}>
+                                        <LinearGradient
+                                            colors={getUtilization(currentCard.limit, cardBalances[currentCard.name] || 0) > 80 ? ['#EF4444', '#DC2626'] : [colorsNav.accent, shadeColor(colorsNav.accent, -20)]}
+                                            style={[styles.utilBarFill, { width: `${Math.min(getUtilization(currentCard.limit, cardBalances[currentCard.name] || 0), 100)}%` }]}
+                                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                                        />
+                                    </View>
+                                </View>
+                                <Text style={[styles.dashboardVal, { marginLeft: 15, color: getUtilization(currentCard.limit, cardBalances[currentCard.name] || 0) > 80 ? '#EF4444' : colorsNav.text }]}>
+                                    {getUtilization(currentCard.limit, cardBalances[currentCard.name] || 0).toFixed(0)}%
                                 </Text>
                             </View>
-                            <View style={styles.utilBarBG}>
-                                <LinearGradient
-                                    colors={getUtilization(currentCard.limit, cardBalances[currentCard.name] || 0) > 80 ? ['#EF4444', '#DC2626'] : [colorsNav.accent, shadeColor(colorsNav.accent, -20)]}
-                                    style={[styles.utilBarFill, { width: `${Math.min(getUtilization(currentCard.limit, cardBalances[currentCard.name] || 0), 100)}%` }]}
-                                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                                />
-                            </View>
-                            <View style={styles.utilLabels}>
-                                <Text style={{ color: colorsNav.sub, fontSize: 11 }}>Usado: {fmt(cardBalances[currentCard.name] || 0)}</Text>
-                                <Text style={{ color: colorsNav.sub, fontSize: 11 }}>Límite: {fmt(currentCard.limit)}</Text>
-                            </View>
-                        </View>
 
-                        {/* Instructional Message */}
-                        <View style={[styles.infoBox, { backgroundColor: colorsNav.accent + '15' }]}>
-                            <MaterialIcons name="info-outline" size={20} color={colorsNav.accent} />
-                            <Text style={[styles.infoTxt, { color: colorsNav.accent }]}>
-                                Para que una compra con esta tarjeta se refleje aquí, ve al menú de <Text style={{ fontWeight: '800' }}>Gastos</Text> y selecciónala como cuenta de pago.
-                            </Text>
-                        </View>
+                            <View style={[styles.divider, { backgroundColor: colorsNav.border }]} />
 
-                        {/* Día de Oro Advice */}
-                        {(() => {
-                            const advice = getShoppingAdvice(currentCard);
-                            return (
-                                <View style={[styles.adviceBox, { 
-                                    backgroundColor: advice.type === 'gold' ? '#F59E0B20' : advice.type === 'warn' ? '#EF444415' : colorsNav.card,
-                                    borderColor: advice.type === 'gold' ? '#F59E0B60' : advice.type === 'warn' ? '#EF444460' : colorsNav.border
-                                }]}>
-                                    <MaterialIcons 
-                                        name={advice.type === 'gold' ? 'stars' : advice.type === 'warn' ? 'warning' : 'info'} 
-                                        size={20} 
-                                        color={advice.type === 'gold' ? '#F59E0B' : advice.type === 'warn' ? '#EF4444' : colorsNav.sub} 
-                                    />
-                                    <Text style={[styles.adviceTxt, { color: advice.type === 'gold' ? '#B45309' : advice.type === 'warn' ? '#B91C1C' : colorsNav.text }]}>
-                                        {advice.msg}
-                                    </Text>
+                            {/* Pago y Días */}
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                <View>
+                                    <Text style={[styles.dashboardLabel, { color: colorsNav.sub }]}>PAGO ESTIMADO</Text>
+                                    <Text style={[styles.dashboardVal, { color: colorsNav.text }]}>{fmt(calculateNextPayment(currentCard))}</Text>
                                 </View>
-                            );
-                        })()}
-
-                        {/* Resumen de Pago Próximo */}
-                        <View style={[styles.nextPayCard, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
-                            <View>
-                                <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '700' }}>PRÓXIMO PAGO ESTIMADO</Text>
-                                <Text style={{ color: colorsNav.text, fontSize: 24, fontWeight: '900', marginTop: 4 }}>{fmt(calculateNextPayment(currentCard))}</Text>
-                            </View>
-                            <View style={[styles.dateChip, { backgroundColor: colorsNav.accent + '15' }]}>
-                                <MaterialIcons name="event" size={16} color={colorsNav.accent} />
-                                <Text style={{ color: colorsNav.accent, fontWeight: '800', fontSize: 12 }}>Día {currentCard.dueDay}</Text>
+                                <View style={{ alignItems: 'flex-end' }}>
+                                    <Text style={[styles.dashboardLabel, { color: colorsNav.sub }]}>FALTAN</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                        <MaterialIcons name="timer" size={16} color={getDaysUntil(currentCard.dueDay) < 5 ? '#EF4444' : colorsNav.accent} />
+                                        <Text style={[styles.dashboardVal, { color: getDaysUntil(currentCard.dueDay) < 5 ? '#EF4444' : colorsNav.text }]}>
+                                            {getDaysUntil(currentCard.dueDay)} días
+                                        </Text>
+                                    </View>
+                                </View>
                             </View>
                         </View>
 
@@ -468,96 +446,14 @@ export default function CardsScreen() {
                             onPress={() => { setSelectedCard(currentCard); setPayModalVisible(true); }}
                         >
                             <MaterialIcons name="payment" size={20} color="#FFF" />
-                            <Text style={styles.payBtnTxtLarge}>REGISTRAR ABONO / PAGO</Text>
+                            <Text style={styles.payBtnTxtLarge}>REGISTRAR PAGO</Text>
                         </TouchableOpacity>
 
-                        {/* Movements Section */}
-                        <Text style={[styles.secTitle, { color: colorsNav.text }]}>MOVIMIENTOS RECIENTES</Text>
-                        {(cardTransactions[currentCard.name] || []).length === 0 ? (
-                            <View style={styles.emptyMovements}>
-                                <Text style={{ color: colorsNav.sub }}>No hay movimientos registrados para esta tarjeta.</Text>
-                            </View>
-                        ) : (
-                            (cardTransactions[currentCard.name] || []).map(tx => {
-                                const match = tx.description?.match(/\[CUOTAS:(\d+)(?::RATE:([\d.]+))?\]/);
-                                const cuotas = match ? parseInt(match[1], 10) : 1;
-                                const ea = match ? parseFloat(match[2] || '0') / 100 : 0;
-                                const cleanDesc = tx.description?.replace(/\[CUOTAS:\d+(?::RATE:[\d.]+)?\]\s*/, '') || tx.category;
-                                
-                                let cuotaVal = tx.amount / cuotas;
-                                let totalReal = tx.amount;
-                                
-                                if (ea > 0 && cuotas > 1) {
-                                    const mv = Math.pow(1 + ea, 1/12) - 1;
-                                    cuotaVal = (tx.amount * mv) / (1 - Math.pow(1 + mv, -cuotas));
-                                    totalReal = cuotaVal * cuotas;
-                                }
-
-                                return (
-                                    <View key={tx.id} style={[styles.txRow, { borderBottomColor: colorsNav.border }]}>
-                                        <View style={[styles.txIcon, { backgroundColor: tx.type === 'expense' ? '#EF444415' : '#4CAF5015' }]}>
-                                            <MaterialIcons name={tx.type === 'expense' ? 'credit-card' : 'account-balance-wallet'} size={18} color={tx.type === 'expense' ? '#EF4444' : '#4CAF50'} />
-                                        </View>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={[styles.txName, { color: colorsNav.text }]}>{cleanDesc}</Text>
-                                            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-                                                <Text style={[styles.txDate, { color: colorsNav.sub }]}>{new Date(tx.date).toLocaleDateString()}</Text>
-                                                {cuotas > 1 && (
-                                                    <View style={[styles.cuotaBadge, { backgroundColor: ea > 0 ? '#EF444410' : 'rgba(0,0,0,0.05)' }]}>
-                                                        <Text style={[styles.cuotaBadgeTxt, { color: ea > 0 ? '#EF4444' : '#666' }]}>{cuotas} cuotas {ea > 0 ? `@ ${(ea*100).toFixed(1)}%` : '(Sin interés)'}</Text>
-                                                    </View>
-                                                )}
-                                            </View>
-                                        </View>
-                                        <View style={{ alignItems: 'flex-end' }}>
-                                            <Text style={[styles.txAmt, { color: tx.type === 'expense' ? colorsNav.text : '#4CAF50' }]}>
-                                                {tx.type === 'expense' ? '-' : '+'}{fmt(tx.amount)}
-                                            </Text>
-                                            {cuotas > 1 && (
-                                                <View style={{ alignItems: 'flex-end' }}>
-                                                    <Text style={{ fontSize: 10, color: colorsNav.accent, fontWeight: '800' }}>{fmt(cuotaVal)} / mes</Text>
-                                                    {ea > 0 && <Text style={{ fontSize: 9, color: '#EF4444', fontWeight: '700' }}>Total: {fmt(totalReal)}</Text>}
-                                                </View>
-                                            )}
-                                        </View>
-                                    </View>
-                                );
-                            })
-                        )}
-
-                        {/* Proyección de Libertad */}
-                        <Text style={[styles.secTitle, { color: colorsNav.text, marginTop: 30 }]}>MAPA DE LIBERTAD (12 MESES)</Text>
-                        <Text style={{ color: colorsNav.sub, fontSize: 12, marginBottom: 15 }}>Proyección de cargos mensuales fijos por cuotas.</Text>
-                        
-                        <View style={styles.projectionCont}>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                                {getMonthlyProjection(currentCard).map((val, idx) => {
-                                    const monthDate = new Date();
-                                    monthDate.setMonth(now.getMonth() + idx);
-                                    const mName = monthDate.toLocaleString('es-CO', { month: 'short' }).toUpperCase();
-                                    
-                                    // Altura máxima de la barra 100px
-                                    const maxVal = Math.max(...getMonthlyProjection(currentCard), 1);
-                                    const barHeight = (val / maxVal) * 80;
-
-                                    return (
-                                        <View key={idx} style={styles.projectionItem}>
-                                            <View style={styles.barContainer}>
-                                                <View style={[styles.barFill, { height: barHeight, backgroundColor: colorsNav.accent }]} />
-                                            </View>
-                                            <Text style={styles.barVal}>{val > 0 ? (val > 1000000 ? (val/1000000).toFixed(1)+'M' : (val/1000).toFixed(0)+'k') : '0'}</Text>
-                                            <Text style={styles.barMonth}>{mName}</Text>
-                                        </View>
-                                    );
-                                })}
-                            </ScrollView>
-                        </View>
                         <TouchableOpacity 
-                            style={[styles.deleteBtn, { borderColor: '#EF4444' }]} 
+                            style={{ alignSelf: 'center', marginTop: 10 }}
                             onPress={() => handleDeleteCard(currentCard)}
                         >
-                            <MaterialIcons name="delete-outline" size={18} color="#EF4444" />
-                            <Text style={[styles.deleteBtnTxt, { color: '#EF4444' }]}>ELIMINAR ESTA TARJETA</Text>
+                            <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '700', textDecorationLine: 'underline' }}>Eliminar Tarjeta</Text>
                         </TouchableOpacity>
                     </View>
                 ) : (
@@ -702,45 +598,22 @@ const styles = StyleSheet.create({
     cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
     cardBankName: { color: '#FFF', fontWeight: '900', fontSize: 13, letterSpacing: 1.5 },
     cardBrandName: { color: 'rgba(255,255,255,0.6)', fontWeight: '800', fontSize: 10, marginTop: 2 },
-
-    scroll: { padding: 20, paddingBottom: 150 },
     
-    // Utilization
-    utilContainer: { padding: 20, borderRadius: 28, borderWidth: 1, gap: 12 },
-    utilHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    utilTitle: { fontSize: 14, fontWeight: '800' },
-    utilPct: { fontSize: 14, fontWeight: '900' },
+    scroll: { padding: 20 },
+    
+    // Dashboard Compacto
+    dashboardCard: { padding: 24, borderRadius: 28, borderWidth: 1, gap: 16 },
+    dashboardRow: { flexDirection: 'row', alignItems: 'center' },
+    dashboardLabel: { fontSize: 10, fontWeight: '800', marginBottom: 6, letterSpacing: 0.5 },
+    dashboardVal: { fontSize: 18, fontWeight: '900' },
+    divider: { height: 1, opacity: 0.1, marginVertical: 4 },
+
     utilBarBG: { height: 8, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 4, overflow: 'hidden' },
     utilBarFill: { height: '100%', borderRadius: 4 },
-    utilLabels: { flexDirection: 'row', justifyContent: 'space-between' },
 
-    nextPayCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 24, borderRadius: 28, borderWidth: 1 },
-    dateChip: { flexDirection: 'row', gap: 6, alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12 },
-
-    infoBox: { flexDirection: 'row', gap: 12, padding: 18, borderRadius: 24, alignItems: 'center' },
-    infoTxt: { flex: 1, fontSize: 13, lineHeight: 18, fontWeight: '500' },
-    payBtnLarge: { flexDirection: 'row', gap: 10, padding: 18, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
+    payBtnLarge: { flexDirection: 'row', gap: 10, padding: 18, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginTop: 24 },
     payBtnTxtLarge: { color: '#FFF', fontWeight: '900', fontSize: 15 },
-    secTitle: { fontSize: 18, fontWeight: '900', marginTop: 15, letterSpacing: -0.3 },
-    txRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, borderBottomWidth: 1 },
-    txIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-    txName: { fontSize: 14, fontWeight: '800' },
-    txDate: { fontSize: 11, marginTop: 2, fontWeight: '600' },
-    cuotaBadge: { backgroundColor: 'rgba(0,0,0,0.05)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 2 },
-    cuotaBadgeTxt: { fontSize: 9, fontWeight: '800', color: '#666' },
-    txAmt: { fontSize: 15, fontWeight: '900' },
-    emptyMovements: { padding: 40, alignItems: 'center', gap: 10 },
-
-    adviceBox: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, borderWidth: 1, marginBottom: 15 },
-    adviceTxt: { fontSize: 13, fontWeight: '800', flex: 1 },
-
-    projectionCont: { backgroundColor: 'rgba(0,0,0,0.02)', padding: 20, borderRadius: 28, marginBottom: 30 },
-    projectionItem: { alignItems: 'center', width: 45, marginRight: 15 },
-    barContainer: { height: 80, width: 12, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 6, justifyContent: 'flex-end', overflow: 'hidden' },
-    barFill: { width: '100%', borderRadius: 6 },
-    barVal: { fontSize: 10, fontWeight: '900', color: '#666', marginTop: 8 },
-    barMonth: { fontSize: 9, fontWeight: '800', color: '#999', marginTop: 4 },
-
+    
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 },
     modal: { borderRadius: 32, padding: 24, maxHeight: '90%' },
     modalTitle: { fontSize: 24, fontWeight: '900', marginBottom: 20, letterSpacing: -0.5 },
@@ -751,8 +624,6 @@ const styles = StyleSheet.create({
     colorDot: { width: 34, height: 34, borderRadius: 17 },
     modalFooter: { flexDirection: 'row', gap: 12 },
     mBtn: { flex: 1, padding: 18, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-    deleteBtn: { flexDirection: 'row', gap: 8, padding: 16, borderRadius: 18, borderWidth: 1.5, justifyContent: 'center', alignItems: 'center', marginTop: 30, borderStyle: 'dashed' },
-    deleteBtnTxt: { fontWeight: '800', fontSize: 13 },
     accPill: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)' },
     empty: { padding: 80, alignItems: 'center', gap: 20 },
     emptyTxt: { fontWeight: '800', fontSize: 18, textAlign: 'center' },
