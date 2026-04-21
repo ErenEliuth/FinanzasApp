@@ -57,18 +57,8 @@ export default function CurrencySetupScreen() {
     };
 
     return (
-        <View style={s.container}>
-            <StatusBar barStyle="light-content" />
-            <LinearGradient
-                colors={isDark ? ['#0F172A', '#1E293B', '#0F172A'] : ['#4F46E5', '#6366F1', '#4F46E5']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
-            />
-
-            {/* Background elements */}
-            <View style={[s.bgCircle, { top: -120, left: -60, backgroundColor: isDark ? '#33415515' : '#FFFFFF15' }]} />
-            <View style={[s.bgCircle, { bottom: -100, right: -100, backgroundColor: isDark ? '#33415510' : '#FFFFFF10' }]} />
+        <View style={[s.container, { backgroundColor: isDark ? '#0F172A' : '#FFFFFF' }]}>
+            <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
 
             <SafeAreaView style={{ flex: 1 }}>
                 <ScrollView
@@ -77,11 +67,15 @@ export default function CurrencySetupScreen() {
                 >
                     {/* Header */}
                     <View style={s.header}>
-                        <View style={s.globeContainer}>
-                            <Text style={s.globe}>🌍</Text>
+                        <View style={[s.globeContainer, { backgroundColor: isDark ? '#1E293B' : '#F1F5F9' }]}>
+                            <Image
+                                source={require('@/assets/images/icon.png')}
+                                style={{ width: 80, height: 80 }}
+                                resizeMode="contain"
+                            />
                         </View>
-                        <Text style={s.title}>Configura tu moneda</Text>
-                        <Text style={s.subtitle}>
+                        <Text style={[s.title, { color: isDark ? '#FFF' : '#000' }]}>Configura tu moneda</Text>
+                        <Text style={[s.subtitle, { color: isDark ? '#94A3B8' : '#64748B' }]}>
                             Tus ingresos, gastos y ahorros se mostrarán en esta moneda.{'\n'}
                             Puedes cambiarla después en tu Perfil.
                         </Text>
@@ -145,13 +139,7 @@ export default function CurrencySetupScreen() {
 }
 
 const s = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#0F172A' },
-    bgCircle: {
-        position: 'absolute',
-        width: 400,
-        height: 400,
-        borderRadius: 200,
-    },
+    container: { flex: 1 },
     scroll: {
         flexGrow: 1,
         paddingHorizontal: 24,
@@ -163,29 +151,27 @@ const s = StyleSheet.create({
     globeContainer: {
         width: 100,
         height: 100,
-        borderRadius: 50,
+        borderRadius: 24,
         backgroundColor: '#FFFFFF',
         justifyContent: 'center',
         alignItems: 'center',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.15,
+        shadowOpacity: 0.1,
         shadowRadius: 20,
-        elevation: 10,
+        elevation: 8,
         marginBottom: 24,
     },
     globe: { fontSize: 50 },
     title: {
         fontSize: 28,
         fontWeight: '900',
-        color: '#FFFFFF',
         textAlign: 'center',
         letterSpacing: -0.5,
         marginBottom: 8,
     },
     subtitle: {
         fontSize: 15,
-        color: 'rgba(255,255,255,0.7)',
         textAlign: 'center',
         lineHeight: 22,
         fontWeight: '500',
@@ -193,11 +179,8 @@ const s = StyleSheet.create({
     mainCard: {
         borderRadius: 32,
         padding: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 20 },
-        shadowOpacity: 0.2,
-        shadowRadius: 30,
-        elevation: 20,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
     },
     list: { gap: 12, marginBottom: 24 },
     card: {
@@ -208,14 +191,11 @@ const s = StyleSheet.create({
         paddingVertical: 16,
         borderRadius: 20,
         borderWidth: 1.5,
+        backgroundColor: '#F8FAFC',
     },
     cardSelected: {
-        backgroundColor: '#4F46E510',
-        shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 2,
+        backgroundColor: '#F0FDF4',
+        borderColor: '#10B981',
     },
     cardLeft: { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
     flag: { fontSize: 32 },
@@ -232,13 +212,13 @@ const s = StyleSheet.create({
         borderRadius: 18,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#4F46E5',
+        shadowColor: '#000',
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
+        shadowOpacity: 0.1,
         shadowRadius: 16,
-        elevation: 8,
+        elevation: 4,
     },
     btnDisabled: { backgroundColor: '#94A3B8', shadowOpacity: 0, elevation: 0 },
     btnText: { color: '#FFFFFF', fontSize: 17, fontWeight: '800', letterSpacing: 0.3 },
-    footerHint: { fontSize: 12, color: 'rgba(255,255,255,0.5)', textAlign: 'center', marginTop: 24, fontWeight: '600' },
+    footerHint: { fontSize: 12, color: '#94A3B8', textAlign: 'center', marginTop: 24, fontWeight: '600' },
 });

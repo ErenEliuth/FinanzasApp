@@ -78,18 +78,8 @@ export default function LoginScreen() {
 
     const content = (
         <View style={styles.container}>
-            <StatusBar barStyle="light-content" />
-            <LinearGradient
-                colors={isDark ? ['#0F172A', '#1E293B', '#0F172A'] : ['#4F46E5', '#6366F1', '#4F46E5']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
-            />
+            <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
             
-            {/* Subtle background circles for depth */}
-            <View style={[styles.bgCircle, { top: -100, right: -100, backgroundColor: isDark ? '#33415520' : '#FFFFFF15' }]} />
-            <View style={[styles.bgCircle, { bottom: -150, left: -50, backgroundColor: isDark ? '#33415510' : '#FFFFFF10' }]} />
-
             <SafeAreaView style={{ flex: 1 }}>
                 <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                     <ScrollView
@@ -101,13 +91,13 @@ export default function LoginScreen() {
                         <View style={styles.header}>
                             <View style={styles.logoShadowWrap}>
                                 <Image
-                                    source={require('@/assets/images/zenly-logo.png')}
+                                    source={require('@/assets/images/icon.png')}
                                     style={styles.logoImg}
                                     resizeMode="contain"
                                 />
                             </View>
-                            <Text style={styles.headerTitle}>Zenly</Text>
-                            <Text style={styles.headerSubtitle}>
+                            <Text style={[styles.headerTitle, { color: isDark ? '#FFF' : '#0F172A' }]}>Zenly</Text>
+                            <Text style={[styles.headerSubtitle, { color: isDark ? '#94A3B8' : '#64748B' }]}>
                                 {mode === 'login' ? 'Bienvenido de nuevo' : 'Crea tu futuro financiero'}
                             </Text>
                         </View>
@@ -210,7 +200,7 @@ export default function LoginScreen() {
                         </View>
 
                         <View style={styles.footer}>
-                            <Text style={styles.footerText}>🔐 Tus datos están encriptados y seguros</Text>
+                            <Text style={[styles.footerText, { color: isDark ? '#64748B' : '#94A3B8' }]}>🔐 Tus datos están encriptados y seguros</Text>
                         </View>
                     </ScrollView>
                 </KeyboardAvoidingView>
@@ -223,13 +213,7 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#0F172A' },
-    bgCircle: {
-        position: 'absolute',
-        width: 300,
-        height: 300,
-        borderRadius: 150,
-    },
+    container: { flex: 1, backgroundColor: '#FFFFFF' },
     scroll: {
         flexGrow: 1,
         paddingHorizontal: 24,
