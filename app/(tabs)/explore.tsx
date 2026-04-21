@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 // Eliminado: MagicAuraButton
-import { formatCurrency, getCurrencyInfo, convertCurrency, convertToBase, CURRENCIES } from '@/utils/currency';
+import { formatCurrency, getCurrencyInfo, convertCurrency, convertToBase, CURRENCIES, formatInputDisplay, parseInputToNumber } from '@/utils/currency';
 import React, { useEffect, useRef, useState } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import {
@@ -222,53 +222,11 @@ export default function AddTransactionScreen() {
   };
 
   const handleAmountChange = (text: string) => {
-    if (!text) { setAmount(''); return; }
-
-    if (currency === 'COP') {
-      const clean = text.replace(/\D/g, '');
-      if (!clean) { setAmount(''); return; }
-      setAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
-    } else {
-      let normalized = text;
-      const hasDot = text.includes('.');
-      if (!hasDot) {
-        normalized = text.replace(/,(\d{0,2})$/, '.$1');
-        normalized = normalized.replace(/,/g, '');
-      } else {
-        normalized = text.replace(/,/g, '');
-      }
-
-      const parts = normalized.split('.');
-      if (parts.length > 2) return;
-
-      const integerRaw = parts[0].replace(/\D/g, '');
-      if (!integerRaw && normalized.startsWith('.')) {
-        setAmount('0.' + (parts[1] || '').slice(0, 2));
-        return;
-      }
-
-      const integerFormatted = integerRaw
-        ? new Intl.NumberFormat('en-US').format(parseInt(integerRaw, 10))
-        : '';
-
-      if (parts.length === 2) {
-        setAmount(`${integerFormatted}.${parts[1].slice(0, 2)}`);
-      } else if (normalized.endsWith('.')) {
-        setAmount(`${integerFormatted}.`);
-      } else {
-        setAmount(integerFormatted);
-      }
-    }
+    setAmount(formatInputDisplay(text, currency));
   };
 
   const handleSave = async () => {
-    let cleanStr = amount;
-    if (currency === 'COP') {
-        cleanStr = amount.replace(/\./g, '').replace(',', '.');
-    } else {
-        cleanStr = amount.replace(/,/g, '');
-    }
-    const typedVal = parseFloat(cleanStr);
+    const typedVal = parseInputToNumber(amount, currency);
     const parsed = convertToBase(typedVal, currency, rates);
     if (isNaN(parsed) || parsed <= 0 || isSaving) return;
 
@@ -613,13 +571,7 @@ export default function AddTransactionScreen() {
                     </ScrollView>
 
                     {parseInt(installments, 10) > 1 && (() => {
-                        let cleanStr = amount;
-                        if (currency === 'COP') {
-                            cleanStr = amount.replace(/\./g, '').replace(',', '.');
-                        } else {
-                            cleanStr = amount.replace(/,/g, '');
-                        }
-                        const typedVal = parseFloat(cleanStr) || 0;
+                        const typedVal = parseInputToNumber(amount, currency) || 0;
                         const p = convertToBase(typedVal, currency, rates);
                         
                         const ea = parseFloat(interestRate) / 100;

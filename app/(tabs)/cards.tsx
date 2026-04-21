@@ -7,7 +7,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { formatCurrency, getCurrencyInfo, convertCurrency, convertToBase } from '@/utils/currency';
+import { formatCurrency, getCurrencyInfo, convertCurrency, convertToBase, formatInputDisplay, parseInputToNumber } from '@/utils/currency';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import {
@@ -203,15 +203,12 @@ export default function CardsScreen() {
     }, [isFocused]);
 
     const handleLimitChange = (text: string) => {
-        const clean = text.replace(/\D/g, '');
-        if (!clean) { setNewLimit(''); return; }
-        const info = getCurrencyInfo(currency);
-        setNewLimit(new Intl.NumberFormat(info.locale).format(parseInt(clean, 10)));
+        setNewLimit(formatInputDisplay(text, currency));
     };
 
     const handleAddCard = async () => {
-        let cleanLim = newLimit.replace(/\D/g, '');
-        const limit = convertToBase(parseFloat(cleanLim), currency, rates);
+        const typedLim = parseInputToNumber(newLimit, currency);
+        const limit = convertToBase(typedLim, currency, rates);
         const cut = parseInt(newCutDay, 10);
         const due = parseInt(newDueDay, 10);
 
@@ -308,8 +305,8 @@ export default function CardsScreen() {
 
     const handlePayCard = async () => {
         if (!selectedCard) return;
-        let cleanPay = payAmount.replace(/\D/g, '');
-        const payVal = convertToBase(parseFloat(cleanPay), currency, rates);
+        const typedPay = parseInputToNumber(payAmount, currency);
+        const payVal = convertToBase(typedPay, currency, rates);
         if (isNaN(payVal) || payVal <= 0) return;
 
         try {
@@ -538,7 +535,7 @@ export default function CardsScreen() {
                 <View style={[styles.overlay, { justifyContent: 'flex-end' }]}>
                     <View style={[styles.modal, { backgroundColor: colorsNav.card, borderTopLeftRadius: 32, borderTopRightRadius: 32, width: '100%' }]}>
                         <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Registrar Pago</Text>
-                        <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border, fontSize: 24, padding: 20 }]} placeholder="$ 0" placeholderTextColor={colorsNav.sub} keyboardType="numeric" value={payAmount} onChangeText={t => setPayAmount(t)} autoFocus />
+                        <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border, fontSize: 24, padding: 20 }]} placeholder="$ 0" placeholderTextColor={colorsNav.sub} keyboardType="numeric" value={payAmount} onChangeText={t => setPayAmount(formatInputDisplay(t, currency))} autoFocus />
                         <Text style={{ fontSize: 12, fontWeight: '800', color: colorsNav.sub, marginVertical: 10 }}>¿DESDE QUÉ CUENTA?</Text>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
                             {accounts.map(acc => (

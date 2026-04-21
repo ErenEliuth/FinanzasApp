@@ -23,7 +23,7 @@ import {
 } from 'react-native';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { formatCurrency, convertCurrency, convertToBase, getCurrencyInfo } from '@/utils/currency';
+import { formatCurrency, convertCurrency, convertToBase, getCurrencyInfo, formatInputDisplay, parseInputToNumber } from '@/utils/currency';
 
 const DEFAULT_CATEGORIES = [
     { name: 'Comida',          icon: 'restaurant',     color: '#E67E22' },
@@ -115,33 +115,14 @@ export default function BudgetsScreen() {
     const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
     
     const handleAmountChange = (text: string) => {
-        if (!text) { setLimitAmount(''); return; }
-        const info = getCurrencyInfo(currency);
-        if (currency === 'COP') {
-            const clean = text.replace(/\D/g, '');
-            if (!clean) { setLimitAmount(''); return; }
-            setLimitAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
-        } else {
-            let raw = text.replace(/,/g, '');
-            const parts = raw.split('.');
-            if (parts.length > 2) return;
-            const integerRaw = parts[0].replace(/\D/g, '');
-            const integerFormatted = integerRaw ? new Intl.NumberFormat('en-US').format(parseInt(integerRaw, 10)) : '';
-            if (parts.length === 2) setLimitAmount(`${integerFormatted}.${parts[1].slice(0, 2)}`);
-            else if (raw.endsWith('.')) setLimitAmount(`${integerFormatted}.`);
-            else setLimitAmount(integerFormatted);
-        }
+        setLimitAmount(formatInputDisplay(text, currency));
     };
 
     const handleSaveBudget = async () => {
-        let cleanVal = limitAmount;
-        if (currency === 'COP') cleanVal = limitAmount.replace(/\./g, '');
-        else cleanVal = limitAmount.replace(/,/g, '');
-        
-        const typedVal = parseFloat(cleanVal);
+        const typedVal = parseInputToNumber(limitAmount, currency);
         let val = convertToBase(typedVal, currency, rates);
         if (period === 'biweekly') val = val * 2;
-        
+
         if (isNaN(val) || val <= 0) return;
         try {
             await supabase.from('budgets').upsert([{ user_id: user?.id, category: selectedCat.name, monthly_limit: val }], { onConflict: 'user_id,category' });

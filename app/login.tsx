@@ -1,5 +1,5 @@
 import { useAuth } from '@/utils/auth';
-import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
@@ -51,11 +51,16 @@ export default function LoginScreen() {
             : await register(name, email, password);
 
         setLoading(false);
+
         if (!result.success) {
             setError(result.message);
         } else if (mode === 'register') {
-            setSuccessMsg('¡Revisa tu correo para confirmar la cuenta y entra!');
+            // Supabase may auto-login (email confirmation disabled) which
+            // triggers _layout.tsx to redirect to /currency-setup automatically.
+            // Show a friendly message as fallback in case confirmation is required.
+            setSuccessMsg('¡Cuenta creada! Revisa tu correo si es necesario confirmarla.');
         }
+        // Login success: _layout.tsx handles the redirect to /(tabs)
     };
 
     const isValid =
@@ -71,7 +76,7 @@ export default function LoginScreen() {
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                 >
-                    {/* ── Logo con estilo de App Icon ── */}
+                    {/* ── Logo ── */}
                     <View style={styles.logoArea}>
                         <View style={styles.logoShadowWrap}>
                             <Image
@@ -82,31 +87,27 @@ export default function LoginScreen() {
                         </View>
                     </View>
 
-                    {/* ── Tabs elegantes ── */}
+                    {/* ── Tabs ── */}
                     <View style={styles.tabContainer}>
                         <TouchableOpacity
                             style={[styles.tab, mode === 'login' && styles.tabActive]}
                             onPress={() => switchMode('login')}
                             activeOpacity={0.8}
                         >
-                            <Text style={[styles.tabText, mode === 'login' && styles.tabTextActive]}>
-                                Entrar
-                            </Text>
+                            <Text style={[styles.tabText, mode === 'login' && styles.tabTextActive]}>Entrar</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[styles.tab, mode === 'register' && styles.tabActive]}
                             onPress={() => switchMode('register')}
                             activeOpacity={0.8}
                         >
-                            <Text style={[styles.tabText, mode === 'register' && styles.tabTextActive]}>
-                                Registrarse
-                            </Text>
+                            <Text style={[styles.tabText, mode === 'register' && styles.tabTextActive]}>Registrarse</Text>
                         </TouchableOpacity>
                     </View>
 
-                    {/* ── Formulario minimalista ── */}
+                    {/* ── Formulario ── */}
                     <View style={styles.formContainer}>
-                        
+
                         {/* Nombre */}
                         {mode === 'register' && (
                             <View style={styles.inputWrap}>
@@ -138,7 +139,7 @@ export default function LoginScreen() {
                             />
                         </View>
 
-                        {/* Sugerencias de correo rápidas */}
+                        {/* Sugerencias de correo */}
                         {email.length > 0 && !email.includes('@') && (
                             <View style={styles.suggestionsRow}>
                                 {['@gmail.com', '@hotmail.com', '@outlook.com'].map(domain => (
@@ -186,7 +187,7 @@ export default function LoginScreen() {
                             </View>
                         )}
 
-                        {/* Botón Principal */}
+                        {/* Botón */}
                         <TouchableOpacity
                             style={[styles.submitBtn, (!isValid || loading) && styles.submitBtnDisabled]}
                             onPress={handleSubmit}
@@ -202,12 +203,11 @@ export default function LoginScreen() {
                             )}
                         </TouchableOpacity>
 
-                        {/* Pie / Seguridad */}
+                        {/* Pie */}
                         <View style={styles.footerRow}>
                             <Feather name="shield" size={14} color="#94A3B8" />
                             <Text style={styles.footerText}>Conexión segura y encriptada</Text>
                         </View>
-
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -219,10 +219,7 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#FFFFFF', // Fondo blanco puro
-    },
+    container: { flex: 1, backgroundColor: '#FFFFFF' },
     scroll: {
         flexGrow: 1,
         paddingHorizontal: 28,
@@ -230,168 +227,60 @@ const styles = StyleSheet.create({
         paddingBottom: 40,
         justifyContent: 'center',
     },
-
-    // ── Logo como App Icon ──
-    logoArea: {
-        alignItems: 'center',
-        marginBottom: 44,
-    },
+    logoArea: { alignItems: 'center', marginBottom: 44 },
     logoShadowWrap: {
-        width: 110,
-        height: 110,
-        borderRadius: 26,
+        width: 110, height: 110, borderRadius: 26,
         backgroundColor: '#FFFFFF',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.1,
-        shadowRadius: 24,
-        elevation: 10, // Sombra suave para darle volumen
-        justifyContent: 'center',
-        alignItems: 'center',
+        shadowColor: '#000', shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.1, shadowRadius: 24, elevation: 10,
+        justifyContent: 'center', alignItems: 'center',
     },
-    logoImg: {
-        width: 110,
-        height: 110,
-        borderRadius: 26,
-        overflow: 'hidden',
-    },
-
-    // ── Tabs Modernos ──
+    logoImg: { width: 110, height: 110, borderRadius: 26, overflow: 'hidden' },
     tabContainer: {
-        flexDirection: 'row',
-        backgroundColor: '#F8FAFC', // Gris súper sutil
-        borderRadius: 16,
-        padding: 6,
-        marginBottom: 32,
+        flexDirection: 'row', backgroundColor: '#F8FAFC',
+        borderRadius: 16, padding: 6, marginBottom: 32,
     },
-    tab: {
-        flex: 1,
-        paddingVertical: 12,
-        borderRadius: 12,
-        alignItems: 'center',
-    },
+    tab: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
     tabActive: {
         backgroundColor: '#FFFFFF',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
     },
-    tabText: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: '#64748B',
-    },
-    tabTextActive: {
-        color: '#0F172A',
-        fontWeight: '700',
-    },
-
-    // ── Formulario Minimalista ──
-    formContainer: {
-        gap: 16,
-    },
+    tabText: { fontSize: 15, fontWeight: '600', color: '#64748B' },
+    tabTextActive: { color: '#0F172A', fontWeight: '700' },
+    formContainer: { gap: 16 },
     inputWrap: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#FFFFFF',
-        borderRadius: 16,
-        borderWidth: 1.5,
-        borderColor: '#E2E8F0',
-        paddingHorizontal: 16,
-        height: 60,
+        flexDirection: 'row', alignItems: 'center',
+        backgroundColor: '#FFFFFF', borderRadius: 16,
+        borderWidth: 1.5, borderColor: '#E2E8F0',
+        paddingHorizontal: 16, height: 60,
     },
-    inputIcon: {
-        marginRight: 12,
-    },
-    input: {
-        flex: 1,
-        fontSize: 16,
-        color: '#0F172A',
-        fontWeight: '500',
-    },
-
-    // ── Sugerencias ──
+    inputIcon: { marginRight: 12 },
+    input: { flex: 1, fontSize: 16, color: '#0F172A', fontWeight: '500' },
     suggestionsRow: {
-        flexDirection: 'row',
-        gap: 8,
-        flexWrap: 'wrap',
-        marginTop: -6,
-        marginBottom: 2,
+        flexDirection: 'row', gap: 8, flexWrap: 'wrap',
+        marginTop: -6, marginBottom: 2,
     },
-    chip: {
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        backgroundColor: '#F1F5F9',
-        borderRadius: 20,
-    },
-    chipText: {
-        fontSize: 13,
-        color: '#475569',
-        fontWeight: '600',
-    },
-
-    // ── Mensajes ──
+    chip: { paddingHorizontal: 14, paddingVertical: 8, backgroundColor: '#F1F5F9', borderRadius: 20 },
+    chipText: { fontSize: 13, color: '#475569', fontWeight: '600' },
     msgBox: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderRadius: 12,
-        padding: 14,
-        gap: 10,
-        borderWidth: 1,
+        flexDirection: 'row', alignItems: 'center',
+        borderRadius: 12, padding: 14, gap: 10, borderWidth: 1,
     },
-    msgSuccess: {
-        backgroundColor: '#ECFDF5',
-        borderColor: '#A7F3D0',
-    },
-    msgError: {
-        backgroundColor: '#FEF2F2',
-        borderColor: '#FECACA',
-    },
-    msgText: {
-        flex: 1,
-        fontSize: 14,
-        fontWeight: '500',
-    },
-
-    // ── Botón ──
+    msgSuccess: { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' },
+    msgError: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
+    msgText: { flex: 1, fontSize: 14, fontWeight: '500' },
     submitBtn: {
-        height: 60,
-        backgroundColor: '#0F172A', // Dark casi negro
-        borderRadius: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: '#0F172A',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.2,
-        shadowRadius: 16,
-        elevation: 8,
-        marginTop: 8,
+        height: 60, backgroundColor: '#0F172A', borderRadius: 16,
+        justifyContent: 'center', alignItems: 'center',
+        shadowColor: '#0F172A', shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.2, shadowRadius: 16, elevation: 8, marginTop: 8,
     },
-    submitBtnDisabled: {
-        backgroundColor: '#94A3B8',
-        shadowOpacity: 0,
-        elevation: 0,
-    },
-    submitBtnText: {
-        color: '#FFFFFF',
-        fontSize: 17,
-        fontWeight: '700',
-        letterSpacing: 0.3,
-    },
-
-    // ── Pie ──
+    submitBtnDisabled: { backgroundColor: '#94A3B8', shadowOpacity: 0, elevation: 0 },
+    submitBtnText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700', letterSpacing: 0.3 },
     footerRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        marginTop: 16,
+        flexDirection: 'row', alignItems: 'center',
+        justifyContent: 'center', gap: 8, marginTop: 16,
     },
-    footerText: {
-        fontSize: 13,
-        color: '#94A3B8',
-        fontWeight: '500',
-    },
+    footerText: { fontSize: 13, color: '#94A3B8', fontWeight: '500' },
 });

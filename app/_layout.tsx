@@ -40,15 +40,36 @@ function RootStack() {
   useEffect(() => {
     if (loading) return;
 
-    const inAuthGroup = segments[0] === '(tabs)';
-    const onLoginPage = segments[0] === 'login';
+    const inAuthGroup  = segments[0] === '(tabs)';
+    const onLoginPage  = segments[0] === 'login';
+    const onSetup      = segments[0] === 'currency-setup';
 
+    // ── Not logged in → go to login ──────────────────────────────────────────
     if (!user && inAuthGroup) {
       router.replace('/login');
+      return;
     }
 
+    // ── Logged in, coming from login ─────────────────────────────────────────
     if (user && onLoginPage) {
-      router.replace('/(tabs)');
+      AsyncStorage.getItem('@currency_setup_done').then(done => {
+        if (done !== 'true') {
+          // New user → ask which currency they want to use
+          router.replace('/currency-setup');
+        } else {
+          // Returning user → straight into the app
+          router.replace('/(tabs)');
+        }
+      });
+      return;
+    }
+
+    // ── Existing user already in tabs (first run after update) ───────────────
+    if (user && inAuthGroup && !onSetup) {
+      // Silently mark done — they already have COP by default and never need setup
+      AsyncStorage.getItem('@currency_setup_done').then(done => {
+        if (done !== 'true') AsyncStorage.setItem('@currency_setup_done', 'true');
+      });
     }
   }, [user, loading, segments, router]);
 
@@ -172,6 +193,7 @@ function RootStack() {
           <Stack.Screen name="index" />
           <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
           <Stack.Screen name="login" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="currency-setup" options={{ gestureEnabled: false }} />
           <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
           <Stack.Screen name="goals" options={{ presentation: 'modal' }} />
         </Stack>

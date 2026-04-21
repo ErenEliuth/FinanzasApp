@@ -6,6 +6,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { formatCurrency, convertCurrency, convertToBase, formatInputDisplay, parseInputToNumber } from '@/utils/currency';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     Alert,
     Image,
@@ -27,9 +29,11 @@ import { uploadImage } from '@/utils/storage';
 export default function GoalsScreen() {
     const isFocused = useIsFocused();
     const router = useRouter();
-    const { user, theme, isHidden } = useAuth();
+    const { user, theme, isHidden, currency, rates } = useAuth();
     const colors = useThemeColors();
     const isDark = colors.isDark;
+
+    const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
 
     const [goals, setGoals] = useState<any[]>([]);
     const [totalAhorro, setTotalAhorro] = useState(0);
@@ -49,9 +53,7 @@ export default function GoalsScreen() {
     const [withdrawAmount, setWithdrawAmount] = useState('');
 
     const formatInput = (text: string) => {
-        const clean = text.replace(/\D/g, '');
-        if (!clean) return '';
-        return new Intl.NumberFormat('es-CO').format(parseInt(clean, 10));
+        return formatInputDisplay(text, currency);
     };
 
     useEffect(() => { if (isFocused) loadData(); }, [isFocused]);
@@ -80,7 +82,8 @@ export default function GoalsScreen() {
     };
 
     const handleCreateGoal = async () => {
-        const val = parseFloat(newGoalTarget.replace(/\./g, '').replace(',', '.'));
+        const typedVal = parseInputToNumber(newGoalTarget, currency);
+        const val = convertToBase(typedVal, currency, rates);
         if (!newGoalName.trim() || isNaN(val) || val <= 0 || isProcessing) return;
         setIsProcessing(true);
         try {
@@ -119,7 +122,8 @@ export default function GoalsScreen() {
 
     const handleAddMoney = async () => {
         if (!selectedGoal) return;
-        const val = parseFloat(payAmount.replace(/\./g, '').replace(',', '.'));
+        const typedVal = parseInputToNumber(payAmount, currency);
+        const val = convertToBase(typedVal, currency, rates);
         if (isNaN(val) || val <= 0) return;
         if (val > availableAhorro) {
             Alert.alert('Saldo insuficiente', 'No tienes suficiente Ahorro Disponible.');
@@ -135,7 +139,8 @@ export default function GoalsScreen() {
 
     const handleWithdrawMoney = async () => {
         if (!selectedGoal) return;
-        const val = parseFloat(withdrawAmount.replace(/\./g, '').replace(',', '.'));
+        const typedVal = parseInputToNumber(withdrawAmount, currency);
+        const val = convertToBase(typedVal, currency, rates);
         if (isNaN(val) || val <= 0 || val > selectedGoal.current_amount) return;
         try {
             await supabase.from('goals').update({ current_amount: selectedGoal.current_amount - val }).eq('id', selectedGoal.id);
@@ -204,7 +209,7 @@ export default function GoalsScreen() {
         ]);
     };
 
-    const fmt = (n: number) => isHidden ? '****' : new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
+    // const fmt = (n: number) => isHidden ? '****' : new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -330,7 +335,7 @@ export default function GoalsScreen() {
                     <View style={[styles.securityAdvice, { backgroundColor: colors.bg }]}>
                         <Text style={[styles.adviceText, { color: colors.text }]}>
                             {totalAhorro < 500000 
-                                ? "💡 Santy: Tu primera meta es el Escudo de Choque ($500k). ¡Paso a paso!"
+                                ? `💡 Santy: Tu primera meta es el Escudo de Choque (${fmt(500000)}). ¡Paso a paso!`
                                 : totalAhorro < 2500000 
                                 ? "🎉 ¡Bien! Tienes un Escudo de Choque. Próxima parada: 1 mes de gastos."
                                 : totalAhorro < 7500000
@@ -340,7 +345,6 @@ export default function GoalsScreen() {
                         </Text>
                     </View>
                 </View>
-
 
                 {/* ── Lista de Metas ── */}
                 {goals.length === 0 ? (

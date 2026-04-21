@@ -8,7 +8,8 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { formatCurrency, convertCurrency, getCurrencyInfo, convertToBase, CURRENCIES } from '@/utils/currency';
+import { formatCurrency, getCurrencyInfo, convertCurrency, convertToBase, CURRENCIES, formatInputDisplay, parseInputToNumber } from '@/utils/currency';
+
 import {
     ActivityIndicator,
     Alert,
@@ -125,58 +126,16 @@ export default function DebtsScreen() {
     };
 
     const handleAmountChange = (text: string) => {
-        if (!text) { setAmount(''); return; }
-        if (currency === 'COP') {
-            const clean = text.replace(/\D/g, '');
-            if (!clean) { setAmount(''); return; }
-            setAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
-        } else {
-            let raw = text.replace(/,/g, '');
-            const parts = raw.split('.');
-            if (parts.length > 2) return;
-            const integerRaw = parts[0].replace(/\D/g, '');
-            if (!integerRaw && raw.startsWith('.')) {
-                setAmount('0.' + (parts[1] || '').slice(0, 2));
-                return;
-            }
-            const integerFormatted = integerRaw ? new Intl.NumberFormat('en-US').format(parseInt(integerRaw, 10)) : '';
-            if (parts.length === 2) setAmount(`${integerFormatted}.${parts[1].slice(0, 2)}`);
-            else if (raw.endsWith('.')) setAmount(`${integerFormatted}.`);
-            else setAmount(integerFormatted);
-        }
+        setAmount(formatInputDisplay(text, currency));
     };
 
     const handlePayAmountChange = (text: string) => {
-        if (!text) { setPayAmount(''); return; }
-        if (currency === 'COP') {
-            const clean = text.replace(/\D/g, '');
-            if (!clean) { setPayAmount(''); return; }
-            setPayAmount(new Intl.NumberFormat('es-CO').format(parseInt(clean, 10)));
-        } else {
-            let raw = text.replace(/,/g, '');
-            const parts = raw.split('.');
-            if (parts.length > 2) return;
-            const integerRaw = parts[0].replace(/\D/g, '');
-            if (!integerRaw && raw.startsWith('.')) {
-                setPayAmount('0.' + (parts[1] || '').slice(0, 2));
-                return;
-            }
-            const integerFormatted = integerRaw ? new Intl.NumberFormat('en-US').format(parseInt(integerRaw, 10)) : '';
-            if (parts.length === 2) setPayAmount(`${integerFormatted}.${parts[1].slice(0, 2)}`);
-            else if (raw.endsWith('.')) setPayAmount(`${integerFormatted}.`);
-            else setPayAmount(integerFormatted);
-        }
+        setPayAmount(formatInputDisplay(text, currency));
     };
 
 
     const handleSave = async () => {
-        let cleanStr = amount;
-        if (currency === 'COP') {
-            cleanStr = amount.replace(/\./g, '').replace(',', '.');
-        } else {
-            cleanStr = amount.replace(/,/g, '');
-        }
-        const typedVal = parseFloat(cleanStr);
+        const typedVal = parseInputToNumber(amount, currency);
         const val = convertToBase(typedVal, currency, rates);
         if (!name.trim() || isNaN(val) || val <= 0) {
             if (Platform.OS === 'web') window.alert('Completa todos los campos');
@@ -222,7 +181,12 @@ export default function DebtsScreen() {
 
     const handleEditStart = (item: DebtItem) => {
         setName(item.client);
-        setAmount(item.value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+        // Use the currency-aware helper so the amount displays with the correct decimal/thousands format
+        const displayVal = formatInputDisplay(
+            String(convertCurrency(item.value, currency, rates)),
+            currency
+        );
+        setAmount(displayVal);
         const d = new Date(item.due_date + 'T12:00:00');
         setDueDate(d);
         setSelectedDay(d.getDate().toString());
@@ -253,7 +217,8 @@ export default function DebtsScreen() {
     const handlePayment = async () => {
         if (!selectedDebt) return;
         const isFixed = selectedDebt.debt_type === 'fixed';
-        const pVal = isFixed ? selectedDebt.value : parseFloat(payAmount.replace(/\./g, ''));
+        const typedPay = parseInputToNumber(payAmount, currency);
+        const pVal = isFixed ? selectedDebt.value : convertToBase(typedPay, currency, rates);
         if (isNaN(pVal) || pVal <= 0) return;
         const actualPay = isFixed ? pVal : Math.min(pVal, selectedDebt.value - selectedDebt.paid);
         try {

@@ -267,7 +267,7 @@ const statStyle = StyleSheet.create({
 
 export default function ProfileScreen() {
     const router = useRouter();
-    const { user, theme, setThemeConfig, currency, setCurrencyConfig, rates, isHidden, logout } = useAuth();
+    const { user, theme, setThemeConfig, currency, setCurrencyConfig, rates, ratesUpdatedAt, syncRates, isHidden, logout } = useAuth();
     const isFocused = useIsFocused();
     const colorsNav = useThemeColors();
     const isDark = colorsNav.isDark;
@@ -277,6 +277,7 @@ export default function ProfileScreen() {
     const [statsModalVisible, setStatsModalVisible] = useState(false);
     const [weeklyModalVisible, setWeeklyModalVisible] = useState(false);
     const [editModalVisible, setEditModalVisible] = useState(false);
+    const [isSyncingRates, setIsSyncingRates] = useState(false);
 
     const [libraryModalVisible, setLibraryModalVisible] = useState(false);
     const [selectedArticle, setSelectedArticle] = useState<any>(null);
@@ -691,14 +692,60 @@ export default function ProfileScreen() {
             <Modal visible={currencyModalVisible} transparent animationType="slide">
                 <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
                     <View style={[styles.modalBox, { backgroundColor: colorsNav.card, borderTopLeftRadius: 32, borderTopRightRadius: 32 }]}>
-                        <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Moneda Principal</Text>
-                        {CURRENCIES.map(curr => (
-                            <TouchableOpacity key={curr.code} style={styles.listItem} onPress={() => { setCurrencyConfig(curr.code); setCurrencyModalVisible(false); }}>
-                                <Text style={{ color: colorsNav.text, fontWeight: '700' }}>{curr.name} ({curr.code})</Text>
-                                {currency === curr.code && <MaterialIcons name="check" size={20} color={colorsNav.accent} />}
+                        {/* Title row with refresh button */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                            <Text style={[styles.modalTitle, { color: colorsNav.text, marginBottom: 0 }]}>Moneda Principal</Text>
+                            <TouchableOpacity
+                                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, backgroundColor: isSyncingRates ? colorsNav.border : colorsNav.accent + '15' }}
+                                disabled={isSyncingRates}
+                                onPress={async () => {
+                                    setIsSyncingRates(true);
+                                    await syncRates();
+                                    setIsSyncingRates(false);
+                                }}
+                            >
+                                <MaterialIcons name="sync" size={14} color={isSyncingRates ? colorsNav.sub : colorsNav.accent} />
+                                <Text style={{ color: isSyncingRates ? colorsNav.sub : colorsNav.accent, fontSize: 11, fontWeight: '800' }}>
+                                    {isSyncingRates ? 'Actualizando...' : 'Actualizar'}
+                                </Text>
                             </TouchableOpacity>
-                        ))}
-                        <TouchableOpacity style={{ marginTop: 20, alignItems: 'center' }} onPress={() => setCurrencyModalVisible(false)}><Text style={{ color: colorsNav.sub }}>Cerrar</Text></TouchableOpacity>
+                        </View>
+
+                        {/* Last updated label */}
+                        {ratesUpdatedAt && (
+                            <Text style={{ color: colorsNav.sub, fontSize: 10, fontWeight: '600', marginBottom: 16 }}>
+                                Tasas al: {new Date(ratesUpdatedAt).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </Text>
+                        )}
+
+                        {/* Currency list with live rates */}
+                        {CURRENCIES.map(curr => {
+                            const isActive = currency === curr.code;
+                            const rate = curr.code === 'COP' ? null : rates[curr.code];
+                            return (
+                                <TouchableOpacity
+                                    key={curr.code}
+                                    style={[styles.listItem, isActive && { backgroundColor: colorsNav.accent + '12', borderRadius: 14, marginHorizontal: -4, paddingHorizontal: 12 }]}
+                                    onPress={() => { setCurrencyConfig(curr.code); setCurrencyModalVisible(false); }}
+                                >
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ color: colorsNav.text, fontWeight: '700', fontSize: 15 }}>
+                                            {curr.symbol} {curr.name}
+                                        </Text>
+                                        {rate && (
+                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600', marginTop: 2 }}>
+                                                1 {curr.code} = {new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(rate)} COP
+                                            </Text>
+                                        )}
+                                    </View>
+                                    {isActive && <MaterialIcons name="check-circle" size={20} color={colorsNav.accent} />}
+                                </TouchableOpacity>
+                            );
+                        })}
+
+                        <TouchableOpacity style={{ marginTop: 20, alignItems: 'center' }} onPress={() => setCurrencyModalVisible(false)}>
+                            <Text style={{ color: colorsNav.sub, fontWeight: '700' }}>Cerrar</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </Modal>

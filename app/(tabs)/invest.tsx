@@ -12,7 +12,7 @@ import {
   Dimensions, KeyboardAvoidingView, TouchableWithoutFeedback
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { formatCurrency, convertCurrency } from '@/utils/currency';
+import { formatCurrency, convertCurrency, convertToBase, fetchExchangeRates } from '@/utils/currency';
 import { searchAssets, fetchLivePrice, POPULAR_ASSETS, SearchResult, fetchBvcMarketOverview } from '@/utils/stockPrices';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -90,7 +90,7 @@ export default function InvestScreen() {
   const [lastBvcUpdate, setLastBvcUpdate] = useState<Date>(new Date());
   const [bvcCountdown, setBvcCountdown] = useState(60); 
 
-  const baseFmt = (n: number) => formatCurrency(n, 'COP', isHidden);
+  const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates || {}), currency, isHidden);
   const usdToCop = rates?.USD || 3950;
 
   useEffect(() => { 
@@ -221,7 +221,7 @@ export default function InvestScreen() {
         const newTotal = (Number(currentStored) || 0) + extraDivs;
         setTotalDividends(newTotal);
         await AsyncStorage.setItem(`@invest_divs_${user.id}`, String(newTotal));
-        Alert.alert("💸 Dividendos Cobrados", `Se han sumado ${formatCurrency(extraDivs, 'COP')} a tu patrimonio por fechas de pago cumplidas.`);
+        Alert.alert("💸 Dividendos Cobrados", `Se han sumado ${fmt(extraDivs)} a tu patrimonio por fechas de pago cumplidas.`);
       }
 
       await AsyncStorage.setItem(`@invest_last_div_sync_${user.id}`, `${currentMonth}-${currentYear}`);
@@ -322,7 +322,7 @@ export default function InvestScreen() {
           await Notifications.scheduleNotificationAsync({
             content: {
               title: `🚨 Alerta: ${ticker}`,
-              body: `¡Llegamos! ${ticker} cruzó tu objetivo de ${formatCurrency(alert.targetPrice, 'COP')}.`,
+              body: `¡Llegamos! ${ticker} cruzó tu objetivo de ${fmt(alert.targetPrice)}.`,
             },
             trigger: null,
           });
@@ -487,7 +487,7 @@ export default function InvestScreen() {
     const pool = [...POPULAR_ASSETS.filter(a => a.type !== 'crypto' && a.type !== 'real_estate')].sort(() => 0.5 - Math.random()).slice(0, 4);
     const weights = [0.4, 0.3, 0.2, 0.1];
     const items = pool.map((s, i) => ({ ticker: s.ticker, amount: net * weights[i], shares: s.price ? Math.floor((net * weights[i]) / s.price) : undefined }));
-    return { items, rationale: `Comisión Trii: ${baseFmt(TRII_FEE)}. Capital neto: ${baseFmt(net)}` };
+    return { items, rationale: `Comisión Trii: ${fmt(TRII_FEE)}. Capital neto: ${fmt(net)}` };
   };
 
   const handleSimulate = () => {
@@ -535,14 +535,14 @@ export default function InvestScreen() {
                 style={[s.summaryCard, { borderColor: 'rgba(255,255,255,0.1)' }]}
               >
                 <Text style={[s.summaryLabel, { color: 'rgba(255,255,255,0.7)' }]}>PATRIMONIO TOTAL</Text>
-                <Text style={[s.summaryAmount, { color: '#FFF' }]}>{baseFmt(totalCurrent + totalDividends)}</Text>
+                <Text style={[s.summaryAmount, { color: '#FFF' }]}>{fmt(totalCurrent + totalDividends)}</Text>
                 <View style={s.summaryRow}>
                   <View style={[s.chip, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
                     <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800' }}>
                       {profitAbs >= 0 ? '▲' : '▼'} {profitPct.toFixed(1)}%
                     </Text>
                   </View>
-                  <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '700' }}>{baseFmt(Math.abs(profitAbs))} {profitAbs >= 0 ? 'ganancia' : 'pérdida'}</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '700' }}>{fmt(Math.abs(profitAbs))} {profitAbs >= 0 ? 'ganancia' : 'pérdida'}</Text>
                   
                   <TouchableOpacity onPress={togglePerfChart} style={{ marginLeft: 'auto', padding: 4 }}>
                     <Ionicons name={showPerfChart ? "eye-off-outline" : "eye-outline"} size={18} color="rgba(255,255,255,0.6)" />
@@ -625,7 +625,7 @@ export default function InvestScreen() {
                   {bvcMarket.map((asset, i) => (
                     <View key={i} style={[s.bvcAssetCard, { backgroundColor: colors.bg, borderColor: colors.border }]}>
                       <Text style={{ color: colors.text, fontSize: 13, fontWeight: '900' }}>{asset.ticker}</Text>
-                      <Text style={{ color: colors.text, fontSize: 11, fontWeight: '700', marginTop: 2 }}>{baseFmt(asset.price)}</Text>
+                      <Text style={{ color: colors.text, fontSize: 11, fontWeight: '700', marginTop: 2 }}>{fmt(asset.price)}</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
                         <Text style={{ color: asset.changePercent >= 0 ? '#10B981' : '#EF4444', fontSize: 10, fontWeight: '900' }}>
                           {asset.changePercent >= 0 ? '▲' : '▼'}
@@ -651,7 +651,7 @@ export default function InvestScreen() {
                 </View>
                 <View style={[s.quickStat, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <MaterialIcons name="payments" size={18} color="#3B82F6" />
-                  <Text style={[s.quickNum, { color: colors.text }]}>{baseFmt(nextMonthDiv)}</Text>
+                  <Text style={[s.quickNum, { color: colors.text }]}>{fmt(nextMonthDiv)}</Text>
                   <Text style={[s.quickLabel, { color: colors.sub }]}>Próx. Div</Text>
                 </View>
               </View>
@@ -659,8 +659,8 @@ export default function InvestScreen() {
               {/* Navigation Cards */}
               <View style={{ gap: 12, marginTop: 8 }}>
                 {[
-                  { id: 'portfolio', label: 'Mi Portafolio', sub: `${positions.length} activos · ${baseFmt(totalCurrent)}`, icon: 'pie-chart', color: colors.accent },
-                  { id: 'calendar', label: 'Dividendos & Rentas', sub: `Anual est: ${baseFmt(projectedDivs.reduce((a,b)=>a+b, 0))}`, icon: 'calendar-month', color: '#3B82F6' },
+                  { id: 'portfolio', label: 'Mi Portafolio', sub: `${positions.length} activos · ${fmt(totalCurrent)}`, icon: 'pie-chart', color: colors.accent },
+                  { id: 'calendar', label: 'Dividendos & Rentas', sub: `Anual est: ${fmt(projectedDivs.reduce((a,b)=>a+b, 0))}`, icon: 'calendar-month', color: '#3B82F6' },
                 ].map(item => (
                   <TouchableOpacity key={item.id} style={[s.navCard, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => setActiveTab(item.id as any)}>
                     <View style={[s.navIcon, { backgroundColor: item.color + '12' }]}>
@@ -685,16 +685,16 @@ export default function InvestScreen() {
                 <View style={s.portfolioRow}>
                   <View>
                     <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800' }}>INVERTIDO</Text>
-                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>{baseFmt(totalInvested)}</Text>
+                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>{fmt(totalInvested)}</Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
                     <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800' }}>ACTUAL</Text>
-                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>{baseFmt(totalCurrent)}</Text>
+                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>{fmt(totalCurrent)}</Text>
                   </View>
                 </View>
                 <View style={[s.profitBadge, { backgroundColor: profitAbs >= 0 ? '#10B98112' : '#EF444412' }]}>
                   <Text style={{ color: profitAbs >= 0 ? '#10B981' : '#EF4444', fontWeight: '900', fontSize: 13 }}>
-                    {profitAbs >= 0 ? '+' : ''}{baseFmt(profitAbs)} ({profitPct.toFixed(1)}%)
+                    {profitAbs >= 0 ? '+' : ''}{fmt(profitAbs)} ({profitPct.toFixed(1)}%)
                   </Text>
                 </View>
               </View>
@@ -769,7 +769,7 @@ export default function InvestScreen() {
                            <MaterialCommunityIcons name="bell-outline" size={18} color={alerts.some(a => a.ticker === pos.ticker) ? colors.accent : colors.sub} />
                         </TouchableOpacity>
                         <View style={{ alignItems: 'flex-end' }}>
-                            <Text style={[s.assetValue, { color: colors.text }]}>{baseFmt(value)}</Text>
+                            <Text style={[s.assetValue, { color: colors.text }]}>{fmt(value)}</Text>
                             <View style={[s.gainBadge, { backgroundColor: gain >= 0.01 ? '#10B98115' : gain <= -0.01 ? '#EF444415' : colors.sub + '15' }]}>
                             <Text style={{ 
                                 color: gain >= 0.01 ? '#10B981' : gain <= -0.01 ? '#EF4444' : colors.sub, 
@@ -814,14 +814,14 @@ export default function InvestScreen() {
             <View>
               <View style={[s.divSummary, { backgroundColor: colors.accent }]}>
                 <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '800' }}>DIVIDENDOS ANUALES ESTIMADOS</Text>
-                <Text style={{ color: '#FFF', fontSize: 30, fontWeight: '900', marginTop: 4 }}>{baseFmt(projectedDivs.reduce((a,b)=>a+b, 0))}</Text>
+                <Text style={{ color: '#FFF', fontSize: 30, fontWeight: '900', marginTop: 4 }}>{fmt(projectedDivs.reduce((a,b)=>a+b, 0))}</Text>
               </View>
               {projectedDivs.map((amount, idx) => amount > 0 && (
                 <View key={idx} style={[s.divRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={[s.monthBadge, { backgroundColor: colors.accent + '12' }]}>
                     <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '900' }}>{['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'][idx]}</Text>
                   </View>
-                  <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900', flex: 1 }}>{baseFmt(amount)}</Text>
+                  <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900', flex: 1 }}>{fmt(amount)}</Text>
                   <Ionicons name="calendar-outline" size={16} color={colors.sub} />
                 </View>
               ))}
@@ -904,7 +904,7 @@ export default function InvestScreen() {
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
                           <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>
-                            {asset.currency === 'USD' ? `$${asset.price.toLocaleString()} USD` : baseFmt(asset.price)}
+                            {fmt(asset.currency === 'USD' ? asset.price * usdToCop : asset.price)}
                           </Text>
                           <Text style={{ color: asset.changePercent >= 0 ? '#10B981' : '#EF4444', fontSize: 11, fontWeight: '700' }}>
                             {asset.changePercent >= 0 ? '+' : ''}{asset.changePercent.toFixed(2)}%
@@ -934,13 +934,13 @@ export default function InvestScreen() {
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
                       <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>Precio actual</Text>
                       <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900' }}>
-                        {selectedAsset.currency === 'USD' ? `$${selectedAsset.price.toLocaleString()} USD` : baseFmt(selectedAsset.price)}
+                        {fmt(selectedAsset.currency === 'USD' ? selectedAsset.price * usdToCop : selectedAsset.price)}
                       </Text>
                     </View>
                     {selectedAsset.currency === 'USD' && (
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-                        <Text style={{ color: colors.sub, fontSize: 11 }}>≈ en COP</Text>
-                        <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>{baseFmt(selectedAsset.price * usdToCop)}</Text>
+                        <Text style={{ color: colors.sub, fontSize: 11 }}>≈ en {currency}</Text>
+                        <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>{fmt(selectedAsset.price * usdToCop)}</Text>
                       </View>
                     )}
                   </View>
@@ -957,7 +957,7 @@ export default function InvestScreen() {
                     <View style={[s.totalPreview, { backgroundColor: colors.bg }]}>
                       <Text style={{ color: colors.sub, fontSize: 12 }}>Total inversión</Text>
                       <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>
-                        {baseFmt((selectedAsset.currency === 'USD' ? selectedAsset.price * usdToCop : selectedAsset.price) * parseFloat(addShares || '0'))}
+                        {fmt((selectedAsset.currency === 'USD' ? selectedAsset.price * usdToCop : selectedAsset.price) * parseFloat(addShares || '0'))}
                       </Text>
                     </View>
                   )}

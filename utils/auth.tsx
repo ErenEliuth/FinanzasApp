@@ -6,7 +6,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { syncDown } from './sync';
 import { ThemeName, THEMES } from '@/constants/Themes';
-import { fetchExchangeRates } from '@/utils/currency';
+import { fetchExchangeRates, areRatesStale, DEFAULT_RATES } from '@/utils/currency';
 
 WebBrowser.maybeCompleteAuthSession(); // Necesario para que el navegador se cierre tras el login
 
@@ -24,6 +24,7 @@ interface AuthContextType {
     rates: Record<string, number>;
     setRatesConfig: (rates: Record<string, number>) => Promise<void>;
     syncRates: () => Promise<void>;
+    ratesUpdatedAt: number | null;
     isHidden: boolean;
     toggleHiddenMode: () => Promise<void>;
     login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
@@ -42,8 +43,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
     const [theme, setTheme] = useState<ThemeName>('light');
     const [currency, setCurrency] = useState<string>('COP');
-    const [rates, setRates] = useState<Record<string, number>>({ COP: 1, USD: 3950, EUR: 4250, DOP: 67 });
+    const [rates, setRates] = useState<Record<string, number>>(DEFAULT_RATES);
     const [isHidden, setIsHidden] = useState(false);
+    const [ratesUpdatedAt, setRatesUpdatedAt] = useState<number | null>(null);
     useEffect(() => {
         // Cargar sesión inicial de Supabase
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -78,8 +80,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const storedRates = await AsyncStorage.getItem('user_rates');
             if (storedRates) {
                 setRates(JSON.parse(storedRates));
-            } else {
-                syncRates();
+            }
+            // Always attempt a live fetch — the utility handles caching internally
+            // Use forceRefresh=false so it only hits the network if cache is stale (>6h)
+            const liveRates = await fetchExchangeRates(false);
+            if (liveRates) {
+                setRates(liveRates);
+                setRatesUpdatedAt(Date.now());
+                await AsyncStorage.setItem('user_rates', JSON.stringify(liveRates));
             }
             const storedHidden = await AsyncStorage.getItem('user_hidden_mode');
             if (storedHidden === 'true') {
@@ -111,6 +119,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const setCurrencyConfig = async (newCurrency: string) => {
         setCurrency(newCurrency);
         await AsyncStorage.setItem('user_currency', newCurrency);
+        // Refresh rates whenever the currency changes so conversions are always fresh
+        const liveRates = await fetchExchangeRates(false);
+        if (liveRates) {
+            setRates(liveRates);
+            setRatesUpdatedAt(Date.now());
+            await AsyncStorage.setItem('user_rates', JSON.stringify(liveRates));
+        }
     };
 
     const setRatesConfig = async (newRates: Record<string, number>) => {
@@ -119,9 +134,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const syncRates = async () => {
-        const newRates = await fetchExchangeRates();
+        const newRates = await fetchExchangeRates(true); // force refresh
         if (newRates) {
-            await setRatesConfig(newRates);
+            setRates(newRates);
+            setRatesUpdatedAt(Date.now());
+            await AsyncStorage.setItem('user_rates', JSON.stringify(newRates));
         }
     };
 
@@ -249,7 +266,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, session, loading, theme, toggleTheme, setThemeConfig, currency, setCurrencyConfig, rates, setRatesConfig, syncRates, isHidden, toggleHiddenMode, login, register, signInWithGoogle, logout }}>
+        <AuthContext.Provider value={{ user, session, loading, theme, toggleTheme, setThemeConfig, currency, setCurrencyConfig, rates, setRatesConfig, syncRates, ratesUpdatedAt, isHidden, toggleHiddenMode, login, register, signInWithGoogle, logout }}>
             {children}
         </AuthContext.Provider>
     );
