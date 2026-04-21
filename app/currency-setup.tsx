@@ -7,6 +7,8 @@ import { useAuth } from '@/utils/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
     ActivityIndicator,
     Platform,
@@ -17,7 +19,10 @@ import {
     Text,
     TouchableOpacity,
     View,
+    Dimensions,
 } from 'react-native';
+
+const { width, height } = Dimensions.get('window');
 
 const CURRENCY_OPTIONS = [
     { code: 'COP', name: 'Peso Colombiano',    flag: '🇨🇴', hint: 'Colombia' },
@@ -29,6 +34,8 @@ const CURRENCY_OPTIONS = [
 export default function CurrencySetupScreen() {
     const router = useRouter();
     const { setCurrencyConfig } = useAuth();
+    const colors = useThemeColors();
+    const isDark = colors.isDark;
 
     const [selected, setSelected] = useState('COP');
     const [saving, setSaving] = useState(false);
@@ -50,140 +57,188 @@ export default function CurrencySetupScreen() {
     };
 
     return (
-        <SafeAreaView style={s.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-            <ScrollView
-                contentContainerStyle={s.scroll}
-                showsVerticalScrollIndicator={false}
-            >
-                {/* Header */}
-                <View style={s.header}>
-                    <Text style={s.globe}>🌍</Text>
-                    <Text style={s.title}>¿Con qué moneda trabajas?</Text>
-                    <Text style={s.subtitle}>
-                        Tus ingresos, gastos y ahorros se mostrarán en esta moneda.{'\n'}
-                        Puedes cambiarla cuando quieras desde tu Perfil.
-                    </Text>
-                </View>
+        <View style={s.container}>
+            <StatusBar barStyle="light-content" />
+            <LinearGradient
+                colors={isDark ? ['#0F172A', '#1E293B', '#0F172A'] : ['#4F46E5', '#6366F1', '#4F46E5']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+            />
 
-                {/* Opciones */}
-                <View style={s.list}>
-                    {CURRENCY_OPTIONS.map(opt => {
-                        const isSelected = selected === opt.code;
-                        return (
-                            <TouchableOpacity
-                                key={opt.code}
-                                style={[s.card, isSelected && s.cardSelected]}
-                                onPress={() => setSelected(opt.code)}
-                                activeOpacity={0.85}
-                            >
-                                <View style={s.cardLeft}>
-                                    <Text style={s.flag}>{opt.flag}</Text>
-                                    <View>
-                                        <Text style={[s.cardName, isSelected && { color: '#0F172A' }]}>
-                                            {opt.name}
-                                        </Text>
-                                        <Text style={s.cardHint}>{opt.hint} · {opt.code}</Text>
-                                    </View>
-                                </View>
-                                {/* Radio button */}
-                                <View style={[s.radio, isSelected && s.radioSelected]}>
-                                    {isSelected && <View style={s.radioDot} />}
-                                </View>
-                            </TouchableOpacity>
-                        );
-                    })}
-                </View>
+            {/* Background elements */}
+            <View style={[s.bgCircle, { top: -120, left: -60, backgroundColor: isDark ? '#33415515' : '#FFFFFF15' }]} />
+            <View style={[s.bgCircle, { bottom: -100, right: -100, backgroundColor: isDark ? '#33415510' : '#FFFFFF10' }]} />
 
-                {/* Confirmar */}
-                <TouchableOpacity
-                    style={[s.btn, saving && s.btnDisabled]}
-                    onPress={handleConfirm}
-                    disabled={saving}
-                    activeOpacity={0.85}
+            <SafeAreaView style={{ flex: 1 }}>
+                <ScrollView
+                    contentContainerStyle={s.scroll}
+                    showsVerticalScrollIndicator={false}
                 >
-                    {saving
-                        ? <ActivityIndicator color="#FFF" />
-                        : <Text style={s.btnText}>Entrar con {selected} →</Text>
-                    }
-                </TouchableOpacity>
+                    {/* Header */}
+                    <View style={s.header}>
+                        <View style={s.globeContainer}>
+                            <Text style={s.globe}>🌍</Text>
+                        </View>
+                        <Text style={s.title}>Configura tu moneda</Text>
+                        <Text style={s.subtitle}>
+                            Tus ingresos, gastos y ahorros se mostrarán en esta moneda.{'\n'}
+                            Puedes cambiarla después en tu Perfil.
+                        </Text>
+                    </View>
 
-                <Text style={s.hint}>Esta elección se puede cambiar después en Perfil → Moneda</Text>
-            </ScrollView>
-        </SafeAreaView>
+                    {/* Form Card */}
+                    <View style={[s.mainCard, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
+                        <View style={s.list}>
+                            {CURRENCY_OPTIONS.map(opt => {
+                                const isSelected = selected === opt.code;
+                                return (
+                                    <TouchableOpacity
+                                        key={opt.code}
+                                        style={[
+                                            s.card, 
+                                            { borderColor: isDark ? '#334155' : '#E2E8F0' },
+                                            isSelected && [s.cardSelected, { borderColor: isDark ? '#4F46E5' : '#4F46E5' }]
+                                        ]}
+                                        onPress={() => setSelected(opt.code)}
+                                        activeOpacity={0.85}
+                                    >
+                                        <View style={s.cardLeft}>
+                                            <Text style={s.flag}>{opt.flag}</Text>
+                                            <View>
+                                                <Text style={[s.cardName, { color: isDark ? '#FFF' : '#1E293B' }]}>
+                                                    {opt.name}
+                                                </Text>
+                                                <Text style={s.cardHint}>{opt.hint} · {opt.code}</Text>
+                                            </View>
+                                        </View>
+                                        <View style={[
+                                            s.radio, 
+                                            { borderColor: isDark ? '#334155' : '#CBD5E1' },
+                                            isSelected && { borderColor: '#4F46E5', backgroundColor: '#4F46E5' }
+                                        ]}>
+                                            {isSelected && <View style={s.radioDot} />}
+                                        </View>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+
+                        <TouchableOpacity
+                            style={[s.btn, saving && s.btnDisabled, { backgroundColor: isDark ? '#4F46E5' : '#0F172A' }]}
+                            onPress={handleConfirm}
+                            disabled={saving}
+                            activeOpacity={0.85}
+                        >
+                            {saving
+                                ? <ActivityIndicator color="#FFF" />
+                                : <Text style={s.btnText}>Comenzar con {selected} →</Text>
+                            }
+                        </TouchableOpacity>
+                    </View>
+
+                    <Text style={s.footerHint}>🔐 Tu elección es personal y segura</Text>
+                </ScrollView>
+            </SafeAreaView>
+        </View>
     );
 }
 
 const s = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#FFFFFF' },
+    container: { flex: 1, backgroundColor: '#0F172A' },
+    bgCircle: {
+        position: 'absolute',
+        width: 400,
+        height: 400,
+        borderRadius: 200,
+    },
     scroll: {
         flexGrow: 1,
-        paddingHorizontal: 28,
-        paddingTop: Platform.OS === 'android' ? 60 : 50,
-        paddingBottom: 50,
+        paddingHorizontal: 24,
+        paddingTop: Platform.OS === 'android' ? 60 : 40,
+        paddingBottom: 40,
         justifyContent: 'center',
     },
-    header: { alignItems: 'center', marginBottom: 40 },
-    globe: { fontSize: 64, marginBottom: 20 },
+    header: { alignItems: 'center', marginBottom: 32 },
+    globeContainer: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.15,
+        shadowRadius: 20,
+        elevation: 10,
+        marginBottom: 24,
+    },
+    globe: { fontSize: 50 },
     title: {
-        fontSize: 26,
+        fontSize: 28,
         fontWeight: '900',
-        color: '#0F172A',
+        color: '#FFFFFF',
         textAlign: 'center',
         letterSpacing: -0.5,
-        marginBottom: 12,
+        marginBottom: 8,
     },
     subtitle: {
         fontSize: 15,
-        color: '#64748B',
+        color: 'rgba(255,255,255,0.7)',
         textAlign: 'center',
-        lineHeight: 23,
+        lineHeight: 22,
+        fontWeight: '500',
     },
-    list: { gap: 12, marginBottom: 32 },
+    mainCard: {
+        borderRadius: 32,
+        padding: 24,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 20 },
+        shadowOpacity: 0.2,
+        shadowRadius: 30,
+        elevation: 20,
+    },
+    list: { gap: 12, marginBottom: 24 },
     card: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingVertical: 20,
-        backgroundColor: '#F8FAFC',
+        paddingHorizontal: 16,
+        paddingVertical: 16,
         borderRadius: 20,
-        borderWidth: 2,
-        borderColor: '#E2E8F0',
+        borderWidth: 1.5,
     },
     cardSelected: {
-        backgroundColor: '#F0FDF4',
-        borderColor: '#0F172A',
-        shadowColor: '#0F172A',
+        backgroundColor: '#4F46E510',
+        shadowColor: '#4F46E5',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 5,
+        shadowRadius: 8,
+        elevation: 2,
     },
-    cardLeft: { flexDirection: 'row', alignItems: 'center', gap: 16, flex: 1 },
-    flag: { fontSize: 38 },
-    cardName: { fontSize: 16, fontWeight: '700', color: '#334155' },
-    cardHint: { fontSize: 12, color: '#94A3B8', fontWeight: '500', marginTop: 3 },
+    cardLeft: { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
+    flag: { fontSize: 32 },
+    cardName: { fontSize: 16, fontWeight: '700' },
+    cardHint: { fontSize: 12, color: '#94A3B8', fontWeight: '500', marginTop: 2 },
     radio: {
-        width: 24, height: 24, borderRadius: 12,
-        borderWidth: 2, borderColor: '#CBD5E1',
+        width: 22, height: 22, borderRadius: 11,
+        borderWidth: 2,
         justifyContent: 'center', alignItems: 'center',
     },
-    radioSelected: { borderColor: '#0F172A', backgroundColor: '#0F172A' },
-    radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FFFFFF' },
+    radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFFFFF' },
     btn: {
-        height: 62,
-        backgroundColor: '#0F172A',
+        height: 60,
         borderRadius: 18,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#0F172A',
+        shadowColor: '#4F46E5',
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.3,
         shadowRadius: 16,
         elevation: 8,
     },
     btnDisabled: { backgroundColor: '#94A3B8', shadowOpacity: 0, elevation: 0 },
     btnText: { color: '#FFFFFF', fontSize: 17, fontWeight: '800', letterSpacing: 0.3 },
-    hint: { fontSize: 12, color: '#94A3B8', textAlign: 'center', marginTop: 20 },
+    footerHint: { fontSize: 12, color: 'rgba(255,255,255,0.5)', textAlign: 'center', marginTop: 24, fontWeight: '600' },
 });
