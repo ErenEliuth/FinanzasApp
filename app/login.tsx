@@ -101,7 +101,7 @@ export default function LoginScreen() {
                         <View style={styles.header}>
                             <View style={styles.logoShadowWrap}>
                                 <Image
-                                    source={require('@/assets/images/icon.png')}
+                                    source={require('@/assets/images/zenly-logo.png')}
                                     style={styles.logoImg}
                                     resizeMode="contain"
                                 />
