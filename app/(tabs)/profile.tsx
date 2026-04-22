@@ -10,6 +10,8 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatCurrency, convertCurrency, CURRENCIES } from '@/utils/currency';
+import { uploadImage } from '@/utils/storage';
+import { syncUp, SYNC_KEYS } from '@/utils/sync';
 import {
     Alert,
     Dimensions,
@@ -305,7 +307,8 @@ export default function ProfileScreen() {
         }
     }, [isFocused]);
     useEffect(() => {
-        AsyncStorage.getItem(`@avatar_${user?.id}`).then(uri => { if (uri) setAvatarUri(uri); });
+        const url = user?.user_metadata?.avatar_url;
+        if (url) setAvatarUri(url);
     }, [user]);
 
     const loadData = async () => {
@@ -415,44 +418,30 @@ export default function ProfileScreen() {
     const handleLogout = async () => { await logout(); router.replace('/login'); };
 
     const handlePickAvatar = async () => {
-        const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7 });
+        const result = await ImagePicker.launchImageLibraryAsync({ 
+            mediaTypes: ['images'], 
+            allowsEditing: true, 
+            aspect: [1, 1], 
+            quality: 0.5 
+        });
+        
         if (!result.canceled && result.assets[0] && user) {
             const sourceUri = result.assets[0].uri;
-            
-            // Usamos cast a any para evitar errores de tipado si la versión de types está desactualizada
-            const fs = FileSystem as any;
-            const docDir = fs.documentDirectory;
-
-            // Si no hay documentDirectory (ej. en Web), usamos la URI temporal
-            if (!docDir) {
-                setAvatarUri(sourceUri);
-                await AsyncStorage.setItem(`@avatar_${user.id}`, sourceUri);
-                return;
-            }
-
-            // Definir una ruta permanente en el dispositivo
-            const fileName = `avatar_${user.id}_${Date.now()}.jpg`;
-            const destUri = `${docDir}${fileName}`;
+            setAvatarUri(sourceUri); // Feedback inmediato
             
             try {
-                // Copiar el archivo de la ruta temporal a la permanente
-                await FileSystem.copyAsync({
-                    from: sourceUri,
-                    to: destUri
-                });
+                const fileName = `avatar_${user.id}_${Date.now()}.jpg`;
+                const publicUrl = await uploadImage(sourceUri, 'avatars', fileName);
                 
-                // Si había un avatar previo, lo borramos para no llenar el espacio
-                if (avatarUri && avatarUri.startsWith(docDir)) {
-                    try { await FileSystem.deleteAsync(avatarUri, { idempotent: true }); } catch (e) {}
+                if (publicUrl) {
+                    setAvatarUri(publicUrl);
+                    await supabase.auth.updateUser({ 
+                        data: { avatar_url: publicUrl } 
+                    });
                 }
-
-                setAvatarUri(destUri);
-                await AsyncStorage.setItem(`@avatar_${user.id}`, destUri);
-            } catch (error) {
-                console.error("Error saving avatar:", error);
-                // Fallback a la URI temporal si falla la copia
-                setAvatarUri(sourceUri);
-                await AsyncStorage.setItem(`@avatar_${user.id}`, sourceUri);
+            } catch (e) {
+                console.error("Error subiendo avatar:", e);
+                Alert.alert("Error", "No se pudo sincronizar la imagen de perfil.");
             }
         }
     };

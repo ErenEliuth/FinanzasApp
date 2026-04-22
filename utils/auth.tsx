@@ -4,7 +4,7 @@ import { Session, User } from '@supabase/supabase-js';
 import * as WebBrowser from 'expo-web-browser';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
-import { syncDown } from './sync';
+import { syncDown, syncUp, SYNC_KEYS } from './sync';
 import { ThemeName, THEMES } from '@/constants/Themes';
 import { fetchExchangeRates, areRatesStale, DEFAULT_RATES } from '@/utils/currency';
 
@@ -50,75 +50,123 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Cargar sesión inicial de Supabase
         supabase.auth.getSession().then(({ data: { session } }) => {
             const userId = session?.user?.id;
+            const user = session?.user ?? null;
+            
             setSession(session);
-            setUser(session?.user ?? null);
-            if (userId) syncDown(userId);
+            setUser(user);
+
+            if (user) {
+                // Sincronizar moneda desde metadatos si existe
+                const userCurrency = user.user_metadata?.currency;
+                if (userCurrency) {
+                    setCurrency(userCurrency);
+                    AsyncStorage.setItem('user_currency', userCurrency);
+                }
+                if (userId) syncDown(userId);
+            }
             setLoading(false);
         });
 
         // Escuchar cambios en el estado de autenticación (login, logout, token refresh)
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             const userId = session?.user?.id;
+            const newUser = session?.user ?? null;
+            
             setSession(session);
-            setUser(session?.user ?? null);
-            if (userId && (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED')) {
-                syncDown(userId);
+            setUser(newUser);
+
+            if (newUser) {
+                if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
+                    syncDown(userId!);
+                }
             }
+
             setLoading(false);
         });
 
-        // Cargar tema
-        const loadTheme = async () => {
-            const storedTheme = await AsyncStorage.getItem('user_theme');
-            if (storedTheme && Object.keys(THEMES).includes(storedTheme as string)) {
-                setTheme(storedTheme as ThemeName);
+        // Cargar preferencias iniciales
+        const loadPrefs = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            const userId = session?.user?.id;
+            
+            if (userId) {
+                const [storedTheme, storedCurrency, storedHidden] = await Promise.all([
+                    AsyncStorage.getItem(SYNC_KEYS.THEME(userId)),
+                    AsyncStorage.getItem(SYNC_KEYS.CURRENCY(userId)),
+                    AsyncStorage.getItem(SYNC_KEYS.HIDDEN_MODE(userId))
+                ]);
+
+                if (storedTheme && Object.keys(THEMES).includes(storedTheme as string)) {
+                    setTheme(storedTheme as ThemeName);
+                }
+                if (storedCurrency) {
+                    setCurrency(storedCurrency);
+                }
+                if (storedHidden === 'true') {
+                    setIsHidden(true);
+                }
             }
-            const storedCurrency = await AsyncStorage.getItem('user_currency');
-            if (storedCurrency) {
-                setCurrency(storedCurrency);
-            }
+            
+            // Global rates can stay shared
             const storedRates = await AsyncStorage.getItem('user_rates');
             if (storedRates) {
                 setRates(JSON.parse(storedRates));
             }
-            // Always attempt a live fetch — the utility handles caching internally
-            // Use forceRefresh=false so it only hits the network if cache is stale (>6h)
             const liveRates = await fetchExchangeRates(false);
             if (liveRates) {
                 setRates(liveRates);
                 setRatesUpdatedAt(Date.now());
                 await AsyncStorage.setItem('user_rates', JSON.stringify(liveRates));
             }
-            const storedHidden = await AsyncStorage.getItem('user_hidden_mode');
-            if (storedHidden === 'true') {
-                setIsHidden(true);
-            }
         };
-        loadTheme();
+        loadPrefs();
 
         return () => subscription.unsubscribe();
     }, []);
 
     const toggleTheme = async () => {
+        if (!user?.id) return;
         let nextTheme: ThemeName = 'light';
         if (theme === 'snow') nextTheme = 'light';
         else if (theme === 'light') nextTheme = 'dark';
         else if (theme === 'dark') nextTheme = 'lavender';
         else if (theme === 'lavender') nextTheme = 'ocean';
-        else if (theme === 'ocean') nextTheme = 'snow';
-        
+        else if (theme === 'ocean') nextTheme = 'nature';
+        else if (theme === 'nature') nextTheme = 'midnight';
+        else if (theme === 'midnight') nextTheme = 'sunset';
+        else if (theme === 'sunset') nextTheme = 'snow';
+
         setTheme(nextTheme);
-        await AsyncStorage.setItem('user_theme', nextTheme);
+        await AsyncStorage.setItem(SYNC_KEYS.THEME(user.id), nextTheme);
+        await syncUp(user.id);
+        await supabase.auth.updateUser({ data: { theme: nextTheme } });
     };
 
     const setThemeConfig = async (newTheme: ThemeName) => {
         setTheme(newTheme);
-        await AsyncStorage.setItem('user_theme', newTheme);
+        if (user?.id) {
+            await AsyncStorage.setItem(SYNC_KEYS.THEME(user.id), newTheme);
+            await syncUp(user.id);
+            await supabase.auth.updateUser({ data: { theme: newTheme } });
+        }
     };
 
     const setCurrencyConfig = async (newCurrency: string) => {
+        if (!user?.id) return;
         setCurrency(newCurrency);
-        await AsyncStorage.setItem('user_currency', newCurrency);
+        await AsyncStorage.setItem(SYNC_KEYS.CURRENCY(user.id), newCurrency);
+        await syncUp(user.id);
+
+        // Persistent save in Supabase metadata if logged in
+        if (user) {
+            await supabase.auth.updateUser({
+                data: { 
+                    currency: newCurrency,
+                    currency_setup_done: true 
+                }
+            });
+        }
+
         // Refresh rates whenever the currency changes so conversions are always fresh
         const liveRates = await fetchExchangeRates(false);
         if (liveRates) {
@@ -143,9 +191,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const toggleHiddenMode = async () => {
+        if (!user?.id) return;
         const nextState = !isHidden;
         setIsHidden(nextState);
-        await AsyncStorage.setItem('user_hidden_mode', nextState ? 'true' : 'false');
+        await AsyncStorage.setItem(SYNC_KEYS.HIDDEN_MODE(user.id), nextState ? 'true' : 'false');
+        await syncUp(user.id);
     };
 
     // ── Login ──────────────────────────────────────────────────────────────────

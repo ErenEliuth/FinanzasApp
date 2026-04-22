@@ -1,5 +1,5 @@
 import { useAuth } from '@/utils/auth';
-import { syncUp } from '@/utils/sync';
+import { syncUp, SYNC_KEYS } from '@/utils/sync';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -74,14 +74,14 @@ export default function CardsScreen() {
     const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
 
     const loadData = async () => {
-        if (!user) return;
+        if (!user?.id) return;
         try {
-            const storedCards = await AsyncStorage.getItem(`@cards_${user.id}`);
+            const storedCards = await AsyncStorage.getItem(SYNC_KEYS.CARDS(user.id));
             const parsedCards: CreditCard[] = storedCards ? JSON.parse(storedCards) : [];
             setCards(parsedCards);
             if (parsedCards.length > 0 && !activeTab) setActiveTab(parsedCards[0].id);
 
-            const storedAccounts = await AsyncStorage.getItem('@custom_accounts');
+            const storedAccounts = await AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(user.id));
             const extra = storedAccounts ? JSON.parse(storedAccounts) : [];
             setAccounts(['Efectivo', ...extra].filter(acc => !parsedCards.some(c => c.name === acc)));
 
@@ -230,15 +230,15 @@ export default function CardsScreen() {
 
         const updated = [...cards, newCard];
         setCards(updated);
-        await AsyncStorage.setItem(`@cards_${user?.id}`, JSON.stringify(updated));
+        await AsyncStorage.setItem(SYNC_KEYS.CARDS(user.id), JSON.stringify(updated));
         
-        const storedParams = await AsyncStorage.getItem('@custom_accounts');
+        const storedParams = await AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(user.id));
         const customAccounts = storedParams ? JSON.parse(storedParams) : [];
         if (!customAccounts.includes(newCard.name)) {
-            await AsyncStorage.setItem('@custom_accounts', JSON.stringify([...customAccounts, newCard.name]));
+            await AsyncStorage.setItem(SYNC_KEYS.ACCOUNTS(user.id), JSON.stringify([...customAccounts, newCard.name]));
         }
 
-        if (user?.id) await syncUp(user.id);
+        syncUp(user.id);
 
         if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setAddModalVisible(false);
@@ -270,19 +270,19 @@ export default function CardsScreen() {
                 await supabase.from('transactions').delete().eq('user_id', user?.id).eq('account', card.name);
 
                 // Quitar de cuentas personalizadas
-                const storedAccs = await AsyncStorage.getItem('@custom_accounts');
+                const storedAccs = await AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(user.id));
                 if (storedAccs) {
                     const parsedAccs = JSON.parse(storedAccs);
                     const updatedAccs = parsedAccs.filter((a: string) => a !== card.name);
-                    await AsyncStorage.setItem('@custom_accounts', JSON.stringify(updatedAccs));
+                    await AsyncStorage.setItem(SYNC_KEYS.ACCOUNTS(user.id), JSON.stringify(updatedAccs));
                 }
 
                 // Borrar la tarjeta
                 const updated = cards.filter(c => c.id !== card.id);
                 setCards(updated);
-                await AsyncStorage.setItem(`@cards_${user?.id}`, JSON.stringify(updated));
+                await AsyncStorage.setItem(SYNC_KEYS.CARDS(user.id), JSON.stringify(updated));
                 
-                if (user?.id) await syncUp(user.id);
+                syncUp(user.id);
                 loadData();
                 if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             } catch (error) {

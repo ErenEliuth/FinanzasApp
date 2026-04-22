@@ -43,10 +43,8 @@ export default function CurrencySetupScreen() {
     const handleConfirm = async () => {
         setSaving(true);
         try {
-            // Save currency preference
+            // Mark setup as done in user metadata via setCurrencyConfig
             await setCurrencyConfig(selected);
-            // Mark setup as done so this screen never shows again
-            await AsyncStorage.setItem('@currency_setup_done', 'true');
         } catch (e) {
             console.warn('[CurrencySetup] Error saving currency:', e);
         } finally {

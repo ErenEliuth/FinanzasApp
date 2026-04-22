@@ -1,3 +1,5 @@
+import { useAuth } from '@/utils/auth';
+import { syncUp, SYNC_KEYS } from '@/utils/sync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
@@ -43,6 +45,7 @@ export default function OnboardingScreen() {
     const router = useRouter();
     const flatListRef = useRef<FlatList>(null);
     const scrollX = useRef(new Animated.Value(0)).current;
+    const { user } = useAuth();
     const [currentIndex, setCurrentIndex] = useState(0);
 
     const handleNext = () => {
@@ -59,8 +62,14 @@ export default function OnboardingScreen() {
     };
 
     const completeOnboarding = async () => {
-        await AsyncStorage.setItem('@onboarding_done', 'true');
-        router.replace('/login');
+        if (user?.id) {
+            await AsyncStorage.setItem(SYNC_KEYS.ONBOARDING_DONE(user.id), 'true');
+            await syncUp(user.id);
+            router.replace('/(tabs)');
+        } else {
+            await AsyncStorage.setItem('@onboarding_done', 'true');
+            router.replace('/login');
+        }
     };
 
     const renderSlide = ({ item, index }: { item: typeof SLIDES[0]; index: number }) => {

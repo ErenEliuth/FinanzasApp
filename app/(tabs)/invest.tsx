@@ -14,6 +14,7 @@ import {
 import Svg, { Path } from 'react-native-svg';
 import { formatCurrency, convertCurrency, convertToBase, fetchExchangeRates } from '@/utils/currency';
 import { searchAssets, fetchLivePrice, POPULAR_ASSETS, SearchResult, fetchBvcMarketOverview } from '@/utils/stockPrices';
+import { syncUp, SYNC_KEYS } from '@/utils/sync';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
@@ -154,12 +155,12 @@ export default function InvestScreen() {
         handleDividendSync(parsed);
       }
 
-      const storedDivs = await AsyncStorage.getItem(`@invest_divs_${user?.id}`);
+      const storedDivs = await AsyncStorage.getItem(SYNC_KEYS.INVEST_DIVS(user.id));
       if (storedDivs) setTotalDividends(Number(storedDivs));
 
-      const sPerf = await AsyncStorage.getItem(`@invest_show_perf_${user?.id}`);
+      const sPerf = await AsyncStorage.getItem(SYNC_KEYS.INVEST_PERF(user.id));
       if (sPerf !== null) setShowPerfChart(sPerf === 'true');
-      const sAlloc = await AsyncStorage.getItem(`@invest_show_alloc_${user?.id}`);
+      const sAlloc = await AsyncStorage.getItem(SYNC_KEYS.INVEST_ALLOC(user.id));
       if (sAlloc !== null) setShowAllocChart(sAlloc === 'true');
 
       // Cargar Alertas desde Supabase
@@ -180,10 +181,11 @@ export default function InvestScreen() {
       const now = new Date();
       const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
-      const lastCheckStr = await AsyncStorage.getItem(`@invest_last_div_sync_${user.id}`);
+      const lastCheckStr = await AsyncStorage.getItem(SYNC_KEYS.INVEST_SYNC(user.id));
       
       if (!lastCheckStr) {
-        await AsyncStorage.setItem(`@invest_last_div_sync_${user.id}`, `${currentMonth}-${currentYear}`);
+        await AsyncStorage.setItem(SYNC_KEYS.INVEST_SYNC(user.id), `${currentMonth}-${currentYear}`);
+        await syncUp(user.id);
         return;
       }
 
@@ -217,14 +219,15 @@ export default function InvestScreen() {
       });
 
       if (extraDivs > 0) {
-        const currentStored = await AsyncStorage.getItem(`@invest_divs_${user.id}`);
+        const currentStored = await AsyncStorage.getItem(SYNC_KEYS.INVEST_DIVS(user.id));
         const newTotal = (Number(currentStored) || 0) + extraDivs;
         setTotalDividends(newTotal);
-        await AsyncStorage.setItem(`@invest_divs_${user.id}`, String(newTotal));
+        await AsyncStorage.setItem(SYNC_KEYS.INVEST_DIVS(user.id), String(newTotal));
         Alert.alert("💸 Dividendos Cobrados", `Se han sumado ${fmt(extraDivs)} a tu patrimonio por fechas de pago cumplidas.`);
       }
 
-      await AsyncStorage.setItem(`@invest_last_div_sync_${user.id}`, `${currentMonth}-${currentYear}`);
+      await AsyncStorage.setItem(SYNC_KEYS.INVEST_SYNC(user.id), `${currentMonth}-${currentYear}`);
+      await syncUp(user.id);
     } catch (e) {
       console.log("Error en sync de dividendos:", e);
     }
@@ -268,9 +271,11 @@ export default function InvestScreen() {
   };
 
   const togglePerfChart = async () => {
+    if (!user?.id) return;
     const val = !showPerfChart;
     setShowPerfChart(val);
-    await AsyncStorage.setItem(`@invest_show_perf_${user?.id}`, String(val));
+    await AsyncStorage.setItem(SYNC_KEYS.INVEST_PERF(user.id), String(val));
+    await syncUp(user.id);
     if (Platform.OS !== 'web') {
         const Haptics = require('expo-haptics');
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -278,9 +283,11 @@ export default function InvestScreen() {
   };
 
   const toggleAllocChart = async () => {
+    if (!user?.id) return;
     const val = !showAllocChart;
     setShowAllocChart(val);
-    await AsyncStorage.setItem(`@invest_show_alloc_${user?.id}`, String(val));
+    await AsyncStorage.setItem(SYNC_KEYS.INVEST_ALLOC(user.id), String(val));
+    await syncUp(user.id);
     if (Platform.OS !== 'web') {
         const Haptics = require('expo-haptics');
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

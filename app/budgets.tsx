@@ -5,7 +5,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { syncUp, syncDown } from '@/utils/sync';
+import { syncUp, syncDown, SYNC_KEYS } from '@/utils/sync';
 import {
     Alert,
     Keyboard,
@@ -38,8 +38,6 @@ const DEFAULT_CATEGORIES = [
     { name: 'Otros',           icon: 'more-horiz',     color: '#95A5A6' },
 ];
 
-const CATEGORY_STORAGE_KEY = '@user_custom_categories_v2';
-
 
 export default function BudgetsScreen() {
     const isFocused = useIsFocused();
@@ -60,7 +58,9 @@ export default function BudgetsScreen() {
 
     useEffect(() => { 
         if (isFocused) {
-            AsyncStorage.getItem('@budget_period').then(p => { if (p) setPeriod(p as any); });
+            if (user?.id) {
+                AsyncStorage.getItem(SYNC_KEYS.BUDGET_PERIOD(user.id)).then(p => { if (p) setPeriod(p as any); });
+            }
             loadData(); 
         }
     }, [isFocused, period]);
@@ -71,7 +71,7 @@ export default function BudgetsScreen() {
             if (user?.id) await syncDown(user?.id);
             const [budgetRes, customCatsRaw] = await Promise.all([
                 supabase.from('budgets').select('*').eq('user_id', user.id),
-                AsyncStorage.getItem(CATEGORY_STORAGE_KEY)
+                AsyncStorage.getItem(SYNC_KEYS.CATEGORIES(user.id))
             ]);
             
             if (customCatsRaw) setCustomCategories(JSON.parse(customCatsRaw));
@@ -108,8 +108,10 @@ export default function BudgetsScreen() {
     };
 
     const togglePeriod = async (p: 'monthly' | 'biweekly') => {
+        if (!user?.id) return;
         setPeriod(p);
-        await AsyncStorage.setItem('@budget_period', p);
+        await AsyncStorage.setItem(SYNC_KEYS.BUDGET_PERIOD(user.id), p);
+        await syncUp(user.id);
     };
 
     const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
@@ -131,20 +133,22 @@ export default function BudgetsScreen() {
     };
 
     const handleAddCategory = async () => {
+        if (!user?.id) return;
         const trimmed = newCatName.trim();
         if (!trimmed) return;
         const updated = [...customCategories, trimmed];
-        await AsyncStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(updated));
-        if (user?.id) syncUp(user.id);
+        await AsyncStorage.setItem(SYNC_KEYS.CATEGORIES(user.id), JSON.stringify(updated));
+        syncUp(user.id);
         setCustomCategories(updated);
         setNewCatName('');
         setAddCatModalVisible(false);
     };
 
     const deleteCategory = async (cat: string) => {
+        if (!user?.id) return;
         const updated = customCategories.filter(c => c !== cat);
-        await AsyncStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(updated));
-        if (user?.id) syncUp(user.id);
+        await AsyncStorage.setItem(SYNC_KEYS.CATEGORIES(user.id), JSON.stringify(updated));
+        syncUp(user.id);
         setCustomCategories(updated);
     };
 

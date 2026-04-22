@@ -50,26 +50,28 @@ function RootStack() {
       return;
     }
 
-    // ── Logged in, coming from login ─────────────────────────────────────────
-    if (user && onLoginPage) {
-      AsyncStorage.getItem('@currency_setup_done').then(done => {
-        if (done !== 'true') {
-          // New user → ask which currency they want to use
-          router.replace('/currency-setup');
-        } else {
-          // Returning user → straight into the app
-          router.replace('/(tabs)');
-        }
-      });
+    // ── Logged in, coming from login/onboarding ─────────────────────────────
+    if (user && (onLoginPage || segments[0] === 'onboarding')) {
+      // Check if this specific user has already chosen their currency
+      const isSetupDone = user.user_metadata?.currency_setup_done === true;
+      
+      if (!isSetupDone) {
+        // New user or missing config → ask which currency they want to use
+        router.replace('/currency-setup');
+      } else {
+        // Returning user → straight into the app
+        router.replace('/(tabs)');
+      }
       return;
     }
 
-    // ── Existing user already in tabs (first run after update) ───────────────
+    // ── Check if user is in tabs but hasn't done setup ─────────────────────
     if (user && inAuthGroup && !onSetup) {
-      // Silently mark done — they already have COP by default and never need setup
-      AsyncStorage.getItem('@currency_setup_done').then(done => {
-        if (done !== 'true') AsyncStorage.setItem('@currency_setup_done', 'true');
-      });
+      const isSetupDone = user.user_metadata?.currency_setup_done === true;
+      if (!isSetupDone) {
+        // Force setup if they somehow landed in tabs without choosing currency
+        router.replace('/currency-setup');
+      }
     }
   }, [user, loading, segments, router]);
 
@@ -98,12 +100,15 @@ function RootStack() {
     let lastNotifDate = '';
 
     const checkNotif = async () => {
+      if (!user?.id) return;
       try {
-        const enabled = await AsyncStorage.getItem('user_reminders');
-        if (enabled !== 'true') return;
+        const raw = await AsyncStorage.getItem(SYNC_KEYS.REMINDERS(user.id));
+        if (!raw) return;
+        const config = JSON.parse(raw);
+        if (!config.enabled) return;
 
-        const h = await AsyncStorage.getItem('user_reminders_h') || '20';
-        const m = await AsyncStorage.getItem('user_reminders_m') || '30';
+        const h = config.h || 20;
+        const m = config.m || 30;
         
         const now = new Date();
         const currentH = now.getHours();
@@ -140,29 +145,31 @@ function RootStack() {
 
   // Chequeo de Recordatorio Pendiente al entrar (v11)
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
 
     const checkMissedReminders = async () => {
       try {
-        const enabled = await AsyncStorage.getItem('user_reminders');
-        if (enabled !== 'true') return;
+        const raw = await AsyncStorage.getItem(SYNC_KEYS.REMINDERS(user.id));
+        if (!raw) return;
+        const config = JSON.parse(raw);
+        if (!config.enabled) return;
 
-        const h = parseInt(await AsyncStorage.getItem('user_reminders_h') || '20');
-        const m = parseInt(await AsyncStorage.getItem('user_reminders_m') || '30');
+        const h = parseInt(config.h || '20');
+        const m = parseInt(config.m || '30');
 
         const now = new Date();
         const currentH = now.getHours();
         const currentM = now.getMinutes();
         const todayKey = now.toDateString();
 
-        const lastShown = await AsyncStorage.getItem('@last_rem_entry_today');
+        const lastShown = await AsyncStorage.getItem(`@last_rem_entry_today_${user.id}`);
         
         // Si ha pasado la hora Y aún no hemos avisado hoy
         const currentTimeInMins = currentH * 60 + currentM;
         const targetTimeInMins = h * 60 + m;
 
         if (currentTimeInMins > targetTimeInMins && lastShown !== todayKey) {
-            await AsyncStorage.setItem('@last_rem_entry_today', todayKey);
+            await AsyncStorage.setItem(`@last_rem_entry_today_${user.id}`, todayKey);
             
             // Un pequeño delay para que la app cargue
             setTimeout(() => {

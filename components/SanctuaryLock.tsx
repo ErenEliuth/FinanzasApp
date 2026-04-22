@@ -8,6 +8,8 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BlurView } from 'expo-blur';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useAuth } from '@/utils/auth';
+import { syncUp, SYNC_KEYS } from '@/utils/sync';
 
 const { width, height } = Dimensions.get('window');
 
@@ -23,29 +25,34 @@ export default function SanctuaryLock({ children, userName }: { children: React.
 
   const fadeAnim = useState(new Animated.Value(0))[0];
 
+  const { user } = useAuth();
+
   useEffect(() => {
-    checkLockStatus();
-  }, []);
+    if (user?.id) checkLockStatus();
+    else setLocked(false);
+  }, [user]);
 
   const checkLockStatus = async () => {
+    if (!user?.id) return;
     try {
-      const isEnabled = await AsyncStorage.getItem('@lock_enabled');
-      if (isEnabled === 'true') {
-        const storedMethod = await AsyncStorage.getItem('@lock_method') || 'pin';
-        const storedPin = await AsyncStorage.getItem('@lock_pin') || '';
-        setEnabled(true);
-        setMethod(storedMethod as any);
-        setSavedPin(storedPin);
-        setLocked(true);
-        
-        Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
+      const raw = await AsyncStorage.getItem(SYNC_KEYS.LOCK(user.id));
+      if (raw) {
+        const config = JSON.parse(raw);
+        if (config.enabled) {
+          setEnabled(true);
+          setMethod(config.method || 'pin');
+          setSavedPin(config.pin || '');
+          setLocked(true);
+          
+          Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
 
-        if (storedMethod === 'biometric') {
-           handleBiometric();
+          if (config.method === 'biometric') {
+             handleBiometric();
+          }
+          return;
         }
-      } else {
-        setLocked(false);
       }
+      setLocked(false);
     } catch (e) {
       setLocked(false);
     }

@@ -8,6 +8,7 @@ import React, { useEffect, useState } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatCurrency, convertCurrency, convertToBase, formatInputDisplay, parseInputToNumber } from '@/utils/currency';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { syncUp, SYNC_KEYS } from '@/utils/sync';
 import {
     Alert,
     Image,
@@ -68,8 +69,10 @@ export default function GoalsScreen() {
             setTotalAhorro(total);
 
             // Cargar estado de ahorro inteligente
-            const rawPref = await AsyncStorage.getItem('@smart_savings_enabled');
-            setSmartSavingsEnabled(rawPref === 'enabled');
+            if (user?.id) {
+                const rawPref = await AsyncStorage.getItem(SYNC_KEYS.SMART_SAVINGS(user.id));
+                setSmartSavingsEnabled(rawPref === 'enabled');
+            }
         } catch (e) { console.error(e); }
     };
 
@@ -190,9 +193,11 @@ export default function GoalsScreen() {
     };
 
     const toggleSmartSavings = async () => {
+        if (!user?.id) return;
         const newState = !smartSavingsEnabled;
         setSmartSavingsEnabled(newState);
-        await AsyncStorage.setItem('@smart_savings_enabled', newState ? 'enabled' : 'disabled');
+        await AsyncStorage.setItem(SYNC_KEYS.SMART_SAVINGS(user.id), newState ? 'enabled' : 'disabled');
+        await syncUp(user.id);
     };
 
     const handleDelete = (goal: any) => {

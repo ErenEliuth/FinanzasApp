@@ -1,10 +1,12 @@
 import { useAuth } from '@/utils/auth';
+import { SYNC_KEYS } from '@/utils/sync';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import * as Notifications from '@/utils/notifications';
+import { syncUp, SYNC_KEYS } from '@/utils/sync';
 import { THEMES, ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatCurrency, convertCurrency } from '@/utils/currency';
@@ -103,21 +105,24 @@ export default function HomeScreen() {
   }, [isFocused]);
 
   const checkReminderPrompt = async () => {
+    if (!user?.id) return;
     try {
-      const isEnabled = await AsyncStorage.getItem('user_reminders');
-      const isDismissed = await AsyncStorage.getItem('@dismissed_reminder_prompt');
-      if (isEnabled !== 'true' && isDismissed !== 'true') {
+      const isEnabled = await AsyncStorage.getItem(SYNC_KEYS.REMINDERS(user.id));
+      const isDismissed = await AsyncStorage.getItem(SYNC_KEYS.REMINDER_PROMPT_DISMISSED(user.id));
+      if (!isEnabled && isDismissed !== 'true') {
         // setShowReminderPrompt(true); // Removido por limpieza
       }
     } catch (e) { }
   };
 
   const handleAcceptReminders = async () => {
+    if (!user?.id) return;
     const granted = await Notifications.registerForPushNotificationsAsync();
     if (granted) {
       await Notifications.scheduleDailyReminder(20, 30);
-      await AsyncStorage.setItem('user_reminders', 'true');
-      // setShowReminderPrompt(false); // Removido por limpieza
+      const config = { enabled: true, h: 20, m: 30 };
+      await AsyncStorage.setItem(SYNC_KEYS.REMINDERS(user.id), JSON.stringify(config));
+      await syncUp(user.id);
       Alert.alert("✅ ¡Activado!", "Te avisaremos a las 8:30 PM.");
     } else {
       Alert.alert("⚠️ Permiso denegado", "Activa las notificaciones en ajustes.");
@@ -125,13 +130,15 @@ export default function HomeScreen() {
   };
 
   const handleDismissReminders = async () => {
-    await AsyncStorage.setItem('@dismissed_reminder_prompt', 'true');
-    // setShowReminderPrompt(false); // Removido por limpieza
+    if (!user?.id) return;
+    await AsyncStorage.setItem(SYNC_KEYS.REMINDER_PROMPT_DISMISSED(user.id), 'true');
+    await syncUp(user.id);
   };
 
   const checkChangelog = async () => {
+    if (!user?.id) return;
     try {
-      const lastSeen = await AsyncStorage.getItem('@last_seen_changelog');
+      const lastSeen = await AsyncStorage.getItem(SYNC_KEYS.CHANGELOG_SEEN(user.id));
       if (lastSeen !== LATEST_VERSION) {
         setChangelogVisible(true);
       }
@@ -139,8 +146,10 @@ export default function HomeScreen() {
   };
 
   const markChangelogSeen = async () => {
+    if (!user?.id) return;
     try {
-      await AsyncStorage.setItem('@last_seen_changelog', LATEST_VERSION);
+      await AsyncStorage.setItem(SYNC_KEYS.CHANGELOG_SEEN(user.id), LATEST_VERSION);
+      await syncUp(user.id);
       setChangelogVisible(false);
     } catch (e) { }
   };
@@ -160,8 +169,8 @@ export default function HomeScreen() {
       let accsList: string[] = ['Efectivo'];
       try {
         const [storedCards, storedAccs] = await Promise.all([
-            AsyncStorage.getItem(`@cards_${user.id}`),
-            AsyncStorage.getItem('@custom_accounts')
+            AsyncStorage.getItem(SYNC_KEYS.CARDS(user.id)),
+            AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(user.id))
         ]);
         if (storedCards) {
           const parsed = JSON.parse(storedCards);
@@ -211,7 +220,7 @@ export default function HomeScreen() {
       let balances: Record<string, number> = {};
 
       try {
-        const storedCards = await AsyncStorage.getItem(`@cards_${user.id}`);
+        const storedCards = await AsyncStorage.getItem(SYNC_KEYS.CARDS(user.id));
         if (storedCards) {
           parsedCards = JSON.parse(storedCards);
           setCards(parsedCards);
@@ -340,7 +349,7 @@ export default function HomeScreen() {
         return isNaN(date.getTime()) ? new Date() : date;
       };
 
-      const dismissedStr = await AsyncStorage.getItem(`@dismissed_notifs_${user.id}`);
+      const dismissedStr = await AsyncStorage.getItem(SYNC_KEYS.NOTIFS_DISMISSED(user.id));
       const dismissedNotifs = dismissedStr ? JSON.parse(dismissedStr) : [];
 
       const urgent = allDebts?.filter((d: any) => {
@@ -910,10 +919,11 @@ export default function HomeScreen() {
                     style={{ backgroundColor: colorsNav.accent + '15', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 }}
                     onPress={async () => {
                       const keys = pendingItems.map(i => i.notifKey);
-                      const prev = await AsyncStorage.getItem(`@dismissed_notifs_${user?.id}`);
+                      const prev = await AsyncStorage.getItem(SYNC_KEYS.NOTIFS_DISMISSED(user?.id!));
                       const parsed = prev ? JSON.parse(prev) : [];
                       const updated = [...parsed, ...keys];
-                      await AsyncStorage.setItem(`@dismissed_notifs_${user?.id}`, JSON.stringify(updated));
+                      await AsyncStorage.setItem(SYNC_KEYS.NOTIFS_DISMISSED(user?.id!), JSON.stringify(updated));
+                      await syncUp(user?.id!);
                       setPendingItems([]);
                       setNotificationsVisible(false);
                     }}>

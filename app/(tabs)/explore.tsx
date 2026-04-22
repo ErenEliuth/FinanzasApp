@@ -42,8 +42,8 @@ const SUGGESTED_EXTRAS = [
   { label: 'Inversión', icon: 'trending-up', type: 'income' },
 ];
 
-const STORAGE_KEY = '@user_custom_categories_v2';
-const ACCOUNT_STORAGE_KEY = '@custom_accounts';
+import { SYNC_KEYS } from '@/utils/sync';
+
 type TxType = 'income' | 'expense' | 'ahorro' | 'transfer';
 
 export default function AddTransactionScreen() {
@@ -98,13 +98,14 @@ export default function AddTransactionScreen() {
 
   // Cargar datos guardados
   useEffect(() => {
+    if (!user?.id) return;
     const loadData = async () => {
       try {
         const [rawCats, rawAccs, rawCards, rawPref] = await Promise.all([
-          AsyncStorage.getItem(STORAGE_KEY),
-          AsyncStorage.getItem(ACCOUNT_STORAGE_KEY),
-          AsyncStorage.getItem(`@cards_${user?.id}`),
-          AsyncStorage.getItem('@smart_savings_enabled')
+          AsyncStorage.getItem(SYNC_KEYS.CATEGORIES(user.id)),
+          AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(user.id)),
+          AsyncStorage.getItem(SYNC_KEYS.CARDS(user.id)),
+          AsyncStorage.getItem(SYNC_KEYS.SMART_SAVINGS(user.id))
         ]);
         if (rawCats) setCustomCategories(JSON.parse(rawCats));
         if (rawAccs) setCustomAccounts(JSON.parse(rawAccs));
@@ -122,16 +123,18 @@ export default function AddTransactionScreen() {
   }, [user]);
 
   const persistCustomCategories = async (cats: string[]) => {
+    if (!user?.id) return;
     setCustomCategories(cats);
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(cats));
-    if (user?.id) syncUp(user.id);
+    await AsyncStorage.setItem(SYNC_KEYS.CATEGORIES(user.id), JSON.stringify(cats));
+    syncUp(user.id);
   };
 
   const persistCustomAccounts = async (accs: string[]) => {
+    if (!user?.id) return;
     setAccount(accs[accs.length - 1] || 'Efectivo');
     setCustomAccounts(accs);
-    await AsyncStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(accs));
-    if (user?.id) syncUp(user.id);
+    await AsyncStorage.setItem(SYNC_KEYS.ACCOUNTS(user.id), JSON.stringify(accs));
+    syncUp(user.id);
   };
 
   const handleAddCustomCategory = async () => {
@@ -386,9 +389,11 @@ export default function AddTransactionScreen() {
   };
 
   const handleSmartSavingsPref = async (enabled: boolean) => {
+    if (!user?.id) return;
     const val = enabled ? 'enabled' : 'disabled';
     setSmartSavingsPref(val);
-    await AsyncStorage.setItem('@smart_savings_enabled', val);
+    await AsyncStorage.setItem(SYNC_KEYS.SMART_SAVINGS(user.id), val);
+    await syncUp(user.id);
     setShowPreferenceModal(false);
     if (enabled) {
       setShowAiModal(true);

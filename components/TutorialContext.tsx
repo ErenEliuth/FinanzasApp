@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { syncUp, SYNC_KEYS } from '@/utils/sync';
+import { useAuth } from '@/utils/auth';
 
 type TutorialStep = 'off' | 'welcome' | 'add_income' | 'add_transfer' | 'add_debt' | 'add_goal' | 'delete_tx' | 'finish';
 
@@ -17,13 +19,15 @@ const TutorialContext = createContext<TutorialContextType | undefined>(undefined
 export const TutorialProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [step, setStep] = useState<TutorialStep>('off');
   const [isTutorialMode, setIsTutorialMode] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
-    checkTutorialStatus();
-  }, []);
+    if (user?.id) checkTutorialStatus();
+  }, [user]);
 
   const checkTutorialStatus = async () => {
-    const hasSeen = await AsyncStorage.getItem('@tutorial_v1_seen');
+    if (!user?.id) return;
+    const hasSeen = await AsyncStorage.getItem(SYNC_KEYS.TUTORIAL_SEEN(user.id));
     if (!hasSeen) {
       setStep('welcome');
       setIsTutorialMode(true);
@@ -44,7 +48,10 @@ export const TutorialProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const finishTutorial = async () => {
-    await AsyncStorage.setItem('@tutorial_v1_seen', 'true');
+    if (user?.id) {
+        await AsyncStorage.setItem(SYNC_KEYS.TUTORIAL_SEEN(user.id), 'true');
+        await syncUp(user.id);
+    }
     setStep('off');
     setIsTutorialMode(false);
   };

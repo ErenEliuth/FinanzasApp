@@ -1,4 +1,5 @@
 import { useAuth } from '@/utils/auth';
+import { SYNC_KEYS } from '@/utils/sync';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -118,8 +119,9 @@ export default function DebtsScreen() {
     };
 
     const loadAccounts = async () => {
+        if (!user?.id) return;
         try {
-            const stored = await AsyncStorage.getItem('@custom_accounts');
+            const stored = await AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(user.id));
             if (stored) setAccounts(['Efectivo', ...JSON.parse(stored)]);
             else setAccounts(['Efectivo']);
         } catch (e) { }

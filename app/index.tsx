@@ -1,5 +1,6 @@
 import { useAuth } from '@/utils/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SYNC_KEYS } from '@/utils/sync';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import {
@@ -30,11 +31,26 @@ export default function WelcomeScreen() {
             Animated.timing(slideUp, { toValue: 0, duration: 800, useNativeDriver: true }),
         ]).start();
 
-        const timer = setTimeout(() => {
+        const timer = setTimeout(async () => {
             if (user) {
-                router.replace('/(tabs)');
+                // If logged in, check if setup and onboarding are done
+                const isSetupDone = user.user_metadata?.currency_setup_done === true;
+                const onboardingDone = await AsyncStorage.getItem(SYNC_KEYS.ONBOARDING_DONE(user.id));
+                
+                if (onboardingDone !== 'true') {
+                    router.replace('/onboarding');
+                } else if (!isSetupDone) {
+                    router.replace('/currency-setup');
+                } else {
+                    router.replace('/(tabs)');
+                }
             } else {
-                router.replace('/login');
+                const onboardingDone = await AsyncStorage.getItem('@onboarding_done');
+                if (onboardingDone === 'true') {
+                    router.replace('/login');
+                } else {
+                    router.replace('/onboarding');
+                }
             }
         }, 2000);
 
