@@ -14,7 +14,7 @@ import { syncUp, SYNC_KEYS } from '@/utils/sync';
 const { width, height } = Dimensions.get('window');
 
 export default function SanctuaryLock({ children, userName }: { children: React.ReactNode; userName: string }) {
-  const [locked, setLocked] = useState<boolean | null>(null);
+  const [locked, setLocked] = useState<boolean | null>(false);
   const [enabled, setEnabled] = useState(false);
   const [method, setMethod] = useState<'pin' | 'biometric'>('pin');
   const [pin, setPin] = useState('');

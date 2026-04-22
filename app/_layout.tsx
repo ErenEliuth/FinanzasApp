@@ -76,9 +76,16 @@ function RootStack() {
   }, [user, loading, segments, router]);
 
   useEffect(() => {
+    // Fallback: Si después de 5 segundos no ha cargado, ocultar splash de todos modos
+    const timeout = setTimeout(() => {
+        SplashScreen.hideAsync().catch(() => {});
+    }, 5000);
+
     if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
+      clearTimeout(timeout);
+      SplashScreen.hideAsync().catch(() => {});
     }
+    return () => clearTimeout(timeout);
   }, [fontsLoaded, fontError]);
 
   useEffect(() => {
