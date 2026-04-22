@@ -1,5 +1,4 @@
 import { useAuth } from '@/utils/auth';
-import { SYNC_KEYS } from '@/utils/sync';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
