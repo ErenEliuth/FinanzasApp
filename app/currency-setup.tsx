@@ -11,6 +11,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     ActivityIndicator,
+    Image,
     Platform,
     SafeAreaView,
     ScrollView,
