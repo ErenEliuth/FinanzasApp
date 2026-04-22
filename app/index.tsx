@@ -38,20 +38,13 @@ export default function WelcomeScreen() {
                     const isSetupDone = user.user_metadata?.currency_setup_done === true;
                     const onboardingDone = await AsyncStorage.getItem(SYNC_KEYS.ONBOARDING_DONE(user.id));
                     
-                    if (onboardingDone !== 'true') {
-                        router.replace('/onboarding');
-                    } else if (!isSetupDone) {
+                    if (!isSetupDone) {
                         router.replace('/currency-setup');
                     } else {
                         router.replace('/(tabs)');
                     }
                 } else {
-                    const onboardingDone = await AsyncStorage.getItem('@onboarding_done');
-                    if (onboardingDone === 'true') {
-                        router.replace('/login');
-                    } else {
-                        router.replace('/onboarding');
-                    }
+                    router.replace('/login');
                 }
             } catch (e) {
                 console.error("[Welcome] Redirection error:", e);
