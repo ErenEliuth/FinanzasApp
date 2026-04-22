@@ -48,6 +48,19 @@ export default function OnboardingScreen() {
     const { user } = useAuth();
     const [currentIndex, setCurrentIndex] = useState(0);
 
+    React.useEffect(() => {
+        if (user?.id) {
+            const checkStatus = async () => {
+                const done = await AsyncStorage.getItem(SYNC_KEYS.ONBOARDING_DONE(user.id));
+                const isSetupDone = user.user_metadata?.currency_setup_done === true;
+                if (done === 'true' && isSetupDone) {
+                    router.replace('/(tabs)');
+                }
+            };
+            checkStatus();
+        }
+    }, [user]);
+
     const handleNext = () => {
         if (currentIndex < SLIDES.length - 1) {
             flatListRef.current?.scrollToIndex({ index: currentIndex + 1 });

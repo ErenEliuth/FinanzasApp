@@ -31,29 +31,36 @@ export default function WelcomeScreen() {
             Animated.timing(slideUp, { toValue: 0, duration: 800, useNativeDriver: true }),
         ]).start();
 
-        const timer = setTimeout(async () => {
-            if (user) {
-                // If logged in, check if setup and onboarding are done
-                const isSetupDone = user.user_metadata?.currency_setup_done === true;
-                const onboardingDone = await AsyncStorage.getItem(SYNC_KEYS.ONBOARDING_DONE(user.id));
-                
-                if (onboardingDone !== 'true') {
-                    router.replace('/onboarding');
-                } else if (!isSetupDone) {
-                    router.replace('/currency-setup');
+        const checkNavigation = async () => {
+            try {
+                if (user) {
+                    // Check cloud-synced setup status
+                    const isSetupDone = user.user_metadata?.currency_setup_done === true;
+                    const onboardingDone = await AsyncStorage.getItem(SYNC_KEYS.ONBOARDING_DONE(user.id));
+                    
+                    if (onboardingDone !== 'true') {
+                        router.replace('/onboarding');
+                    } else if (!isSetupDone) {
+                        router.replace('/currency-setup');
+                    } else {
+                        router.replace('/(tabs)');
+                    }
                 } else {
-                    router.replace('/(tabs)');
+                    const onboardingDone = await AsyncStorage.getItem('@onboarding_done');
+                    if (onboardingDone === 'true') {
+                        router.replace('/login');
+                    } else {
+                        router.replace('/onboarding');
+                    }
                 }
-            } else {
-                const onboardingDone = await AsyncStorage.getItem('@onboarding_done');
-                if (onboardingDone === 'true') {
-                    router.replace('/login');
-                } else {
-                    router.replace('/onboarding');
-                }
+            } catch (e) {
+                console.error("[Welcome] Redirection error:", e);
+                // Fallback to login if everything fails
+                router.replace('/login');
             }
-        }, 2000);
+        };
 
+        const timer = setTimeout(checkNavigation, 1500);
         return () => clearTimeout(timer);
     }, [loading, user]);
 
