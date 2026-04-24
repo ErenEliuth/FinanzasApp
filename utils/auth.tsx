@@ -61,47 +61,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setSession(session);
             setUser(newUser);
 
-            if (newUser) {
-                // Configurar Realtime para sincronización entre dispositivos
-                const channel = supabase
-                    .channel(`user_configs:${userId}`)
-                    .on('postgres_changes', { 
-                        event: '*', 
-                        schema: 'public', 
-                        table: 'user_configs', 
-                        filter: `user_id=eq.${userId}` 
-                    }, (payload) => {
-                        if (payload.new && (payload.new as any).data) {
-                            applyConfig((payload.new as any).data);
+            try {
+                if (newUser) {
+                    // Si el usuario acaba de iniciar sesión, intentamos sincronizar y cargar sus preferencias
+                    if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
+                        await migrateOldData(userId!);
+                        const remoteConfig = await syncDown(userId!);
+                        if (remoteConfig) {
+                            applyConfig(remoteConfig);
+                        } else {
+                            await loadUserPrefs(userId!);
                         }
-                    })
-                    .subscribe();
-
-                // Si el usuario acaba de iniciar sesión, intentamos sincronizar y cargar sus preferencias
-                if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
-                    await migrateOldData(userId!);
-                    const remoteConfig = await syncDown(userId!);
-                    if (remoteConfig) {
-                        applyConfig(remoteConfig);
                     } else {
                         await loadUserPrefs(userId!);
                     }
                 } else {
-                    await loadUserPrefs(userId!);
+                    setTheme('light');
+                    setCurrency('COP');
+                    setIsHidden(false);
+                    setCards([]);
+                    setCustomAccounts([]);
                 }
-
-                return () => {
-                    supabase.removeChannel(channel);
-                };
-            } else {
-                setTheme('light');
-                setCurrency('COP');
-                setIsHidden(false);
-                setCards([]);
-                setCustomAccounts([]);
+            } catch (err) {
+                console.error('Error during auth state change sync:', err);
+            } finally {
+                setLoading(false);
             }
-
-            setLoading(false);
         });
 
         const applyConfig = (config: any) => {
@@ -146,6 +131,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         return () => subscription.unsubscribe();
     }, []);
+
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const channel = supabase
+            .channel(`user_configs:${user.id}`)
+            .on('postgres_changes', { 
+                event: '*', 
+                schema: 'public', 
+                table: 'user_configs', 
+                filter: `user_id=eq.${user.id}` 
+            }, (payload) => {
+                if (payload.new && (payload.new as any).data) {
+                    applyConfig((payload.new as any).data);
+                }
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [user?.id]);
 
     const toggleTheme = async () => {
         if (!user?.id) return;
