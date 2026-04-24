@@ -320,7 +320,7 @@ export default function AddTransactionScreen() {
 
     try {
       const { error } = await supabase.from('transactions').insert([{
-        user_id: user?.id, type: dbType, amount: parsed, description: desc, category: dbCategory, account: type === 'ahorro' ? 'Ahorro' : account, date: new Date().toISOString(),
+        user_id: user?.id, type: dbType, amount: parsed, description: desc, category: dbCategory, account: account, date: new Date().toISOString(),
       }]);
       if (error) throw error;
 
@@ -491,9 +491,9 @@ export default function AddTransactionScreen() {
                 </ScrollView>
               </View>
 
-              {cardNames.length > 0 && type !== 'ahorro' && type !== 'transfer' && (
+              {cardNames.length > 0 && type !== 'transfer' && (
                 <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>Tarjetas de Crédito</Text>
+                  <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>Tarjetas y Cuentas Nu</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
                     {cardNames.map(acc => (
                         <TouchableOpacity

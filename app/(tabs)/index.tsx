@@ -206,7 +206,7 @@ export default function HomeScreen() {
             if (isThisMonth) expGastos += tx.amount;
           }
 
-          const acc = (tx.account === 'Ahorro' || !tx.account) ? 'Efectivo' : tx.account;
+          const acc = !tx.account ? 'Efectivo' : tx.account;
           if (!accs[acc]) accs[acc] = 0;
           accs[acc] -= tx.amount;
         }
@@ -407,7 +407,7 @@ export default function HomeScreen() {
           if (isThisMonth) expGastos += tx.amount;
         }
 
-        const acc = (tx.account === 'Ahorro' || !tx.account) ? 'Efectivo' : tx.account;
+        const acc = !tx.account ? 'Efectivo' : tx.account;
         if (!accs[acc]) accs[acc] = 0;
         accs[acc] -= tx.amount;
       }

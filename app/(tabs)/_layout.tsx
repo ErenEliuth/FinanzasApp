@@ -34,23 +34,29 @@ export default function TabLayout() {
         tabBarActiveTintColor: colors.active,
         tabBarInactiveTintColor: colors.inactive,
         tabBarStyle: {
-          height: Platform.OS === 'ios' ? 80 : 62,
-          backgroundColor: colors.bg,
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-          elevation: 8,
+          position: 'absolute',
+          bottom: Platform.OS === 'ios' ? 34 : 24,
+          left: 16,
+          right: 16,
+          height: 72,
+          backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+          borderRadius: 36,
+          borderTopWidth: 0,
+          elevation: 10,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.06,
-          shadowRadius: 12,
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.12,
+          shadowRadius: 20,
           zIndex: 100,
           display: isDesktop || isInvestOrRestricted ? 'none' : 'flex',
-          paddingBottom: Platform.OS === 'ios' ? 20 : 4,
-          paddingTop: 4,
+          paddingBottom: 12,
+          paddingTop: 12,
+          borderWidth: 1,
+          borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
         },
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
+          fontSize: 10,
+          fontWeight: '700',
           marginTop: 2,
         },
       }}>
@@ -61,9 +67,7 @@ export default function TabLayout() {
           title: 'Inicio',
           href: '/',
           tabBarIcon: ({ color, focused }) => (
-            <View style={[focused ? { backgroundColor: colorsNav.accent + '15' } : {}, styles.iconWrap]}>
-              <Ionicons name="home" size={22} color={color} />
-            </View>
+            <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -71,12 +75,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="history"
         options={{
-          title: 'Historial',
+          title: 'Gastos',
           href: !isDesktop ? '/history' : null,
           tabBarIcon: ({ color, focused }) => (
-            <View style={[focused ? { backgroundColor: colorsNav.accent + '15' } : {}, styles.iconWrap]}>
-              <MaterialIcons name="receipt-long" size={22} color={color} />
-            </View>
+            <Ionicons name={focused ? "receipt" : "receipt-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -94,11 +96,11 @@ export default function TabLayout() {
               <View 
                 style={[
                   styles.fabButton, 
-                  isInvestOrRestricted && styles.fabButtonDisabled, 
+                  isInvestOrRestricted && styles.fabButtonDisabled,
                   { backgroundColor: colorsNav.accent }
                 ]}
               >
-                <MaterialIcons name="add" size={28} color="#FFFFFF" />
+                <Ionicons name="swap-horizontal" size={26} color="#FFFFFF" />
               </View>
             );
           },
@@ -117,11 +119,9 @@ export default function TabLayout() {
         name="cards"
         options={{
           title: 'Cuentas',
-          href: !isDesktop ? '/cards' : null, // Disable link on PC
+          href: !isDesktop ? '/cards' : null,
           tabBarIcon: ({ color, focused }) => (
-            <View style={focused ? styles.activeIconWrap : styles.iconWrap}>
-              <MaterialIcons name="account-balance-wallet" size={22} color={color} />
-            </View>
+            <Ionicons name={focused ? "wallet" : "wallet-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -132,9 +132,7 @@ export default function TabLayout() {
           title: 'Perfil',
           href: '/profile',
           tabBarIcon: ({ color, focused }) => (
-            <View style={focused ? styles.activeIconWrap : styles.iconWrap}>
-              <Ionicons name="person" size={22} color={color} />
-            </View>
+            <Ionicons name={focused ? "person" : "person-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -146,7 +144,6 @@ export default function TabLayout() {
           href: null,
         }}
       />
-
 
       <Tabs.Screen
         name="debts"
@@ -160,31 +157,17 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  iconWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 40,
-    height: 32,
-    borderRadius: 10,
-  },
-  activeIconWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 40,
-    height: 32,
-    borderRadius: 10,
-  },
   fabButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 68,
+    height: 42,
+    borderRadius: 21,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Platform.OS === 'web' ? 0 : 20,
-    top: Platform.OS === 'web' ? -10 : 0,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
+    marginTop: -4,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
     elevation: 8,
   },
   fabButtonDisabled: {
