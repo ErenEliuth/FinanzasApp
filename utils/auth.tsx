@@ -63,17 +63,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             try {
                 if (newUser) {
-                    // Si el usuario acaba de iniciar sesión, intentamos sincronizar y cargar sus preferencias
+                    // 1. CARGA LOCAL INMEDIATA: Leemos lo que ya tenemos en el dispositivo para abrir la app al instante
+                    await loadUserPrefs(userId!);
+                    setLoading(false); // Liberamos la UI rápidamente
+
+                    // 2. SINCRONIZACIÓN EN SEGUNDO PLANO: Buscamos actualizaciones en la nube sin bloquear al usuario
                     if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
-                        await migrateOldData(userId!);
-                        const remoteConfig = await syncDown(userId!);
-                        if (remoteConfig) {
-                            applyConfig(remoteConfig);
-                        } else {
-                            await loadUserPrefs(userId!);
-                        }
-                    } else {
-                        await loadUserPrefs(userId!);
+                        // Estas tareas corren en paralelo y actualizarán el estado cuando terminen
+                        (async () => {
+                            try {
+                                await migrateOldData(userId!);
+                                const remoteConfig = await syncDown(userId!);
+                                if (remoteConfig) {
+                                    applyConfig(remoteConfig);
+                                }
+                            } catch (e) {
+                                console.warn('Background sync failed:', e);
+                            }
+                        })();
                     }
                 } else {
                     setTheme('light');
@@ -81,10 +88,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setIsHidden(false);
                     setCards([]);
                     setCustomAccounts([]);
+                    setLoading(false);
                 }
             } catch (err) {
-                console.error('Error during auth state change sync:', err);
-            } finally {
+                console.error('Error during auth initialization:', err);
                 setLoading(false);
             }
         });
