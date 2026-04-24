@@ -1000,12 +1000,14 @@ export default function HomeScreen() {
             </View>
             <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
               {Object.entries(derivedAccountTotals)
-                .filter(([name]) => 
-                    recognizedAccounts.includes(name) && 
-                    !userCards.includes(name) && 
-                    name !== 'Ahorro' && 
-                    name !== 'Crédito'
-                )
+                .filter(([name]) => {
+                    const recAccs = ['Efectivo', ...(customAccounts || [])];
+                    const cNames = (cards || []).map(c => c?.name || '');
+                    return recAccs.includes(name) && 
+                           !cNames.includes(name) && 
+                           name !== 'Ahorro' && 
+                           name !== 'Crédito';
+                })
                 .map(([name, total], idx, arr) => (
                   <View key={name} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomColor: colorsNav.border + '30', borderBottomWidth: idx === arr.length - 1 ? 0 : 1, paddingVertical: 14 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
