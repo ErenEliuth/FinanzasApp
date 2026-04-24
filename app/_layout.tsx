@@ -156,7 +156,7 @@ function RootStack() {
           <Stack.Screen name="goals" options={{ presentation: 'modal' }} />
         </Stack>
       </SanctuaryLock>
-      <InteractiveTutorial />
+      {/* <InteractiveTutorial /> */}
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>
   );

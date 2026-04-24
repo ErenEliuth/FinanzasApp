@@ -382,11 +382,12 @@ export default function HomeScreen() {
       }
     });
 
+    const cardNamesForFilter = (cards || []).map(c => c?.name || '');
+    const validAccNames = ['Efectivo', ...(customAccounts || [])];
+
     const activeMoney = Object.entries(accs)
       .filter(([accName]) => {
-          const cardNames = (cards || []).map(c => c?.name || '');
-          const recognizedAccounts = ['Efectivo', ...(customAccounts || [])];
-          return recognizedAccounts.includes(accName) && !cardNames.includes(accName) && accName !== 'Ahorro';
+          return validAccNames.includes(accName) && !cardNamesForFilter.includes(accName) && accName !== 'Ahorro';
       })
       .reduce((sum, [_, amt]) => {
         const val = Number(amt) || 0;
