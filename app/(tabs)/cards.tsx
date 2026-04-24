@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatCurrency, getCurrencyInfo, convertCurrency, convertToBase, formatInputDisplay, parseInputToNumber } from '@/utils/currency';
+import { calculateFirstPaymentMonth, getAmountDueForMonth, getCleanDescription, getCurrentInstallmentNumber } from '@/utils/billing';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import {
@@ -116,28 +117,12 @@ export default function CardsScreen() {
 
     const calculateNextPayment = (card: CreditCard) => {
         const txs = cardTransactions[card.name] || [];
-        let total = 0;
+        const today = new Date();
+        const { month, year } = calculateFirstPaymentMonth(today, card.cutDay);
         
+        let total = 0;
         txs.forEach(tx => {
-            if (tx.type === 'expense') {
-                const match = tx.description?.match(/\[CUOTAS:(\d+)(?::RATE:([\d.]+))?\]/);
-                if (match) {
-                    const cuotas = parseInt(match[1], 10);
-                    const ea = parseFloat(match[2] || '0') / 100;
-                    if (ea > 0 && cuotas > 1) {
-                        const mv = Math.pow(1 + ea, 1/12) - 1;
-                        const p = tx.amount;
-                        const cuota = (p * mv) / (1 - Math.pow(1 + mv, -cuotas));
-                        total += cuota;
-                    } else {
-                        total += tx.amount / cuotas;
-                    }
-                } else {
-                    total += tx.amount;
-                }
-            } else if (tx.type === 'income' || tx.type === 'transfer') {
-                total -= tx.amount;
-            }
+            total += getAmountDueForMonth(tx, card, month, year);
         });
         
         return Math.max(0, total);
@@ -162,33 +147,16 @@ export default function CardsScreen() {
     const getMonthlyProjection = (card: CreditCard) => {
         const txs = cardTransactions[card.name] || [];
         const months = Array(12).fill(0);
+        const today = new Date();
 
-        txs.forEach(tx => {
-            const match = tx.description?.match(/\[CUOTAS:(\d+)(?::RATE:([\d.]+))?\]/);
-            if (match && tx.type === 'expense') {
-                const n = parseInt(match[1], 10);
-                const ea = parseFloat(match[2] || '0') / 100;
-                const txDate = new Date(tx.date);
-                
-                let monthlyAmt = tx.amount / n;
-                if (ea > 0) {
-                    const mv = Math.pow(1 + ea, 1/12) - 1;
-                    monthlyAmt = (tx.amount * mv) / (1 - Math.pow(1 + mv, -n));
-                }
-
-                for (let i = 0; i < n; i++) {
-                    const payDate = new Date(txDate.getFullYear(), txDate.getMonth() + i + 1, 1);
-                    const monthsDiff = (payDate.getFullYear() - now.getFullYear()) * 12 + (payDate.getMonth() - now.getMonth());
-                    
-                    if (monthsDiff >= 0 && monthsDiff < 12) {
-                        months[monthsDiff] += monthlyAmt;
-                    }
-                }
-            } else if (tx.type === 'expense' && !match) {
-                // Compras a 1 cuota caen en el mes 0 (próximo pago)
-                months[0] += tx.amount;
-            }
-        });
+        for (let i = 0; i < 12; i++) {
+            const targetDate = new Date(today.getFullYear(), today.getMonth() + i, 1);
+            const { month: billMonth, year: billYear } = calculateFirstPaymentMonth(targetDate, card.cutDay);
+            
+            txs.forEach(tx => {
+                months[i] += getAmountDueForMonth(tx, card, billMonth, billYear);
+            });
+        }
 
         return months;
     };
@@ -437,6 +405,23 @@ export default function CardsScreen() {
                             </View>
                         </View>
 
+                        {/* Proyección de Pagos */}
+                        <View style={[styles.dashboardCard, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
+                            <Text style={[styles.dashboardLabel, { color: colorsNav.sub }]}>PRÓXIMOS MESES</Text>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
+                                {getMonthlyProjection(currentCard).slice(0, 4).map((amt, idx) => (
+                                    <View key={idx} style={{ alignItems: 'center' }}>
+                                        <Text style={{ fontSize: 9, fontWeight: '800', color: colorsNav.sub, marginBottom: 4 }}>
+                                            {new Date(now.getFullYear(), now.getMonth() + idx, 1).toLocaleDateString('es', { month: 'short' }).toUpperCase()}
+                                        </Text>
+                                        <Text style={{ fontSize: 12, fontWeight: '900', color: idx === 0 ? colorsNav.accent : colorsNav.text }}>
+                                            {fmt(amt)}
+                                        </Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+
                         {/* Actions */}
                         <TouchableOpacity 
                             style={[styles.payBtnLarge, { backgroundColor: colorsNav.accent }]} 
@@ -446,8 +431,35 @@ export default function CardsScreen() {
                             <Text style={styles.payBtnTxtLarge}>REGISTRAR PAGO</Text>
                         </TouchableOpacity>
 
+                        {/* Desglose de Compras */}
+                        <View style={{ gap: 12 }}>
+                            <Text style={{ fontSize: 14, fontWeight: '900', color: colorsNav.text, marginLeft: 5 }}>COMPRAS POR CUOTAS</Text>
+                            {(cardTransactions[currentCard.name] || [])
+                                .filter(tx => tx.type === 'expense' && tx.description?.includes('[CUOTAS:'))
+                                .map(tx => {
+                                    const currentIdx = getCurrentInstallmentNumber(tx, currentCard, now.getMonth() + 1, now.getFullYear());
+                                    const totalMatch = tx.description?.match(/\[CUOTAS:(\d+)/);
+                                    const total = totalMatch ? parseInt(totalMatch[1], 10) : 1;
+                                    
+                                    return (
+                                        <View key={tx.id} style={[styles.txItem, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={{ color: colorsNav.text, fontWeight: '800', fontSize: 13 }}>{getCleanDescription(tx.description)}</Text>
+                                                <Text style={{ color: colorsNav.sub, fontSize: 10, marginTop: 2 }}>
+                                                    {new Date(tx.date).toLocaleDateString('es-CO')} • Cuota {currentIdx || 'Fin.'}/{total}
+                                                </Text>
+                                            </View>
+                                            <View style={{ alignItems: 'flex-end' }}>
+                                                <Text style={{ color: colorsNav.text, fontWeight: '900' }}>{fmt(tx.amount / total)}</Text>
+                                                <Text style={{ color: colorsNav.sub, fontSize: 9 }}>Restante: {fmt(tx.amount - (tx.amount/total * (currentIdx || total)))}</Text>
+                                            </View>
+                                        </View>
+                                    );
+                                })}
+                        </View>
+
                         <TouchableOpacity 
-                            style={{ alignSelf: 'center', marginTop: 10 }}
+                            style={{ alignSelf: 'center', marginTop: 10, marginBottom: 40 }}
                             onPress={() => handleDeleteCard(currentCard)}
                         >
                             <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '700', textDecorationLine: 'underline' }}>Eliminar Tarjeta</Text>
@@ -624,4 +636,5 @@ const styles = StyleSheet.create({
     accPill: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)' },
     empty: { padding: 80, alignItems: 'center', gap: 20 },
     emptyTxt: { fontWeight: '800', fontSize: 18, textAlign: 'center' },
+    txItem: { flexDirection: 'row', padding: 16, borderRadius: 20, borderWidth: 1, alignItems: 'center' },
 });

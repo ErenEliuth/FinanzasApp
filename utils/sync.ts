@@ -23,6 +23,49 @@ export const SYNC_KEYS = {
     CHANGELOG_SEEN: (uid: string) => `@last_seen_changelog_${uid}`,
 };
 
+const OLD_KEYS = {
+    ACCOUNTS: '@custom_accounts',
+    CATEGORIES: '@user_custom_categories_v2',
+    CARDS: '@cards',
+    SMART_SAVINGS: '@smart_savings_enabled',
+    THEME: 'user_theme',
+    CURRENCY: 'user_currency',
+    HIDDEN_MODE: 'user_hidden_mode',
+    TUTORIAL_SEEN: '@tutorial_seen',
+};
+
+/**
+ * Migra los datos de las llaves globales antiguas a las nuevas llaves específicas por usuario
+ */
+export async function migrateOldData(userId: string) {
+    if (!userId) return;
+    try {
+        const migrations = [
+            { old: OLD_KEYS.ACCOUNTS, new: SYNC_KEYS.ACCOUNTS(userId) },
+            { old: OLD_KEYS.CATEGORIES, new: SYNC_KEYS.CATEGORIES(userId) },
+            { old: OLD_KEYS.CARDS, new: SYNC_KEYS.CARDS(userId) },
+            { old: OLD_KEYS.SMART_SAVINGS, new: SYNC_KEYS.SMART_SAVINGS(userId) },
+            { old: OLD_KEYS.THEME, new: SYNC_KEYS.THEME(userId) },
+            { old: OLD_KEYS.CURRENCY, new: SYNC_KEYS.CURRENCY(userId) },
+            { old: OLD_KEYS.HIDDEN_MODE, new: SYNC_KEYS.HIDDEN_MODE(userId) },
+            { old: OLD_KEYS.TUTORIAL_SEEN, new: SYNC_KEYS.TUTORIAL_SEEN(userId) },
+        ];
+
+        for (const m of migrations) {
+            const oldValue = await AsyncStorage.getItem(m.old);
+            const newValue = await AsyncStorage.getItem(m.new);
+            
+            // Solo migramos si existe el dato viejo y NO existe el nuevo
+            if (oldValue !== null && newValue === null) {
+                await AsyncStorage.setItem(m.new, oldValue);
+                console.log(`Migrated ${m.old} to ${m.new}`);
+            }
+        }
+    } catch (e) {
+        console.error('Failed to migrate old data:', e);
+    }
+}
+
 /**
  * Sincroniza los datos locales hacia Supabase
  */

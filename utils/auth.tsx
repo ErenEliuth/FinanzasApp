@@ -4,7 +4,7 @@ import { Session, User } from '@supabase/supabase-js';
 import * as WebBrowser from 'expo-web-browser';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
-import { syncDown, syncUp, SYNC_KEYS } from './sync';
+import { syncDown, syncUp, SYNC_KEYS, migrateOldData } from './sync';
 import { ThemeName, THEMES } from '@/constants/Themes';
 import { fetchExchangeRates, areRatesStale, DEFAULT_RATES } from '@/utils/currency';
 
@@ -59,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (newUser) {
                 // Si el usuario acaba de iniciar sesión, intentamos sincronizar y cargar sus preferencias
                 if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
+                    await migrateOldData(userId!);
                     const remoteConfig = await syncDown(userId!);
                     if (remoteConfig) {
                         // Si hay config remota, la aplicamos al estado local inmediatamente
