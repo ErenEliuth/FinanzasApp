@@ -13,6 +13,8 @@ import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as SplashScreen from 'expo-splash-screen';
 import SanctuaryLock from '@/components/SanctuaryLock';
 import * as Notifications from 'expo-notifications';
+import { SYNC_KEYS } from '@/utils/sync';
+import { InteractiveTutorial } from '@/components/InteractiveTutorial';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -44,39 +46,30 @@ function RootStack() {
     const onLoginPage  = segments[0] === 'login';
     const onSetup      = segments[0] === 'currency-setup';
 
-    // ── Not logged in → go to login ──────────────────────────────────────────
     if (!user && inAuthGroup) {
       router.replace('/login');
       return;
     }
 
-    // ── Logged in, coming from login/onboarding ─────────────────────────────
     if (user && (onLoginPage || segments[0] === 'onboarding')) {
-      // Check if this specific user has already chosen their currency
       const isSetupDone = user.user_metadata?.currency_setup_done === true;
-      
       if (!isSetupDone) {
-        // New user or missing config → ask which currency they want to use
         router.replace('/currency-setup');
       } else {
-        // Returning user → straight into the app
         router.replace('/(tabs)');
       }
       return;
     }
 
-    // ── Check if user is in tabs but hasn't done setup ─────────────────────
     if (user && inAuthGroup && !onSetup) {
       const isSetupDone = user.user_metadata?.currency_setup_done === true;
       if (!isSetupDone) {
-        // Force setup if they somehow landed in tabs without choosing currency
         router.replace('/currency-setup');
       }
     }
   }, [user, loading, segments, router]);
 
   useEffect(() => {
-    // Fallback: Si después de 5 segundos no ha cargado, ocultar splash de todos modos
     const timeout = setTimeout(() => {
         SplashScreen.hideAsync().catch(() => {});
     }, 5000);
@@ -100,12 +93,10 @@ function RootStack() {
     registerNotifications();
   }, []);
 
-  // HACK: Heartbeat para recordatorios en PWA (Web)
+  // HACK: Heartbeat para recordatorios
   useEffect(() => {
     if (!user) return;
-
     let lastNotifDate = '';
-
     const checkNotif = async () => {
       if (!user?.id) return;
       try {
@@ -113,29 +104,19 @@ function RootStack() {
         if (!raw) return;
         const config = JSON.parse(raw);
         if (!config.enabled) return;
-
         const h = config.h || 20;
         const m = config.m || 30;
-        
         const now = new Date();
         const currentH = now.getHours();
         const currentM = now.getMinutes();
         const todayKey = now.toDateString();
-
         if (currentH === parseInt(h) && currentM === parseInt(m)) {
           if (lastNotifDate !== todayKey) {
             lastNotifDate = todayKey;
-            
-            // Mostrar notificación o alerta
             if (Platform.OS === 'web') {
-              // Intentar notificación nativa del navegador
               if ("Notification" in window && Notification.permission === "granted") {
-                new Notification("💰 Sanctuary: ¡Es hora!", {
-                  body: "¿Ya anotaste tus gastos de hoy?",
-                  icon: "/favicon.png"
-                });
+                new Notification("💰 Sanctuary: ¡Es hora!", { body: "¿Ya anotaste tus gastos de hoy?", icon: "/favicon.png" });
               } else {
-                // Fallback: Alerta interna
                 import('react-native').then(({ Alert }) => {
                   Alert.alert("🔔 Recordatorio", "¿Ya anotaste tus gastos de hoy? Mantén tus finanzas al día.");
                 });
@@ -145,57 +126,8 @@ function RootStack() {
         }
       } catch (e) { }
     };
-
-    const interval = setInterval(checkNotif, 30000); // Cada 30 segs
+    const interval = setInterval(checkNotif, 30000);
     return () => clearInterval(interval);
-  }, [user]);
-
-  // Chequeo de Recordatorio Pendiente al entrar (v11)
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const checkMissedReminders = async () => {
-      try {
-        const raw = await AsyncStorage.getItem(SYNC_KEYS.REMINDERS(user.id));
-        if (!raw) return;
-        const config = JSON.parse(raw);
-        if (!config.enabled) return;
-
-        const h = parseInt(config.h || '20');
-        const m = parseInt(config.m || '30');
-
-        const now = new Date();
-        const currentH = now.getHours();
-        const currentM = now.getMinutes();
-        const todayKey = now.toDateString();
-
-        const lastShown = await AsyncStorage.getItem(`@last_rem_entry_today_${user.id}`);
-        
-        // Si ha pasado la hora Y aún no hemos avisado hoy
-        const currentTimeInMins = currentH * 60 + currentM;
-        const targetTimeInMins = h * 60 + m;
-
-        if (currentTimeInMins > targetTimeInMins && lastShown !== todayKey) {
-            await AsyncStorage.setItem(`@last_rem_entry_today_${user.id}`, todayKey);
-            
-            // Un pequeño delay para que la app cargue
-            setTimeout(() => {
-                 import('react-native').then(({ Alert }) => {
-                  Alert.alert(
-                    "💰 ¡Hola de nuevo!",
-                    "Notamos que se pasó tu recordatorio hoy. ¿Quieres anotar tus gastos ahora?",
-                    [
-                      { text: "Ahora no", style: "cancel" },
-                      { text: "¡Sí, anotar!", onPress: () => router.push('/explore') }
-                    ]
-                  );
-                });
-            }, 2000);
-        }
-      } catch (e) { }
-    };
-
-    checkMissedReminders();
   }, [user]);
 
   if (!fontsLoaded && !fontError) return null;
@@ -212,14 +144,13 @@ function RootStack() {
           <Stack.Screen name="goals" options={{ presentation: 'modal' }} />
         </Stack>
       </SanctuaryLock>
+      <InteractiveTutorial />
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>
   );
 }
 
-export const unstable_settings = {
-  initialRouteName: 'index',
-};
+export const unstable_settings = { initialRouteName: 'index' };
 
 export default function RootLayout() {
   return (

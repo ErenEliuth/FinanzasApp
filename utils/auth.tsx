@@ -46,29 +46,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [rates, setRates] = useState<Record<string, number>>(DEFAULT_RATES);
     const [isHidden, setIsHidden] = useState(false);
     const [ratesUpdatedAt, setRatesUpdatedAt] = useState<number | null>(null);
+
     useEffect(() => {
-        // Cargar sesión inicial de Supabase
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            const userId = session?.user?.id;
-            const user = session?.user ?? null;
-            
-            setSession(session);
-            setUser(user);
-
-            if (user) {
-                // Sincronizar moneda desde metadatos si existe
-                const userCurrency = user.user_metadata?.currency;
-                if (userCurrency) {
-                    setCurrency(userCurrency);
-                    AsyncStorage.setItem('user_currency', userCurrency);
-                }
-                if (userId) syncDown(userId);
-            }
-            setLoading(false);
-        });
-
         // Escuchar cambios en el estado de autenticación (login, logout, token refresh)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             const userId = session?.user?.id;
             const newUser = session?.user ?? null;
             
@@ -76,38 +57,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(newUser);
 
             if (newUser) {
+                // Si el usuario acaba de iniciar sesión, intentamos sincronizar y cargar sus preferencias
                 if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
-                    syncDown(userId!);
+                    const remoteConfig = await syncDown(userId!);
+                    if (remoteConfig) {
+                        // Si hay config remota, la aplicamos al estado local inmediatamente
+                        if (remoteConfig.theme) setTheme(remoteConfig.theme as ThemeName);
+                        if (remoteConfig.currency) setCurrency(remoteConfig.currency);
+                        if (remoteConfig.hidden_mode !== undefined) setIsHidden(remoteConfig.hidden_mode);
+                    } else {
+                        // Si no hay config remota, cargamos lo que haya en AsyncStorage localmente para este usuario
+                        await loadUserPrefs(userId!);
+                    }
+                } else {
+                    // Para otros eventos con usuario, cargamos preferencias locales
+                    await loadUserPrefs(userId!);
                 }
+            } else {
+                // LOGOUT: Resetear estados a valores por defecto para que el siguiente usuario no los herede
+                setTheme('light');
+                setCurrency('COP');
+                setIsHidden(false);
             }
 
             setLoading(false);
         });
 
-        // Cargar preferencias iniciales
-        const loadPrefs = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            const userId = session?.user?.id;
-            
-            if (userId) {
-                const [storedTheme, storedCurrency, storedHidden] = await Promise.all([
-                    AsyncStorage.getItem(SYNC_KEYS.THEME(userId)),
-                    AsyncStorage.getItem(SYNC_KEYS.CURRENCY(userId)),
-                    AsyncStorage.getItem(SYNC_KEYS.HIDDEN_MODE(userId))
-                ]);
+        const loadUserPrefs = async (userId: string) => {
+            const [storedTheme, storedCurrency, storedHidden] = await Promise.all([
+                AsyncStorage.getItem(SYNC_KEYS.THEME(userId)),
+                AsyncStorage.getItem(SYNC_KEYS.CURRENCY(userId)),
+                AsyncStorage.getItem(SYNC_KEYS.HIDDEN_MODE(userId))
+            ]);
 
-                if (storedTheme && Object.keys(THEMES).includes(storedTheme as string)) {
-                    setTheme(storedTheme as ThemeName);
-                }
-                if (storedCurrency) {
-                    setCurrency(storedCurrency);
-                }
-                if (storedHidden === 'true') {
-                    setIsHidden(true);
-                }
+            if (storedTheme && Object.keys(THEMES).includes(storedTheme as string)) {
+                setTheme(storedTheme as ThemeName);
             }
-            
-            // Global rates can stay shared
+            if (storedCurrency) {
+                setCurrency(storedCurrency);
+            }
+            if (storedHidden === 'true') {
+                setIsHidden(true);
+            } else if (storedHidden === 'false') {
+                setIsHidden(false);
+            }
+        };
+
+        // Cargar tasas de cambio (pueden ser compartidas ya que son globales)
+        const loadGlobalRates = async () => {
             const storedRates = await AsyncStorage.getItem('user_rates');
             if (storedRates) {
                 setRates(JSON.parse(storedRates));
@@ -119,7 +116,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 await AsyncStorage.setItem('user_rates', JSON.stringify(liveRates));
             }
         };
-        loadPrefs();
+
+        loadGlobalRates();
 
         return () => subscription.unsubscribe();
     }, []);

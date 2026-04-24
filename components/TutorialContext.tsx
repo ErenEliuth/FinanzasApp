@@ -3,18 +3,47 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { syncUp, SYNC_KEYS } from '@/utils/sync';
 import { useAuth } from '@/utils/auth';
 
-type TutorialStep = 'off' | 'welcome' | 'add_income' | 'add_transfer' | 'add_debt' | 'add_goal' | 'delete_tx' | 'finish';
+type TutorialStep = 
+  | 'off' 
+  | 'welcome' 
+  | 'accounts' 
+  | 'fixed_expenses' 
+  | 'savings' 
+  | 'movements' 
+  | 'cards' 
+  | 'profile' 
+  | 'stats' 
+  | 'advice' 
+  | 'security' 
+  | 'wealth' 
+  | 'finish';
 
 interface TutorialContextType {
   step: TutorialStep;
   isTutorialMode: boolean;
   startTutorial: () => void;
   nextStep: () => void;
+  prevStep: () => void;
   finishTutorial: () => void;
   setStep: (step: TutorialStep) => void;
 }
 
 const TutorialContext = createContext<TutorialContextType | undefined>(undefined);
+
+const STEPS: TutorialStep[] = [
+  'welcome', 
+  'accounts', 
+  'fixed_expenses', 
+  'savings', 
+  'movements', 
+  'cards', 
+  'profile', 
+  'stats', 
+  'advice', 
+  'security', 
+  'wealth', 
+  'finish'
+];
 
 export const TutorialProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [step, setStep] = useState<TutorialStep>('off');
@@ -35,15 +64,23 @@ export const TutorialProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const startTutorial = () => {
-    setStep('add_income');
+    setStep('welcome');
     setIsTutorialMode(true);
   };
 
   const nextStep = () => {
-    const steps: TutorialStep[] = ['welcome', 'add_income', 'add_transfer', 'add_debt', 'add_goal', 'delete_tx', 'finish'];
-    const currentIndex = steps.indexOf(step);
-    if (currentIndex !== -1 && currentIndex < steps.length - 1) {
-      setStep(steps[currentIndex + 1]);
+    const currentIndex = STEPS.indexOf(step);
+    if (currentIndex !== -1 && currentIndex < STEPS.length - 1) {
+      setStep(STEPS[currentIndex + 1]);
+    } else if (step === 'finish') {
+        finishTutorial();
+    }
+  };
+
+  const prevStep = () => {
+    const currentIndex = STEPS.indexOf(step);
+    if (currentIndex > 0) {
+      setStep(STEPS[currentIndex - 1]);
     }
   };
 
@@ -57,7 +94,7 @@ export const TutorialProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   return (
-    <TutorialContext.Provider value={{ step, isTutorialMode, startTutorial, nextStep, finishTutorial, setStep }}>
+    <TutorialContext.Provider value={{ step, isTutorialMode, startTutorial, nextStep, prevStep, finishTutorial, setStep }}>
       {children}
     </TutorialContext.Provider>
   );
