@@ -109,41 +109,46 @@ export const InteractiveTutorial = () => {
 
   if (!isTutorialMode || step === 'off') return null;
 
-  const content = TUTORIAL_CONTENT[step];
-  if (!content) return null;
+  // Defensive check for content
+  const content = (TUTORIAL_CONTENT as any)[step];
+  if (!content) {
+    // If somehow we are in a bad state, just close it
+    return null;
+  }
 
   const isFirst = step === 'welcome';
   const isLast = step === 'finish';
 
   return (
-    <Modal transparent animationType="fade" visible={isTutorialMode}>
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       <View style={styles.overlay}>
-        {Platform.OS !== 'web' ? (
-          <BlurView intensity={80} tint={colors.isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.7)' }]} />
-        )}
+        {/* Semi-transparent background instead of BlurView for stability */}
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15, 23, 42, 0.85)' }]} />
 
         <View style={[styles.card, { backgroundColor: colors.background, borderColor: colors.border }]}>
           <View style={styles.header}>
-            <Text style={styles.emoji}>{content.emoji}</Text>
+            <Text style={styles.emoji}>{content.emoji || '✨'}</Text>
             <TouchableOpacity onPress={finishTutorial} style={styles.closeBtn}>
               <Ionicons name="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          <Text style={[styles.title, { color: colors.text }]}>{content.title}</Text>
-          <Text style={[styles.desc, { color: colors.textSecondary }]}>{content.desc}</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{content.title || ''}</Text>
+          <Text style={[styles.desc, { color: colors.textSecondary }]}>{content.desc || ''}</Text>
 
-          <View style={[styles.exampleBox, { backgroundColor: colors.isDark ? '#1E293B' : '#F1F5F9' }]}>
-            <Text style={[styles.exampleTitle, { color: colors.primary }]}>💡 Ejemplo Práctico:</Text>
-            <Text style={[styles.exampleText, { color: colors.text }]}>{content.example}</Text>
-          </View>
+          {content.example && (
+            <View style={[styles.exampleBox, { backgroundColor: colors.isDark ? '#1E293B' : '#F1F5F9' }]}>
+              <Text style={[styles.exampleTitle, { color: colors.primary }]}>💡 Ejemplo Práctico:</Text>
+              <Text style={[styles.exampleText, { color: colors.text }]}>{content.example}</Text>
+            </View>
+          )}
 
-          <View style={styles.actionBox}>
-            <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
-            <Text style={[styles.actionText, { color: colors.primary }]}>{content.action}</Text>
-          </View>
+          {content.action && (
+            <View style={styles.actionBox}>
+              <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
+              <Text style={[styles.actionText, { color: colors.primary }]}>{content.action}</Text>
+            </View>
+          )}
 
           <View style={styles.footer}>
             {!isFirst && (
@@ -176,7 +181,7 @@ export const InteractiveTutorial = () => {
           </View>
         </View>
       </View>
-    </Modal>
+    </View>
   );
 };
 

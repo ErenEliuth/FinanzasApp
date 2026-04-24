@@ -248,7 +248,8 @@ export default function HomeScreen() {
       const todayDate = new Date();
       const currentDay = todayDate.getDate();
 
-      cards.forEach(card => {
+      (cards || []).forEach(card => {
+        if (!card) return;
         // Solo sumamos la obligación si estamos en el mes donde vence el pago
         const isDueThisMonth = currentDay <= card.dueDay || currentDay >= card.cutDay;
         
@@ -383,13 +384,13 @@ export default function HomeScreen() {
 
     const activeMoney = Object.entries(accs)
       .filter(([accName]) => {
-          const cardNames = cards.map(c => c.name);
-          const recognizedAccounts = ['Efectivo', ...customAccounts];
+          const cardNames = (cards || []).map(c => c?.name || '');
+          const recognizedAccounts = ['Efectivo', ...(customAccounts || [])];
           return recognizedAccounts.includes(accName) && !cardNames.includes(accName) && accName !== 'Ahorro';
       })
       .reduce((sum, [_, amt]) => {
-        const val = Number(amt);
-        return sum + (isNaN(val) ? 0 : val);
+        const val = Number(amt) || 0;
+        return sum + val;
       }, 0);
 
     // Balance Real (Dinero Disponible al Instante - Deudas)
@@ -773,6 +774,7 @@ export default function HomeScreen() {
               </View>
               
               {allTransactions.slice(0, 7).map((tx, idx) => {
+                if (!tx) return null;
                 const iconInfo = getTxIconInfo(tx);
                 const isExpense = tx.type === 'expense';
                 return (
