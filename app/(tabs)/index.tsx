@@ -174,23 +174,24 @@ export default function HomeScreen() {
       allTx?.forEach(tx => {
         const txDate = new Date(tx.date);
         const isThisMonth = txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
+        const amount = Number(tx.amount) || 0;
 
         if (tx.type === 'income') {
           const acc = tx.account || 'Efectivo';
           if (!accs[acc]) accs[acc] = 0;
-          if (isThisMonth && tx.category !== 'Transferencia') inc += tx.amount;
-          accs[acc] += tx.amount;
+          if (isThisMonth && tx.category !== 'Transferencia') inc += amount;
+          accs[acc] += amount;
         } else {
           if (tx.category === 'Ahorro') {
-            savTotal += tx.amount;
-            if (isThisMonth) savMes += tx.amount;
+            savTotal += amount;
+            if (isThisMonth) savMes += amount;
           } else if (tx.category !== 'Transferencia') {
-            if (isThisMonth) expGastos += tx.amount;
+            if (isThisMonth) expGastos += amount;
           }
 
           const acc = !tx.account ? 'Efectivo' : tx.account;
           if (!accs[acc]) accs[acc] = 0;
-          accs[acc] -= tx.amount;
+          accs[acc] -= amount;
         }
       });
 
@@ -359,23 +360,24 @@ export default function HomeScreen() {
     allTransactions.forEach(tx => {
       const txDate = new Date(tx.date);
       const isThisMonth = txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
+      const amount = Number(tx.amount) || 0;
 
       if (tx.type === 'income') {
         const acc = tx.account || 'Efectivo';
         if (!accs[acc]) accs[acc] = 0;
-        if (isThisMonth && tx.category !== 'Transferencia') inc += tx.amount;
-        accs[acc] += tx.amount;
+        if (isThisMonth && tx.category !== 'Transferencia') inc += amount;
+        accs[acc] += amount;
       } else {
         if (tx.category === 'Ahorro') {
-          savTotal += tx.amount;
-          if (isThisMonth) savMes += tx.amount;
+          savTotal += amount;
+          if (isThisMonth) savMes += amount;
         } else if (tx.category !== 'Transferencia') {
-          if (isThisMonth) expGastos += tx.amount;
+          if (isThisMonth) expGastos += amount;
         }
 
         const acc = !tx.account ? 'Efectivo' : tx.account;
         if (!accs[acc]) accs[acc] = 0;
-        accs[acc] -= tx.amount;
+        accs[acc] -= amount;
       }
     });
 
