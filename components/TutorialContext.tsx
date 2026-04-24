@@ -56,10 +56,17 @@ export const TutorialProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const checkTutorialStatus = async () => {
     if (!user?.id) return;
-    const hasSeen = await AsyncStorage.getItem(SYNC_KEYS.TUTORIAL_SEEN(user.id));
-    if (!hasSeen) {
-      setStep('welcome');
-      setIsTutorialMode(true);
+    try {
+        const hasSeen = await AsyncStorage.getItem(SYNC_KEYS.TUTORIAL_SEEN(user.id));
+        const forceDisable = await AsyncStorage.getItem('disable_tutorial_v1');
+        
+        if (!hasSeen && !forceDisable) {
+          console.log('[Tutorial] Initializing for user:', user.id);
+          setStep('welcome');
+          setIsTutorialMode(true);
+        }
+    } catch (e) {
+        console.warn('[Tutorial] Error checking status:', e);
     }
   };
 

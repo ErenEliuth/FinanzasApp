@@ -40,6 +40,18 @@ function RootStack() {
   });
 
   useEffect(() => {
+    if (Platform.OS === 'web') {
+      window.onerror = (message, source, lineno, colno, error) => {
+        alert(`CRASH DETECTED:\n${message}\nAt: ${source}:${lineno}:${colno}\nStack: ${error?.stack}`);
+        return false;
+      };
+      window.onunhandledrejection = (event) => {
+        alert(`ASYNC CRASH DETECTED:\n${event.reason}`);
+      };
+    }
+  }, []);
+
+  useEffect(() => {
     if (loading) return;
 
     const inAuthGroup  = segments[0] === '(tabs)';
