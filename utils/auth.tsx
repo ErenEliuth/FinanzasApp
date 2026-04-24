@@ -52,6 +52,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [cards, setCards] = useState<any[]>([]);
     const [customAccounts, setCustomAccounts] = useState<string[]>([]);
 
+    const applyConfig = (config: any) => {
+        try {
+            if (config.theme) setTheme(config.theme as ThemeName);
+            if (config.currency) setCurrency(config.currency);
+            if (config.hidden_mode !== undefined) setIsHidden(config.hidden_mode);
+            if (Array.isArray(config.cards)) setCards(config.cards);
+            if (Array.isArray(config.accounts)) setCustomAccounts(config.accounts);
+        } catch (e) {
+            console.error('Error applying config:', e);
+        }
+    };
+
+    const loadUserPrefs = async (userId: string) => {
+        try {
+            const [storedTheme, storedCurrency, storedHidden, storedCards, storedAccs] = await Promise.all([
+                AsyncStorage.getItem(SYNC_KEYS.THEME(userId)),
+                AsyncStorage.getItem(SYNC_KEYS.CURRENCY(userId)),
+                AsyncStorage.getItem(SYNC_KEYS.HIDDEN_MODE(userId)),
+                AsyncStorage.getItem(SYNC_KEYS.CARDS(userId)),
+                AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(userId))
+            ]);
+
+            if (storedTheme && Object.keys(THEMES).includes(storedTheme as string)) setTheme(storedTheme as ThemeName);
+            if (storedCurrency) setCurrency(storedCurrency);
+            setIsHidden(storedHidden === 'true');
+            if (storedCards) {
+                const parsed = JSON.parse(storedCards);
+                if (Array.isArray(parsed)) setCards(parsed);
+            }
+            if (storedAccs) {
+                const parsed = JSON.parse(storedAccs);
+                if (Array.isArray(parsed)) setCustomAccounts(parsed);
+            }
+        } catch (e) {
+            console.error('Error loading local prefs:', e);
+        }
+    };
+
     useEffect(() => {
         // Escuchar cambios en el estado de autenticación (login, logout, token refresh)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -95,30 +133,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setLoading(false);
             }
         });
-
-        const applyConfig = (config: any) => {
-            if (config.theme) setTheme(config.theme as ThemeName);
-            if (config.currency) setCurrency(config.currency);
-            if (config.hidden_mode !== undefined) setIsHidden(config.hidden_mode);
-            if (config.cards) setCards(config.cards);
-            if (config.accounts) setCustomAccounts(config.accounts);
-        };
-
-        const loadUserPrefs = async (userId: string) => {
-            const [storedTheme, storedCurrency, storedHidden, storedCards, storedAccs] = await Promise.all([
-                AsyncStorage.getItem(SYNC_KEYS.THEME(userId)),
-                AsyncStorage.getItem(SYNC_KEYS.CURRENCY(userId)),
-                AsyncStorage.getItem(SYNC_KEYS.HIDDEN_MODE(userId)),
-                AsyncStorage.getItem(SYNC_KEYS.CARDS(userId)),
-                AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(userId))
-            ]);
-
-            if (storedTheme && Object.keys(THEMES).includes(storedTheme as string)) setTheme(storedTheme as ThemeName);
-            if (storedCurrency) setCurrency(storedCurrency);
-            setIsHidden(storedHidden === 'true');
-            if (storedCards) setCards(JSON.parse(storedCards));
-            if (storedAccs) setCustomAccounts(JSON.parse(storedAccs));
-        };
 
         // Cargar tasas de cambio (pueden ser compartidas ya que son globales)
         const loadGlobalRates = async () => {

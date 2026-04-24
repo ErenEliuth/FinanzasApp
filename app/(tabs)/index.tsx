@@ -161,8 +161,8 @@ export default function HomeScreen() {
         .order('id', { ascending: false });
       if (txError) throw txError;
 
-      const cardNames = cards.map(c => c.name);
-      const accsList = ['Efectivo', ...customAccounts];
+      const cardNames = (cards || []).map(c => c?.name || '');
+      const accsList = ['Efectivo', ...(customAccounts || [])];
 
       const today = new Date();
       const currentMonth = today.getMonth();
@@ -198,9 +198,9 @@ export default function HomeScreen() {
       setAllTransactions(allTx || []);
 
       try {
-          const cNames = cards.map(c => c.name);
+          const cNames = (cards || []).map(c => c?.name || '');
           const balances: Record<string, number> = {};
-          cards.forEach(c => balances[c.name] = 0);
+          (cards || []).forEach(c => { if (c?.name) balances[c.name] = 0; });
           
           allTx?.forEach(tx => {
             if (cNames.includes(tx.account)) {
