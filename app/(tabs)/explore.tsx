@@ -55,8 +55,6 @@ export default function AddTransactionScreen() {
   const [account, setAccount] = useState('Efectivo');
   const [destAccount, setDestAccount] = useState('');
   const [customCategories, setCustomCategories] = useState<string[]>([]);
-  const [customAccounts, setCustomAccounts] = useState<string[]>([]);
-  const [cardNames, setCardNames] = useState<string[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [accountModalVisible, setAccountModalVisible] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -64,7 +62,6 @@ export default function AddTransactionScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [installments, setInstallments] = useState('1');
   const [interestRate, setInterestRate] = useState('0');
-  const [cardPool, setCardPool] = useState<any[]>([]);
   
   const scrollRef = useRef<any>(null);
 
@@ -87,7 +84,7 @@ export default function AddTransactionScreen() {
   const [smartSavingsPref, setSmartSavingsPref] = useState<'enabled' | 'disabled' | 'unset'>('unset');
   const [showPreferenceModal, setShowPreferenceModal] = useState(false);
   const router = useRouter();
-  const { user, currency, rates, isHidden } = useAuth();
+  const { user, currency, rates, isHidden, cards, customAccounts, refreshConfig } = useAuth();
   const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
   const colorsNav = useThemeColors();
 
@@ -101,19 +98,11 @@ export default function AddTransactionScreen() {
     if (!user?.id) return;
     const loadData = async () => {
       try {
-        const [rawCats, rawAccs, rawCards, rawPref] = await Promise.all([
+        const [rawCats, rawPref] = await Promise.all([
           AsyncStorage.getItem(SYNC_KEYS.CATEGORIES(user.id)),
-          AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(user.id)),
-          AsyncStorage.getItem(SYNC_KEYS.CARDS(user.id)),
           AsyncStorage.getItem(SYNC_KEYS.SMART_SAVINGS(user.id))
         ]);
         if (rawCats) setCustomCategories(JSON.parse(rawCats));
-        if (rawAccs) setCustomAccounts(JSON.parse(rawAccs));
-        if (rawCards) {
-          const parsed = JSON.parse(rawCards);
-          setCardNames(parsed.map((c: any) => c.name));
-          setCardPool(parsed);
-        }
         if (rawPref) setSmartSavingsPref(rawPref as any);
       } catch (e) {
         console.error('Error al cargar datos persistidos:', e);
@@ -132,9 +121,9 @@ export default function AddTransactionScreen() {
   const persistCustomAccounts = async (accs: string[]) => {
     if (!user?.id) return;
     setAccount(accs[accs.length - 1] || 'Efectivo');
-    setCustomAccounts(accs);
     await AsyncStorage.setItem(SYNC_KEYS.ACCOUNTS(user.id), JSON.stringify(accs));
-    syncUp(user.id);
+    await syncUp(user.id);
+    await refreshConfig();
   };
 
   const handleAddCustomCategory = async () => {
@@ -276,6 +265,8 @@ export default function AddTransactionScreen() {
       }
       return;
     }
+
+    const cardNames = cards.map(c => c.name);
 
     // Validación de saldo solo para gastos normales (no transferencias)
     if (type !== 'income' && !cardNames.includes(account)) {
@@ -471,14 +462,13 @@ export default function AddTransactionScreen() {
               <View style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>Cuenta</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                  {['Efectivo', ...customAccounts.filter(a => !cardNames.includes(a))].map(acc => (
+                  {['Efectivo', ...customAccounts.filter(a => !cards.map(c => c.name).includes(a))].map(acc => (
                       <TouchableOpacity
                         key={acc}
                         style={[styles.chip, { backgroundColor: account === acc ? typeColor : colorsNav.card }]}
                         onPress={() => {
                             setAccount(acc);
-                            const card = cardPool.find(c => c.name === acc);
-                            if (card) setInterestRate(card.interestRate?.toString() || '28');
+                            setInterestRate('');
                         }}
                         onLongPress={() => customAccounts.includes(acc) && handleDeleteCustomAccount(acc)}
                       >
@@ -491,23 +481,22 @@ export default function AddTransactionScreen() {
                 </ScrollView>
               </View>
 
-              {cardNames.length > 0 && type !== 'transfer' && (
+              {cards.length > 0 && type !== 'transfer' && (
                 <View style={styles.section}>
                   <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>Tarjetas y Cuentas Nu</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                    {cardNames.map(acc => (
+                    {cards.map(c => (
                         <TouchableOpacity
-                          key={acc}
-                          style={[styles.chip, { backgroundColor: account === acc ? typeColor : colorsNav.card }]}
+                          key={c.name}
+                          style={[styles.chip, { backgroundColor: account === c.name ? typeColor : colorsNav.card }]}
                           onPress={() => {
-                            setAccount(acc);
-                            const card = cardPool.find(c => c.name === acc);
-                            if (card) setInterestRate(card.interestRate?.toString() || '28');
+                            setAccount(c.name);
+                            setInterestRate(c.interestRate?.toString() || '28');
                           }}
                         >
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <MaterialIcons name="credit-card" size={14} color={account === acc ? '#FFF' : colorsNav.text} />
-                          <Text style={[styles.chipText, { color: account === acc ? '#FFF' : colorsNav.text }]}>{acc}</Text>
+                          <MaterialIcons name="credit-card" size={14} color={account === c.name ? '#FFF' : colorsNav.text} />
+                          <Text style={[styles.chipText, { color: account === c.name ? '#FFF' : colorsNav.text }]}>{c.name}</Text>
                         </View>
                       </TouchableOpacity>
                     ))}
@@ -540,7 +529,7 @@ export default function AddTransactionScreen() {
                 <View style={styles.section}>
                   <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>Destino</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                    {['Efectivo', ...customAccounts.filter(a => !cardNames.includes(a))].filter(a => a !== account).map(acc => (
+                    {['Efectivo', ...customAccounts.filter(a => !cards.map(c => c.name).includes(a))].filter(a => a !== account).map(acc => (
                       <TouchableOpacity
                         key={acc}
                         style={[styles.chip, { backgroundColor: destAccount === acc ? typeColor : colorsNav.card }]}
@@ -554,7 +543,7 @@ export default function AddTransactionScreen() {
               )}
 
               {/* Selector de Cuotas para Tarjetas */}
-              {type === 'expense' && cardNames.includes(account) && (
+              {type === 'expense' && cards.map(c => c.name).includes(account) && (
                 <View style={[styles.section, { backgroundColor: colorsNav.card, padding: 20, borderRadius: 24, marginTop: 10 }]}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Text style={[styles.sectionTitle, { color: colorsNav.text, marginLeft: 0 }]}>Número de Cuotas</Text>

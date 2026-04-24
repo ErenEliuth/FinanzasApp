@@ -46,11 +46,10 @@ const CARD_COLORS = ['#2D5A3D', '#4A7C59', '#1E293B', '#8B5CF6', '#F59E0B', '#EF
 export default function CardsScreen() {
     const isFocused = useIsFocused();
     const router = useRouter();
-    const { user, currency, rates, isHidden } = useAuth();
+    const { user, currency, rates, isHidden, cards, customAccounts, refreshConfig } = useAuth();
     const colorsNav = useThemeColors();
     const isDark = colorsNav.isDark;
 
-    const [cards, setCards] = useState<CreditCard[]>([]);
     const now = new Date();
     const [cardBalances, setCardBalances] = useState<Record<string, number>>({});
     const [cardTransactions, setCardTransactions] = useState<Record<string, any[]>>({});
@@ -62,12 +61,11 @@ export default function CardsScreen() {
     const [newDueDay, setNewDueDay] = useState('');
     const [newBrand, setNewBrand] = useState<'visa' | 'mastercard' | 'amex' | 'other'>('visa');
     const [newColor, setNewColor] = useState(CARD_COLORS[0]);
-    const [newInterest, setNewInterest] = useState('28'); // Default E.A. en Colombia ~28-35%
+    const [newInterest, setNewInterest] = useState('28'); 
 
     const [payModalVisible, setPayModalVisible] = useState(false);
     const [selectedCard, setSelectedCard] = useState<CreditCard | null>(null);
     const [payAmount, setPayAmount] = useState('');
-    const [accounts, setAccounts] = useState<string[]>(['Efectivo']);
     const [selectedAccount, setSelectedAccount] = useState('Efectivo');
 
     const [activeTab, setActiveTab] = useState<string | null>(null);
@@ -75,43 +73,34 @@ export default function CardsScreen() {
     const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
 
     const loadData = async () => {
-        if (!user?.id) return;
+        if (!user?.id || cards.length === 0) return;
         try {
-            const storedCards = await AsyncStorage.getItem(SYNC_KEYS.CARDS(user.id));
-            const parsedCards: CreditCard[] = storedCards ? JSON.parse(storedCards) : [];
-            setCards(parsedCards);
-            if (parsedCards.length > 0 && !activeTab) setActiveTab(parsedCards[0].id);
+            if (!activeTab && cards.length > 0) setActiveTab(cards[0].id);
 
-            const storedAccounts = await AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(user.id));
-            const extra = storedAccounts ? JSON.parse(storedAccounts) : [];
-            setAccounts(['Efectivo', ...extra].filter(acc => !parsedCards.some(c => c.name === acc)));
+            const { data: txs } = await supabase
+                .from('transactions')
+                .select('*')
+                .eq('user_id', user.id)
+                .in('account', cards.map(c => c.name))
+                .order('date', { ascending: false });
 
-            if (parsedCards.length > 0) {
-                const { data: txs } = await supabase
-                    .from('transactions')
-                    .select('*')
-                    .eq('user_id', user.id)
-                    .in('account', parsedCards.map(c => c.name))
-                    .order('date', { ascending: false });
+            const balances: Record<string, number> = {};
+            const txGroups: Record<string, any[]> = {};
+            cards.forEach(c => {
+                balances[c.name] = 0;
+                txGroups[c.name] = [];
+            });
 
-                const balances: Record<string, number> = {};
-                const txGroups: Record<string, any[]> = {};
-                parsedCards.forEach(c => {
-                    balances[c.name] = 0;
-                    txGroups[c.name] = [];
-                });
+            txs?.forEach(tx => {
+                const amt = Number(tx.amount || 0);
+                txGroups[tx.account]?.push(tx);
+                if (tx.type === 'expense') balances[tx.account] += amt;
+                else if (tx.type === 'income' || tx.type === 'transfer') balances[tx.account] -= amt;
+            });
 
-                txs?.forEach(tx => {
-                    const amt = Number(tx.amount || 0);
-                    txGroups[tx.account]?.push(tx);
-                    if (tx.type === 'expense') balances[tx.account] += amt;
-                    else if (tx.type === 'income' || tx.type === 'transfer') balances[tx.account] -= amt;
-                });
-
-                Object.keys(balances).forEach(k => { if (balances[k] < 0) balances[k] = 0; });
-                setCardBalances(balances);
-                setCardTransactions(txGroups);
-            }
+            Object.keys(balances).forEach(k => { if (balances[k] < 0) balances[k] = 0; });
+            setCardBalances(balances);
+            setCardTransactions(txGroups);
         } catch (e) { console.error(e); }
     };
 
@@ -197,16 +186,16 @@ export default function CardsScreen() {
         };
 
         const updated = [...cards, newCard];
-        setCards(updated);
         await AsyncStorage.setItem(SYNC_KEYS.CARDS(user.id), JSON.stringify(updated));
         
         const storedParams = await AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(user.id));
-        const customAccounts = storedParams ? JSON.parse(storedParams) : [];
-        if (!customAccounts.includes(newCard.name)) {
-            await AsyncStorage.setItem(SYNC_KEYS.ACCOUNTS(user.id), JSON.stringify([...customAccounts, newCard.name]));
+        const currentCustomAccounts = storedParams ? JSON.parse(storedParams) : [];
+        if (!currentCustomAccounts.includes(newCard.name)) {
+            await AsyncStorage.setItem(SYNC_KEYS.ACCOUNTS(user.id), JSON.stringify([...currentCustomAccounts, newCard.name]));
         }
 
-        syncUp(user.id);
+        await syncUp(user.id);
+        await refreshConfig();
 
         if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setAddModalVisible(false);
@@ -247,10 +236,10 @@ export default function CardsScreen() {
 
                 // Borrar la tarjeta
                 const updated = cards.filter(c => c.id !== card.id);
-                setCards(updated);
                 await AsyncStorage.setItem(SYNC_KEYS.CARDS(user.id), JSON.stringify(updated));
                 
-                syncUp(user.id);
+                await syncUp(user.id);
+                await refreshConfig();
                 loadData();
                 if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             } catch (error) {
@@ -550,7 +539,7 @@ export default function CardsScreen() {
                         <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border, fontSize: 24, padding: 20 }]} placeholder="$ 0" placeholderTextColor={colorsNav.sub} keyboardType="numeric" value={payAmount} onChangeText={t => setPayAmount(formatInputDisplay(t, currency))} autoFocus />
                         <Text style={{ fontSize: 12, fontWeight: '800', color: colorsNav.sub, marginVertical: 10 }}>¿DESDE QUÉ CUENTA?</Text>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
-                            {accounts.map(acc => (
+                            {['Efectivo', ...customAccounts].filter(acc => !cards.some(c => c.name === acc)).map(acc => (
                                 <TouchableOpacity key={acc} style={[styles.accPill, selectedAccount === acc && { backgroundColor: colorsNav.accent, borderColor: colorsNav.accent }]} onPress={() => setSelectedAccount(acc)}>
                                     <Text style={{ color: selectedAccount === acc ? '#FFF' : colorsNav.sub, fontWeight: '700' }}>{acc}</Text>
                                 </TouchableOpacity>

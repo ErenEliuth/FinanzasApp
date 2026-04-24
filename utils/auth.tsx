@@ -31,6 +31,9 @@ interface AuthContextType {
     register: (name: string, email: string, password: string) => Promise<{ success: boolean; message: string }>;
     signInWithGoogle: () => Promise<void>;
     logout: () => Promise<void>;
+    cards: any[];
+    customAccounts: string[];
+    refreshConfig: () => Promise<void>;
 }
 
 // ─── Contexto ─────────────────────────────────────────────────────────────────
@@ -46,6 +49,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [rates, setRates] = useState<Record<string, number>>(DEFAULT_RATES);
     const [isHidden, setIsHidden] = useState(false);
     const [ratesUpdatedAt, setRatesUpdatedAt] = useState<number | null>(null);
+    const [cards, setCards] = useState<any[]>([]);
+    const [customAccounts, setCustomAccounts] = useState<string[]>([]);
 
     useEffect(() => {
         // Escuchar cambios en el estado de autenticación (login, logout, token refresh)
@@ -57,51 +62,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(newUser);
 
             if (newUser) {
+                // Configurar Realtime para sincronización entre dispositivos
+                const channel = supabase
+                    .channel(`user_configs:${userId}`)
+                    .on('postgres_changes', { 
+                        event: '*', 
+                        schema: 'public', 
+                        table: 'user_configs', 
+                        filter: `user_id=eq.${userId}` 
+                    }, (payload) => {
+                        if (payload.new && (payload.new as any).data) {
+                            applyConfig((payload.new as any).data);
+                        }
+                    })
+                    .subscribe();
+
                 // Si el usuario acaba de iniciar sesión, intentamos sincronizar y cargar sus preferencias
                 if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
                     await migrateOldData(userId!);
                     const remoteConfig = await syncDown(userId!);
                     if (remoteConfig) {
-                        // Si hay config remota, la aplicamos al estado local inmediatamente
-                        if (remoteConfig.theme) setTheme(remoteConfig.theme as ThemeName);
-                        if (remoteConfig.currency) setCurrency(remoteConfig.currency);
-                        if (remoteConfig.hidden_mode !== undefined) setIsHidden(remoteConfig.hidden_mode);
+                        applyConfig(remoteConfig);
                     } else {
-                        // Si no hay config remota, cargamos lo que haya en AsyncStorage localmente para este usuario
                         await loadUserPrefs(userId!);
                     }
                 } else {
-                    // Para otros eventos con usuario, cargamos preferencias locales
                     await loadUserPrefs(userId!);
                 }
+
+                return () => {
+                    supabase.removeChannel(channel);
+                };
             } else {
-                // LOGOUT: Resetear estados a valores por defecto para que el siguiente usuario no los herede
                 setTheme('light');
                 setCurrency('COP');
                 setIsHidden(false);
+                setCards([]);
+                setCustomAccounts([]);
             }
 
             setLoading(false);
         });
 
+        const applyConfig = (config: any) => {
+            if (config.theme) setTheme(config.theme as ThemeName);
+            if (config.currency) setCurrency(config.currency);
+            if (config.hidden_mode !== undefined) setIsHidden(config.hidden_mode);
+            if (config.cards) setCards(config.cards);
+            if (config.accounts) setCustomAccounts(config.accounts);
+        };
+
         const loadUserPrefs = async (userId: string) => {
-            const [storedTheme, storedCurrency, storedHidden] = await Promise.all([
+            const [storedTheme, storedCurrency, storedHidden, storedCards, storedAccs] = await Promise.all([
                 AsyncStorage.getItem(SYNC_KEYS.THEME(userId)),
                 AsyncStorage.getItem(SYNC_KEYS.CURRENCY(userId)),
-                AsyncStorage.getItem(SYNC_KEYS.HIDDEN_MODE(userId))
+                AsyncStorage.getItem(SYNC_KEYS.HIDDEN_MODE(userId)),
+                AsyncStorage.getItem(SYNC_KEYS.CARDS(userId)),
+                AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(userId))
             ]);
 
-            if (storedTheme && Object.keys(THEMES).includes(storedTheme as string)) {
-                setTheme(storedTheme as ThemeName);
-            }
-            if (storedCurrency) {
-                setCurrency(storedCurrency);
-            }
-            if (storedHidden === 'true') {
-                setIsHidden(true);
-            } else if (storedHidden === 'false') {
-                setIsHidden(false);
-            }
+            if (storedTheme && Object.keys(THEMES).includes(storedTheme as string)) setTheme(storedTheme as ThemeName);
+            if (storedCurrency) setCurrency(storedCurrency);
+            setIsHidden(storedHidden === 'true');
+            if (storedCards) setCards(JSON.parse(storedCards));
+            if (storedAccs) setCustomAccounts(JSON.parse(storedAccs));
         };
 
         // Cargar tasas de cambio (pueden ser compartidas ya que son globales)
@@ -314,8 +338,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await supabase.auth.signOut();
     };
 
+    const refreshConfig = async () => {
+        if (!user?.id) return;
+        const config = await syncDown(user.id);
+        if (config) applyConfig(config);
+    };
+
     return (
-        <AuthContext.Provider value={{ user, session, loading, theme, toggleTheme, setThemeConfig, currency, setCurrencyConfig, rates, setRatesConfig, syncRates, ratesUpdatedAt, isHidden, toggleHiddenMode, login, register, signInWithGoogle, logout }}>
+        <AuthContext.Provider value={{ 
+            user, session, loading, theme, toggleTheme, setThemeConfig, 
+            currency, setCurrencyConfig, rates, setRatesConfig, syncRates, 
+            ratesUpdatedAt, isHidden, toggleHiddenMode, login, register, 
+            signInWithGoogle, logout, cards, customAccounts, refreshConfig 
+        }}>
             {children}
         </AuthContext.Provider>
     );

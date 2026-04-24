@@ -72,7 +72,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isDesktop = width > 1024; // Aumentado para evitar falsos positivos en móviles de alta resolución
-  const { user, currency, rates, isHidden, toggleHiddenMode, logout } = useAuth();
+  const { user, currency, rates, isHidden, toggleHiddenMode, logout, cards, customAccounts } = useAuth();
   const colorsNav = useThemeColors();
   const isDark = colorsNav.isDark;
 
@@ -80,13 +80,10 @@ export default function HomeScreen() {
 
   const [debtTotal, setDebtTotal] = useState(0);
   const [accountTotals, setAccountTotals] = useState<any>({});
-  const [recognizedAccounts, setRecognizedAccounts] = useState<string[]>(['Efectivo']);
   const [breakdownVisible, setBreakdownVisible] = useState(false);
   const [activeMoneyBreakdownVisible, setActiveMoneyBreakdownVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [pendingItems, setPendingItems] = useState<any[]>([]);
-  const [userCards, setUserCards] = useState<string[]>([]);
-  const [cards, setCards] = useState<CreditCard[]>([]);
   const [cardBalances, setCardBalances] = useState<Record<string, number>>({});
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const [changelogVisible, setChangelogVisible] = useState(false);
@@ -164,23 +161,8 @@ export default function HomeScreen() {
         .order('id', { ascending: false });
       if (txError) throw txError;
 
-      let cardNames: string[] = [];
-      let accsList: string[] = ['Efectivo'];
-      try {
-        const [storedCards, storedAccs] = await Promise.all([
-            AsyncStorage.getItem(SYNC_KEYS.CARDS(user.id)),
-            AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(user.id))
-        ]);
-        if (storedCards) {
-          const parsed = JSON.parse(storedCards);
-          cardNames = parsed.map((c: any) => c.name);
-          setUserCards(cardNames);
-        }
-        if (storedAccs) {
-            accsList = ['Efectivo', ...JSON.parse(storedAccs)];
-            setRecognizedAccounts(accsList);
-        }
-      } catch (e) { }
+      const cardNames = cards.map(c => c.name);
+      const accsList = ['Efectivo', ...customAccounts];
 
       const today = new Date();
       const currentMonth = today.getMonth();
@@ -215,18 +197,9 @@ export default function HomeScreen() {
       setAccountTotals(accs);
       setAllTransactions(allTx || []);
 
-      let parsedCards: CreditCard[] = [];
-      let balances: Record<string, number> = {};
-
       try {
-        const storedCards = await AsyncStorage.getItem(SYNC_KEYS.CARDS(user.id));
-        if (storedCards) {
-          parsedCards = JSON.parse(storedCards);
-          setCards(parsedCards);
-          const cNames = parsedCards.map((c: any) => c.name);
-          setUserCards(cNames);
-          
-          parsedCards.forEach(c => balances[c.name] = 0);
+          const cNames = cards.map(c => c.name);
+          cards.forEach(c => balances[c.name] = 0);
           
           allTx?.forEach(tx => {
             if (cNames.includes(tx.account)) {
@@ -243,7 +216,6 @@ export default function HomeScreen() {
              if (balances[k] < 0) balances[k] = 0;
           });
           setCardBalances(balances);
-        }
       } catch (e) { }
 
       // Cargar total de inversiones desde Supabase
@@ -274,17 +246,10 @@ export default function HomeScreen() {
       const todayDate = new Date();
       const currentDay = todayDate.getDate();
 
-      parsedCards.forEach(card => {
+      cards.forEach(card => {
         // Solo sumamos la obligación si estamos en el mes donde vence el pago
-        // Generalmente, si la fecha de pago (dueDay) es el 4, y hoy es Abril 19, 
-        // el usuario quiere verlo a partir de Mayo 1ero.
-        
-        // Lógica: Solo mostramos si hoy es >= cutDay (factura cerrada) Y estamos cerca del pago,
-        // o si simplemente queremos ver lo que vence "este mes" calendario.
         const isDueThisMonth = currentDay <= card.dueDay || currentDay >= card.cutDay;
         
-        // Pero el usuario fue específico: "si pagan los 4... no me debería salir si no el otro mes"
-        // Esto implica una regla de mes calendario:
         if (currentDay <= card.dueDay) { 
           // Si hoy es antes del dueDay, estamos en el mes del pago
           const txs = allTx?.filter(tx => tx.account === card.name) || [];
@@ -414,7 +379,11 @@ export default function HomeScreen() {
     });
 
     const activeMoney = Object.entries(accs)
-      .filter(([accName]) => recognizedAccounts.includes(accName) && !userCards.includes(accName) && accName !== 'Ahorro')
+      .filter(([accName]) => {
+          const cardNames = cards.map(c => c.name);
+          const recognizedAccounts = ['Efectivo', ...customAccounts];
+          return recognizedAccounts.includes(accName) && !cardNames.includes(accName) && accName !== 'Ahorro';
+      })
       .reduce((sum, [_, amt]) => {
         const val = Number(amt);
         return sum + (isNaN(val) ? 0 : val);
@@ -457,7 +426,7 @@ export default function HomeScreen() {
       saldoDisponible: realMoney,
       derivedAccountTotals: accs
     };
-  }, [allTransactions, debtTotal, userCards, investmentTotal, recognizedAccounts]);
+  }, [allTransactions, debtTotal, cards, investmentTotal, customAccounts]);
 
   const handleLogout = async () => {
     if (Platform.OS === 'web') {
