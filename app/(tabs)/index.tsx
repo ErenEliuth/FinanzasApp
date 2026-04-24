@@ -199,6 +199,7 @@ export default function HomeScreen() {
 
       try {
           const cNames = cards.map(c => c.name);
+          const balances: Record<string, number> = {};
           cards.forEach(c => balances[c.name] = 0);
           
           allTx?.forEach(tx => {
