@@ -575,7 +575,7 @@ export default function HomeScreen() {
           {/* LADO IZQUIERDO: CONTENIDO PRINCIPAL (70%) */}
           <View style={isDesktop ? styles.desktopMainCol : undefined}>
             
-            <View style={{ marginBottom: isDesktop ? 25 : 8 }}>
+            <View style={{ marginBottom: isDesktop ? 25 : 4 }}>
                <Text style={[styles.greeting, { color: colorsNav.text }]}>Hola, {displayName.split(' ')[0]} 👋</Text>
                <Text style={[styles.subtitle, { color: colorsNav.sub }]}>Tu resumen financiero hoy</Text>
             </View>
@@ -592,7 +592,7 @@ export default function HomeScreen() {
               <View style={styles.heroHeader}>
                 <Text style={[styles.heroLabel, !isDesktop && { textTransform: 'uppercase', fontSize: 11, fontWeight: '900', color: 'rgba(255,255,255,0.8)', letterSpacing: 1.2 }]}>Dinero Activo</Text>
               </View>
-              <Text style={[styles.heroAmount, !isDesktop && { fontSize: 44, marginTop: 8 }]}>{fmt(dineroActivo)}</Text>
+              <Text style={[styles.heroAmount, !isDesktop && { fontSize: 38, marginTop: 4 }]}>{fmt(dineroActivo)}</Text>
               
               {!isDesktop && (
                 <View style={styles.mobileTrendContainer}>
@@ -653,7 +653,7 @@ export default function HomeScreen() {
               </View>
             ) : (
               /* Mobile: 2 cols (Ahorros + Deudas) + full-width Inversiones */
-              <View style={{ marginBottom: 16 }}>
+              <View style={{ marginBottom: 8 }}>
                 <View style={styles.mobileStatsRow}>
                   <TouchableOpacity style={[styles.mobileStatBox, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/goals')}>
                     <View style={[styles.statIconWrapRefined, { backgroundColor: '#E8F5E9', borderRadius: 10, width: 32, height: 32 }]}>
@@ -672,7 +672,7 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                 </View>
 
-                <View style={[styles.mobileStatsRow, { marginTop: 12 }]}>
+                <View style={[styles.mobileStatsRow, { marginTop: 8 }]}>
                   <TouchableOpacity style={[styles.mobileStatBox, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/invest' as any)}>
                     <View style={[styles.statIconWrapRefined, { backgroundColor: '#E3F2FD', borderRadius: 10, width: 32, height: 32 }]}>
                       <MaterialIcons name="show-chart" size={18} color="#1976D2" />
@@ -697,11 +697,11 @@ export default function HomeScreen() {
               styles.mobileHealthCard,
               { backgroundColor: isDark ? colorsNav.card : '#FFF' }
             ]}>
-              <Text style={{ fontSize: 17, fontWeight: '900', color: colorsNav.text, marginBottom: 14 }}>Salud Financiera</Text>
+              <Text style={{ fontSize: 15, fontWeight: '900', color: colorsNav.text, marginBottom: 10 }}>Salud Financiera</Text>
               
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, width: '100%' }}>
                 <View style={styles.mobileHealthCenter}>
-                  <CircularProgress percentage={saludPorcentaje} size={76} strokeWidth={9} color={saludColor} />
+                  <CircularProgress percentage={saludPorcentaje} size={66} strokeWidth={8} color={saludColor} />
                   <View style={styles.healthInnerRefined}>
                     <Text style={[styles.healthScoreRefined, { color: saludColor, fontSize: 16 }]}>{saludPorcentaje}%</Text>
                     <Text style={[styles.healthSuffixRefined, { color: saludColor, fontSize: 7 }]}>{saludLabel}</Text>
@@ -1084,11 +1084,11 @@ const styles = StyleSheet.create({
   },
   mainHeroCardMobile: {
     width: '100%',
-    borderRadius: 32,
-    padding: 24,
-    height: 175, 
+    borderRadius: 28,
+    padding: 20,
+    height: 135, 
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 10,
     shadowColor: '#000',
     shadowOpacity: 0.12,
     shadowRadius: 12,
@@ -1182,8 +1182,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mobileHealthCard: {
-    padding: 18,
-    borderRadius: 24,
+    padding: 14,
+    borderRadius: 22,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOpacity: 0.04,
@@ -1194,8 +1194,8 @@ const styles = StyleSheet.create({
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
-    width: 76,
-    height: 76,
+    width: 66,
+    height: 66,
   },
   mobileHealthDetails: {
     flex: 1,
@@ -1209,9 +1209,9 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   mobileHealthAmount: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
-    marginBottom: 10,
+    marginBottom: 8,
     letterSpacing: -0.5,
   },
   mobileHealthBtn: {
@@ -1235,14 +1235,14 @@ const styles = StyleSheet.create({
   },
   mobileStatsRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
+    gap: 10,
+    marginBottom: 0,
   },
   mobileStatBox: {
     flex: 1,
-    padding: 20,
-    height: 115,
-    borderRadius: 28,
+    padding: 14,
+    height: 88,
+    borderRadius: 22,
     justifyContent: 'space-between',
     shadowColor: '#000',
     shadowOpacity: 0.04,
