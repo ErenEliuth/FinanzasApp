@@ -143,6 +143,7 @@ export default function HistoryScreen() {
         if (tx.category === 'Salud') return { icon: 'favorite', bg: '#FCE4EC', color: '#E91E63' };
         if (tx.category === 'Hogar') return { icon: 'home', bg: '#E8F5E9', color: '#4CAF50' };
         if (tx.category === 'Transferencia') return { icon: 'swap-horiz', bg: '#E3F0FF', color: '#3B82F6' };
+        if (tx.category === 'Préstamos') return { icon: 'handshake', bg: '#FFF3E0', color: '#FF9800' };
         return { icon: 'bolt', bg: '#FFF8E1', color: '#FF9800' };
     };
 
@@ -286,6 +287,12 @@ export default function HistoryScreen() {
                                             <Text style={[styles.txSub, { color: colorsNav.sub }]}>{formatTxDate(tx)}</Text>
                                             <View style={styles.dot} />
                                             <Text style={[styles.txSub, { color: colorsNav.sub }]} numberOfLines={1}>{tx.category}</Text>
+                                            {tx.description?.includes('Rendimientos') && (
+                                                <View style={styles.autoBadge}>
+                                                    <MaterialIcons name="auto-awesome" size={8} color="#8B5CF6" />
+                                                    <Text style={styles.autoBadgeTxt}>AUTO</Text>
+                                                </View>
+                                            )}
                                         </View>
                                     </View>
 
@@ -370,6 +377,8 @@ const styles = StyleSheet.create({
     txRight: { alignItems: 'flex-end' },
     txAmount: { fontSize: 15, fontWeight: '800' },
     accText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginTop: 4, letterSpacing: 0.5 },
+    autoBadge: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: '#8B5CF615', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4, marginLeft: 4 },
+    autoBadgeTxt: { fontSize: 8, fontWeight: '900', color: '#8B5CF6' },
     swipeHint: { textAlign: 'center', fontSize: 12, marginTop: 24, fontWeight: '500' },
     monthSelector: {
         flexDirection: 'row',

@@ -603,6 +603,7 @@ export default function GoalsScreen() {
                                     ))}
                                 </View>
                             </View>
+                            )}
 
                             <TouchableOpacity 
                                 style={[styles.mPrimaryBtn, { backgroundColor: colors.accent }, isProcessing && { opacity: 0.6 }]} 
