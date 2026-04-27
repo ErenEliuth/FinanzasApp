@@ -672,37 +672,23 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity 
-                  style={[styles.mobileInvestRow, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} 
-                  onPress={() => router.push('/invest' as any)}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <View style={[styles.statIconWrapRefined, { backgroundColor: '#E3F2FD', borderRadius: 10, width: 32, height: 32, marginBottom: 0 }]}>
+                <View style={[styles.mobileStatsRow, { marginTop: 12 }]}>
+                  <TouchableOpacity style={[styles.mobileStatBox, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/invest' as any)}>
+                    <View style={[styles.statIconWrapRefined, { backgroundColor: '#E3F2FD', borderRadius: 10, width: 32, height: 32 }]}>
                       <MaterialIcons name="show-chart" size={18} color="#1976D2" />
                     </View>
-                    <View>
-                      <Text style={[styles.statLabelRefined, { fontSize: 9, letterSpacing: 0.5, marginBottom: 2 }]}>INVERSIONES</Text>
-                      <Text style={[styles.mobileStatValue, { color: colorsNav.text, fontSize: 16, marginTop: 0 }]}>{fmt(investmentTotal)}</Text>
-                    </View>
-                  </View>
-                  <MaterialIcons name="chevron-right" size={20} color={colorsNav.sub} />
-                </TouchableOpacity>
+                    <Text style={[styles.statLabelRefined, { fontSize: 9, marginTop: 6 }]}>INVERSIONES</Text>
+                    <Text style={[styles.mobileStatValue, { color: colorsNav.text, fontSize: 16 }]}>{fmt(investmentTotal)}</Text>
+                  </TouchableOpacity>
 
-                <TouchableOpacity 
-                  style={[styles.mobileInvestRow, { backgroundColor: isDark ? colorsNav.card : '#FFF', marginTop: 10 }]} 
-                  onPress={() => router.push('/(tabs)/loans')}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <View style={[styles.statIconWrapRefined, { backgroundColor: '#FFF3E0', borderRadius: 10, width: 32, height: 32, marginBottom: 0 }]}>
+                  <TouchableOpacity style={[styles.mobileStatBox, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/(tabs)/loans')}>
+                    <View style={[styles.statIconWrapRefined, { backgroundColor: '#FFF3E0', borderRadius: 10, width: 32, height: 32 }]}>
                       <MaterialIcons name="handshake" size={18} color="#FF9800" />
                     </View>
-                    <View>
-                      <Text style={[styles.statLabelRefined, { fontSize: 9, letterSpacing: 0.5, marginBottom: 2 }]}>PRÉSTAMOS</Text>
-                      <Text style={[styles.mobileStatValue, { color: colorsNav.text, fontSize: 16, marginTop: 0 }]}>{fmt(loansTotal)}</Text>
-                    </View>
-                  </View>
-                  <MaterialIcons name="chevron-right" size={20} color={colorsNav.sub} />
-                </TouchableOpacity>
+                    <Text style={[styles.statLabelRefined, { fontSize: 9, marginTop: 6 }]}>PRÉSTAMOS</Text>
+                    <Text style={[styles.mobileStatValue, { color: colorsNav.text, fontSize: 16 }]}>{fmt(loansTotal)}</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
 

@@ -45,6 +45,8 @@ export default function GoalsScreen() {
     const [newGoalImage, setNewGoalImage] = useState<string | null>(null);
     const [newGoalPriority, setNewGoalPriority] = useState<'high' | 'medium' | 'low'>('medium');
     const [newGoalInterest, setNewGoalInterest] = useState('');
+    const [activeTab, setActiveTab] = useState<'metas' | 'cajitas'>('metas');
+    const [interestMap, setInterestMap] = useState<Record<string, any>>({});
     const [isProcessing, setIsProcessing] = useState(false);
     const [smartSavingsEnabled, setSmartSavingsEnabled] = useState<boolean | null>(null);
 
@@ -87,6 +89,7 @@ export default function GoalsScreen() {
             if (!stored) return goalsData;
             
             const interestData = JSON.parse(stored);
+            setInterestMap(interestData);
             let updatedAny = false;
             let newTotalInterest = 0;
             const today = new Date().toISOString().split('T')[0];
@@ -144,9 +147,14 @@ export default function GoalsScreen() {
     };
 
     const handleCreateGoal = async () => {
-        const typedVal = parseInputToNumber(newGoalTarget, currency);
-        const val = convertToBase(typedVal, currency, rates);
-        if (!newGoalName.trim() || isNaN(val) || val <= 0 || isProcessing) return;
+        let val = 1000000000; // Target muy alto para cajitas por defecto
+        if (activeTab === 'metas') {
+            const typedVal = parseInputToNumber(newGoalTarget, currency);
+            val = convertToBase(typedVal, currency, rates);
+            if (isNaN(val) || val <= 0) return;
+        }
+        
+        if (!newGoalName.trim() || isProcessing) return;
         setIsProcessing(true);
         try {
             let finalImageUri = newGoalImage;
@@ -421,15 +429,29 @@ export default function GoalsScreen() {
                     </View>
                 </View>
 
-                {/* ── Lista de Metas ── */}
-                {goals.length === 0 ? (
+                {/* TAB SELECTOR */}
+                <View style={{ paddingHorizontal: 0, marginBottom: 24, marginTop: 8 }}>
+                    <View style={{ flexDirection: 'row', borderRadius: 20, padding: 6, backgroundColor: colors.card }}>
+                        <TouchableOpacity onPress={() => setActiveTab('metas')} style={{ flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center', backgroundColor: activeTab === 'metas' ? colors.accent : 'transparent' }}>
+                            <Text style={{ fontSize: 14, fontWeight: '800', color: activeTab === 'metas' ? '#FFF' : colors.sub }}>Metas de Ahorro</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setActiveTab('cajitas')} style={{ flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center', backgroundColor: activeTab === 'cajitas' ? colors.accent : 'transparent' }}>
+                            <Text style={{ fontSize: 14, fontWeight: '800', color: activeTab === 'cajitas' ? '#FFF' : colors.sub }}>Cajitas (Rendimientos)</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                {/* ── Lista de Metas/Cajitas ── */}
+                {goals.filter(g => activeTab === 'cajitas' ? interestMap[g.id]?.rate > 0 : !interestMap[g.id]?.rate).length === 0 ? (
                     <View style={styles.empty}>
                         <Ionicons name="leaf-outline" size={80} color={colors.accent + '40'} />
                         <Text style={[styles.emptyTitle, { color: colors.text }]}>Siembra tus sueños</Text>
-                        <Text style={[styles.emptySub, { color: colors.sub }]}>Crea una meta y comienza a asignar tus ahorros para verlos crecer.</Text>
+                        <Text style={[styles.emptySub, { color: colors.sub }]}>
+                            {activeTab === 'metas' ? 'Crea una meta y comienza a asignar tus ahorros.' : 'Crea una cajita para ganar intereses diarios.'}
+                        </Text>
                     </View>
                 ) : (
-                    goals.map(goal => {
+                    goals.filter(g => activeTab === 'cajitas' ? interestMap[g.id]?.rate > 0 : !interestMap[g.id]?.rate).map(goal => {
                         const pct = Math.min(100, (goal.current_amount / goal.target_amount) * 100);
                         const isDone = pct >= 100;
                         return (
@@ -481,8 +503,10 @@ export default function GoalsScreen() {
                                             <Text style={[styles.amtVal, { color: colors.text }]}>{fmt(goal.current_amount)}</Text>
                                         </View>
                                         <View style={{ alignItems: 'flex-end' }}>
-                                            <Text style={[styles.amtLabel, { color: colors.sub }]}>Objetivo</Text>
-                                            <Text style={[styles.amtVal, { color: colors.text }]}>{fmt(goal.target_amount)}</Text>
+                                            <Text style={[styles.amtLabel, { color: colors.sub }]}>{activeTab === 'cajitas' ? 'Interés' : 'Objetivo'}</Text>
+                                            <Text style={[styles.amtVal, { color: colors.text }]}>
+                                                {activeTab === 'cajitas' ? `${interestMap[goal.id]?.rate}% E.A.` : fmt(goal.target_amount)}
+                                            </Text>
                                         </View>
                                     </View>
                                     
@@ -520,7 +544,7 @@ export default function GoalsScreen() {
                     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%' }}>
                         <View style={[styles.modalBox, { backgroundColor: colors.card }]}>
                             <View style={styles.modalHeaderInner}>
-                                <Text style={[styles.modalTitle, { color: colors.text }]}>Nueva Meta</Text>
+                                <Text style={[styles.modalTitle, { color: colors.text }]}>{activeTab === 'metas' ? 'Nueva Meta' : 'Nueva Cajita'}</Text>
                                 <TouchableOpacity onPress={() => setAddModalVisible(false)}>
                                     <Ionicons name="close" size={24} color={colors.sub} />
                                 </TouchableOpacity>
@@ -538,27 +562,33 @@ export default function GoalsScreen() {
                             <View style={styles.mInputCont}>
                                 <Text style={[styles.mLabel, { color: colors.sub }]}>NOMBRE</Text>
                                 <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
-                                    placeholder="Ej. Mi primer auto" placeholderTextColor={colors.sub + '80'}
+                                    placeholder={activeTab === 'metas' ? "Ej. Mi primer auto" : "Ej. Ahorro Emergencia"} placeholderTextColor={colors.sub + '80'}
                                     value={newGoalName} onChangeText={setNewGoalName} />
                             </View>
-                            <View style={styles.mInputCont}>
-                                <Text style={[styles.mLabel, { color: colors.sub }]}>MONTO OBJETIVO</Text>
-                                <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
-                                    placeholder="$ 0" placeholderTextColor={colors.sub + '80'} keyboardType="decimal-pad"
-                                    value={newGoalTarget} onChangeText={t => setNewGoalTarget(formatInput(t))} />
-                            </View>
-                            
-                            <View style={styles.mInputCont}>
-                                <Text style={[styles.mLabel, { color: colors.sub }]}>INTERÉS ANUAL ESPERADO (%) E.A. (Ej. Nubank 9)</Text>
-                                <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
-                                    placeholder="0" placeholderTextColor={colors.sub + '80'} keyboardType="decimal-pad"
-                                    value={newGoalInterest} onChangeText={setNewGoalInterest} />
-                            </View>
 
-                            <View style={styles.mInputCont}>
-                                <Text style={[styles.mLabel, { color: colors.sub }]}>PRIORIDAD</Text>
-                                <View style={styles.priorityRow}>
-                                    {[
+                            {activeTab === 'metas' && (
+                                <View style={styles.mInputCont}>
+                                    <Text style={[styles.mLabel, { color: colors.sub }]}>MONTO OBJETIVO</Text>
+                                    <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
+                                        placeholder="$ 0" placeholderTextColor={colors.sub + '80'} keyboardType="decimal-pad"
+                                        value={newGoalTarget} onChangeText={t => setNewGoalTarget(formatInput(t))} />
+                                </View>
+                            )}
+                            
+                            {activeTab === 'cajitas' && (
+                                <View style={styles.mInputCont}>
+                                    <Text style={[styles.mLabel, { color: colors.sub }]}>INTERÉS ANUAL ESPERADO (%) E.A. (Ej. Nubank 9)</Text>
+                                    <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
+                                        placeholder="0" placeholderTextColor={colors.sub + '80'} keyboardType="decimal-pad"
+                                        value={newGoalInterest} onChangeText={setNewGoalInterest} />
+                                </View>
+                            )}
+
+                            {activeTab === 'metas' && (
+                                <View style={styles.mInputCont}>
+                                    <Text style={[styles.mLabel, { color: colors.sub }]}>PRIORIDAD</Text>
+                                    <View style={styles.priorityRow}>
+                                        {[
                                         { id: 'low', label: 'Baja', c: '#8B8680' },
                                         { id: 'medium', label: 'Media', c: '#F59E0B' },
                                         { id: 'high', label: 'Alta', c: '#EF4444' }
