@@ -652,41 +652,49 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
             ) : (
-              /* Mobile: 2 cols (Ahorros + Deudas) + full-width Inversiones */
-              <View style={{ marginBottom: 8 }}>
+              /* Mobile: 2x2 compact horizontal cards */
+              <View style={{ marginBottom: 6 }}>
                 <View style={styles.mobileStatsRow}>
                   <TouchableOpacity style={[styles.mobileStatBox, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/goals')}>
-                    <View style={[styles.statIconWrapRefined, { backgroundColor: '#E8F5E9', borderRadius: 10, width: 32, height: 32 }]}>
-                      <MaterialIcons name="savings" size={18} color="#2D5A3D" />
+                    <View style={[styles.compactStatIcon, { backgroundColor: '#E8F5E9' }]}>
+                      <MaterialIcons name="savings" size={14} color="#2D5A3D" />
                     </View>
-                    <Text style={[styles.statLabelRefined, { fontSize: 9, marginTop: 6 }]}>AHORROS</Text>
-                    <Text style={[styles.mobileStatValue, { color: colorsNav.text, fontSize: 16 }]}>{fmt(ahorroTotal)}</Text>
+                    <View style={styles.compactStatText}>
+                      <Text style={[styles.statLabelRefined, { fontSize: 8, marginBottom: 1 }]}>AHORROS</Text>
+                      <Text style={[styles.mobileStatValue, { color: colorsNav.text }]}>{fmt(ahorroTotal)}</Text>
+                    </View>
                   </TouchableOpacity>
 
                   <TouchableOpacity style={[styles.mobileStatBox, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/(tabs)/debts')}>
-                    <View style={[styles.statIconWrapRefined, { backgroundColor: '#FFEBEE', borderRadius: 10, width: 32, height: 32 }]}>
-                      <MaterialIcons name="credit-card" size={18} color="#D32F2F" />
+                    <View style={[styles.compactStatIcon, { backgroundColor: '#FFEBEE' }]}>
+                      <MaterialIcons name="credit-card" size={14} color="#D32F2F" />
                     </View>
-                    <Text style={[styles.statLabelRefined, { fontSize: 9, marginTop: 6 }]}>DEUDAS</Text>
-                    <Text style={[styles.mobileStatValue, { color: '#D32F2F', fontSize: 16 }]}>{fmt(debtTotal)}</Text>
+                    <View style={styles.compactStatText}>
+                      <Text style={[styles.statLabelRefined, { fontSize: 8, marginBottom: 1 }]}>DEUDAS</Text>
+                      <Text style={[styles.mobileStatValue, { color: '#D32F2F' }]}>{fmt(debtTotal)}</Text>
+                    </View>
                   </TouchableOpacity>
                 </View>
 
                 <View style={[styles.mobileStatsRow, { marginTop: 8 }]}>
                   <TouchableOpacity style={[styles.mobileStatBox, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/invest' as any)}>
-                    <View style={[styles.statIconWrapRefined, { backgroundColor: '#E3F2FD', borderRadius: 10, width: 32, height: 32 }]}>
-                      <MaterialIcons name="show-chart" size={18} color="#1976D2" />
+                    <View style={[styles.compactStatIcon, { backgroundColor: '#E3F2FD' }]}>
+                      <MaterialIcons name="show-chart" size={14} color="#1976D2" />
                     </View>
-                    <Text style={[styles.statLabelRefined, { fontSize: 9, marginTop: 6 }]}>INVERSIONES</Text>
-                    <Text style={[styles.mobileStatValue, { color: colorsNav.text, fontSize: 16 }]}>{fmt(investmentTotal)}</Text>
+                    <View style={styles.compactStatText}>
+                      <Text style={[styles.statLabelRefined, { fontSize: 8, marginBottom: 1 }]}>INVERSIONES</Text>
+                      <Text style={[styles.mobileStatValue, { color: colorsNav.text }]}>{fmt(investmentTotal)}</Text>
+                    </View>
                   </TouchableOpacity>
 
                   <TouchableOpacity style={[styles.mobileStatBox, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/(tabs)/loans')}>
-                    <View style={[styles.statIconWrapRefined, { backgroundColor: '#FFF3E0', borderRadius: 10, width: 32, height: 32 }]}>
-                      <MaterialIcons name="handshake" size={18} color="#FF9800" />
+                    <View style={[styles.compactStatIcon, { backgroundColor: '#FFF3E0' }]}>
+                      <MaterialIcons name="handshake" size={14} color="#FF9800" />
                     </View>
-                    <Text style={[styles.statLabelRefined, { fontSize: 9, marginTop: 6 }]}>PRÉSTAMOS</Text>
-                    <Text style={[styles.mobileStatValue, { color: colorsNav.text, fontSize: 16 }]}>{fmt(loansTotal)}</Text>
+                    <View style={styles.compactStatText}>
+                      <Text style={[styles.statLabelRefined, { fontSize: 8, marginBottom: 1 }]}>PRÉSTAMOS</Text>
+                      <Text style={[styles.mobileStatValue, { color: colorsNav.text }]}>{fmt(loansTotal)}</Text>
+                    </View>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1235,24 +1243,35 @@ const styles = StyleSheet.create({
   },
   mobileStatsRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
     marginBottom: 0,
   },
   mobileStatBox: {
     flex: 1,
-    padding: 14,
-    height: 88,
-    borderRadius: 22,
-    justifyContent: 'space-between',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    height: 58,
+    borderRadius: 18,
     shadowColor: '#000',
     shadowOpacity: 0.04,
     shadowRadius: 10,
     elevation: 2,
+    gap: 10,
+  },
+  compactStatIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  compactStatText: {
+    flex: 1,
   },
   mobileStatValue: {
-    fontSize: 22,
+    fontSize: 15,
     fontWeight: '900',
-    marginTop: 4,
   },
   mobileInvestRow: {
     flexDirection: 'row',
