@@ -44,6 +44,7 @@ export default function GoalsScreen() {
     const [newGoalTarget, setNewGoalTarget] = useState('');
     const [newGoalImage, setNewGoalImage] = useState<string | null>(null);
     const [newGoalPriority, setNewGoalPriority] = useState<'high' | 'medium' | 'low'>('medium');
+    const [newGoalInterest, setNewGoalInterest] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [smartSavingsEnabled, setSmartSavingsEnabled] = useState<boolean | null>(null);
 
@@ -62,8 +63,11 @@ export default function GoalsScreen() {
     const loadData = async () => {
         if (!user) return;
         try {
-            const { data: goalsData } = await supabase.from('goals').select('*').eq('user_id', user.id).order('id', { ascending: false });
-            setGoals(goalsData || []);
+            const { data: rawGoalsData } = await supabase.from('goals').select('*').eq('user_id', user.id).order('id', { ascending: false });
+            
+            const goalsData = await applyDailyInterests(rawGoalsData || []);
+            setGoals(goalsData);
+            
             const { data: txData } = await supabase.from('transactions').select('amount').eq('user_id', user.id).eq('category', 'Ahorro');
             const total = txData?.reduce((s, tx) => s + tx.amount, 0) || 0;
             setTotalAhorro(total);
@@ -74,6 +78,61 @@ export default function GoalsScreen() {
                 setSmartSavingsEnabled(rawPref === 'enabled');
             }
         } catch (e) { console.error(e); }
+    };
+
+    const applyDailyInterests = async (goalsData: any[]) => {
+        if (!user) return goalsData;
+        try {
+            const stored = await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user.id));
+            if (!stored) return goalsData;
+            
+            const interestData = JSON.parse(stored);
+            let updatedAny = false;
+            let newTotalInterest = 0;
+            const today = new Date().toISOString().split('T')[0];
+
+            for (const goal of goalsData) {
+                const info = interestData[goal.id];
+                if (info && info.rate > 0) {
+                    const lastUpdated = info.last_updated || today;
+                    if (lastUpdated !== today) {
+                        const daysDiff = Math.floor((new Date(today).getTime() - new Date(lastUpdated).getTime()) / (1000 * 60 * 60 * 24));
+                        if (daysDiff > 0 && goal.current_amount > 0) {
+                            const dailyRate = (info.rate / 100) / 365;
+                            const interest = goal.current_amount * dailyRate * daysDiff;
+                            if (interest > 0) {
+                                await supabase.from('goals').update({ current_amount: goal.current_amount + interest }).eq('id', goal.id);
+                                await supabase.from('transactions').insert([{
+                                    user_id: user.id,
+                                    amount: interest,
+                                    type: 'income',
+                                    category: 'Ahorro',
+                                    description: `Rendimientos cajita: ${goal.name}`,
+                                    account: 'Ahorro',
+                                    date: new Date().toISOString()
+                                }]);
+                                goal.current_amount += interest;
+                                info.last_updated = today;
+                                updatedAny = true;
+                                newTotalInterest += interest;
+                            }
+                        } else if (daysDiff > 0) {
+                            info.last_updated = today;
+                            updatedAny = true;
+                        }
+                    }
+                }
+            }
+            if (updatedAny) {
+                await AsyncStorage.setItem(SYNC_KEYS.GOALS_INTEREST(user.id), JSON.stringify(interestData));
+                if (newTotalInterest > 0) {
+                    Alert.alert('Rendimientos Generados', `Tus cajitas han generado ${fmt(newTotalInterest)} en intereses. 💸`);
+                }
+            }
+            return goalsData;
+        } catch(e) {
+            return goalsData;
+        }
     };
 
     const assignedAhorro = goals.reduce((sum, g) => sum + g.current_amount, 0);
@@ -101,18 +160,29 @@ export default function GoalsScreen() {
                 }
             }
 
-            const { error } = await supabase.from('goals').insert([{ 
+            const { data: newGoalData, error } = await supabase.from('goals').insert([{ 
                 user_id: user?.id, 
                 name: newGoalName.trim(), 
                 target_amount: val, 
                 current_amount: 0, 
                 image_uri: finalImageUri,
                 priority: newGoalPriority
-            }]);
+            }]).select();
             
             if (error) throw error;
+
+            if (newGoalData && newGoalData[0] && newGoalInterest) {
+                const interestRate = parseFloat(newGoalInterest.replace(',', '.'));
+                if (!isNaN(interestRate) && interestRate > 0) {
+                    const saved = await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user.id!));
+                    const interestData = saved ? JSON.parse(saved) : {};
+                    interestData[newGoalData[0].id] = { rate: interestRate, last_updated: new Date().toISOString().split('T')[0] };
+                    await AsyncStorage.setItem(SYNC_KEYS.GOALS_INTEREST(user.id!), JSON.stringify(interestData));
+                    await syncUp(user.id!);
+                }
+            }
             
-            setNewGoalName(''); setNewGoalTarget(''); setNewGoalImage(null); setAddModalVisible(false);
+            setNewGoalName(''); setNewGoalTarget(''); setNewGoalImage(null); setNewGoalInterest(''); setAddModalVisible(false);
             loadData();
         } catch (e) { 
             console.error('Error al crear meta:', e); 
@@ -476,6 +546,13 @@ export default function GoalsScreen() {
                                 <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
                                     placeholder="$ 0" placeholderTextColor={colors.sub + '80'} keyboardType="decimal-pad"
                                     value={newGoalTarget} onChangeText={t => setNewGoalTarget(formatInput(t))} />
+                            </View>
+                            
+                            <View style={styles.mInputCont}>
+                                <Text style={[styles.mLabel, { color: colors.sub }]}>INTERÉS ANUAL ESPERADO (%) E.A. (Ej. Nubank 9)</Text>
+                                <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
+                                    placeholder="0" placeholderTextColor={colors.sub + '80'} keyboardType="decimal-pad"
+                                    value={newGoalInterest} onChangeText={setNewGoalInterest} />
                             </View>
 
                             <View style={styles.mInputCont}>

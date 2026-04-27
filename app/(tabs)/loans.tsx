@@ -32,17 +32,17 @@ import Svg, { Circle } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
 
-type DebtItem = {
+type LoanItem = {
     id: string;
     client: string;
     value: number;
     paid: number;
     due_date: string;
-    debt_type: 'debt' | 'fixed';
+    debt_type: 'loan';
     status?: string;
 };
 
-export default function DebtsScreen() {
+export default function LoansScreen() {
     const isFocused = useIsFocused();
     const router = useRouter();
     const { user, theme, currency, rates, isHidden } = useAuth();
@@ -51,9 +51,7 @@ export default function DebtsScreen() {
 
     const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
 
-
-    const [viewMode, setViewMode] = useState<'debt' | 'fixed'>('debt');
-    const [debts, setDebts] = useState<DebtItem[]>([]);
+    const [loans, setLoans] = useState<LoanItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);
     
@@ -62,13 +60,10 @@ export default function DebtsScreen() {
     const [name, setName] = useState('');
     const [amount, setAmount] = useState('');
     const [dueDate, setDueDate] = useState(new Date());
-    const [selectedDay, setSelectedDay] = useState(new Date().getDate().toString());
     const [showDatePicker, setShowDatePicker] = useState(false);
 
     const [payModalVisible, setPayModalVisible] = useState(false);
-    const [confirmMonthModal, setConfirmMonthModal] = useState(false);
-    const [pendingItem, setPendingItem] = useState<{ val: number; dateStr: string } | null>(null);
-    const [selectedDebt, setSelectedDebt] = useState<DebtItem | null>(null);
+    const [selectedLoan, setSelectedLoan] = useState<LoanItem | null>(null);
     const [payAmount, setPayAmount] = useState('');
     const [accounts, setAccounts] = useState<string[]>(['Efectivo']);
     const [selectedAccount, setSelectedAccount] = useState('Efectivo');
@@ -87,34 +82,16 @@ export default function DebtsScreen() {
         if (!user) return;
         setLoading(true);
         try {
-            const { data, error } = await supabase.from('debts').select('*').eq('user_id', user.id);
+            const { data, error } = await supabase.from('debts').select('*').eq('user_id', user.id).eq('debt_type', 'loan');
             if (error) throw error;
-            
-            const today = new Date();
-            const currM = today.getMonth();
-            const currY = today.getFullYear();
 
-            // Sincronizar gastos fijos con el mes actual
-            const synced = await Promise.all((data || []).map(async (item) => {
-                if (item.debt_type === 'fixed') {
-                    const itemDate = new Date(item.due_date + 'T12:00:00');
-                    if (itemDate.getMonth() !== currM || itemDate.getFullYear() !== currY) {
-                        // Es de un mes pasado, reiniciar a pendiente para el mes actual
-                        const newD = new Date(currY, currM, itemDate.getDate()).toISOString().split('T')[0];
-                        await supabase.from('debts').update({ paid: 0, due_date: newD }).eq('id', item.id);
-                        return { ...item, paid: 0, due_date: newD };
-                    }
-                }
-                return item;
-            }));
-
-            const sorted = (synced || []).sort((a, b) => {
+            const sorted = (data || []).sort((a, b) => {
                 const isPaidA = a.paid >= a.value;
                 const isPaidB = b.paid >= b.value;
                 if (isPaidA !== isPaidB) return isPaidA ? 1 : -1;
                 return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
             });
-            setDebts(sorted);
+            setLoans(sorted as LoanItem[]);
         } catch (e) { console.error(e); } finally { setLoading(false); }
     };
 
@@ -135,7 +112,6 @@ export default function DebtsScreen() {
         setPayAmount(formatInputDisplay(text, currency));
     };
 
-
     const handleSave = async () => {
         const typedVal = parseInputToNumber(amount, currency);
         const val = convertToBase(typedVal, currency, rates);
@@ -145,45 +121,32 @@ export default function DebtsScreen() {
             return;
         }
 
-        let dateStr = '';
-        if (viewMode === 'fixed') {
-            const day = parseInt(selectedDay, 10);
-            if (isNaN(day) || day < 1 || day > 31) {
-                if (Platform.OS === 'web') window.alert('Día inválido (1-31)');
-                else Alert.alert('Error', 'Ingresa un día válido (1-31)');
-                return;
-            }
-            const today = new Date();
-            dateStr = new Date(today.getFullYear(), today.getMonth(), day).toISOString().split('T')[0];
-
-            if (day < today.getDate() && !isEditing) {
-                setPendingItem({ val, dateStr });
-                setConfirmMonthModal(true);
-                return;
-            }
-        } else {
-            dateStr = dueDate.toISOString().split('T')[0];
-        }
-
-        await executeSave(val, dateStr, 0);
-    };
-
-    const executeSave = async (val: number, dateStr: string, initialPaid: number) => {
+        const dateStr = dueDate.toISOString().split('T')[0];
+        
         try {
             if (isEditing && editId) {
                 await supabase.from('debts').update({ client: name.trim(), value: val, due_date: dateStr }).eq('id', editId);
             } else {
-                await supabase.from('debts').insert([{ user_id: user?.id, client: name.trim(), value: val, paid: initialPaid, due_date: dateStr, debt_type: viewMode, created_date: new Date().toISOString() }]);
+                await supabase.from('debts').insert([{ user_id: user?.id, client: name.trim(), value: val, paid: 0, due_date: dateStr, debt_type: 'loan', created_date: new Date().toISOString() }]);
+                // When lending money, create an expense transaction to deduct it from the account
+                await supabase.from('transactions').insert([{ 
+                    user_id: user?.id, 
+                    amount: val, 
+                    type: 'expense', 
+                    category: 'Préstamos', 
+                    description: `Préstamo a ${name.trim()}`, 
+                    account: selectedAccount, 
+                    date: new Date().toISOString() 
+                }]);
             }
-            setModalVisible(false); setConfirmMonthModal(false); setPendingItem(null); resetForm(); loadData();
+            setModalVisible(false); resetForm(); loadData();
         } catch (e) { console.error(e); }
     };
 
-    const resetForm = () => { setName(''); setAmount(''); setDueDate(new Date()); setSelectedDay(new Date().getDate().toString()); setIsEditing(false); setEditId(null); };
+    const resetForm = () => { setName(''); setAmount(''); setDueDate(new Date()); setIsEditing(false); setEditId(null); setSelectedAccount('Efectivo'); };
 
-    const handleEditStart = (item: DebtItem) => {
+    const handleEditStart = (item: LoanItem) => {
         setName(item.client);
-        // Use the currency-aware helper so the amount displays with the correct decimal/thousands format
         const displayVal = formatInputDisplay(
             String(convertCurrency(item.value, currency, rates)),
             currency
@@ -191,7 +154,6 @@ export default function DebtsScreen() {
         setAmount(displayVal);
         const d = new Date(item.due_date + 'T12:00:00');
         setDueDate(d);
-        setSelectedDay(d.getDate().toString());
         setEditId(item.id); setIsEditing(true); setModalVisible(true);
     };
 
@@ -204,36 +166,30 @@ export default function DebtsScreen() {
         Alert.alert('Eliminar', msg, [{ text: 'Cancelar' }, { text: 'Eliminar', style: 'destructive', onPress: async () => { await supabase.from('debts').delete().eq('id', id); loadData(); } }]);
     };
 
-    const handleSkipFixed = async (item: DebtItem) => {
-        const msg = `¿Quieres omitir el pago de "${item.client}" este mes? Se marcará como pagado pero NO se descontará de tus cuentas.`;
-        if (Platform.OS === 'web') {
-            if (window.confirm(msg)) { await supabase.from('debts').update({ paid: item.value }).eq('id', item.id); loadData(); }
-            return;
-        }
-        Alert.alert('Omitir Pago', msg, [
-            { text: 'Cancelar', style: 'cancel' },
-            { text: 'Omitir', onPress: async () => { await supabase.from('debts').update({ paid: item.value }).eq('id', item.id); loadData(); } }
-        ]);
-    };
-
     const handlePayment = async () => {
-        if (!selectedDebt) return;
-        const isFixed = selectedDebt.debt_type === 'fixed';
+        if (!selectedLoan) return;
         const typedPay = parseInputToNumber(payAmount, currency);
-        const pVal = isFixed ? selectedDebt.value : convertToBase(typedPay, currency, rates);
+        const pVal = convertToBase(typedPay, currency, rates);
         if (isNaN(pVal) || pVal <= 0) return;
-        const actualPay = isFixed ? pVal : Math.min(pVal, selectedDebt.value - selectedDebt.paid);
+        const actualPay = Math.min(pVal, selectedLoan.value - selectedLoan.paid);
         try {
-            await supabase.from('debts').update({ paid: selectedDebt.paid + actualPay }).eq('id', selectedDebt.id);
-            await supabase.from('transactions').insert([{ user_id: user?.id, amount: actualPay, type: 'expense', category: isFixed ? 'Gasto Fijo' : 'Deudas', description: isFixed ? `Pago: ${selectedDebt.client}` : `Abono: ${selectedDebt.client}`, account: selectedAccount, date: new Date().toISOString() }]);
-            setPayModalVisible(false); setPayAmount(''); setSelectedDebt(null); loadData();
+            await supabase.from('debts').update({ paid: selectedLoan.paid + actualPay }).eq('id', selectedLoan.id);
+            // When receiving an abono, create an income transaction to add it to the account
+            await supabase.from('transactions').insert([{ 
+                user_id: user?.id, 
+                amount: actualPay, 
+                type: 'income', 
+                category: 'Préstamos', 
+                description: `Abono de ${selectedLoan.client}`, 
+                account: selectedAccount, 
+                date: new Date().toISOString() 
+            }]);
+            setPayModalVisible(false); setPayAmount(''); setSelectedLoan(null); loadData();
         } catch (e) { console.error(e); }
     };
 
-    const currentList = debts.filter(d => d.debt_type === viewMode);
-    
-    const totalValue = currentList.reduce((s, d) => s + d.value, 0);
-    const totalPaid = currentList.reduce((s, d) => s + (d.paid || 0), 0);
+    const totalValue = loans.reduce((s, d) => s + d.value, 0);
+    const totalPaid = loans.reduce((s, d) => s + (d.paid || 0), 0);
     const progressPct = totalValue > 0 ? (totalPaid / totalValue) * 100 : 0;
 
     return (
@@ -243,24 +199,10 @@ export default function DebtsScreen() {
                 <TouchableOpacity onPress={() => router.back()} style={[styles.circleBtn, { backgroundColor: colors.card }]}>
                     <Ionicons name="arrow-back" size={24} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>
-                    {viewMode === 'debt' ? 'Deudas' : 'Gastos Fijos'}
-                </Text>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>Préstamos</Text>
                 <TouchableOpacity onPress={() => (resetForm(), setModalVisible(true))} style={[styles.circleBtn, { backgroundColor: colors.accent }]}>
                     <Ionicons name="add" size={26} color="#FFF" />
                 </TouchableOpacity>
-            </View>
-
-            {/* Selector de Modo */}
-            <View style={styles.selectorCont}>
-                <View style={[styles.selectorBg, { backgroundColor: colors.card }]}>
-                    <TouchableOpacity onPress={() => setViewMode('debt')} style={[styles.selBtn, viewMode === 'debt' && { backgroundColor: colors.accent }]}>
-                        <Text style={[styles.selTxt, { color: viewMode === 'debt' ? '#FFF' : colors.sub }]}>Deudas</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setViewMode('fixed')} style={[styles.selBtn, viewMode === 'fixed' && { backgroundColor: colors.accent }]}>
-                        <Text style={[styles.selTxt, { color: viewMode === 'fixed' ? '#FFF' : colors.sub }]}>Gastos Fijos</Text>
-                    </TouchableOpacity>
-                </View>
             </View>
 
             <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -268,7 +210,7 @@ export default function DebtsScreen() {
                 <View style={[styles.heroCard, { backgroundColor: colors.accent }]}>
                     <View style={styles.heroRow}>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.heroLab}>Total {viewMode === 'debt' ? 'Pendiente' : 'del Mes'}</Text>
+                            <Text style={styles.heroLab}>Total Prestado</Text>
                             <Text style={styles.heroVal}>{fmt(totalValue - totalPaid)}</Text>
                         </View>
                         <View style={styles.chartMini}>
@@ -282,20 +224,20 @@ export default function DebtsScreen() {
                         </View>
                     </View>
                     <View style={styles.heroFooter}>
-                        <Text style={styles.heroMsg}>Has cubierto {fmt(totalPaid)} hasta hoy. {totalValue > totalPaid && `Faltan ${fmt(totalValue - totalPaid)}`}</Text>
+                        <Text style={styles.heroMsg}>Te han devuelto {fmt(totalPaid)} hasta hoy. {totalValue > totalPaid && `Faltan ${fmt(totalValue - totalPaid)}`}</Text>
                     </View>
                 </View>
 
                 {/* Listado */}
                 {loading ? (
                     <ActivityIndicator color={colors.accent} style={{ marginTop: 40 }} />
-                ) : currentList.length === 0 ? (
+                ) : loans.length === 0 ? (
                     <View style={styles.empty}>
-                        <Ionicons name="leaf-outline" size={64} color={colors.sub + '40'} />
-                        <Text style={[styles.emptyTxt, { color: colors.sub }]}>Todo está en orden por aquí.</Text>
+                        <Ionicons name="hand-right-outline" size={64} color={colors.sub + '40'} />
+                        <Text style={[styles.emptyTxt, { color: colors.sub }]}>No tienes préstamos activos.</Text>
                     </View>
                 ) : (
-                    currentList.map(item => {
+                    loans.map(item => {
                         const isPaid = item.paid >= item.value;
                         const pct = (item.paid / item.value) * 100;
                         const date = new Date(item.due_date);
@@ -306,7 +248,7 @@ export default function DebtsScreen() {
                             <TouchableOpacity 
                                 key={item.id} 
                                 style={[styles.itemCard, { backgroundColor: colors.card }]}
-                                onPress={() => { setSelectedDebt(item); setPayModalVisible(true); }}
+                                onPress={() => { setSelectedLoan(item); setPayModalVisible(true); }}
                                 onLongPress={() => handleEditStart(item)}
                             >
                                 <View style={styles.cardInfo}>
@@ -333,15 +275,6 @@ export default function DebtsScreen() {
                                 </View>
 
                                 <View style={styles.cardActions}>
-                                    {!isPaid && viewMode === 'fixed' && (
-                                        <TouchableOpacity 
-                                            style={styles.skipBtn} 
-                                            onPress={() => handleSkipFixed(item)}
-                                        >
-                                            <Ionicons name="play-forward" size={14} color={colors.sub} />
-                                            <Text style={styles.skipTxt}>OMITIR</Text>
-                                        </TouchableOpacity>
-                                    )}
                                     <TouchableOpacity style={styles.miniBtn} onPress={() => handleEditStart(item)}>
                                         <Ionicons name="pencil" size={16} color={colors.sub} />
                                     </TouchableOpacity>
@@ -365,15 +298,15 @@ export default function DebtsScreen() {
                     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%' }}>
                         <View style={[styles.modalBox, { backgroundColor: colors.card }]}>
                             <View style={styles.mHeader}>
-                                <Text style={[styles.mTitle, { color: colors.text }]}>{isEditing ? 'Editar' : 'Nueva'} {viewMode === 'debt' ? 'Deuda' : 'Gasto'}</Text>
+                                <Text style={[styles.mTitle, { color: colors.text }]}>{isEditing ? 'Editar' : 'Nuevo'} Préstamo</Text>
                                 <TouchableOpacity onPress={() => setModalVisible(false)}>
                                     <Ionicons name="close" size={24} color={colors.sub} />
                                 </TouchableOpacity>
                             </View>
 
                             <View style={styles.mField}>
-                                <Text style={[styles.mLabel, { color: colors.sub }]}>NOMBRE</Text>
-                                <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} value={name} onChangeText={setName} placeholder="Ej. Arriendo, Crédito Bancolombia" placeholderTextColor={colors.sub + '60'} />
+                                <Text style={[styles.mLabel, { color: colors.sub }]}>NOMBRE A QUIEN LE PRESTAS</Text>
+                                <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} value={name} onChangeText={setName} placeholder="Ej. Juan Pérez" placeholderTextColor={colors.sub + '60'} />
                             </View>
 
                             <View style={styles.mField}>
@@ -381,53 +314,51 @@ export default function DebtsScreen() {
                                 <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} value={amount} onChangeText={handleAmountChange} placeholder="$ 0" placeholderTextColor={colors.sub + '60'} keyboardType="decimal-pad" />
                             </View>
 
-                             {viewMode === 'debt' ? (
-                                Platform.OS === 'web' ? (
-                                    <View style={styles.mField}>
-                                        <Text style={[styles.mLabel, { color: colors.sub }]}>FECHA LÍMITE</Text>
-                                        <View style={{ borderBottomWidth: 2, borderBottomColor: colors.border }}>
-                                            {React.createElement('input', {
-                                                type: 'date',
-                                                value: dueDate.toISOString().split('T')[0],
-                                                onChange: (e: any) => {
-                                                    const d = new Date(e.target.value + 'T12:00:00');
-                                                    if (!isNaN(d.getTime())) setDueDate(d);
-                                                },
-                                                style: {
-                                                    background: 'transparent',
-                                                    border: 'none',
-                                                    color: isDark ? '#F5F0E8' : '#2D2D2D',
-                                                    fontSize: '18px',
-                                                    fontWeight: '700',
-                                                    padding: '12px 0',
-                                                    width: '100%',
-                                                    outline: 'none',
-                                                    fontFamily: 'inherit',
-                                                }
-                                            })}
-                                        </View>
-                                    </View>
-                                ) : (
-                                    <TouchableOpacity style={styles.mField} onPress={() => setShowDatePicker(true)}>
-                                        <Text style={[styles.mLabel, { color: colors.sub }]}>FECHA LÍMITE</Text>
-                                        <View style={[styles.mInput, { borderBottomColor: colors.border, justifyContent: 'center' }]}>
-                                            <Text style={{ color: colors.text, fontSize: 16 }}>{dueDate.toLocaleDateString('es-CO')}</Text>
-                                        </View>
-                                    </TouchableOpacity>
-                                )
-                            ) : (
+                            {Platform.OS === 'web' ? (
                                 <View style={styles.mField}>
-                                    <Text style={[styles.mLabel, { color: colors.sub }]}>DÍA DE PAGO (1 - 31)</Text>
-                                    <TextInput 
-                                        style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
-                                        value={selectedDay} 
-                                        onChangeText={setSelectedDay}
-                                        placeholder="Ej. 15"
-                                        placeholderTextColor={colors.sub + '60'}
-                                        keyboardType="number-pad"
-                                        maxLength={2}
-                                    />
+                                    <Text style={[styles.mLabel, { color: colors.sub }]}>FECHA DE DEVOLUCIÓN ESPERADA</Text>
+                                    <View style={{ borderBottomWidth: 2, borderBottomColor: colors.border }}>
+                                        {React.createElement('input', {
+                                            type: 'date',
+                                            value: dueDate.toISOString().split('T')[0],
+                                            onChange: (e: any) => {
+                                                const d = new Date(e.target.value + 'T12:00:00');
+                                                if (!isNaN(d.getTime())) setDueDate(d);
+                                            },
+                                            style: {
+                                                background: 'transparent',
+                                                border: 'none',
+                                                color: isDark ? '#F5F0E8' : '#2D2D2D',
+                                                fontSize: '18px',
+                                                fontWeight: '700',
+                                                padding: '12px 0',
+                                                width: '100%',
+                                                outline: 'none',
+                                                fontFamily: 'inherit',
+                                            }
+                                        })}
+                                    </View>
                                 </View>
+                            ) : (
+                                <TouchableOpacity style={styles.mField} onPress={() => setShowDatePicker(true)}>
+                                    <Text style={[styles.mLabel, { color: colors.sub }]}>FECHA DE DEVOLUCIÓN ESPERADA</Text>
+                                    <View style={[styles.mInput, { borderBottomColor: colors.border, justifyContent: 'center' }]}>
+                                        <Text style={{ color: colors.text, fontSize: 16 }}>{dueDate.toLocaleDateString('es-CO')}</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            )}
+                            
+                            {!isEditing && (
+                                <>
+                                    <Text style={[styles.mLabel, { color: colors.sub, marginTop: 10, marginBottom: 8 }]}>CUENTA ORIGEN (de donde sale el dinero)</Text>
+                                    <View style={styles.accountRow}>
+                                        {accounts.map(acc => (
+                                            <TouchableOpacity key={acc} onPress={() => setSelectedAccount(acc)} style={[styles.accBtn, { borderColor: colors.border }, selectedAccount === acc && { backgroundColor: colors.accent, borderColor: colors.accent }]}>
+                                                <Text style={[styles.accTxt, { color: selectedAccount === acc ? '#FFF' : colors.sub }]}>{acc}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </>
                             )}
 
                             {Platform.OS === 'ios' && showDatePicker && (
@@ -458,62 +389,28 @@ export default function DebtsScreen() {
                             )}
 
                             <TouchableOpacity style={[styles.mBtnPrimary, { backgroundColor: colors.accent }]} onPress={handleSave}>
-                                <Text style={styles.mBtnText}>{isEditing ? 'Actualizar' : 'Registrar'}</Text>
+                                <Text style={styles.mBtnText}>{isEditing ? 'Actualizar' : 'Registrar Préstamo'}</Text>
                             </TouchableOpacity>
                         </View>
                     </KeyboardAvoidingView>
                 </View>
             </Modal>
 
-            {/* Modal Confirmación Mes Inicia (Gasto Fijo) */}
-            <Modal visible={confirmMonthModal} animationType="fade" transparent>
-                <View style={[styles.overlayCenter, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
-                    <View style={[styles.miniModal, { backgroundColor: colors.card, paddingVertical: 32 }]}>
-                        <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: colors.accent + '20', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
-                            <Ionicons name="calendar" size={32} color={colors.accent} />
-                        </View>
-                        <Text style={[styles.miniTitle, { color: colors.text, marginBottom: 8 }]}>¿Cuándo inicia este gasto?</Text>
-                        <Text style={[styles.miniSub, { color: colors.sub, marginBottom: 32, paddingHorizontal: 10 }]}>El día elegido ya pasó este mes. ¿Deseas que empiece ahora o el próximo mes?</Text>
-                        
-                        <View style={styles.miniActions}>
-                            <TouchableOpacity 
-                                style={[styles.mBtnB, { backgroundColor: colors.bg, height: 56 }]} 
-                                onPress={() => executeSave(pendingItem?.val || 0, pendingItem?.dateStr || '', 0)}
-                            >
-                                <Text style={{ color: colors.text, fontWeight: '800' }}>Este Mes</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={[styles.mBtnB, { backgroundColor: colors.accent, height: 56 }]} 
-                                onPress={() => executeSave(pendingItem?.val || 0, pendingItem?.dateStr || '', pendingItem?.val || 0)}
-                            >
-                                <Text style={{ color: '#FFF', fontWeight: '800' }}>Próximo Mes</Text>
-                            </TouchableOpacity>
-                        </View>
-                        <TouchableOpacity style={{ marginTop: 20 }} onPress={() => setConfirmMonthModal(false)}>
-                            <Text style={{ color: colors.sub, fontWeight: '700', fontSize: 13 }}>Cancelar registro</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
-
-
-
-            {/* Modal Pago */}
+            {/* Modal Pago (Abono a Préstamo) */}
             <Modal visible={payModalVisible} animationType="fade" transparent>
                 <View style={styles.overlayCenter}>
                     <View style={[styles.miniModal, { backgroundColor: colors.card }]}>
-                        <Text style={[styles.miniTitle, { color: colors.text }]}>{selectedDebt?.client}</Text>
-                        <Text style={[styles.miniSub, { color: colors.sub }]}>Pendiente: {fmt(selectedDebt ? selectedDebt.value - selectedDebt.paid : 0)}</Text>
+                        <Text style={[styles.miniTitle, { color: colors.text }]}>{selectedLoan?.client}</Text>
+                        <Text style={[styles.miniSub, { color: colors.sub }]}>Pendiente por devolver: {fmt(selectedLoan ? selectedLoan.value - selectedLoan.paid : 0)}</Text>
                         
-                        {selectedDebt?.debt_type === 'debt' && (
-                            <TextInput 
-                                style={[styles.miniInput, { color: colors.text, borderBottomColor: colors.border }]}
-                                value={payAmount} onChangeText={handlePayAmountChange}
-                                placeholder="Monto a pagar" placeholderTextColor={colors.sub + '40'}
-                                keyboardType="decimal-pad" autoFocus
-                            />
-                        )}
+                        <TextInput 
+                            style={[styles.miniInput, { color: colors.text, borderBottomColor: colors.border }]}
+                            value={payAmount} onChangeText={handlePayAmountChange}
+                            placeholder="Monto del abono" placeholderTextColor={colors.sub + '40'}
+                            keyboardType="decimal-pad" autoFocus
+                        />
 
+                        <Text style={[styles.mLabel, { color: colors.sub, marginBottom: 8, marginTop: 10 }]}>CUENTA DESTINO (a donde ingresa el abono)</Text>
                         <View style={styles.accountRow}>
                             {accounts.map(acc => (
                                 <TouchableOpacity key={acc} onPress={() => setSelectedAccount(acc)} style={[styles.accBtn, { borderColor: colors.border }, selectedAccount === acc && { backgroundColor: colors.accent, borderColor: colors.accent }]}>
@@ -527,7 +424,7 @@ export default function DebtsScreen() {
                                 <Text style={{ color: colors.text, fontWeight: '800' }}>Cerrar</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={[styles.mBtnB, { backgroundColor: colors.accent }]} onPress={handlePayment}>
-                                <Text style={{ color: '#FFF', fontWeight: '800' }}>Confirmar</Text>
+                                <Text style={{ color: '#FFF', fontWeight: '800' }}>Confirmar Abono</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -542,11 +439,6 @@ const styles = StyleSheet.create({
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: Platform.OS === 'android' ? 50 : 20, marginBottom: 20 },
     headerTitle: { fontSize: 22, fontWeight: '900' },
     circleBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-
-    selectorCont: { paddingHorizontal: 24, marginBottom: 24 },
-    selectorBg: { flexDirection: 'row', borderRadius: 20, padding: 6 },
-    selBtn: { flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center' },
-    selTxt: { fontSize: 14, fontWeight: '800' },
 
     scroll: { paddingHorizontal: 24, paddingBottom: 150 },
     heroCard: { borderRadius: 32, padding: 24, marginBottom: 24, elevation: 6, shadowColor: '#3A3A5230', shadowOpacity: 0.2, shadowRadius: 15 },
@@ -576,8 +468,6 @@ const styles = StyleSheet.create({
     pBarFill: { height: '100%', borderRadius: 4 },
     cardActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 12, alignItems: 'center' },
     miniBtn: { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.03)', justifyContent: 'center', alignItems: 'center' },
-    skipBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.03)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-    skipTxt: { fontSize: 10, fontWeight: '900', color: '#8B8680' },
 
     // Modales
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
@@ -595,7 +485,7 @@ const styles = StyleSheet.create({
     miniTitle: { fontSize: 20, fontWeight: '900', textAlign: 'center' },
     miniSub: { fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 4, marginBottom: 20 },
     miniInput: { fontSize: 24, fontWeight: '900', textAlign: 'center', paddingVertical: 12, borderBottomWidth: 2, marginBottom: 20 },
-    accountRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginBottom: 24 },
+    accountRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginBottom: 12 },
     accBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1.5 },
     accTxt: { fontSize: 12, fontWeight: '800' },
     miniActions: { flexDirection: 'row', gap: 12 },

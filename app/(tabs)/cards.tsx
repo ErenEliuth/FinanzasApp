@@ -352,7 +352,7 @@ export default function CardsScreen() {
                 </View>
             ) : null}
 
-            <View style={styles.scroll}>
+            <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 150 }]} showsVerticalScrollIndicator={false}>
                 {currentCard ? (
                     <View style={{ gap: 24 }}>
                         {/* Dashboard Compacto */}
@@ -460,8 +460,7 @@ export default function CardsScreen() {
                         <Text style={[styles.emptyTxt, { color: colorsNav.sub }]}>Agrega una tarjeta para comenzar</Text>
                     </View>
                 )}
-                <View style={{ height: 100 }} />
-            </View>
+            </ScrollView>
 
             <Modal visible={addModalVisible} transparent animationType="fade">
                 <TouchableWithoutFeedback onPress={() => setAddModalVisible(false)}>

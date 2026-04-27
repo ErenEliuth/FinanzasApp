@@ -79,6 +79,7 @@ export default function HomeScreen() {
   const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
 
   const [debtTotal, setDebtTotal] = useState(0);
+  const [loansTotal, setLoansTotal] = useState(0);
   const [accountTotals, setAccountTotals] = useState<any>({});
   const [breakdownVisible, setBreakdownVisible] = useState(false);
   const [activeMoneyBreakdownVisible, setActiveMoneyBreakdownVisible] = useState(false);
@@ -241,7 +242,11 @@ export default function HomeScreen() {
 
       if (debtError) throw debtError;
 
-      const remainingDebts = allDebts?.filter(d => Number(d.paid || 0) < Number(d.value)) || [];
+      const remainingDebts = allDebts?.filter(d => d.debt_type !== 'loan' && Number(d.paid || 0) < Number(d.value)) || [];
+      const userLoans = allDebts?.filter(d => d.debt_type === 'loan' && Number(d.paid || 0) < Number(d.value)) || [];
+      
+      const calcLoans = userLoans.reduce((sum, d) => sum + (Number(d.value) - Number(d.paid || 0)), 0);
+      setLoansTotal(calcLoans);
 
       // Calcular Deuda de Tarjetas (Solo Obligación Mensual Facturada en el mes actual)
       let cardObligations = 0;
@@ -637,6 +642,14 @@ export default function HomeScreen() {
                   <Text style={styles.statLabelRefined}>INVERSIONES</Text>
                   <Text style={[styles.statValueRefined, { color: colorsNav.text }]}>{fmt(investmentTotal)}</Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity style={[styles.statBoxRefined, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/(tabs)/loans')}>
+                  <View style={[styles.statIconWrapRefined, { backgroundColor: '#FFF3E0' }]}>
+                    <MaterialIcons name="handshake" size={20} color="#FF9800" />
+                  </View>
+                  <Text style={styles.statLabelRefined}>PRÉSTAMOS</Text>
+                  <Text style={[styles.statValueRefined, { color: colorsNav.text }]}>{fmt(loansTotal)}</Text>
+                </TouchableOpacity>
               </View>
             ) : (
               /* Mobile: 2 cols (Ahorros + Deudas) + full-width Inversiones */
@@ -670,6 +683,22 @@ export default function HomeScreen() {
                     <View>
                       <Text style={[styles.statLabelRefined, { fontSize: 9, letterSpacing: 0.5, marginBottom: 2 }]}>INVERSIONES</Text>
                       <Text style={[styles.mobileStatValue, { color: colorsNav.text, fontSize: 16, marginTop: 0 }]}>{fmt(investmentTotal)}</Text>
+                    </View>
+                  </View>
+                  <MaterialIcons name="chevron-right" size={20} color={colorsNav.sub} />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.mobileInvestRow, { backgroundColor: isDark ? colorsNav.card : '#FFF', marginTop: 10 }]} 
+                  onPress={() => router.push('/(tabs)/loans')}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={[styles.statIconWrapRefined, { backgroundColor: '#FFF3E0', borderRadius: 10, width: 32, height: 32, marginBottom: 0 }]}>
+                      <MaterialIcons name="handshake" size={18} color="#FF9800" />
+                    </View>
+                    <View>
+                      <Text style={[styles.statLabelRefined, { fontSize: 9, letterSpacing: 0.5, marginBottom: 2 }]}>PRÉSTAMOS</Text>
+                      <Text style={[styles.mobileStatValue, { color: colorsNav.text, fontSize: 16, marginTop: 0 }]}>{fmt(loansTotal)}</Text>
                     </View>
                   </View>
                   <MaterialIcons name="chevron-right" size={20} color={colorsNav.sub} />

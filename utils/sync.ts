@@ -21,6 +21,7 @@ export const SYNC_KEYS = {
     REMINDER_PROMPT_DISMISSED: (uid: string) => `@dismissed_reminder_prompt_${uid}`,
     ONBOARDING_DONE: (uid: string) => `@onboarding_done_${uid}`,
     CHANGELOG_SEEN: (uid: string) => `@last_seen_changelog_${uid}`,
+    GOALS_INTEREST: (uid: string) => `@goals_interest_${uid}`,
 };
 
 const OLD_KEYS = {
@@ -77,7 +78,7 @@ export async function syncUp(userId: string) {
             smartSavings, theme, currency, hiddenMode, 
             reminders, tutorialSeen, lock,
             invDivs, invSync, invPerf, invAlloc, notifs,
-            remPrompt, onboarding, changelog
+            remPrompt, onboarding, changelog, goalsInterest
         ] = await Promise.all([
             AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(userId)),
             AsyncStorage.getItem(SYNC_KEYS.CATEGORIES(userId)),
@@ -98,6 +99,7 @@ export async function syncUp(userId: string) {
             AsyncStorage.getItem(SYNC_KEYS.REMINDER_PROMPT_DISMISSED(userId)),
             AsyncStorage.getItem(SYNC_KEYS.ONBOARDING_DONE(userId)),
             AsyncStorage.getItem(SYNC_KEYS.CHANGELOG_SEEN(userId)),
+            AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(userId)),
         ]);
 
         const data = {
@@ -122,6 +124,7 @@ export async function syncUp(userId: string) {
             reminder_prompt_dismissed: remPrompt === 'true',
             onboarding_done: onboarding === 'true',
             changelog_seen: changelog,
+            goals_interest: goalsInterest ? JSON.parse(goalsInterest) : null,
             updated_at: new Date().toISOString(),
         };
 
