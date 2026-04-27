@@ -575,7 +575,7 @@ export default function HomeScreen() {
           {/* LADO IZQUIERDO: CONTENIDO PRINCIPAL (70%) */}
           <View style={isDesktop ? styles.desktopMainCol : undefined}>
             
-            <View style={{ marginBottom: isDesktop ? 25 : 4 }}>
+            <View style={{ marginBottom: isDesktop ? 25 : 6 }}>
                <Text style={[styles.greeting, { color: colorsNav.text }]}>Hola, {displayName.split(' ')[0]} 👋</Text>
                <Text style={[styles.subtitle, { color: colorsNav.sub }]}>Tu resumen financiero hoy</Text>
             </View>
@@ -592,7 +592,7 @@ export default function HomeScreen() {
               <View style={styles.heroHeader}>
                 <Text style={[styles.heroLabel, !isDesktop && { textTransform: 'uppercase', fontSize: 11, fontWeight: '900', color: 'rgba(255,255,255,0.8)', letterSpacing: 1.2 }]}>Dinero Activo</Text>
               </View>
-              <Text style={[styles.heroAmount, !isDesktop && { fontSize: 38, marginTop: 4 }]}>{fmt(dineroActivo)}</Text>
+              <Text style={[styles.heroAmount, !isDesktop && { fontSize: 42, marginTop: 6 }]}>{fmt(dineroActivo)}</Text>
               
               {!isDesktop && (
                 <View style={styles.mobileTrendContainer}>
@@ -653,24 +653,24 @@ export default function HomeScreen() {
               </View>
             ) : (
               /* Mobile: 2x2 compact horizontal cards */
-              <View style={{ marginBottom: 6 }}>
+              <View style={{ marginBottom: 10 }}>
                 <View style={styles.mobileStatsRow}>
                   <TouchableOpacity style={[styles.mobileStatBox, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/goals')}>
                     <View style={[styles.compactStatIcon, { backgroundColor: '#E8F5E9' }]}>
-                      <MaterialIcons name="savings" size={14} color="#2D5A3D" />
+                      <MaterialIcons name="savings" size={18} color="#2D5A3D" />
                     </View>
                     <View style={styles.compactStatText}>
-                      <Text style={[styles.statLabelRefined, { fontSize: 8, marginBottom: 1 }]}>AHORROS</Text>
+                      <Text style={[styles.statLabelRefined, { fontSize: 9, marginBottom: 2 }]}>AHORROS</Text>
                       <Text style={[styles.mobileStatValue, { color: colorsNav.text }]}>{fmt(ahorroTotal)}</Text>
                     </View>
                   </TouchableOpacity>
 
                   <TouchableOpacity style={[styles.mobileStatBox, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/(tabs)/debts')}>
                     <View style={[styles.compactStatIcon, { backgroundColor: '#FFEBEE' }]}>
-                      <MaterialIcons name="credit-card" size={14} color="#D32F2F" />
+                      <MaterialIcons name="credit-card" size={18} color="#D32F2F" />
                     </View>
                     <View style={styles.compactStatText}>
-                      <Text style={[styles.statLabelRefined, { fontSize: 8, marginBottom: 1 }]}>DEUDAS</Text>
+                      <Text style={[styles.statLabelRefined, { fontSize: 9, marginBottom: 2 }]}>DEUDAS</Text>
                       <Text style={[styles.mobileStatValue, { color: '#D32F2F' }]}>{fmt(debtTotal)}</Text>
                     </View>
                   </TouchableOpacity>
@@ -679,20 +679,20 @@ export default function HomeScreen() {
                 <View style={[styles.mobileStatsRow, { marginTop: 8 }]}>
                   <TouchableOpacity style={[styles.mobileStatBox, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/invest' as any)}>
                     <View style={[styles.compactStatIcon, { backgroundColor: '#E3F2FD' }]}>
-                      <MaterialIcons name="show-chart" size={14} color="#1976D2" />
+                      <MaterialIcons name="show-chart" size={18} color="#1976D2" />
                     </View>
                     <View style={styles.compactStatText}>
-                      <Text style={[styles.statLabelRefined, { fontSize: 8, marginBottom: 1 }]}>INVERSIONES</Text>
+                      <Text style={[styles.statLabelRefined, { fontSize: 9, marginBottom: 2 }]}>INVERSIONES</Text>
                       <Text style={[styles.mobileStatValue, { color: colorsNav.text }]}>{fmt(investmentTotal)}</Text>
                     </View>
                   </TouchableOpacity>
 
                   <TouchableOpacity style={[styles.mobileStatBox, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/(tabs)/loans')}>
                     <View style={[styles.compactStatIcon, { backgroundColor: '#FFF3E0' }]}>
-                      <MaterialIcons name="handshake" size={14} color="#FF9800" />
+                      <MaterialIcons name="handshake" size={18} color="#FF9800" />
                     </View>
                     <View style={styles.compactStatText}>
-                      <Text style={[styles.statLabelRefined, { fontSize: 8, marginBottom: 1 }]}>PRÉSTAMOS</Text>
+                      <Text style={[styles.statLabelRefined, { fontSize: 9, marginBottom: 2 }]}>PRÉSTAMOS</Text>
                       <Text style={[styles.mobileStatValue, { color: colorsNav.text }]}>{fmt(loansTotal)}</Text>
                     </View>
                   </TouchableOpacity>
@@ -705,14 +705,14 @@ export default function HomeScreen() {
               styles.mobileHealthCard,
               { backgroundColor: isDark ? colorsNav.card : '#FFF' }
             ]}>
-              <Text style={{ fontSize: 15, fontWeight: '900', color: colorsNav.text, marginBottom: 10 }}>Salud Financiera</Text>
+              <Text style={{ fontSize: 17, fontWeight: '900', color: colorsNav.text, marginBottom: 14 }}>Salud Financiera</Text>
               
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, width: '100%' }}>
                 <View style={styles.mobileHealthCenter}>
-                  <CircularProgress percentage={saludPorcentaje} size={66} strokeWidth={8} color={saludColor} />
+                  <CircularProgress percentage={saludPorcentaje} size={80} strokeWidth={9} color={saludColor} />
                   <View style={styles.healthInnerRefined}>
-                    <Text style={[styles.healthScoreRefined, { color: saludColor, fontSize: 16 }]}>{saludPorcentaje}%</Text>
-                    <Text style={[styles.healthSuffixRefined, { color: saludColor, fontSize: 7 }]}>{saludLabel}</Text>
+                    <Text style={[styles.healthScoreRefined, { color: saludColor, fontSize: 18 }]}>{saludPorcentaje}%</Text>
+                    <Text style={[styles.healthSuffixRefined, { color: saludColor, fontSize: 8 }]}>{saludLabel}</Text>
                   </View>
                 </View>
                 <View style={styles.mobileHealthDetails}>
@@ -788,63 +788,8 @@ export default function HomeScreen() {
                 </View>
               )}
 
-            {/* ── Últimas Transacciones (7) ─── */}
-            <View style={{ marginTop: 10, paddingBottom: 120 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <Text style={{ fontSize: 18, fontWeight: '900', color: colorsNav.text }}>Últimas Transacciones</Text>
-                <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
-                  <Text style={{ color: '#EF4444', fontWeight: '700', fontSize: 12 }}>Ver todas</Text>
-                </TouchableOpacity>
-              </View>
-              
-              {allTransactions.slice(0, 7).map((tx, idx) => {
-                if (!tx) return null;
-                const iconInfo = getTxIconInfo(tx);
-                const isExpense = tx.type === 'expense';
-                return (
-                  <View key={tx.id || idx} style={{ 
-                    backgroundColor: isDark ? colorsNav.card : '#FFF',
-                    flexDirection: 'row', 
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: 16,
-                    borderRadius: 24,
-                    marginBottom: 10,
-                    shadowColor: '#000',
-                    shadowOpacity: 0.04,
-                    shadowRadius: 10,
-                    elevation: 2
-                  }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                      <View style={{ 
-                        backgroundColor: isDark ? colorsNav.cardBg : iconInfo.bg, 
-                        width: 44, 
-                        height: 44, 
-                        borderRadius: 14, 
-                        justifyContent: 'center', 
-                        alignItems: 'center' 
-                      }}>
-                        <MaterialIcons name={iconInfo.icon as any} size={20} color={iconInfo.color} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontWeight: '900', fontSize: 15, color: colorsNav.text }} numberOfLines={1}>
-                          {tx.description === 'Sin descripción' || !tx.description ? tx.category : tx.description}
-                        </Text>
-                        <Text style={{ fontSize: 10, color: colorsNav.sub, fontWeight: '700', marginTop: 2 }}>HOY</Text>
-                      </View>
-                    </View>
-                    <Text style={{ 
-                      fontWeight: '900', 
-                      fontSize: 15, 
-                      color: isExpense ? colorsNav.text : colorsNav.accent,
-                      textAlign: 'right',
-                    }}>
-                      {isExpense ? '-' : '+'}{fmt(tx.amount)}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
+            {/* Spacer for bottom nav */}
+            {!isDesktop && <View style={{ height: 100 }} />}
           </View>
 
           {/* LADO DERECHO: BARRA LATERAL (30%) - Solo Desktop */}
@@ -1092,11 +1037,11 @@ const styles = StyleSheet.create({
   },
   mainHeroCardMobile: {
     width: '100%',
-    borderRadius: 28,
-    padding: 20,
-    height: 135, 
+    borderRadius: 30,
+    padding: 24,
+    height: 155, 
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 14,
     shadowColor: '#000',
     shadowOpacity: 0.12,
     shadowRadius: 12,
@@ -1190,8 +1135,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mobileHealthCard: {
-    padding: 14,
-    borderRadius: 22,
+    padding: 20,
+    borderRadius: 26,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOpacity: 0.04,
@@ -1202,8 +1147,8 @@ const styles = StyleSheet.create({
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
-    width: 66,
-    height: 66,
+    width: 80,
+    height: 80,
   },
   mobileHealthDetails: {
     flex: 1,
@@ -1217,9 +1162,9 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   mobileHealthAmount: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '900',
-    marginBottom: 8,
+    marginBottom: 12,
     letterSpacing: -0.5,
   },
   mobileHealthBtn: {
@@ -1243,26 +1188,26 @@ const styles = StyleSheet.create({
   },
   mobileStatsRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
     marginBottom: 0,
   },
   mobileStatBox: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    height: 58,
-    borderRadius: 18,
+    padding: 14,
+    height: 68,
+    borderRadius: 20,
     shadowColor: '#000',
     shadowOpacity: 0.04,
     shadowRadius: 10,
     elevation: 2,
-    gap: 10,
+    gap: 12,
   },
   compactStatIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1270,7 +1215,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mobileStatValue: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '900',
   },
   mobileInvestRow: {
