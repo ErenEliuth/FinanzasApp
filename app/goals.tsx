@@ -113,7 +113,8 @@ export default function GoalsScreen() {
                         const daysDiff = Math.floor((new Date(today).getTime() - new Date(lastUpdated).getTime()) / (1000 * 60 * 60 * 24));
                         if (daysDiff > 0 && goal.current_amount > 0) {
                             const dailyRate = (info.rate / 100) / 365;
-                            const interest = goal.current_amount * dailyRate * daysDiff;
+                            const newAmount = goal.current_amount * Math.pow(1 + dailyRate, daysDiff);
+                            const interest = newAmount - goal.current_amount;
                             if (interest > 0) {
                                 await supabase.from('goals').update({ current_amount: goal.current_amount + interest }).eq('id', goal.id);
                                 await supabase.from('transactions').insert([{
@@ -328,56 +329,18 @@ export default function GoalsScreen() {
                     <View style={[styles.progressBar, { backgroundColor: colors.bg }]}>
                         <View style={[styles.progressFill, { width: `${Math.min(100, (assignedAhorro / (totalAhorro || 1)) * 100)}%`, backgroundColor: colors.accent }]} />
                     </View>
-                    <View style={[styles.summaryFooter, { borderTopWidth: 1, borderTopColor: colors.bg + '50', paddingTop: 20, marginTop: 20, flexDirection: 'column', gap: 16 }]}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
-                            <View>
-                                <Text style={[styles.footerLab, { color: colors.sub }]}>Asignado</Text>
-                                <Text style={[styles.footerVal, { color: colors.text }]}>{fmt(assignedAhorro)}</Text>
-                            </View>
-                            <View style={{ alignItems: 'flex-end' }}>
-                                <Text style={[styles.footerLab, { color: colors.sub }]}>Disponible</Text>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                    <Text style={[styles.footerVal, { color: '#10B981', fontWeight: '900' }]}>{fmt(availableAhorro)}</Text>
-                                    {availableAhorro > 0 && (
-                                        <TouchableOpacity 
-                                            style={[styles.distBtn, { backgroundColor: colors.accent }, isProcessing && { opacity: 0.6 }]} 
-                                            onPress={handleDistributeSavings}
-                                            disabled={isProcessing}
-                                        >
-                                            <Text style={styles.distBtnText}>{isProcessing ? 'Procesando...' : 'Distribuir'}</Text>
-                                        </TouchableOpacity>
-                                    )}
-                                </View>
-                            </View>
-                        </View>
-                        
-                        <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
-                            <TouchableOpacity 
-                                style={[styles.actionBtn, { backgroundColor: colors.accent }]} 
-                                onPress={() => openSelector('pay')}
-                            >
-                                <Ionicons name="add-circle" size={20} color="#FFF" />
-                                <Text style={styles.actionBtnTxt}>Asignar</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={[styles.actionBtn, { backgroundColor: colors.bg }]} 
-                                onPress={() => openSelector('withdraw')}
-                            >
-                                <Ionicons name="remove-circle" size={20} color={colors.text} />
-                                <Text style={[styles.actionBtnTxt, { color: colors.text }]}>Retirar</Text>
-                            </TouchableOpacity>
                         </View>
                     </View>
                 </View>
 
-                {/* TAB SELECTOR - Moved here below summary */}
+                {/* TAB SELECTOR */}
                 <View style={{ paddingHorizontal: 0, marginBottom: 24, marginTop: 8 }}>
                     <View style={{ flexDirection: 'row', borderRadius: 20, padding: 6, backgroundColor: colors.card }}>
                         <TouchableOpacity onPress={() => setActiveTab('metas')} style={{ flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center', backgroundColor: activeTab === 'metas' ? colors.accent : 'transparent' }}>
                             <Text style={{ fontSize: 14, fontWeight: '800', color: activeTab === 'metas' ? '#FFF' : colors.sub }}>Metas de Ahorro</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setActiveTab('cajitas')} style={{ flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center', backgroundColor: activeTab === 'cajitas' ? colors.accent : 'transparent' }}>
-                            <Text style={{ fontSize: 14, fontWeight: '800', color: activeTab === 'cajitas' ? '#FFF' : colors.sub }}>Cajitas (Rendimientos)</Text>
+                            <Text style={{ fontSize: 14, fontWeight: '800', color: activeTab === 'cajitas' ? '#FFF' : colors.sub }}>Cajitas</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -403,39 +366,46 @@ export default function GoalsScreen() {
                                 onLongPress={() => handleDelete(goal)}
                                 activeOpacity={0.9}
                             >
-                                <View style={[styles.goalImgCont, { height: 80 }]}>
-                                    <View style={[styles.goalImgPlaceholder, { backgroundColor: colors.bg }]}>
-                                        <Ionicons name={activeTab === 'metas' ? "golf-outline" : "cube-outline"} size={32} color={colors.accent + '60'} />
-                                    </View>
+                                <View style={styles.goalImgCont}>
+                                    {goal.image_uri ? (
+                                        <Image source={{ uri: goal.image_uri }} style={styles.goalImg} />
+                                    ) : (
+                                        <View style={[styles.goalImgPlaceholder, { backgroundColor: colors.bg }]}>
+                                            <Ionicons name={activeTab === 'metas' ? "golf-outline" : "cube-outline"} size={32} color={colors.accent + '60'} />
+                                        </View>
+                                    )}
                                     {isDone && (
                                         <View style={styles.medal}>
                                             <MaterialIcons name="emoji-events" size={16} color="#FFF" />
                                             <Text style={styles.medalTxt}>¡Logrado!</Text>
-                                        </View>
-                                    )}
                                     <TouchableOpacity style={styles.delBtn} onPress={() => handleDelete(goal)}>
                                         <Ionicons name="trash-outline" size={18} color="#EF4444" />
                                     </TouchableOpacity>
                                 </View>
 
-                                
                                 <View style={styles.goalBody}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 }}>
-                                        <Text style={[styles.goalName, { color: colors.text }]}>{goal.name}</Text>
-                                        {goal.priority && (
-                                            <View style={[styles.prioBadge, { backgroundColor: goal.priority === 'high' ? '#EF444420' : goal.priority === 'medium' ? '#F59E0B20' : '#8B868020' }]}>
-                                                <Text style={[styles.prioBadgeText, { color: goal.priority === 'high' ? '#EF4444' : goal.priority === 'medium' ? '#D97706' : '#8B8680' }]}>
-                                                    {goal.priority.toUpperCase()}
+                                        <Text style={[styles.goalName, { color: colors.text, marginBottom: 0, flex: 1 }]} numberOfLines={1}>
+                                            {goal.name}
+                                        </Text>
+                                        {activeTab === 'metas' && (
+                                            <View style={[styles.prioBadge, { backgroundColor: goal.priority === 'high' ? '#EF444420' : goal.priority === 'medium' ? '#F59E0B20' : '#10B98120' }]}>
+                                                <Text style={[styles.prioBadgeText, { color: goal.priority === 'high' ? '#EF4444' : goal.priority === 'medium' ? '#F59E0B' : '#10B981' }]}>
+                                                    {goal.priority === 'high' ? 'ALTA' : goal.priority === 'medium' ? 'MEDIA' : 'BAJA'}
                                                 </Text>
                                             </View>
                                         )}
                                     </View>
-                                    <View style={styles.goalStats}>
-                                        <View style={styles.goalProgressBg}>
-                                            <View style={[styles.goalProgressFill, { width: `${pct}%`, backgroundColor: isDone ? '#10B981' : colors.accent }]} />
+                                    
+                                    {activeTab === 'metas' && (
+                                        <View style={styles.goalStats}>
+                                            <View style={styles.goalProgressBg}>
+                                                <View style={[styles.goalProgressFill, { width: `${pct}%`, backgroundColor: colors.accent }]} />
+                                            </View>
+                                            <Text style={[styles.goalPct, { color: colors.accent }]}>{Math.round(pct)}%</Text>
                                         </View>
-                                        <Text style={[styles.goalPct, { color: isDone ? '#10B981' : colors.sub }]}>{pct.toFixed(0)}%</Text>
-                                    </View>
+                                    )}
+
                                     <View style={styles.goalAmounts}>
                                         <View>
                                             <Text style={[styles.amtLabel, { color: colors.sub }]}>Valor Asignado</Text>
@@ -448,7 +418,7 @@ export default function GoalsScreen() {
                                             </Text>
                                         </View>
                                     </View>
-                                </View>
+                              </View>
                             </TouchableOpacity>
                         );
                     })
@@ -469,7 +439,16 @@ export default function GoalsScreen() {
                                     <Ionicons name="close" size={24} color={colors.sub} />
                                 </TouchableOpacity>
                             </View>
-                            
+                            {activeTab === 'metas' && (
+                                <TouchableOpacity style={[styles.imgPick, { backgroundColor: colors.bg }]} onPress={pickImage}>
+                                    {newGoalImage ? <Image source={{ uri: newGoalImage }} style={styles.imgPrev} /> : (
+                                        <View style={{ alignItems: 'center' }}>
+                                            <Ionicons name="camera" size={32} color={colors.accent} />
+                                            <Text style={{ color: colors.sub, fontSize: 12, marginTop: 8 }}>Elegir foto inspiradora</Text>
+                                        </View>
+                                    )}
+                                </TouchableOpacity>
+                            )}
 
 
                             <View style={styles.mInputCont}>
@@ -601,6 +580,29 @@ export default function GoalsScreen() {
                     </View>
                 </View>
             </Modal>
+            </Modal>
+
+            {/* BARRA DE ACCIONES FLOTANTE */}
+            <View style={{ position: 'absolute', bottom: 30, left: 20, right: 20, flexDirection: 'row', gap: 12, backgroundColor: colors.card, padding: 12, borderRadius: 24, elevation: 12, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12 }}>
+                <TouchableOpacity 
+                    style={[styles.actionBtn, { backgroundColor: colors.accent, height: 56 }]} 
+                    onPress={() => openSelector('pay')}
+                >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Ionicons name="add-circle" size={24} color="#FFF" />
+                        <Text style={[styles.actionBtnTxt, { fontSize: 16 }]}>Asignar</Text>
+                    </View>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={[styles.actionBtn, { backgroundColor: colors.bg, height: 56, borderWidth: 1, borderColor: colors.border }]} 
+                    onPress={() => openSelector('withdraw')}
+                >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Ionicons name="remove-circle" size={24} color={colors.text} />
+                        <Text style={[styles.actionBtnTxt, { color: colors.text, fontSize: 16 }]}>Retirar</Text>
+                    </View>
+                </TouchableOpacity>
+            </View>
         </SafeAreaView>
     );
 }
@@ -628,7 +630,8 @@ const styles = StyleSheet.create({
     emptySub: { fontSize: 14, textAlign: 'center', lineHeight: 22, opacity: 0.8 },
 
     goalCard: { borderRadius: 32, marginBottom: 24, overflow: 'hidden', elevation: 5, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 20 },
-    goalImgCont: { width: '100%', height: 80 },
+    goalImgCont: { width: '100%', height: 160 },
+    goalImg: { width: '100%', height: '100%' },
     goalImgPlaceholder: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' },
     medal: { position: 'absolute', top: 16, left: 16, backgroundColor: '#10B981', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 },
     medalTxt: { color: '#FFF', fontSize: 11, fontWeight: '800' },
