@@ -97,7 +97,7 @@ export default function HomeScreen() {
       loadData();
       checkChangelog();
       checkReminderPrompt();
-      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      // Layout is fixed, no scroll needed
     }
   }, [isFocused]);
 
@@ -494,13 +494,11 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colorsNav.bg }]}>
-      <ScrollView 
-        ref={scrollRef}
-        contentContainerStyle={[
-          styles.scrollContent,
+      <View 
+        style={[
+          styles.fixedContent,
           isDesktop && styles.desktopScrollContainer
-        ]} 
-        showsVerticalScrollIndicator={false}
+        ]}
       >
 
         {/* ── Header Sanctuary ─────────────────────────────────────── */}
@@ -577,7 +575,7 @@ export default function HomeScreen() {
             
             <View style={{ marginBottom: isDesktop ? 25 : 6 }}>
                <Text style={[styles.greeting, { color: colorsNav.text }]}>Hola, {displayName.split(' ')[0]} 👋</Text>
-               <Text style={[styles.subtitle, { color: colorsNav.sub }]}>Tu resumen financiero hoy</Text>
+
             </View>
 
             {/* Gran Tarjeta Hero */}
@@ -712,76 +710,16 @@ export default function HomeScreen() {
                   <Text style={[styles.mobileHealthAmount, { color: saldoDisponible >= 0 ? colorsNav.text : '#EF4444' }]}>{fmt(saldoDisponible)}</Text>
                   <TouchableOpacity 
                     style={[styles.mobileHealthBtn, { borderColor: colorsNav.border + '50', backgroundColor: 'transparent' }]} 
-                    onPress={() => setBreakdownVisible(!breakdownVisible)}
+                    onPress={() => setBreakdownVisible(true)}
                   >
-                    <Text style={{ color: colorsNav.sub, fontWeight: '700', fontSize: 12 }}>{breakdownVisible ? 'Ocultar' : 'Ver detalles'}</Text>
-                    <MaterialIcons name={breakdownVisible ? "keyboard-arrow-up" : "arrow-forward"} size={14} color={colorsNav.sub} style={{ marginLeft: 6 }} />
+                    <Text style={{ color: colorsNav.sub, fontWeight: '700', fontSize: 12 }}>Ver detalles</Text>
+                    <MaterialIcons name="arrow-forward" size={14} color={colorsNav.sub} style={{ marginLeft: 6 }} />
                   </TouchableOpacity>
                 </View>
               </View>
             </View>
 
-              {/* Desglose de Salud Financiera (Inline / Desplegable) */}
-              {breakdownVisible && (
-                <View style={{ 
-                  backgroundColor: isDark ? colorsNav.card : '#FFF', 
-                  borderRadius: 24,
-                  padding: 24,
-                  marginBottom: 20,
-                  shadowColor: '#000',
-                  shadowOpacity: 0.04,
-                  shadowRadius: 10,
-                  elevation: 2,
-                  borderWidth: 1,
-                  borderColor: isDark ? 'transparent' : 'rgba(0,0,0,0.05)'
-                }}>
-                  <View style={{ alignItems: 'center', marginBottom: 20 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: colorsNav.text }}>Dinero General (Patrimonio)</Text>
-                    <Text style={{ fontSize: 24, fontWeight: '900', marginTop: 6, color: dineroGeneral >= 0 ? colorsNav.text : '#EF4444' }}>{fmt(dineroGeneral)}</Text>
-                    <Text style={{ fontSize: 10, fontWeight: '600', marginTop: 6, color: '#64748B' }}>Suma de Disponible, Ahorro e Inversión - Deuda</Text>
-                  </View>
-                  
-                  <View style={{ 
-                    flexDirection: 'row', 
-                    backgroundColor: isDark ? colorsNav.cardBg : '#FDF8F3', 
-                    borderRadius: 16, 
-                    paddingHorizontal: 16,
-                    paddingVertical: 14, 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap'
-                  }}>
-                    <View style={{ alignItems: 'center' }}>
-                      <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', letterSpacing: 0.5, marginBottom: 4 }}>DISPONIBLE</Text>
-                      <Text style={{ fontSize: 11, fontWeight: '800', color: colorsNav.text }}>{fmt(dineroActivo)}</Text>
-                    </View>
-                    
-                    <View style={{ width: 1, height: 20, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }} />
-                    
-                    <View style={{ alignItems: 'center' }}>
-                      <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', letterSpacing: 0.5, marginBottom: 4 }}>AHORRO</Text>
-                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#8B5CF6' }}>{fmt(ahorroTotal)}</Text>
-                    </View>
-                    
-                    <View style={{ width: 1, height: 20, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }} />
-                    
-                    <View style={{ alignItems: 'center' }}>
-                      <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', letterSpacing: 0.5, marginBottom: 4 }}>INVERSIÓN</Text>
-                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#3B82F6' }}>{fmt(investmentTotal)}</Text>
-                    </View>
-                    
-                    <Text style={{ fontSize: 14, fontWeight: '900', color: '#EF4444', marginHorizontal: 4 }}>-</Text>
-                    
-                    <View style={{ alignItems: 'center' }}>
-                      <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', letterSpacing: 0.5, marginBottom: 4 }}>DEUDA</Text>
-                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#EF4444' }}>{fmt(debtTotal)}</Text>
-                    </View>
-                  </View>
-                </View>
-              )}
 
-            {/* Spacer for bottom nav */}
-            {!isDesktop && <View style={{ height: 100 }} />}
           </View>
 
           {/* LADO DERECHO: BARRA LATERAL (30%) - Solo Desktop */}
@@ -837,8 +775,7 @@ export default function HomeScreen() {
           )}
         </View>
 
-        <View style={{ height: 100 }} />
-      </ScrollView>
+      </View>
 
       {/* ── Modal de Notificaciones ─────────────────────────────── */}
       <Modal visible={notificationsVisible} transparent animationType="fade" onRequestClose={() => setNotificationsVisible(false)}>
@@ -987,6 +924,63 @@ export default function HomeScreen() {
             <TouchableOpacity 
               style={[styles.modalCloseBtn, { backgroundColor: isDark ? '#3A3A52' : '#FDF8F3', marginTop: 20 }]} 
               onPress={() => setActiveMoneyBreakdownVisible(false)}
+            >
+              <Text style={[styles.modalCloseBtnText, { color: colorsNav.text, fontSize: 15 }]}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Modal de Patrimonio (Salud Financiera Detalles) ─── */}
+      <Modal visible={breakdownVisible} transparent animationType="fade" onRequestClose={() => setBreakdownVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: isDark ? colorsNav.card : '#FFF', maxWidth: 450 }]}>
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              <Text style={[styles.modalTitle, { color: colorsNav.text, fontSize: 18, marginBottom: 6 }]}>Dinero General (Patrimonio)</Text>
+              <Text style={{ fontSize: 32, fontWeight: '900', marginTop: 6, color: dineroGeneral >= 0 ? colorsNav.text : '#EF4444' }}>{fmt(dineroGeneral)}</Text>
+              <Text style={{ fontSize: 11, fontWeight: '600', marginTop: 6, color: '#64748B' }}>Suma de Disponible, Ahorro e Inversión - Deuda</Text>
+            </View>
+            
+            <View style={{ 
+              flexDirection: 'row', 
+              backgroundColor: isDark ? colorsNav.cardBg : '#FDF8F3', 
+              borderRadius: 16, 
+              paddingHorizontal: 16,
+              paddingVertical: 14, 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              flexWrap: 'wrap'
+            }}>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: 9, fontWeight: '800', color: '#64748B', letterSpacing: 0.5, marginBottom: 4 }}>DISPONIBLE</Text>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: colorsNav.text }}>{fmt(dineroActivo)}</Text>
+              </View>
+              
+              <View style={{ width: 1, height: 20, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }} />
+              
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: 9, fontWeight: '800', color: '#64748B', letterSpacing: 0.5, marginBottom: 4 }}>AHORRO</Text>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#8B5CF6' }}>{fmt(ahorroTotal)}</Text>
+              </View>
+              
+              <View style={{ width: 1, height: 20, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }} />
+              
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: 9, fontWeight: '800', color: '#64748B', letterSpacing: 0.5, marginBottom: 4 }}>INVERSIÓN</Text>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#3B82F6' }}>{fmt(investmentTotal)}</Text>
+              </View>
+              
+              <Text style={{ fontSize: 14, fontWeight: '900', color: '#EF4444', marginHorizontal: 4 }}>-</Text>
+              
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: 9, fontWeight: '800', color: '#64748B', letterSpacing: 0.5, marginBottom: 4 }}>DEUDA</Text>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#EF4444' }}>{fmt(debtTotal)}</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.modalCloseBtn, { backgroundColor: isDark ? '#3A3A52' : '#FDF8F3', marginTop: 20 }]} 
+              onPress={() => setBreakdownVisible(false)}
             >
               <Text style={[styles.modalCloseBtnText, { color: colorsNav.text, fontSize: 15 }]}>Cerrar</Text>
             </TouchableOpacity>
@@ -1328,6 +1322,7 @@ const styles = StyleSheet.create({
   // Base Styles
   container: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 100 },
+  fixedContent: { flex: 1, paddingHorizontal: 20, paddingTop: 10 },
   desktopScrollContainer: { width: '100%', alignSelf: 'center', paddingHorizontal: 30, paddingTop: 30 },
   desktopHeader: { marginBottom: 30, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)', paddingHorizontal: 20, marginHorizontal: -20 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
