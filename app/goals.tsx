@@ -329,6 +329,26 @@ export default function GoalsScreen() {
                     <View style={[styles.progressBar, { backgroundColor: colors.bg }]}>
                         <View style={[styles.progressFill, { width: `${Math.min(100, (assignedAhorro / (totalAhorro || 1)) * 100)}%`, backgroundColor: colors.accent }]} />
                     </View>
+
+                    <View style={styles.summaryFooter}>
+                        <View>
+                            <Text style={[styles.footerLab, { color: colors.sub }]}>Asignado</Text>
+                            <Text style={[styles.footerVal, { color: colors.text }]}>{fmt(assignedAhorro)}</Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={[styles.footerLab, { color: colors.sub }]}>Disponible</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <Text style={[styles.footerVal, { color: '#10B981', fontWeight: '900' }]}>{fmt(availableAhorro)}</Text>
+                                {availableAhorro > 0 && (
+                                    <TouchableOpacity 
+                                        style={[styles.distBtn, { backgroundColor: colors.accent }, isProcessing && { opacity: 0.6 }]} 
+                                        onPress={handleDistributeSavings}
+                                        disabled={isProcessing}
+                                    >
+                                        <Text style={styles.distBtnText}>{isProcessing ? 'Procesando...' : 'Distribuir'}</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
                         </View>
                     </View>
                 </View>
