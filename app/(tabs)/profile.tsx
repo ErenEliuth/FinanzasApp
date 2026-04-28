@@ -280,6 +280,7 @@ export default function ProfileScreen() {
     const [weeklyModalVisible, setWeeklyModalVisible] = useState(false);
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [isSyncingRates, setIsSyncingRates] = useState(false);
+    const [smartSavingsEnabled, setSmartSavingsEnabled] = useState<boolean | null>(null);
 
     const [libraryModalVisible, setLibraryModalVisible] = useState(false);
     const [selectedArticle, setSelectedArticle] = useState<any>(null);
@@ -349,6 +350,10 @@ export default function ProfileScreen() {
             due_day: new Date(f.due_date + 'T12:00:00').getDate(),
             is_paid: f.paid >= f.value
         }));
+
+        // Fetch smart savings state
+        const rawPref = await AsyncStorage.getItem(SYNC_KEYS.SMART_SAVINGS(user.id));
+        setSmartSavingsEnabled(rawPref === 'enabled');
 
         setReminders([...remData, ...fixedData]);
     };
@@ -444,6 +449,12 @@ export default function ProfileScreen() {
                 Alert.alert("Error", "No se pudo sincronizar la imagen de perfil.");
             }
         }
+    const toggleSmartSavings = async () => {
+        if (!user?.id) return;
+        const newState = !smartSavingsEnabled;
+        setSmartSavingsEnabled(newState);
+        await AsyncStorage.setItem(SYNC_KEYS.SMART_SAVINGS(user.id), newState ? 'enabled' : 'disabled');
+        await syncUp(user.id);
     };
 
     const displayName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuario';
@@ -572,6 +583,39 @@ export default function ProfileScreen() {
                         <View style={{ flex: 1 }}><Text style={[styles.listTitle, { color: colorsNav.text }]}>Moneda</Text><Text style={[styles.listSub, { color: colorsNav.sub }]}>{currency}</Text></View>
                         <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
                     </TouchableOpacity>
+
+                    <View style={[styles.listItem, { borderTopWidth: 1, borderTopColor: colorsNav.bg }]}>
+                        <View style={[styles.listIcon, { backgroundColor: '#8B5CF615' }]}><MaterialIcons name="auto-awesome" size={20} color="#8B5CF6" /></View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.listTitle, { color: colorsNav.text }]}>Ahorro Inteligente</Text>
+                            <Text style={[styles.listSub, { color: colorsNav.sub }]}>Sugerencias automáticas</Text>
+                        </View>
+                        <TouchableOpacity 
+                            onPress={toggleSmartSavings}
+                            style={{ 
+                                width: 44, 
+                                height: 24, 
+                                borderRadius: 12, 
+                                backgroundColor: smartSavingsEnabled ? '#8B5CF6' : colorsNav.bg,
+                                justifyContent: 'center',
+                                paddingHorizontal: 3,
+                                borderWidth: 1,
+                                borderColor: smartSavingsEnabled ? '#8B5CF6' : colorsNav.border
+                            }}
+                        >
+                            <View style={{ 
+                                width: 18, 
+                                height: 18, 
+                                borderRadius: 9, 
+                                backgroundColor: '#FFF',
+                                alignSelf: smartSavingsEnabled ? 'flex-end' : 'flex-start',
+                                elevation: 2,
+                                shadowColor: '#000',
+                                shadowOpacity: 0.2,
+                                shadowRadius: 2
+                            }} />
+                        </TouchableOpacity>
+                    </View>
                 </View>
                 <View style={{ height: 100 }} />
             </ScrollView>

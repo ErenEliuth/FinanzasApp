@@ -48,13 +48,28 @@ export default function GoalsScreen() {
     const [activeTab, setActiveTab] = useState<'metas' | 'cajitas'>('metas');
     const [interestMap, setInterestMap] = useState<Record<string, any>>({});
     const [isProcessing, setIsProcessing] = useState(false);
-    const [smartSavingsEnabled, setSmartSavingsEnabled] = useState<boolean | null>(null);
+    const [breakdownVisible, setBreakdownVisible] = useState(false);
 
     const [payModalVisible, setPayModalVisible] = useState(false);
     const [withdrawModalVisible, setWithdrawModalVisible] = useState(false);
     const [selectedGoal, setSelectedGoal] = useState<any | null>(null);
     const [payAmount, setPayAmount] = useState('');
     const [withdrawAmount, setWithdrawAmount] = useState('');
+
+    const [goalSelectorVisible, setGoalSelectorVisible] = useState(false);
+    const [selectorAction, setSelectorAction] = useState<'pay' | 'withdraw'>('pay');
+
+    const openSelector = (action: 'pay' | 'withdraw') => {
+        setSelectorAction(action);
+        setGoalSelectorVisible(true);
+    };
+
+    const handleSelectGoal = (goal: any) => {
+        setSelectedGoal(goal);
+        setGoalSelectorVisible(false);
+        if (selectorAction === 'pay') setPayModalVisible(true);
+        else setWithdrawModalVisible(true);
+    };
 
     const formatInput = (text: string) => {
         return formatInputDisplay(text, currency);
@@ -74,11 +89,7 @@ export default function GoalsScreen() {
             const total = txData?.reduce((s, tx) => s + tx.amount, 0) || 0;
             setTotalAhorro(total);
 
-            // Cargar estado de ahorro inteligente
-            if (user?.id) {
-                const rawPref = await AsyncStorage.getItem(SYNC_KEYS.SMART_SAVINGS(user.id));
-                setSmartSavingsEnabled(rawPref === 'enabled');
-            }
+
         } catch (e) { console.error(e); }
     };
 
@@ -270,13 +281,7 @@ export default function GoalsScreen() {
         }
     };
 
-    const toggleSmartSavings = async () => {
-        if (!user?.id) return;
-        const newState = !smartSavingsEnabled;
-        setSmartSavingsEnabled(newState);
-        await AsyncStorage.setItem(SYNC_KEYS.SMART_SAVINGS(user.id), newState ? 'enabled' : 'disabled');
-        await syncUp(user.id);
-    };
+
 
     const handleDelete = (goal: any) => {
         const msg = `¿Eliminar "${goal.name}"? Los fondos volverán al Ahorro Disponible.`;
@@ -323,113 +328,49 @@ export default function GoalsScreen() {
                     <View style={[styles.progressBar, { backgroundColor: colors.bg }]}>
                         <View style={[styles.progressFill, { width: `${Math.min(100, (assignedAhorro / (totalAhorro || 1)) * 100)}%`, backgroundColor: colors.accent }]} />
                     </View>
-                    <View style={styles.summaryFooter}>
-                        <View>
-                            <Text style={[styles.footerLab, { color: colors.sub }]}>Asignado</Text>
-                            <Text style={[styles.footerVal, { color: colors.text }]}>{fmt(assignedAhorro)}</Text>
-                        </View>
-                        <View style={{ alignItems: 'flex-end' }}>
-                            <Text style={[styles.footerLab, { color: colors.sub }]}>Disponible</Text>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                <Text style={[styles.footerVal, { color: '#10B981', fontWeight: '900' }]}>{fmt(availableAhorro)}</Text>
-                                {availableAhorro > 0 && (
-                                    <TouchableOpacity 
-                                        style={[styles.distBtn, { backgroundColor: colors.accent }, isProcessing && { opacity: 0.6 }]} 
-                                        onPress={handleDistributeSavings}
-                                        disabled={isProcessing}
-                                    >
-                                        <Text style={styles.distBtnText}>{isProcessing ? 'Procesando...' : 'Distribuir'}</Text>
-                                    </TouchableOpacity>
-                                )}
-                            </View>
-                        </View>
-                    </View>
-                </View>
-
-                {/* ── Ahorro Inteligente Toggle ── */}
-                <View style={[styles.securityCard, { backgroundColor: colors.card, marginBottom: 16 }]}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                            <View style={[styles.iconBox, { backgroundColor: '#8B5CF620' }]}>
-                                <MaterialIcons name="auto-awesome" size={20} color="#8B5CF6" />
-                            </View>
+                    <View style={[styles.summaryFooter, { borderTopWidth: 1, borderTopColor: colors.bg + '50', paddingTop: 20, marginTop: 20, flexDirection: 'column', gap: 16 }]}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
                             <View>
-                                <Text style={[styles.securityTitle, { color: colors.text, fontSize: 15 }]}>Ahorro Inteligente</Text>
-                                <Text style={[styles.levelLabel, { color: colors.sub, textAlign: 'left', marginTop: 2 }]}>Sugerencias automáticas en ingresos</Text>
+                                <Text style={[styles.footerLab, { color: colors.sub }]}>Asignado</Text>
+                                <Text style={[styles.footerVal, { color: colors.text }]}>{fmt(assignedAhorro)}</Text>
+                            </View>
+                            <View style={{ alignItems: 'flex-end' }}>
+                                <Text style={[styles.footerLab, { color: colors.sub }]}>Disponible</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    <Text style={[styles.footerVal, { color: '#10B981', fontWeight: '900' }]}>{fmt(availableAhorro)}</Text>
+                                    {availableAhorro > 0 && (
+                                        <TouchableOpacity 
+                                            style={[styles.distBtn, { backgroundColor: colors.accent }, isProcessing && { opacity: 0.6 }]} 
+                                            onPress={handleDistributeSavings}
+                                            disabled={isProcessing}
+                                        >
+                                            <Text style={styles.distBtnText}>{isProcessing ? 'Procesando...' : 'Distribuir'}</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
                             </View>
                         </View>
-                        <TouchableOpacity 
-                            onPress={toggleSmartSavings}
-                            style={{ 
-                                width: 50, 
-                                height: 28, 
-                                borderRadius: 14, 
-                                backgroundColor: smartSavingsEnabled ? '#8B5CF6' : colors.bg,
-                                justifyContent: 'center',
-                                paddingHorizontal: 4,
-                                borderWidth: 1,
-                                borderColor: smartSavingsEnabled ? '#8B5CF6' : colors.border
-                            }}
-                        >
-                            <View style={{ 
-                                width: 20, 
-                                height: 20, 
-                                borderRadius: 10, 
-                                backgroundColor: '#FFF',
-                                alignSelf: smartSavingsEnabled ? 'flex-end' : 'flex-start',
-                                elevation: 2,
-                                shadowColor: '#000',
-                                shadowOpacity: 0.2,
-                                shadowRadius: 2
-                            }} />
-                        </TouchableOpacity>
+                        
+                        <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+                            <TouchableOpacity 
+                                style={[styles.actionBtn, { backgroundColor: colors.accent }]} 
+                                onPress={() => openSelector('pay')}
+                            >
+                                <Ionicons name="add-circle" size={20} color="#FFF" />
+                                <Text style={styles.actionBtnTxt}>Asignar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.actionBtn, { backgroundColor: colors.bg }]} 
+                                onPress={() => openSelector('withdraw')}
+                            >
+                                <Ionicons name="remove-circle" size={20} color={colors.text} />
+                                <Text style={[styles.actionBtnTxt, { color: colors.text }]}>Retirar</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
 
-                {/* 🛡️ NIVELES DE SEGURIDAD SANTY */}
-                <View style={[styles.securityCard, { backgroundColor: colors.card }]}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                        <Text style={[styles.securityTitle, { color: colors.text }]}>Seguridad Financiera</Text>
-                        <MaterialIcons name="verified-user" size={20} color={colors.accent} />
-                    </View>
-                    
-                    <View style={styles.levelsRow}>
-                        {[
-                            { id: 1, label: 'Choque', val: 500000, icon: 'shield', color: '#10B981' },
-                            { id: 2, label: '1 Mes', val: 2500000, icon: 'house', color: '#3B82F6' },
-                            { id: 3, label: '3 Meses', val: 7500000, icon: 'pollen', color: '#8B5CF6' },
-                            { id: 4, label: '6 Meses', val: 15000000, icon: 'fort', color: '#F59E0B' },
-                        ].map((lvl) => {
-                            const reached = totalAhorro >= lvl.val;
-                            return (
-                                <View key={lvl.id} style={{ alignItems: 'center', flex: 1 }}>
-                                    <View style={[
-                                        styles.levelCircle, 
-                                        { backgroundColor: reached ? lvl.color : colors.bg, borderColor: reached ? lvl.color : colors.border }
-                                    ]}>
-                                        <MaterialIcons name={lvl.icon as any} size={20} color={reached ? '#FFF' : colors.sub + '40'} />
-                                    </View>
-                                    <Text style={[styles.levelLabel, { color: reached ? colors.text : colors.sub, fontWeight: reached ? '800' : '500' }]}>{lvl.label}</Text>
-                                </View>
-                            );
-                        })}
-                    </View>
-
-                    <View style={[styles.securityAdvice, { backgroundColor: colors.bg }]}>
-                        <Text style={[styles.adviceText, { color: colors.text }]}>
-                            {totalAhorro < 500000 
-                                ? `💡 Santy: Tu primera meta es el Escudo de Choque (${fmt(500000)}). ¡Paso a paso!`
-                                : totalAhorro < 2500000 
-                                ? "🎉 ¡Bien! Tienes un Escudo de Choque. Próxima parada: 1 mes de gastos."
-                                : totalAhorro < 7500000
-                                ? "🚀 ¡Increíble! Ya tienes un mes de seguridad. Vamos por la Paz de los 3 meses."
-                                : "👑 ¡Nivel Fortaleza! Estás en el top de seguridad financiera."
-                            }
-                        </Text>
-                    </View>
-                </View>
-
-                {/* TAB SELECTOR */}
+                {/* TAB SELECTOR - Moved here below summary */}
                 <View style={{ paddingHorizontal: 0, marginBottom: 24, marginTop: 8 }}>
                     <View style={{ flexDirection: 'row', borderRadius: 20, padding: 6, backgroundColor: colors.card }}>
                         <TouchableOpacity onPress={() => setActiveTab('metas')} style={{ flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center', backgroundColor: activeTab === 'metas' ? colors.accent : 'transparent' }}>
@@ -440,6 +381,7 @@ export default function GoalsScreen() {
                         </TouchableOpacity>
                     </View>
                 </View>
+
 
                 {/* ── Lista de Metas/Cajitas ── */}
                 {goals.filter(g => activeTab === 'cajitas' ? interestMap[g.id]?.rate > 0 : !interestMap[g.id]?.rate).length === 0 ? (
@@ -461,14 +403,10 @@ export default function GoalsScreen() {
                                 onLongPress={() => handleDelete(goal)}
                                 activeOpacity={0.9}
                             >
-                                <View style={styles.goalImgCont}>
-                                    {goal.image_uri ? (
-                                        <Image source={{ uri: goal.image_uri }} style={styles.goalImg} />
-                                    ) : (
-                                        <View style={[styles.goalImgPlaceholder, { backgroundColor: colors.bg }]}>
-                                            <Ionicons name="sparkles" size={32} color={colors.accent + '40'} />
-                                        </View>
-                                    )}
+                                <View style={[styles.goalImgCont, { height: 80 }]}>
+                                    <View style={[styles.goalImgPlaceholder, { backgroundColor: colors.bg }]}>
+                                        <Ionicons name={activeTab === 'metas' ? "golf-outline" : "cube-outline"} size={32} color={colors.accent + '60'} />
+                                    </View>
                                     {isDone && (
                                         <View style={styles.medal}>
                                             <MaterialIcons name="emoji-events" size={16} color="#FFF" />
@@ -479,6 +417,7 @@ export default function GoalsScreen() {
                                         <Ionicons name="trash-outline" size={18} color="#EF4444" />
                                     </TouchableOpacity>
                                 </View>
+
                                 
                                 <View style={styles.goalBody}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 }}>
@@ -499,8 +438,8 @@ export default function GoalsScreen() {
                                     </View>
                                     <View style={styles.goalAmounts}>
                                         <View>
-                                            <Text style={[styles.amtLabel, { color: colors.sub }]}>Ahorrado</Text>
-                                            <Text style={[styles.amtVal, { color: colors.text }]}>{fmt(goal.current_amount)}</Text>
+                                            <Text style={[styles.amtLabel, { color: colors.sub }]}>Valor Asignado</Text>
+                                            <Text style={[styles.amtVal, { color: colors.text, fontSize: 18 }]}>{fmt(goal.current_amount)}</Text>
                                         </View>
                                         <View style={{ alignItems: 'flex-end' }}>
                                             <Text style={[styles.amtLabel, { color: colors.sub }]}>{activeTab === 'cajitas' ? 'Interés' : 'Objetivo'}</Text>
@@ -508,25 +447,6 @@ export default function GoalsScreen() {
                                                 {activeTab === 'cajitas' ? `${interestMap[goal.id]?.rate}% E.A.` : fmt(goal.target_amount)}
                                             </Text>
                                         </View>
-                                    </View>
-                                    
-                                    <View style={styles.cardActions}>
-                                        {!isDone && (
-                                            <TouchableOpacity 
-                                                style={[styles.actionBtn, { backgroundColor: colors.accent }]} 
-                                                onPress={() => { setSelectedGoal(goal); setPayModalVisible(true); }}
-                                            >
-                                                <Ionicons name="caret-up-circle" size={18} color="#FFF" />
-                                                <Text style={styles.actionBtnTxt}>Asignar</Text>
-                                            </TouchableOpacity>
-                                        )}
-                                        <TouchableOpacity 
-                                            style={[styles.actionBtn, { backgroundColor: colors.bg }]} 
-                                            onPress={() => { setSelectedGoal(goal); setWithdrawModalVisible(true); }}
-                                        >
-                                            <Ionicons name="caret-down-circle" size={18} color={colors.text} />
-                                            <Text style={[styles.actionBtnTxt, { color: colors.text }]}>Retirar</Text>
-                                        </TouchableOpacity>
                                     </View>
                                 </View>
                             </TouchableOpacity>
@@ -550,14 +470,7 @@ export default function GoalsScreen() {
                                 </TouchableOpacity>
                             </View>
                             
-                            <TouchableOpacity style={[styles.imgPick, { backgroundColor: colors.bg }]} onPress={pickImage}>
-                                {newGoalImage ? <Image source={{ uri: newGoalImage }} style={styles.imgPrev} /> : (
-                                    <View style={{ alignItems: 'center' }}>
-                                        <Ionicons name="camera" size={32} color={colors.accent} />
-                                        <Text style={{ color: colors.sub, fontSize: 12, marginTop: 8 }}>Elegir foto inspiradora</Text>
-                                    </View>
-                                )}
-                            </TouchableOpacity>
+
 
                             <View style={styles.mInputCont}>
                                 <Text style={[styles.mLabel, { color: colors.sub }]}>NOMBRE</Text>
@@ -658,6 +571,36 @@ export default function GoalsScreen() {
                     </View>
                 </View>
             </Modal>
+            {/* MODAL SELECCIONAR META */}
+            <Modal visible={goalSelectorVisible} transparent animationType="slide">
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalBox, { backgroundColor: colors.card, maxHeight: '80%' }]}>
+                        <View style={styles.modalHeaderInner}>
+                            <Text style={[styles.modalTitle, { color: colors.text }]}>
+                                {selectorAction === 'pay' ? 'Asignar a...' : 'Retirar de...'}
+                            </Text>
+                            <TouchableOpacity onPress={() => setGoalSelectorVisible(false)}>
+                                <Ionicons name="close" size={24} color={colors.text} />
+                            </TouchableOpacity>
+                        </View>
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            {goals.filter(g => activeTab === 'cajitas' ? interestMap[g.id]?.rate > 0 : !interestMap[g.id]?.rate).map(goal => (
+                                <TouchableOpacity 
+                                    key={goal.id} 
+                                    style={[styles.listItem, { backgroundColor: colors.bg, padding: 16, borderRadius: 16, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
+                                    onPress={() => handleSelectGoal(goal)}
+                                >
+                                    <View>
+                                        <Text style={{ color: colors.text, fontWeight: '800', fontSize: 16 }}>{goal.name}</Text>
+                                        <Text style={{ color: colors.sub, fontSize: 12 }}>{fmt(goal.current_amount)} ahorrado</Text>
+                                    </View>
+                                    <Ionicons name="chevron-forward" size={20} color={colors.accent} />
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -685,8 +628,7 @@ const styles = StyleSheet.create({
     emptySub: { fontSize: 14, textAlign: 'center', lineHeight: 22, opacity: 0.8 },
 
     goalCard: { borderRadius: 32, marginBottom: 24, overflow: 'hidden', elevation: 5, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 20 },
-    goalImgCont: { width: '100%', height: 160 },
-    goalImg: { width: '100%', height: '100%' },
+    goalImgCont: { width: '100%', height: 80 },
     goalImgPlaceholder: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' },
     medal: { position: 'absolute', top: 16, left: 16, backgroundColor: '#10B981', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 },
     medalTxt: { color: '#FFF', fontSize: 11, fontWeight: '800' },
@@ -730,13 +672,5 @@ const styles = StyleSheet.create({
     prioText: { fontSize: 13, fontWeight: '800' },
     prioBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
     prioBadgeText: { fontSize: 9, fontWeight: '900' },
-    
-    // Security Levels Styles
-    securityCard: { borderRadius: 28, padding: 20, marginBottom: 24 },
-    securityTitle: { fontSize: 16, fontWeight: '800' },
-    levelsRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-    levelCircle: { width: 44, height: 44, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 2, marginBottom: 8 },
-    levelLabel: { fontSize: 10, textAlign: 'center' },
-    securityAdvice: { padding: 14, borderRadius: 16 },
-    adviceText: { fontSize: 12, fontWeight: '600', lineHeight: 18 },
+    listItem: { flexDirection: 'row', alignItems: 'center' },
 });
