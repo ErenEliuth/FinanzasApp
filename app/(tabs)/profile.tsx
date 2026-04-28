@@ -449,6 +449,7 @@ export default function ProfileScreen() {
                 Alert.alert("Error", "No se pudo sincronizar la imagen de perfil.");
             }
         }
+    };
     const toggleSmartSavings = async () => {
         if (!user?.id) return;
         const newState = !smartSavingsEnabled;
