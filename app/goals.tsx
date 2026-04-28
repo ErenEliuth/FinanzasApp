@@ -398,6 +398,8 @@ export default function GoalsScreen() {
                                         <View style={styles.medal}>
                                             <MaterialIcons name="emoji-events" size={16} color="#FFF" />
                                             <Text style={styles.medalTxt}>¡Logrado!</Text>
+                                        </View>
+                                    )}
                                     <TouchableOpacity style={styles.delBtn} onPress={() => handleDelete(goal)}>
                                         <Ionicons name="trash-outline" size={18} color="#EF4444" />
                                     </TouchableOpacity>
@@ -599,7 +601,6 @@ export default function GoalsScreen() {
                         </ScrollView>
                     </View>
                 </View>
-            </Modal>
             </Modal>
 
             {/* BARRA DE ACCIONES FLOTANTE */}
