@@ -82,9 +82,59 @@ const YAHOO_MAPPING: Record<string, string> = {
 };
 
 /**
+ * Fetch live stock price from TradingView Scanner (more real-time for BVC)
+ */
+export async function fetchTradingViewPrice(ticker: string): Promise<{ price: number; change: number; changePercent: number } | null> {
+  try {
+    const symbol = ticker.toUpperCase().includes(':') ? ticker.toUpperCase() : `BVC:${ticker.toUpperCase()}`;
+    const url = 'https://scanner.tradingview.com/colombia/scan';
+    const body = {
+      symbols: { tickers: [symbol] },
+      columns: ['close', 'change', 'change_abs']
+    };
+
+    let res;
+    if (typeof window !== 'undefined' && window.location) {
+       // On web use proxy for CORS
+       res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, {
+         method: 'POST',
+         body: JSON.stringify(body)
+       });
+    } else {
+       res = await fetch(url, {
+         method: 'POST',
+         body: JSON.stringify(body)
+       });
+    }
+    
+    const data = await res.json();
+    const result = data.data?.[0]?.d;
+    
+    if (result && result.length >= 3) {
+      return {
+        price: result[0],
+        changePercent: result[1],
+        change: result[2]
+      };
+    }
+    return null;
+  } catch (error) {
+    console.log("TV Error for", ticker, error);
+    return null;
+  }
+}
+
+/**
  * Fetch live stock/etf price from Yahoo Finance via public raw proxy
  */
 export async function fetchStockPrice(ticker: string): Promise<{ price: number; change: number; changePercent: number } | null> {
+  // Prioritize TradingView for BVC stocks
+  const isBvc = YAHOO_MAPPING[ticker.toUpperCase()] || ticker.toUpperCase() === 'ECOPETROL' || ticker.toUpperCase() === 'BCOLOMBIA';
+  if (isBvc) {
+    const tv = await fetchTradingViewPrice(ticker);
+    if (tv) return tv;
+  }
+
   try {
     const yTicker = YAHOO_MAPPING[ticker.toUpperCase()] || ticker.toUpperCase();
     // Use query2 for better reliability and skip proxy on native if possible
@@ -199,6 +249,33 @@ export async function fetchLivePrice(ticker: string, type: string): Promise<numb
  */
 export async function fetchBvcMarketOverview(): Promise<SearchResult[]> {
   const bvcTickers = ['ECOPETROL', 'BCOLOMBIA', 'PFBCOLOM', 'GEB', 'ISA', 'PFAVAL', 'NUTRESA', 'GRUPOSURA'];
+  
+  // Intento masivo con TradingView
+  try {
+    const url = 'https://scanner.tradingview.com/colombia/scan';
+    const body = {
+      symbols: { tickers: bvcTickers.map(t => `BVC:${t}`) },
+      columns: ['close', 'change', 'change_abs', 'description']
+    };
+    
+    const res = await fetch(url, { method: 'POST', body: JSON.stringify(body) });
+    const data = await res.json();
+    
+    if (data.data && data.data.length > 0) {
+      return data.data.map((item: any, i: number) => ({
+        ticker: bvcTickers[i],
+        name: item.d[3] || bvcTickers[i],
+        price: item.d[0],
+        change: item.d[2],
+        changePercent: item.d[1],
+        type: 'stock' as const,
+        exchange: 'BVC'
+      }));
+    }
+  } catch (e) {
+    console.log("Error in BVC TradingView fetch, falling back to individual");
+  }
+
   const data = await Promise.all(bvcTickers.map(async (ticker) => {
     const live = await fetchStockPrice(ticker);
     const popular = POPULAR_ASSETS.find(p => p.ticker === ticker);
