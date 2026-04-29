@@ -407,24 +407,33 @@ export default function GoalsScreen() {
                                 onLongPress={() => handleDelete(goal)}
                                 activeOpacity={0.9}
                             >
-                                <View style={styles.goalImgCont}>
-                                    {goal.image_uri ? (
-                                        <Image source={{ uri: goal.image_uri }} style={styles.goalImg} />
-                                    ) : (
-                                        <View style={[styles.goalImgPlaceholder, { backgroundColor: colors.bg }]}>
-                                            <Ionicons name={activeTab === 'metas' ? "golf-outline" : "cube-outline"} size={32} color={colors.accent + '60'} />
-                                        </View>
-                                    )}
-                                    {isDone && (
-                                        <View style={styles.medal}>
-                                            <MaterialIcons name="emoji-events" size={16} color="#FFF" />
-                                            <Text style={styles.medalTxt}>¡Logrado!</Text>
-                                        </View>
-                                    )}
-                                    <TouchableOpacity style={styles.delBtn} onPress={() => handleDelete(goal)}>
-                                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                                    </TouchableOpacity>
-                                </View>
+                                {activeTab === 'metas' && (
+                                    <View style={styles.goalImgCont}>
+                                        {goal.image_uri ? (
+                                            <Image source={{ uri: goal.image_uri }} style={styles.goalImg} />
+                                        ) : (
+                                            <View style={[styles.goalImgPlaceholder, { backgroundColor: colors.bg }]}>
+                                                <Ionicons name="golf-outline" size={32} color={colors.accent + '60'} />
+                                            </View>
+                                        )}
+                                        {isDone && (
+                                            <View style={styles.medal}>
+                                                <MaterialIcons name="emoji-events" size={16} color="#FFF" />
+                                                <Text style={styles.medalTxt}>¡Logrado!</Text>
+                                            </View>
+                                        )}
+                                        <TouchableOpacity style={styles.delBtn} onPress={() => handleDelete(goal)}>
+                                            <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+                                {activeTab === 'cajitas' && (
+                                    <View style={{ position: 'absolute', top: 16, right: 16, zIndex: 10 }}>
+                                        <TouchableOpacity style={styles.delBtn} onPress={() => handleDelete(goal)}>
+                                            <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
 
                                 <View style={styles.goalBody}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 }}>
@@ -710,11 +719,11 @@ const styles = StyleSheet.create({
     mPrimaryBtnTxt: { color: '#FFF', fontSize: 16, fontWeight: '800' },
 
     overlayCenter: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
-    miniModal: { borderRadius: 32, padding: 32, alignItems: 'center', gap: 16 },
+    miniModal: { borderRadius: 32, padding: 24, alignItems: 'center', gap: 16, width: '90%', alignSelf: 'center' },
     miniTitle: { fontSize: 20, fontWeight: '900' },
     miniSub: { fontSize: 14, fontWeight: '600', opacity: 0.6 },
-    miniBtns: { flexDirection: 'row', gap: 12, marginTop: 10 },
-    miniBtn: { flex: 1, paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
+    miniBtns: { flexDirection: 'row', gap: 12, marginTop: 10, width: '100%' },
+    miniBtn: { flex: 1, paddingVertical: 18, borderRadius: 16, alignItems: 'center', justifyContent: 'center', minHeight: 56 },
     distBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, elevation: 3 },
     distBtnText: { color: '#FFF', fontSize: 11, fontWeight: '900' },
     priorityRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
