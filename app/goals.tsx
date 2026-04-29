@@ -6,7 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { formatCurrency, convertCurrency, convertToBase, formatInputDisplay, parseInputToNumber } from '@/utils/currency';
+import { formatCurrency, convertCurrency, convertToBase, formatInputDisplay, parseInputToNumber, getCurrencyInfo } from '@/utils/currency';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { syncUp, SYNC_KEYS } from '@/utils/sync';
 import {
