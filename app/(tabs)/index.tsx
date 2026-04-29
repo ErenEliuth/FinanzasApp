@@ -638,8 +638,8 @@ export default function HomeScreen() {
                     <MaterialIcons name="savings" size={20} color="#0EA5E9" />
                   </View>
                   <Text style={styles.statLabelRefined}>AHORROS</Text>
-                  <Text style={[styles.statValueRefined, { color: colorsNav.text, fontSize: 16 }]}>
-                    {fmt(ahorroBreakdown.metas)} + {fmt(ahorroBreakdown.cajitas)}
+                  <Text style={[styles.statValueRefined, { color: colorsNav.text }]}>
+                    {fmt(ahorroBreakdown.metas + ahorroBreakdown.cajitas)}
                   </Text>
                 </TouchableOpacity>
 
@@ -676,8 +676,8 @@ export default function HomeScreen() {
                       <MaterialIcons name="savings" size={20} color="#2D5A3D" />
                     </View>
                     <Text style={[styles.statLabelRefined, { fontSize: 10, marginTop: 8 }]}>AHORROS</Text>
-                    <Text style={[styles.mobileStatValue, { color: colorsNav.text, fontSize: 13 }]}>
-                      {fmt(ahorroBreakdown.metas)} + {fmt(ahorroBreakdown.cajitas)}
+                    <Text style={[styles.mobileStatValue, { color: colorsNav.text }]}>
+                      {fmt(ahorroBreakdown.metas + ahorroBreakdown.cajitas)}
                     </Text>
                   </TouchableOpacity>
 

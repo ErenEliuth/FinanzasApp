@@ -80,26 +80,27 @@ export default function GoalsScreen() {
     const loadData = async () => {
         if (!user) return;
         try {
+            const stored = await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user.id));
+            const iMap = stored ? JSON.parse(stored) : {};
+            setInterestMap(iMap);
+
             const { data: rawGoalsData } = await supabase.from('goals').select('*').eq('user_id', user.id).order('id', { ascending: false });
             
-            const goalsData = await applyDailyInterests(rawGoalsData || []);
+            const goalsData = await applyDailyInterests(rawGoalsData || [], iMap);
             setGoals(goalsData);
             
             const { data: txData } = await supabase.from('transactions').select('amount').eq('user_id', user.id).eq('category', 'Ahorro');
             const total = txData?.reduce((s, tx) => s + tx.amount, 0) || 0;
             setTotalAhorro(total);
-
-
         } catch (e) { console.error(e); }
     };
 
-    const applyDailyInterests = async (goalsData: any[]) => {
+    const applyDailyInterests = async (goalsData: any[], currentMap?: any) => {
         if (!user) return goalsData;
         try {
-            const stored = await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user.id));
-            if (!stored) return goalsData;
+            const interestData = currentMap || (JSON.parse(await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user.id)) || '{}'));
+            if (!interestData || Object.keys(interestData).length === 0) return goalsData;
             
-            const interestData = JSON.parse(stored);
             let updatedAny = false;
             let newTotalInterest = 0;
             const today = new Date().toISOString().split('T')[0];
@@ -145,7 +146,7 @@ export default function GoalsScreen() {
                 if (newTotalInterest > 0) {
                     Alert.alert('Rendimientos Generados', `Tus cajitas han generado ${fmt(newTotalInterest)} en intereses. 💸`);
                 }
-            } else {
+            } else if (!currentMap) {
                 setInterestMap(interestData);
             }
             return goalsData;
