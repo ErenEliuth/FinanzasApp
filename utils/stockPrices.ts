@@ -95,14 +95,17 @@ export async function fetchTradingViewPrice(ticker: string): Promise<{ price: nu
 
     let res;
     if (typeof window !== 'undefined' && window.location) {
-       // On web use proxy for CORS
-       res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, {
+       // On web use corsproxy.io which handles POST better than allorigins for this case
+       const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+       res = await fetch(proxyUrl, {
          method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify(body)
        });
     } else {
        res = await fetch(url, {
          method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify(body)
        });
     }
@@ -258,7 +261,21 @@ export async function fetchBvcMarketOverview(): Promise<SearchResult[]> {
       columns: ['close', 'change', 'change_abs', 'description']
     };
     
-    const res = await fetch(url, { method: 'POST', body: JSON.stringify(body) });
+    let res;
+    if (typeof window !== 'undefined' && window.location) {
+       const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+       res = await fetch(proxyUrl, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify(body)
+       });
+    } else {
+       res = await fetch(url, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify(body)
+       });
+    }
     const data = await res.json();
     
     if (data.data && data.data.length > 0) {
