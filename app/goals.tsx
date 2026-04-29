@@ -571,8 +571,16 @@ export default function GoalsScreen() {
                 <View style={styles.overlayCenter}>
                     <View style={[styles.miniModal, { backgroundColor: colors.card }]}>
                         <Text style={[styles.miniTitle, { color: colors.text }]}>Asignar Ahorro</Text>
-                        <Text style={[styles.miniSub, { color: colors.sub }]}>Disponible: {fmt(availableAhorro)}</Text>
-                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border, textAlign: 'center', fontSize: 24 }]} 
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <Text style={[styles.miniSub, { color: colors.sub }]}>Disponible: {fmt(availableAhorro)}</Text>
+                            <TouchableOpacity 
+                                onPress={() => setPayAmount(formatInput(convertCurrency(availableAhorro, currency, rates).toString()))}
+                                style={{ backgroundColor: colors.accent + '20', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}
+                            >
+                                <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '800' }}>USAR TODO</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border, textAlign: 'center', fontSize: 24, width: '100%' }]} 
                             placeholder="$ 0" placeholderTextColor={colors.sub + '40'} keyboardType="decimal-pad" autoFocus
                             value={payAmount} onChangeText={t => setPayAmount(formatInput(t))} />
                         <View style={styles.miniBtns}>
@@ -592,8 +600,16 @@ export default function GoalsScreen() {
                 <View style={styles.overlayCenter}>
                     <View style={[styles.miniModal, { backgroundColor: colors.card }]}>
                         <Text style={[styles.miniTitle, { color: colors.text }]}>Retirar Fondos</Text>
-                        <Text style={[styles.miniSub, { color: colors.sub }]}>Guardado: {fmt(selectedGoal?.current_amount || 0)}</Text>
-                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border, textAlign: 'center', fontSize: 24 }]} 
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <Text style={[styles.miniSub, { color: colors.sub }]}>Guardado: {fmt(selectedGoal?.current_amount || 0)}</Text>
+                            <TouchableOpacity 
+                                onPress={() => setWithdrawAmount(formatInput(convertCurrency(selectedGoal?.current_amount || 0, currency, rates).toString()))}
+                                style={{ backgroundColor: '#EF444420', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}
+                            >
+                                <Text style={{ color: '#EF4444', fontSize: 10, fontWeight: '800' }}>RETIRAR TODO</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border, textAlign: 'center', fontSize: 24, width: '100%' }]} 
                             placeholder="$ 0" placeholderTextColor={colors.sub + '40'} keyboardType="decimal-pad" autoFocus
                             value={withdrawAmount} onChangeText={t => setWithdrawAmount(formatInput(t))} />
                         <View style={styles.miniBtns}>
