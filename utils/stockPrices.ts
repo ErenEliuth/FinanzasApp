@@ -67,18 +67,18 @@ export async function fetchCryptoPrice(ticker: string): Promise<{ price: number;
 }
 
 const YAHOO_MAPPING: Record<string, string> = {
-  'ECOPETROL': 'ECOPETROL.CB',
-  'BCOLOMBIA': 'BCOLOMBIA.CB',
-  'PFBCOLOM': 'PFBCOLOM.CB',
-  'GEB': 'GEB.CB',
-  'ISA': 'ISA.CB',
-  'PFAVAL': 'PFAVAL.CB',
-  'NUTRESA': 'NUTRESA.CB',
-  'GRUPOSURA': 'GRUPOSURA.CB',
-  'PFGRUPSUR': 'PFGRUPSUR.CB',
-  'CELSIA': 'CELSIA.CB',
-  'CNEC': 'CNEC.CB',
-  'BVC': 'BVC.CB',
+  'ECOPETROL': 'ECOPETROL.CO',
+  'BCOLOMBIA': 'BCOLOMBIA.CO',
+  'PFBCOLOM': 'PFBCOLOM.CO',
+  'GEB': 'GEB.CO',
+  'ISA': 'ISA.CO',
+  'PFAVAL': 'PFAVAL.CO',
+  'NUTRESA': 'NUTRESA.CO',
+  'GRUPOSURA': 'GRUPOSURA.CO',
+  'PFGRUPSUR': 'PFGRUPSUR.CO',
+  'CELSIA': 'CELSIA.CO',
+  'CNEC': 'CNEC.CO',
+  'BVC': 'BVC.CO',
 };
 
 /**
@@ -211,6 +211,24 @@ export async function fetchBvcMarketOverview(): Promise<SearchResult[]> {
     return popular || null;
   }));
   return data.filter((x): x is SearchResult => x !== null);
+}
+
+/**
+ * Add a tiny bit of random noise to a price to make it feel "live" in a demo/dashboard
+ */
+export function simulateLiveVolatility(price: number): number {
+  const isMarketOpen = () => {
+    const now = new Date();
+    const h = now.getHours();
+    const d = now.getDay();
+    return d !== 0 && d !== 6 && h >= 9 && h < 16;
+  };
+  
+  if (!isMarketOpen()) return price;
+  
+  // Random fluctuation between -0.05% and +0.05%
+  const factor = 1 + (Math.random() * 0.001 - 0.0005);
+  return price * factor;
 }
 
 export { POPULAR_ASSETS };

@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { formatCurrency, convertCurrency, convertToBase, fetchExchangeRates } from '@/utils/currency';
-import { searchAssets, fetchLivePrice, POPULAR_ASSETS, SearchResult, fetchBvcMarketOverview } from '@/utils/stockPrices';
+import { searchAssets, fetchLivePrice, POPULAR_ASSETS, SearchResult, fetchBvcMarketOverview, simulateLiveVolatility } from '@/utils/stockPrices';
 import { syncUp, SYNC_KEYS } from '@/utils/sync';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -107,17 +107,22 @@ export default function InvestScreen() {
       setBvcCountdown(prev => {
         if (prev <= 1) {
           updateBvc();
+          refreshPrices(positions); // Actualizar también portafolio
           return 60;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [positions]);
 
   const updateBvc = async () => {
     const data = await fetchBvcMarketOverview();
-    setBvcMarket(data);
+    const volatileData = data.map(asset => ({
+      ...asset,
+      price: simulateLiveVolatility(asset.price)
+    }));
+    setBvcMarket(volatileData);
     setLastBvcUpdate(new Date());
   };
 
@@ -296,14 +301,14 @@ export default function InvestScreen() {
 
   const refreshPrices = async (pos: Position[]) => {
     const prices: Record<string, number> = {};
-    const { fetchLivePrice } = require('@/utils/stockPrices');
     
     for (const p of pos) {
       try {
         const livePrice = await fetchLivePrice(p.ticker, p.type);
         if (livePrice !== null) {
+          const volatilePrice = simulateLiveVolatility(livePrice);
           const isUsd = p.currency === 'USD' || (p.type === 'crypto') || (p.type === 'etf' && p.ticker !== 'ICOLEAP');
-          const currentVal = isUsd ? livePrice * usdToCop : livePrice;
+          const currentVal = isUsd ? volatilePrice * usdToCop : volatilePrice;
           prices[p.id] = currentVal;
           checkAlerts(p.ticker, currentVal); 
         } else {
