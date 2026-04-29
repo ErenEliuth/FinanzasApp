@@ -92,12 +92,13 @@ export default function HomeScreen() {
 
   const scrollRef = useRef<any>(null);
 
+  const [ahorroBreakdown, setAhorroBreakdown] = useState({ metas: 0, cajitas: 0 });
+
   useEffect(() => {
     if (isFocused) {
       loadData();
       checkChangelog();
       checkReminderPrompt();
-      // Layout is fixed, no scroll needed
     }
   }, [isFocused]);
 
@@ -234,8 +235,21 @@ export default function HomeScreen() {
         }
       } catch (e) { }
 
-
-      const { data: allDebts, error: debtError } = await supabase
+      // Ahorros breakdown
+      try {
+        const { data: goalsData } = await supabase.from('goals').select('*').eq('user_id', user.id);
+        const storedInterest = await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user.id));
+        const interestData = storedInterest ? JSON.parse(storedInterest) : {};
+        
+        let sumMetas = 0;
+        let sumCajitas = 0;
+        goalsData?.forEach(g => {
+          if (interestData[g.id]?.rate > 0) sumCajitas += g.current_amount;
+          else sumMetas += g.current_amount;
+        });
+        
+        setAhorroBreakdown({ metas: sumMetas, cajitas: sumCajitas });
+      } catch (e) { }
         .from('debts')
         .select('*')
         .eq('user_id', user.id);
@@ -622,7 +636,9 @@ export default function HomeScreen() {
                     <MaterialIcons name="savings" size={20} color="#0EA5E9" />
                   </View>
                   <Text style={styles.statLabelRefined}>AHORROS</Text>
-                  <Text style={[styles.statValueRefined, { color: colorsNav.text }]}>{fmt(ahorroTotal)}</Text>
+                  <Text style={[styles.statValueRefined, { color: colorsNav.text, fontSize: 16 }]}>
+                    {fmt(ahorroBreakdown.metas)} + {fmt(ahorroBreakdown.cajitas)}
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={[styles.statBoxRefined, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/(tabs)/debts')}>
@@ -658,7 +674,9 @@ export default function HomeScreen() {
                       <MaterialIcons name="savings" size={20} color="#2D5A3D" />
                     </View>
                     <Text style={[styles.statLabelRefined, { fontSize: 10, marginTop: 8 }]}>AHORROS</Text>
-                    <Text style={[styles.mobileStatValue, { color: colorsNav.text }]}>{fmt(ahorroTotal)}</Text>
+                    <Text style={[styles.mobileStatValue, { color: colorsNav.text, fontSize: 13 }]}>
+                      {fmt(ahorroBreakdown.metas)} + {fmt(ahorroBreakdown.cajitas)}
+                    </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity style={[styles.mobileStatBox, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/(tabs)/debts')}>
