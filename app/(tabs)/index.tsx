@@ -250,6 +250,8 @@ export default function HomeScreen() {
         
         setAhorroBreakdown({ metas: sumMetas, cajitas: sumCajitas });
       } catch (e) { }
+
+      const { data: allDebts, error: debtError } = await supabase
         .from('debts')
         .select('*')
         .eq('user_id', user.id);
