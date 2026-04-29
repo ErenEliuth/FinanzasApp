@@ -574,7 +574,12 @@ export default function GoalsScreen() {
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                             <Text style={[styles.miniSub, { color: colors.sub }]}>Disponible: {fmt(availableAhorro)}</Text>
                             <TouchableOpacity 
-                                onPress={() => setPayAmount(formatInput(convertCurrency(availableAhorro, currency, rates).toString()))}
+                                onPress={() => {
+                                    const val = convertCurrency(availableAhorro, currency, rates);
+                                    const info = getCurrencyInfo(currency);
+                                    const cleanStr = info.hasDecimals ? val.toFixed(2) : Math.floor(val).toString();
+                                    setPayAmount(formatInput(cleanStr));
+                                }}
                                 style={{ backgroundColor: colors.accent + '20', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}
                             >
                                 <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '800' }}>USAR TODO</Text>
@@ -603,7 +608,12 @@ export default function GoalsScreen() {
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                             <Text style={[styles.miniSub, { color: colors.sub }]}>Guardado: {fmt(selectedGoal?.current_amount || 0)}</Text>
                             <TouchableOpacity 
-                                onPress={() => setWithdrawAmount(formatInput(convertCurrency(selectedGoal?.current_amount || 0, currency, rates).toString()))}
+                                onPress={() => {
+                                    const val = convertCurrency(selectedGoal?.current_amount || 0, currency, rates);
+                                    const info = getCurrencyInfo(currency);
+                                    const cleanStr = info.hasDecimals ? val.toFixed(2) : Math.floor(val).toString();
+                                    setWithdrawAmount(formatInput(cleanStr));
+                                }}
                                 style={{ backgroundColor: '#EF444420', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}
                             >
                                 <Text style={{ color: '#EF4444', fontSize: 10, fontWeight: '800' }}>RETIRAR TODO</Text>
