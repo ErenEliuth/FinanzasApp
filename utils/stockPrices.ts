@@ -138,13 +138,18 @@ export async function searchAssets(query: string): Promise<SearchResult[]> {
     a => a.ticker.includes(q) || a.name.toUpperCase().includes(q)
   );
 
-  // Try to fetch live crypto prices and simulate fund growth
+  // Try to fetch live crypto prices, stock prices and simulate fund growth
   const enriched = await Promise.all(
     local.map(async (asset) => {
       if (asset.type === 'crypto') {
         const live = await fetchCryptoPrice(asset.ticker);
         if (live) {
           return { ...asset, price: live.price, changePercent: live.change24h };
+        }
+      } else if (asset.type === 'stock' || asset.type === 'etf') {
+        const live = await fetchStockPrice(asset.ticker);
+        if (live) {
+          return { ...asset, price: live.price, changePercent: live.changePercent, change: live.change };
         }
       } else if (asset.type === 'fund') {
         const simulatedPrice = simulateFundGrowth(asset.price, asset.changePercent);

@@ -73,6 +73,7 @@ export default function InvestScreen() {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<SearchResult | null>(null);
   const [addShares, setAddShares] = useState('');
+  const [addAvgPrice, setAddAvgPrice] = useState('');
 
   // Simulator
   const [simAmount, setSimAmount] = useState('');
@@ -386,6 +387,7 @@ export default function InvestScreen() {
 
   const handleSelectAsset = (asset: SearchResult) => {
     setSelectedAsset(asset);
+    setAddAvgPrice(asset.price.toString());
     setSearchQuery('');
     setSearchResults([]);
     setAddFlowStep('amount');
@@ -393,15 +395,10 @@ export default function InvestScreen() {
 
   const handleSavePosition = async () => {
     if (!selectedAsset || !addShares || !user) return;
-    let priceCOP = selectedAsset.currency === 'USD' ? selectedAsset.price * usdToCop : selectedAsset.price;
+    const customPrice = parseFloat(addAvgPrice.replace(',', '.'));
+    const basePrice = isNaN(customPrice) ? selectedAsset.price : customPrice;
     
-    // Si es un fondo, calculamos el precio simulado actual para guardarlo como precio promedio
-    if (selectedAsset.type === 'fund') {
-      const { simulateFundGrowth } = require('@/utils/stockPrices');
-      priceCOP = simulateFundGrowth(selectedAsset.price, selectedAsset.changePercent);
-    }
-    
-    const sharesNum = parseFloat(addShares.replace(',', '.'));
+    let priceCOP = selectedAsset.currency === 'USD' ? basePrice * usdToCop : basePrice;
     
     const dbEntry = {
       user_id: user.id,
@@ -964,6 +961,18 @@ export default function InvestScreen() {
                     placeholder={selectedAsset.type === 'fund' ? "Ej: 100000" : "Ej: 10"} 
                     placeholderTextColor={colors.sub} keyboardType="decimal-pad"
                     value={addShares} onChangeText={setAddShares} autoCorrect={false} />
+
+                  {selectedAsset.type !== 'fund' && (
+                    <>
+                      <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800', marginTop: 16, marginBottom: 8 }}>
+                        Precio de compra ({selectedAsset.currency || 'COP'})
+                      </Text>
+                      <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]}
+                        placeholder="Precio promedio de compra" 
+                        placeholderTextColor={colors.sub} keyboardType="decimal-pad"
+                        value={addAvgPrice} onChangeText={setAddAvgPrice} autoCorrect={false} />
+                    </>
+                  )}
 
                   {addShares && parseFloat(addShares) > 0 && selectedAsset.type !== 'fund' && (
                     <View style={[s.totalPreview, { backgroundColor: colors.bg }]}>
