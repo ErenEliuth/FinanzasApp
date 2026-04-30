@@ -92,6 +92,8 @@ export default function InvestScreen() {
   const [lastBvcUpdate, setLastBvcUpdate] = useState<Date>(new Date());
   const [bvcCountdown, setBvcCountdown] = useState(60); 
   const [hiddenBvcTickers, setHiddenBvcTickers] = useState<string[]>([]);
+  const [customWatchlist, setCustomWatchlist] = useState<string[]>([]);
+  const [isAddingToWatchlist, setIsAddingToWatchlist] = useState(false);
 
   const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates || {}), currency, isHidden);
   const usdToCop = rates?.USD || 3950;
@@ -119,7 +121,16 @@ export default function InvestScreen() {
   }, [positions]);
 
   const updateBvc = async () => {
-    const data = await fetchBvcMarketOverview();
+    const combined = Array.from(new Set([
+      'ECOPETROL', 'BCOLOMBIA', 'PFBCOLOM', 'GEB', 'ISA', 
+      'CELSIA', 'MINEROS', 'TERPEL', 'PFDAVVNDA', 'EXITO', 
+      'PFGRUPOARG', 'CEMARGOS', 'PFCIBEST', 'BOGOTA', 'CORFICOLCF',
+      'PFAVAL', 'NUTRESA', 'GRUPOARGOS', 'GRUPOSURA',
+      'NU', 'AAPL', 'TSLA', 'NVDA', 'MSFT',
+      ...customWatchlist
+    ]));
+    
+    const data = await fetchBvcMarketOverview(combined);
     const volatileData = data.map(asset => ({
       ...asset,
       price: simulateLiveVolatility(asset.price)
@@ -178,6 +189,8 @@ export default function InvestScreen() {
 
       const storedHidden = await AsyncStorage.getItem('@hidden_bvc_tickers');
       if (storedHidden) setHiddenBvcTickers(JSON.parse(storedHidden));
+      const storedCustom = await AsyncStorage.getItem('@custom_watchlist');
+      if (storedCustom) setCustomWatchlist(JSON.parse(storedCustom));
 
       calculateInvestHealth();
     } catch (e) { 
@@ -405,11 +418,50 @@ export default function InvestScreen() {
   }, [selectedAssetType, bvcMarket]);
 
   const handleSelectAsset = (asset: SearchResult) => {
+    if (isAddingToWatchlist) {
+        if (!customWatchlist.includes(asset.ticker)) {
+            const updated = [...customWatchlist, asset.ticker];
+            setCustomWatchlist(updated);
+            AsyncStorage.setItem('@custom_watchlist', JSON.stringify(updated));
+            // Remove from hidden if it was there
+            if (hiddenBvcTickers.includes(asset.ticker)) {
+                const newHidden = hiddenBvcTickers.filter(t => t !== asset.ticker);
+                setHiddenBvcTickers(newHidden);
+                AsyncStorage.setItem('@hidden_bvc_tickers', JSON.stringify(newHidden));
+            }
+        }
+        setModalVisible(false);
+        setIsAddingToWatchlist(false);
+        updateBvc();
+        return;
+    }
     setSelectedAsset(asset);
-    setAddAvgPrice(asset.price.toString());
-    setSearchQuery('');
-    setSearchResults([]);
+    setAddAvgPrice(asset.price ? asset.price.toString() : '');
     setAddFlowStep('amount');
+  };
+
+  const handleDeleteBvcTicker = (ticker: string) => {
+    Alert.alert("Ocultar Activo", `¿Deseas ocultar ${ticker} de la lista del mercado?`, [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Ocultar", style: "destructive", onPress: () => {
+            const newHidden = [...hiddenBvcTickers, ticker];
+            setHiddenBvcTickers(newHidden);
+            AsyncStorage.setItem('@hidden_bvc_tickers', JSON.stringify(newHidden));
+            // Also remove from custom if it was there
+            const newCustom = customWatchlist.filter(t => t !== ticker);
+            if (newCustom.length !== customWatchlist.length) {
+                setCustomWatchlist(newCustom);
+                AsyncStorage.setItem('@custom_watchlist', JSON.stringify(newCustom));
+            }
+        }}
+    ]);
+  };
+
+  const handleCloseModal = () => {
+    setModalVisible(false);
+    setSelectedAsset(null);
+    setSearchQuery('');
+    setIsAddingToWatchlist(false);
   };
 
   const handleSavePosition = async () => {
@@ -697,9 +749,21 @@ export default function InvestScreen() {
                       </View>
                     </TouchableOpacity>
                   ))}
-                  {bvcMarket.length === 0 && (
-                    <Text style={{ color: colors.sub, fontSize: 12, paddingVertical: 10 }}>Cargando datos del mercado...</Text>
-                  )}
+                  <View style={{ width: 10 }} />
+                    <TouchableOpacity 
+                      style={[s.bvcAssetCard, { backgroundColor: colors.accent + '12', borderColor: colors.accent, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', width: 100 }]}
+                      onPress={() => {
+                        setIsAddingToWatchlist(true);
+                        setAddFlowStep('search');
+                        setSelectedAssetType('stock');
+                        setSearchResults(POPULAR_ASSETS.filter(a => a.type === 'stock').slice(0, 8));
+                        setModalVisible(true);
+                      }}
+                    >
+                      <Ionicons name="add-circle-outline" size={22} color={colors.accent} />
+                      <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '800', marginTop: 4 }}>AÑADIR</Text>
+                    </TouchableOpacity>
+                    <View style={{ width: 40 }} />
                 </ScrollView>
               </View>
 
@@ -892,7 +956,7 @@ export default function InvestScreen() {
       {/* ═══ ADD ASSET MODAL ═══ */}
       <Modal visible={modalVisible} transparent animationType="slide" statusBarTranslucent>
         <View style={s.modalOverlay}>
-          <TouchableWithoutFeedback onPress={() => { setModalVisible(false); setSelectedAsset(null); setSearchQuery(''); }}>
+          <TouchableWithoutFeedback onPress={handleCloseModal}>
             <View style={StyleSheet.absoluteFill} />
           </TouchableWithoutFeedback>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={Platform.OS === 'ios'}>
@@ -908,7 +972,7 @@ export default function InvestScreen() {
                   {addFlowStep === 'search' ? 'Buscar Acción' : 'Detalles de Compra'}
                 </Text>
                 
-                <TouchableOpacity onPress={() => { setModalVisible(false); setSelectedAsset(null); setSearchQuery(''); }}>
+                <TouchableOpacity onPress={handleCloseModal}>
                   <Ionicons name="close" size={24} color={colors.sub} />
                 </TouchableOpacity>
               </View>

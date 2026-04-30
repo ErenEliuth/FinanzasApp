@@ -269,11 +269,13 @@ export async function fetchLivePrice(ticker: string, type: string): Promise<numb
 /**
  * Fetch a summary of the Colombian market (BVC)
  */
-export async function fetchBvcMarketOverview(): Promise<SearchResult[]> {
-  const bvcTickers = [
+export async function fetchBvcMarketOverview(customTickers?: string[]): Promise<SearchResult[]> {
+  const bvcTickers = customTickers && customTickers.length > 0 ? customTickers : [
     'ECOPETROL', 'BCOLOMBIA', 'PFBCOLOM', 'GEB', 'ISA', 
     'CELSIA', 'MINEROS', 'TERPEL', 'PFDAVVNDA', 'EXITO', 
-    'PFGRUPOARG', 'CEMARGOS', 'PFCIBEST', 'NU'
+    'PFGRUPOARG', 'CEMARGOS', 'PFCIBEST', 'BOGOTA', 'CORFICOLCF',
+    'PFAVAL', 'NUTRESA', 'GRUPOARGOS', 'GRUPOSURA',
+    'NU', 'AAPL', 'TSLA', 'NVDA', 'MSFT'
   ];
   
   // Intento masivo con TradingView
@@ -283,8 +285,10 @@ export async function fetchBvcMarketOverview(): Promise<SearchResult[]> {
       symbols: { 
         tickers: bvcTickers.map(t => {
           if (t === 'NU') return 'NYSE:NU';
+          if (['AAPL', 'TSLA', 'NVDA', 'MSFT', 'AMZN', 'GOOGL'].includes(t)) return `NASDAQ:${t}`;
           return `BVC:${t}`;
-        }) 
+        })
+ 
       },
       columns: ['close', 'change', 'change_abs', 'description']
     };
