@@ -11,7 +11,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatCurrency, convertCurrency } from '@/utils/currency';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LATEST_VERSION, CHANGELOG_UPDATES } from '@/constants/Changelog';
-import { fetchBvcMarketOverview } from '@/utils/stockPrices';
+import { fetchLivePrice, simulateLiveVolatility } from '@/utils/stockPrices';
 // Eliminado: MagicAuraButton
 import {
   Alert,
@@ -240,41 +240,44 @@ export default function HomeScreen() {
         
         if (invData && invData.length > 0) {
           const baseTotal = invData.reduce((sum, pos) => sum + (Number(pos.shares || 0) * (Number(pos.avg_price || 0))), 0);
-          setInvestmentTotal(baseTotal);
+          setInvestmentTotal(baseTotal); // Set base first for fast rendering
 
-          // Ahora intentar obtener precios en vivo para el Patrimonio Total
-          const tickers = [...new Set(invData.map(p => p.ticker))];
-          const livePrices = await fetchBvcMarketOverview(tickers);
-          
           let currentTotal = 0;
           let hasLive = false;
 
-          for (const pos of invData) {
-            let price = pos.avg_price;
-            let currency = pos.currency;
+          for (const p of invData) {
+            let price = Number(p.avg_price || 0);
+            let currency = p.currency || 'COP';
 
-            // Buscar en el fetch masivo
-            const live = livePrices.find(l => l.ticker === pos.ticker);
-            if (live) {
-              price = live.price;
-              currency = live.currency || pos.currency;
-              hasLive = true;
-            } else {
-              // Si no está en el masivo, intentar individual (fallback)
-              const indLive = await fetchBvcMarketOverview([pos.ticker]);
-              if (indLive && indLive[0]) {
-                price = indLive[0].price;
-                currency = indLive[0].currency || pos.currency;
+            try {
+              const livePrice = await fetchLivePrice(p.ticker, p.type || 'stock');
+              if (livePrice !== null) {
+                const volatilePrice = simulateLiveVolatility(livePrice);
+                price = volatilePrice;
                 hasLive = true;
+                // Ajustar moneda basada en el tipo (igual que en invest.tsx)
+                if (p.currency === 'USD' || p.type === 'crypto' || (p.type === 'etf' && p.ticker !== 'ICOLEAP')) {
+                  currency = 'USD';
+                }
               }
+            } catch (e) {
+              // Si falla, se queda con avg_price
             }
             
-            const value = Number(pos.shares || 0) * Number(price || 0);
+            const value = Number(p.shares || 0) * price;
             const valueCOP = currency === 'USD' ? value * (rates.USD || 3950) : value;
             currentTotal += valueCOP;
           }
-          
-          if (hasLive && currentTotal > 0) {
+
+          // Cargar dividendos si los hay (igual que en invest.tsx)
+          try {
+            const storedDivs = await AsyncStorage.getItem(`@invest_divs_${user.id}`);
+            if (storedDivs) {
+              currentTotal += Number(storedDivs);
+            }
+          } catch (e) {}
+
+          if (hasLive || currentTotal > 0) {
             setInvestmentTotal(currentTotal);
           }
         } else {
