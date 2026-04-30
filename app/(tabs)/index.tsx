@@ -443,11 +443,25 @@ export default function HomeScreen() {
           const worstExp = Object.entries(dailyExp).sort((a: any, b: any) => b[1] - a[1])[0];
           const topCat = Object.entries(cats).sort((a: any, b: any) => b[1] - a[1])[0];
 
+          // Comparación con el mes anterior al anterior
+          const prevPrevMonth = prevMonth === 0 ? 11 : prevMonth - 1;
+          const prevPrevYear = prevMonth === 0 ? prevYear - 1 : prevYear;
+          let prevExp = 0;
+          (allTx || []).forEach(tx => {
+            const d = new Date(tx.date);
+            if (d.getMonth() === prevPrevMonth && d.getFullYear() === prevPrevYear) {
+              if ((tx.type === 'expense' || tx.category === 'Gasto') && tx.category !== 'Transferencia' && tx.category !== 'Ahorro') {
+                prevExp += Number(tx.amount || 0);
+              }
+            }
+          });
+
           setMonthlyReport({
             income,
             expenses,
             savings: income - expenses,
             savingsRate: income > 0 ? ((income - expenses) / income) * 100 : 0,
+            expenseChange: prevExp > 0 ? ((expenses - prevExp) / prevExp) * 100 : 0,
             bestInc: bestInc ? { day: bestInc[0], amt: bestInc[1] } : null,
             worstExp: worstExp ? { day: worstExp[0], amt: worstExp[1] } : null,
             topCat: topCat ? { name: topCat[0], amt: topCat[1] } : null,
@@ -1026,6 +1040,25 @@ export default function HomeScreen() {
                       {monthlyReport?.savingsRate?.toFixed(1)}%
                     </Text>
                   </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ color: colorsNav.sub, fontWeight: '700' }}>Vs. Mes Anterior</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '900', color: (monthlyReport?.expenseChange || 0) <= 0 ? '#10B981' : '#EF4444' }}>
+                      {(monthlyReport?.expenseChange || 0) > 0 ? '+' : ''}{monthlyReport?.expenseChange?.toFixed(1)}% en gastos
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Salud Financiera */}
+                <View style={{ backgroundColor: isDark ? colorsNav.cardBg : '#FDF8F3', padding: 20, borderRadius: 24, alignItems: 'center' }}>
+                   <Text style={{ fontSize: 10, fontWeight: '800', color: colorsNav.sub, marginBottom: 12, letterSpacing: 1 }}>SALUD FINANCIERA</Text>
+                   <View style={{ flexDirection: 'row', gap: 6, marginBottom: 12 }}>
+                      {[1,2,3,4,5].map(i => (
+                        <View key={i} style={{ width: 40, height: 8, borderRadius: 4, backgroundColor: i <= Math.ceil((monthlyReport?.savingsRate || 0) / 10) ? '#10B981' : isDark ? '#FFFFFF10' : '#00000005' }} />
+                      ))}
+                   </View>
+                   <Text style={{ fontSize: 18, fontWeight: '900', color: colorsNav.text }}>
+                      {monthlyReport?.savingsRate > 30 ? "Excelente" : monthlyReport?.savingsRate > 15 ? "Buena" : "Por mejorar"}
+                   </Text>
                 </View>
 
                 {/* Highlights */}

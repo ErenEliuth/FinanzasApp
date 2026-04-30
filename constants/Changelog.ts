@@ -1,4 +1,4 @@
-export const LATEST_VERSION = '2026-04-30-v13'; // Informe Mensual Inteligente
+export const LATEST_VERSION = '2026-04-30-v14'; // Reporte mensual hiper-completo
 
 export const CHANGELOG_UPDATES = [
   {
