@@ -746,10 +746,11 @@ export default function InvestScreen() {
                     <TouchableOpacity 
                       style={[s.bvcAssetCard, { backgroundColor: colors.accent + '12', borderColor: colors.accent, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', width: 100 }]}
                       onPress={() => {
+                        updateBvc(); // Refresh prices before showing
                         setIsAddingToWatchlist(true);
                         setAddFlowStep('search');
                         setSelectedAssetType('stock');
-                        setSearchResults(POPULAR_ASSETS.filter(a => a.type === 'stock').slice(0, 8));
+                        setSearchResults(bvcMarket.length > 0 ? bvcMarket : POPULAR_ASSETS.filter(a => a.type === 'stock').slice(0, 8));
                         setModalVisible(true);
                       }}
                     >
@@ -920,6 +921,7 @@ export default function InvestScreen() {
                   <MaterialIcons name="show-chart" size={40} color={colors.sub} />
                   <Text style={{ color: colors.sub, fontSize: 14, fontWeight: '700', marginTop: 12 }}>Agrega tu primer activo</Text>
                   <TouchableOpacity onPress={() => { 
+                    updateBvc(); // Refresh
                     setSelectedAssetType('stock');
                     setSearchResults(bvcMarket.length > 0 ? bvcMarket : POPULAR_ASSETS.filter(a => a.type === 'stock').slice(0, 8));
                     setAddFlowStep('search');
@@ -978,35 +980,61 @@ export default function InvestScreen() {
 
               {addFlowStep === 'search' && (
                 <>
-                  <View style={[s.searchBar, { backgroundColor: colors.bg }]}>
-                    <Ionicons name="search" size={18} color={colors.sub} />
-                    <TextInput style={{ flex: 1, color: colors.text, fontSize: 16, fontWeight: '600', marginLeft: 10 }}
-                      placeholder="Buscar por nombre o ticker..." placeholderTextColor={colors.sub}
+                  <View style={[s.searchBar, { backgroundColor: colors.bg, borderRadius: 20, paddingHorizontal: 15, height: 54 }]}>
+                    <Ionicons name="search" size={20} color={colors.accent} />
+                    <TextInput style={{ flex: 1, color: colors.text, fontSize: 16, fontWeight: '700', marginLeft: 10 }}
+                      placeholder="Busca Ecopetrol, Nubank, Apple..." placeholderTextColor={colors.sub}
                       value={searchQuery} onChangeText={handleSearch} autoFocus autoCorrect={false} autoCapitalize="none" textContentType="none" />
                     {isSearching && <ActivityIndicator size="small" color={colors.accent} />}
+                    {searchQuery.length > 0 && (
+                      <TouchableOpacity onPress={() => handleSearch('')}>
+                        <Ionicons name="close-circle" size={20} color={colors.sub} />
+                      </TouchableOpacity>
+                    )}
                   </View>
-                  <ScrollView style={{ maxHeight: 260, marginTop: 12 }} showsVerticalScrollIndicator={false}>
+
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, marginBottom: 10 }}>
+                    <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>{searchQuery.length > 0 ? 'RESULTADOS' : 'ACCIONES POPULARES'}</Text>
+                    {!isSearching && searchQuery.length === 0 && (
+                      <TouchableOpacity onPress={() => updateBvc()} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Ionicons name="refresh" size={12} color={colors.accent} />
+                        <Text style={{ color: colors.accent, fontSize: 11, fontWeight: '800' }}>ACTUALIZAR</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  <ScrollView style={{ maxHeight: 350 }} showsVerticalScrollIndicator={false}>
                     {searchResults.map((asset, i) => (
-                      <TouchableOpacity key={i} style={[s.searchItem, { borderColor: colors.border }]} onPress={() => handleSelectAsset(asset)}>
-                        <View style={[s.searchIcon, { backgroundColor: getAssetColor(asset.type as AssetType) + '12' }]}>
-                          {asset.type === 'crypto' ? <MaterialCommunityIcons name="bitcoin" size={20} color="#F7931A" /> : <MaterialIcons name="show-chart" size={20} color={colors.accent} />}
+                      <TouchableOpacity key={i} style={[s.searchItem, { backgroundColor: colors.bg + '50', borderRadius: 16, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: colors.border }]} onPress={() => handleSelectAsset(asset)}>
+                        <View style={[s.searchIcon, { backgroundColor: getAssetColor(asset.type as AssetType) + '15', width: 44, height: 44, borderRadius: 12 }]}>
+                          {asset.ticker === 'NU' ? (
+                            <Image source={{ uri: 'https://cdn.worldvectorlogo.com/logos/nubank.svg' }} style={{ width: 24, height: 24, borderRadius: 6 }} />
+                          ) : (
+                            asset.type === 'crypto' ? <MaterialCommunityIcons name="bitcoin" size={24} color="#F7931A" /> : <MaterialIcons name="show-chart" size={24} color={colors.accent} />
+                          )}
                         </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>{asset.ticker}</Text>
-                          <Text style={{ color: colors.sub, fontSize: 11 }} numberOfLines={1}>{asset.name}</Text>
+                        <View style={{ flex: 1, marginLeft: 12 }}>
+                          <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900' }}>{asset.ticker}</Text>
+                          <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '600' }} numberOfLines={1}>{asset.name}</Text>
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
-                          <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>
+                          <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900' }}>
                             {fmt(asset.currency === 'USD' ? asset.price * usdToCop : asset.price)}
                           </Text>
-                          <Text style={{ color: asset.changePercent >= 0 ? '#10B981' : '#EF4444', fontSize: 11, fontWeight: '700' }}>
-                            {asset.changePercent >= 0 ? '+' : ''}{asset.changePercent.toFixed(2)}%
-                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 4 }}>
+                            <Ionicons name={asset.changePercent >= 0 ? 'caret-up' : 'caret-down'} size={10} color={asset.changePercent >= 0 ? '#10B981' : '#EF4444'} />
+                            <Text style={{ color: asset.changePercent >= 0 ? '#10B981' : '#EF4444', fontSize: 12, fontWeight: '900' }}>
+                              {Math.abs(asset.changePercent).toFixed(2)}%
+                            </Text>
+                          </View>
                         </View>
                       </TouchableOpacity>
                     ))}
-                    {searchResults.length === 0 && (
-                      <Text style={{ textAlign: 'center', color: colors.sub, marginTop: 40, fontWeight: '700' }}>No hubieron resultados para esta categoría.</Text>
+                    {searchResults.length === 0 && !isSearching && (
+                      <View style={{ padding: 40, alignItems: 'center' }}>
+                        <Ionicons name="search-outline" size={40} color={colors.sub} />
+                        <Text style={{ textAlign: 'center', color: colors.sub, marginTop: 15, fontWeight: '700' }}>No encontramos "{searchQuery}"</Text>
+                      </View>
                     )}
                   </ScrollView>
                 </>
