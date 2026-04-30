@@ -274,7 +274,13 @@ export default function CardsScreen() {
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colorsNav.bg }]}>
             <View style={styles.header}>
-                <View>
+                <TouchableOpacity 
+                    style={[styles.backBtn, { backgroundColor: isDark ? colorsNav.card : '#F8F5F0', borderColor: colorsNav.border }]} 
+                    onPress={() => router.replace('/')}
+                >
+                    <Ionicons name="chevron-back" size={24} color={colorsNav.text} />
+                </TouchableOpacity>
+                <View style={{ flex: 1, marginLeft: 15 }}>
                     <Text style={[styles.headerTitle, { color: colorsNav.text }]}>Mis Tarjetas</Text>
                     <Text style={[styles.headerSub, { color: colorsNav.sub }]}>Gestiona tu crédito santuario</Text>
                 </View>
@@ -564,6 +570,7 @@ const styles = StyleSheet.create({
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: Platform.OS === 'android' ? 50 : 20 },
     headerTitle: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
     headerSub: { fontSize: 13, marginTop: 2, fontWeight: '500' },
+    backBtn: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
     addBtn: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
     
     // Carousel
