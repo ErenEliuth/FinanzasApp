@@ -189,9 +189,9 @@ export default function InvestScreen() {
         id: a.id, ticker: a.ticker, targetPrice: a.target_price, condition: a.condition, active: a.active
       })));
 
-      const storedHidden = await AsyncStorage.getItem('@hidden_bvc_tickers');
+      const storedHidden = await AsyncStorage.getItem(SYNC_KEYS.INVEST_HIDDEN(user.id));
       if (storedHidden) setHiddenBvcTickers(JSON.parse(storedHidden));
-      const storedCustom = await AsyncStorage.getItem('@custom_watchlist');
+      const storedCustom = await AsyncStorage.getItem(SYNC_KEYS.INVEST_WATCHLIST(user.id));
       if (storedCustom) setCustomWatchlist(JSON.parse(storedCustom));
 
       calculateInvestHealth();
@@ -425,12 +425,12 @@ export default function InvestScreen() {
         if (!customWatchlist.includes(asset.ticker)) {
             const updated = [...customWatchlist, asset.ticker];
             setCustomWatchlist(updated);
-            AsyncStorage.setItem('@custom_watchlist', JSON.stringify(updated));
+            AsyncStorage.setItem(SYNC_KEYS.INVEST_WATCHLIST(user!.id), JSON.stringify(updated));
             // Remove from hidden if it was there
             if (hiddenBvcTickers.includes(asset.ticker)) {
                 const newHidden = hiddenBvcTickers.filter(t => t !== asset.ticker);
                 setHiddenBvcTickers(newHidden);
-                AsyncStorage.setItem('@hidden_bvc_tickers', JSON.stringify(newHidden));
+                AsyncStorage.setItem(SYNC_KEYS.INVEST_HIDDEN(user!.id), JSON.stringify(newHidden));
             }
             // Optimistic update for bvcMarket to show it immediately even if fetch is pending
             if (!bvcMarket.find(m => m.ticker === asset.ticker)) {
@@ -453,12 +453,12 @@ export default function InvestScreen() {
         { text: "Ocultar", style: "destructive", onPress: () => {
             const newHidden = [...hiddenBvcTickers, ticker];
             setHiddenBvcTickers(newHidden);
-            AsyncStorage.setItem('@hidden_bvc_tickers', JSON.stringify(newHidden));
+            AsyncStorage.setItem(SYNC_KEYS.INVEST_HIDDEN(user!.id), JSON.stringify(newHidden));
             // Also remove from custom if it was there
             const newCustom = customWatchlist.filter(t => t !== ticker);
             if (newCustom.length !== customWatchlist.length) {
                 setCustomWatchlist(newCustom);
-                AsyncStorage.setItem('@custom_watchlist', JSON.stringify(newCustom));
+                AsyncStorage.setItem(SYNC_KEYS.INVEST_WATCHLIST(user!.id), JSON.stringify(newCustom));
             }
         }}
     ]);
@@ -737,7 +737,7 @@ export default function InvestScreen() {
                             if (window.confirm(`¿Ocultar ${asset.ticker} de la tira?`)) {
                                 const newHidden = [...hiddenBvcTickers, asset.ticker];
                                 setHiddenBvcTickers(newHidden);
-                                AsyncStorage.setItem('@hidden_bvc_tickers', JSON.stringify(newHidden));
+                                AsyncStorage.setItem(SYNC_KEYS.INVEST_HIDDEN(user!.id), JSON.stringify(newHidden));
                             }
                         } else {
                             handleDeleteBvcTicker(asset.ticker);

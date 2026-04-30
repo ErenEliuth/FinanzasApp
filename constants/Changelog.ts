@@ -1,4 +1,4 @@
-export const LATEST_VERSION = '2026-04-30-v4'; // Corrección Ahorros en Patrimonio
+export const LATEST_VERSION = '2026-04-30-v5'; // Sincronización en la nube (cajitas y portafolio)
 
 export const CHANGELOG_UPDATES = [
   {

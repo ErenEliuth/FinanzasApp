@@ -22,6 +22,8 @@ export const SYNC_KEYS = {
     ONBOARDING_DONE: (uid: string) => `@onboarding_done_${uid}`,
     CHANGELOG_SEEN: (uid: string) => `@last_seen_changelog_${uid}`,
     GOALS_INTEREST: (uid: string) => `@goals_interest_${uid}`,
+    INVEST_WATCHLIST: (uid: string) => `@invest_watchlist_${uid}`,
+    INVEST_HIDDEN: (uid: string) => `@invest_hidden_${uid}`,
 };
 
 const OLD_KEYS = {
@@ -50,6 +52,8 @@ export async function migrateOldData(userId: string) {
             { old: OLD_KEYS.CURRENCY, new: SYNC_KEYS.CURRENCY(userId) },
             { old: OLD_KEYS.HIDDEN_MODE, new: SYNC_KEYS.HIDDEN_MODE(userId) },
             { old: OLD_KEYS.TUTORIAL_SEEN, new: SYNC_KEYS.TUTORIAL_SEEN(userId) },
+            { old: '@custom_watchlist', new: SYNC_KEYS.INVEST_WATCHLIST(userId) },
+            { old: '@hidden_bvc_tickers', new: SYNC_KEYS.INVEST_HIDDEN(userId) },
         ];
 
         for (const m of migrations) {
@@ -78,7 +82,8 @@ export async function syncUp(userId: string) {
             smartSavings, theme, currency, hiddenMode, 
             reminders, tutorialSeen, lock,
             invDivs, invSync, invPerf, invAlloc, notifs,
-            remPrompt, onboarding, changelog, goalsInterest
+            remPrompt, onboarding, changelog, goalsInterest,
+            invWatchlist, invHidden
         ] = await Promise.all([
             AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(userId)),
             AsyncStorage.getItem(SYNC_KEYS.CATEGORIES(userId)),
@@ -100,6 +105,8 @@ export async function syncUp(userId: string) {
             AsyncStorage.getItem(SYNC_KEYS.ONBOARDING_DONE(userId)),
             AsyncStorage.getItem(SYNC_KEYS.CHANGELOG_SEEN(userId)),
             AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(userId)),
+            AsyncStorage.getItem(SYNC_KEYS.INVEST_WATCHLIST(userId)),
+            AsyncStorage.getItem(SYNC_KEYS.INVEST_HIDDEN(userId)),
         ]);
 
         const data = {
@@ -119,6 +126,8 @@ export async function syncUp(userId: string) {
                 sync: invSync,
                 perf: invPerf === 'true',
                 alloc: invAlloc === 'true',
+                watchlist: invWatchlist ? JSON.parse(invWatchlist) : null,
+                hidden: invHidden ? JSON.parse(invHidden) : null,
             },
             notifs_dismissed: notifs ? JSON.parse(notifs) : null,
             reminder_prompt_dismissed: remPrompt === 'true',
@@ -175,12 +184,15 @@ export async function syncDown(userId: string) {
             if (config.invest.sync) tasks.push(AsyncStorage.setItem(SYNC_KEYS.INVEST_SYNC(userId), config.invest.sync));
             if (config.invest.perf !== undefined) tasks.push(AsyncStorage.setItem(SYNC_KEYS.INVEST_PERF(userId), String(config.invest.perf)));
             if (config.invest.alloc !== undefined) tasks.push(AsyncStorage.setItem(SYNC_KEYS.INVEST_ALLOC(userId), String(config.invest.alloc)));
+            if (config.invest.watchlist) tasks.push(AsyncStorage.setItem(SYNC_KEYS.INVEST_WATCHLIST(userId), JSON.stringify(config.invest.watchlist)));
+            if (config.invest.hidden) tasks.push(AsyncStorage.setItem(SYNC_KEYS.INVEST_HIDDEN(userId), JSON.stringify(config.invest.hidden)));
         }
         
         if (config.notifs_dismissed) tasks.push(AsyncStorage.setItem(SYNC_KEYS.NOTIFS_DISMISSED(userId), JSON.stringify(config.notifs_dismissed)));
         if (config.reminder_prompt_dismissed !== undefined) tasks.push(AsyncStorage.setItem(SYNC_KEYS.REMINDER_PROMPT_DISMISSED(userId), String(config.reminder_prompt_dismissed)));
         if (config.onboarding_done !== undefined) tasks.push(AsyncStorage.setItem(SYNC_KEYS.ONBOARDING_DONE(userId), String(config.onboarding_done)));
         if (config.changelog_seen) tasks.push(AsyncStorage.setItem(SYNC_KEYS.CHANGELOG_SEEN(userId), config.changelog_seen));
+        if (config.goals_interest) tasks.push(AsyncStorage.setItem(SYNC_KEYS.GOALS_INTEREST(userId), JSON.stringify(config.goals_interest)));
 
         await Promise.all(tasks);
         console.log('Sync down complete');
