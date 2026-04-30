@@ -11,6 +11,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatCurrency, convertCurrency } from '@/utils/currency';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LATEST_VERSION, CHANGELOG_UPDATES } from '@/constants/Changelog';
+import { fetchBvcMarketOverview } from '@/utils/stockPrices';
 // Eliminado: MagicAuraButton
 import {
   Alert,
@@ -95,11 +96,19 @@ export default function HomeScreen() {
   const [ahorroBreakdown, setAhorroBreakdown] = useState({ metas: 0, cajitas: 0 });
 
   useEffect(() => {
+    let interval: any;
     if (isFocused) {
       loadData();
       checkChangelog();
       checkReminderPrompt();
+      // Refrescar cada 30 segundos para mantener el valor de inversiones al día
+      interval = setInterval(() => {
+        loadData();
+      }, 30000);
     }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [isFocused]);
 
   const checkReminderPrompt = async () => {
@@ -222,18 +231,40 @@ export default function HomeScreen() {
           setCardBalances(balances);
       } catch (e) { }
 
-      // Cargar total de inversiones desde Supabase
+      // Cargar total de inversiones desde Supabase y actualizar con precios en vivo
       try {
         const { data: invData } = await supabase
           .from('investments')
-          .select('shares, avg_price')
+          .select('*')
           .eq('user_id', user.id);
         
-        if (invData) {
-          const total = invData.reduce((sum, pos) => sum + (Number(pos.shares || 0) * (Number(pos.avg_price || 0))), 0);
-          setInvestmentTotal(total);
+        if (invData && invData.length > 0) {
+          // Primero calcular el base (mientras cargan los en vivo)
+          const baseTotal = invData.reduce((sum, pos) => sum + (Number(pos.shares || 0) * (Number(pos.avg_price || 0))), 0);
+          setInvestmentTotal(baseTotal);
+
+          // Ahora intentar obtener precios en vivo para el Patrimonio Total
+          const tickers = [...new Set(invData.map(p => p.ticker))];
+          const livePrices = await fetchBvcMarketOverview(tickers);
+          
+          let currentTotal = 0;
+          invData.forEach(pos => {
+            const live = livePrices.find(l => l.ticker === pos.ticker);
+            const price = live ? live.price : pos.avg_price;
+            const currency = live ? (live.currency || pos.currency) : pos.currency;
+            
+            const value = Number(pos.shares || 0) * Number(price || 0);
+            const valueCOP = currency === 'USD' ? value * rates.USD : value;
+            currentTotal += valueCOP;
+          });
+          
+          if (currentTotal > 0) {
+            setInvestmentTotal(currentTotal);
+          }
+        } else {
+          setInvestmentTotal(0);
         }
-      } catch (e) { }
+      } catch (e) { console.error("Error loading investment live total:", e); }
 
       // Ahorros breakdown
       try {
