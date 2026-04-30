@@ -311,16 +311,22 @@ export async function fetchBvcMarketOverview(customTickers?: string[]): Promise<
     const data = await res.json();
     
     if (data.data && data.data.length > 0) {
-      return data.data.map((item: any, i: number) => ({
-        ticker: bvcTickers[i],
-        name: item.d[3] || bvcTickers[i],
-        price: item.d[0],
-        change: item.d[2],
-        changePercent: item.d[1],
-        type: 'stock' as const,
-        exchange: bvcTickers[i] === 'NU' ? 'NYSE' : 'BVC',
-        currency: bvcTickers[i] === 'NU' ? 'USD' : 'COP'
-      }));
+      return data.data.map((item: any) => {
+        const fullSymbol = item.s; // e.g. "BVC:ECOPETROL"
+        const ticker = fullSymbol.split(':')[1] || fullSymbol;
+        const isInternational = fullSymbol.includes('NASDAQ') || fullSymbol.includes('NYSE');
+        
+        return {
+          ticker: ticker,
+          name: item.d[3] || ticker,
+          price: item.d[0],
+          change: item.d[2],
+          changePercent: item.d[1],
+          type: 'stock' as const,
+          exchange: isInternational ? 'INTL' : 'BVC',
+          currency: isInternational ? 'USD' : 'COP'
+        };
+      });
     }
   } catch (e) {
     console.log("Error in BVC TradingView fetch, falling back to individual");
