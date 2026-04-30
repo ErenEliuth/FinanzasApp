@@ -239,27 +239,43 @@ export default function HomeScreen() {
           .eq('user_id', user.id);
         
         if (invData && invData.length > 0) {
-          // Primero calcular el base (mientras cargan los en vivo)
           const baseTotal = invData.reduce((sum, pos) => sum + (Number(pos.shares || 0) * (Number(pos.avg_price || 0))), 0);
+          setInvestmentTotal(baseTotal);
+
           // Ahora intentar obtener precios en vivo para el Patrimonio Total
           const tickers = [...new Set(invData.map(p => p.ticker))];
           const livePrices = await fetchBvcMarketOverview(tickers);
           
-          if (livePrices && livePrices.length > 0) {
-            let currentTotal = 0;
-            invData.forEach(pos => {
-              const live = livePrices.find(l => l.ticker === pos.ticker);
-              const price = live ? live.price : pos.avg_price;
-              const currency = live ? (live.currency || pos.currency) : pos.currency;
-              
-              const value = Number(pos.shares || 0) * Number(price || 0);
-              const valueCOP = currency === 'USD' ? value * rates.USD : value;
-              currentTotal += valueCOP;
-            });
-            
-            if (currentTotal > 0) {
-              setInvestmentTotal(currentTotal);
+          let currentTotal = 0;
+          let hasLive = false;
+
+          for (const pos of invData) {
+            let price = pos.avg_price;
+            let currency = pos.currency;
+
+            // Buscar en el fetch masivo
+            const live = livePrices.find(l => l.ticker === pos.ticker);
+            if (live) {
+              price = live.price;
+              currency = live.currency || pos.currency;
+              hasLive = true;
+            } else {
+              // Si no está en el masivo, intentar individual (fallback)
+              const indLive = await fetchBvcMarketOverview([pos.ticker]);
+              if (indLive && indLive[0]) {
+                price = indLive[0].price;
+                currency = indLive[0].currency || pos.currency;
+                hasLive = true;
+              }
             }
+            
+            const value = Number(pos.shares || 0) * Number(price || 0);
+            const valueCOP = currency === 'USD' ? value * (rates.USD || 3950) : value;
+            currentTotal += valueCOP;
+          }
+          
+          if (hasLive && currentTotal > 0) {
+            setInvestmentTotal(currentTotal);
           }
         } else {
           setInvestmentTotal(0);

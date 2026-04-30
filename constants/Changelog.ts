@@ -1,4 +1,4 @@
-export const LATEST_VERSION = '2026-04-30-v1'; // Actualización de Inversiones en Vivo
+export const LATEST_VERSION = '2026-04-30-v2'; // Sincronización de Inversiones Reforzada
 
 export const CHANGELOG_UPDATES = [
   {
