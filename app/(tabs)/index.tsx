@@ -88,7 +88,7 @@ export default function HomeScreen() {
   const [pendingItems, setPendingItems] = useState<any[]>([]);
   const [cardBalances, setCardBalances] = useState<Record<string, number>>({});
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
-  const [changelogVisible, setChangelogVisible] = useState(false);
+
   const [investmentTotal, setInvestmentTotal] = useState(0);
 
   const scrollRef = useRef<any>(null);
@@ -99,7 +99,7 @@ export default function HomeScreen() {
     let interval: any;
     if (isFocused) {
       loadData();
-      checkChangelog();
+
       checkReminderPrompt();
       // Refrescar cada 30 segundos para mantener el valor de inversiones al día
       interval = setInterval(() => {
@@ -142,24 +142,7 @@ export default function HomeScreen() {
     await syncUp(user.id);
   };
 
-  const checkChangelog = async () => {
-    if (!user?.id) return;
-    try {
-      const lastSeen = await AsyncStorage.getItem(SYNC_KEYS.CHANGELOG_SEEN(user.id));
-      if (lastSeen !== LATEST_VERSION) {
-        setChangelogVisible(true);
-      }
-    } catch (e) { }
-  };
 
-  const markChangelogSeen = async () => {
-    if (!user?.id) return;
-    try {
-      await AsyncStorage.setItem(SYNC_KEYS.CHANGELOG_SEEN(user.id), LATEST_VERSION);
-      await syncUp(user.id);
-      setChangelogVisible(false);
-    } catch (e) { }
-  };
 
   const loadData = async () => {
     if (!user) return;
@@ -923,42 +906,7 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      {/* ── Modal de Novedades (Changelog) ────────────────────────── */}
-      <Modal visible={changelogVisible} transparent animationType="fade" onRequestClose={markChangelogSeen}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: isDark ? colorsNav.card : '#FFF', maxWidth: 450 }]}>
-            <View style={{ alignItems: 'center', marginBottom: 24, marginTop: 8 }}>
-              <View style={[styles.changelogIconWrap, { backgroundColor: colorsNav.accent + '15', width: 64, height: 64, borderRadius: 24, marginBottom: 16 }]}>
-                <Ionicons name="sparkles" size={32} color={colorsNav.accent} />
-              </View>
-              <Text style={[styles.modalTitle, { color: colorsNav.text, textAlign: 'center' }]}>¡Novedades en Zenly!</Text>
-              <Text style={[styles.modalSub, { color: colorsNav.sub, textAlign: 'center', marginTop: 4 }]}>Hemos mejorado tu experiencia financiera</Text>
-            </View>
 
-            <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
-              {CHANGELOG_UPDATES.map((update, idx) => (
-                <View key={idx} style={[styles.changelogItem, { backgroundColor: isDark ? colorsNav.bg : '#F8F5F0' }]}>
-                  <View style={[styles.changelogIconWrap, { backgroundColor: colorsNav.accent + (isDark ? '15' : '10') }]}>
-                    <MaterialIcons name={update.icon as any} size={22} color={colorsNav.accent} />
-                  </View>
-                  <View style={styles.changelogTextWrap}>
-                    <Text style={[styles.changelogItemTitle, { color: colorsNav.text }]}>{update.title}</Text>
-                    <Text style={[styles.changelogItemDesc, { color: colorsNav.sub }]}>{update.description}</Text>
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
-
-            <TouchableOpacity 
-              style={[styles.modalCloseBtn, { backgroundColor: colorsNav.accent, borderTopWidth: 0 }]} 
-              onPress={markChangelogSeen}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.modalCloseBtnText, { color: '#FFF' }]}>¡Explorar Zenly!</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
       {/* ── Modal de Distribución de Dinero ─── */}
       <Modal visible={activeMoneyBreakdownVisible} transparent animationType="fade" onRequestClose={() => setActiveMoneyBreakdownVisible(false)}>
         <View style={styles.modalOverlay}>

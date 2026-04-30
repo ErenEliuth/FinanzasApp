@@ -206,21 +206,21 @@ export default function HistoryScreen() {
                             <MaterialIcons name="call-received" size={12} color={colorsNav.accent} />
                         </View>
                         <Text style={[styles.summaryLabel, { color: colorsNav.sub }]}>INGRESOS</Text>
-                        <Text style={[styles.summaryValue, { color: colorsNav.text }]} numberOfLines={1} adjustsFontSizeToFit>{fmt(totalIngresos)}</Text>
+                        <Text style={[styles.summaryValue, { color: colorsNav.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{fmt(totalIngresos)}</Text>
                     </View>
                     <View style={[styles.summaryCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
                         <View style={[styles.miniIcon, { backgroundColor: '#FFEBEE' }]}>
                             <MaterialIcons name="call-made" size={12} color="#EF4444" />
                         </View>
                         <Text style={[styles.summaryLabel, { color: colorsNav.sub }]}>GASTOS</Text>
-                        <Text style={[styles.summaryValue, { color: colorsNav.text }]} numberOfLines={1} adjustsFontSizeToFit>{fmt(totalGastos)}</Text>
+                        <Text style={[styles.summaryValue, { color: colorsNav.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{fmt(totalGastos)}</Text>
                     </View>
                     <View style={[styles.summaryCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
                         <View style={[styles.miniIcon, { backgroundColor: '#F0E6FF' }]}>
                             <MaterialIcons name="savings" size={12} color="#8B5CF6" />
                         </View>
                         <Text style={[styles.summaryLabel, { color: colorsNav.sub }]}>AHORRO</Text>
-                        <Text style={[styles.summaryValue, { color: colorsNav.text }]} numberOfLines={1} adjustsFontSizeToFit>{fmt(totalAhorro)}</Text>
+                        <Text style={[styles.summaryValue, { color: colorsNav.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{fmt(totalAhorro)}</Text>
                     </View>
                 </View>
             )}
@@ -342,14 +342,14 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20, marginBottom: 20,
     },
     summaryCard: {
-        flex: 1, borderRadius: 18, padding: 14, gap: 6,
+        flex: 1, borderRadius: 18, paddingVertical: 14, paddingHorizontal: 10, gap: 6,
         shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 10, elevation: 2,
     },
     miniIcon: {
         width: 24, height: 24, borderRadius: 8, justifyContent: 'center', alignItems: 'center',
     },
     summaryLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 0.8 },
-    summaryValue: { fontSize: 13, fontWeight: '800' },
+    summaryValue: { fontSize: 11, fontWeight: '800' },
     listContent: { paddingHorizontal: 20 },
     chartCard: {
         marginHorizontal: 20, borderRadius: 24, padding: 20, marginTop: 10,

@@ -1,4 +1,4 @@
-export const LATEST_VERSION = '2026-04-30-v7'; // Fix visual en tarjetas de historial
+export const LATEST_VERSION = '2026-04-30-v8'; // Remove changelog modal and fix history numbers
 
 export const CHANGELOG_UPDATES = [
   {
