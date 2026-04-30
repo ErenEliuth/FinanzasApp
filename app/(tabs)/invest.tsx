@@ -511,13 +511,16 @@ export default function InvestScreen() {
       setPositions(updated);
       setSelectedAsset(null); setAddShares(''); setSearchQuery(''); setModalVisible(false);
       refreshPrices(updated);
-    } catch (err) {
-      console.error(err);
-      Alert.alert("Error", "Ocurrió un error inesperado.");
-    } finally {
-      setIsSearching(false);
+    } else {
+      Alert.alert("Error", "No se pudo guardar la inversión en la nube.");
     }
-  };
+  } catch (err) {
+    console.error(err);
+    Alert.alert("Error", "Ocurrió un error inesperado.");
+  } finally {
+    setIsSearching(false);
+  }
+};
 
   const handleDeletePosition = async (id: string) => {
     const { error } = await supabase.from('investments').delete().eq('id', id);
