@@ -91,6 +91,7 @@ export default function InvestScreen() {
   const [bvcMarket, setBvcMarket] = useState<SearchResult[]>([]);
   const [lastBvcUpdate, setLastBvcUpdate] = useState<Date>(new Date());
   const [bvcCountdown, setBvcCountdown] = useState(60); 
+  const [hiddenBvcTickers, setHiddenBvcTickers] = useState<string[]>([]);
 
   const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates || {}), currency, isHidden);
   const usdToCop = rates?.USD || 3950;
@@ -174,6 +175,9 @@ export default function InvestScreen() {
       if (aData) setAlerts(aData.map((a: any) => ({
         id: a.id, ticker: a.ticker, targetPrice: a.target_price, condition: a.condition, active: a.active
       })));
+
+      const storedHidden = await AsyncStorage.getItem('@hidden_bvc_tickers');
+      if (storedHidden) setHiddenBvcTickers(JSON.parse(storedHidden));
 
       calculateInvestHealth();
     } catch (e) { 
@@ -371,8 +375,13 @@ export default function InvestScreen() {
   const handleSearch = useCallback(async (q: string) => {
     setSearchQuery(q);
     if (q.length < 1) { 
-        if (selectedAssetType) setSearchResults(POPULAR_ASSETS.filter(a => a.type === selectedAssetType).slice(0, 6));
-        else setSearchResults(POPULAR_ASSETS.slice(0, 6)); 
+        if (selectedAssetType === 'stock' && bvcMarket.length > 0) {
+          setSearchResults(bvcMarket);
+        } else if (selectedAssetType) {
+          setSearchResults(POPULAR_ASSETS.filter(a => a.type === selectedAssetType).slice(0, 8));
+        } else {
+          setSearchResults(POPULAR_ASSETS.slice(0, 8)); 
+        }
         return; 
     }
     setIsSearching(true);
@@ -440,6 +449,29 @@ export default function InvestScreen() {
     } else {
       Alert.alert("Error", "No se pudo eliminar de la nube.");
     }
+  };
+
+  const handleDeleteBvcTicker = async (ticker: string) => {
+    Alert.alert(
+      "Ocultar Acción",
+      `¿No quieres ver ${ticker} en tu tira?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Sí, ocultar", 
+          style: "destructive",
+          onPress: async () => {
+            const updated = [...hiddenBvcTickers, ticker];
+            setHiddenBvcTickers(updated);
+            await AsyncStorage.setItem('@hidden_bvc_tickers', JSON.stringify(updated));
+            if (Platform.OS !== 'web') {
+              const Haptics = require('expo-haptics');
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+          }
+        }
+      ]
+    );
   };
 
 
@@ -631,8 +663,13 @@ export default function InvestScreen() {
                 </View>
 
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20, paddingHorizontal: 20 }}>
-                  {bvcMarket.map((asset, i) => (
-                    <View key={i} style={[s.bvcAssetCard, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+                  {bvcMarket.filter(a => !hiddenBvcTickers.includes(a.ticker)).map((asset, i) => (
+                    <TouchableOpacity 
+                      key={i} 
+                      style={[s.bvcAssetCard, { backgroundColor: colors.bg, borderColor: colors.border }]}
+                      onLongPress={() => handleDeleteBvcTicker(asset.ticker)}
+                      activeOpacity={0.7}
+                    >
                       <Text style={{ color: colors.text, fontSize: 13, fontWeight: '900' }}>{asset.ticker}</Text>
                       <Text style={{ color: colors.text, fontSize: 11, fontWeight: '700', marginTop: 2 }}>{fmt(asset.price)}</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
@@ -643,7 +680,7 @@ export default function InvestScreen() {
                           {asset.changePercent >= 0 ? '+' : ''}{asset.changePercent.toFixed(2)}%
                         </Text>
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   ))}
                   {bvcMarket.length === 0 && (
                     <Text style={{ color: colors.sub, fontSize: 12, paddingVertical: 10 }}>Cargando datos del mercado...</Text>
@@ -876,7 +913,11 @@ export default function InvestScreen() {
                   ].map(cat => (
                     <TouchableOpacity key={cat.id} style={[s.navCard, { backgroundColor: colors.bg, borderWidth: 0, paddingVertical: 18 }]} onPress={() => {
                       setSelectedAssetType(cat.id as AssetType);
-                      setSearchResults(POPULAR_ASSETS.filter(a => a.type === cat.id).slice(0, 8));
+                      if (cat.id === 'stock' && bvcMarket.length > 0) {
+                        setSearchResults(bvcMarket);
+                      } else {
+                        setSearchResults(POPULAR_ASSETS.filter(a => a.type === cat.id).slice(0, 8));
+                      }
                       setAddFlowStep('search');
                       setSearchQuery('');
                     }}>
@@ -930,61 +971,117 @@ export default function InvestScreen() {
               
               {addFlowStep === 'amount' && selectedAsset && (
                 <View>
-                  <View style={[s.selectedAssetBox, { backgroundColor: colors.bg }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                      <View style={[s.searchIcon, { backgroundColor: getAssetColor(selectedAsset.type as AssetType) + '12' }]}>
-                        {selectedAsset.type === 'crypto' ? <MaterialCommunityIcons name="bitcoin" size={22} color="#F7931A" /> : <MaterialIcons name="show-chart" size={22} color={colors.accent} />}
+                  {/* Premium Header for Asset */}
+                  <LinearGradient 
+                    colors={[colors.bg, colors.card]} 
+                    style={[s.selectedAssetBox, { borderColor: colors.border, borderWidth: 1 }]}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                      <View style={[s.assetIconWrapper, { backgroundColor: getAssetColor(selectedAsset.type as AssetType) + '15', width: 56, height: 56, borderRadius: 18 }]}>
+                        {getAssetIcon(selectedAsset.type as AssetType)}
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>{selectedAsset.ticker}</Text>
-                        <Text style={{ color: colors.sub, fontSize: 12 }}>{selectedAsset.name}</Text>
+                        <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>{selectedAsset.ticker}</Text>
+                        <Text style={{ color: colors.sub, fontSize: 13, fontWeight: '600' }} numberOfLines={1}>{selectedAsset.name}</Text>
                       </View>
                     </View>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
-                      <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>Precio actual</Text>
-                      <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900' }}>
-                        {fmt(selectedAsset.currency === 'USD' ? selectedAsset.price * usdToCop : selectedAsset.price)}
-                      </Text>
-                    </View>
-                    {selectedAsset.currency === 'USD' && (
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-                        <Text style={{ color: colors.sub, fontSize: 11 }}>≈ en {currency}</Text>
-                        <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>{fmt(selectedAsset.price * usdToCop)}</Text>
+                    
+                    <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 15 }} />
+                    
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <View>
+                        <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 }}>PRECIO ACTUAL</Text>
+                        <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900', marginTop: 2 }}>
+                          {fmt(selectedAsset.currency === 'USD' ? selectedAsset.price * usdToCop : selectedAsset.price)}
+                        </Text>
                       </View>
-                    )}
-                  </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <View style={[s.statusBadge, { backgroundColor: selectedAsset.changePercent >= 0 ? '#10B98115' : '#EF444415', paddingVertical: 4, paddingHorizontal: 10 }]}>
+                          <Text style={{ color: selectedAsset.changePercent >= 0 ? '#10B981' : '#EF4444', fontWeight: '900', fontSize: 12 }}>
+                            {selectedAsset.changePercent >= 0 ? '▲' : '▼'} {Math.abs(selectedAsset.changePercent).toFixed(2)}%
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </LinearGradient>
 
-                  <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800', marginTop: 20, marginBottom: 8 }}>
-                    {selectedAsset.type === 'fund' ? 'Monto a invertir (COP)' : 'Cantidad de unidades'}
-                  </Text>
-                  <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]}
-                    placeholder={selectedAsset.type === 'fund' ? "Ej: 100000" : "Ej: 10"} 
-                    placeholderTextColor={colors.sub} keyboardType="decimal-pad"
-                    value={addShares} onChangeText={setAddShares} autoCorrect={false} />
+                  <View style={{ gap: 15, marginTop: 20 }}>
+                    <View>
+                      <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800', marginBottom: 8, marginLeft: 4 }}>Cantidad de acciones</Text>
+                      <TextInput 
+                        style={[s.input, { backgroundColor: colors.bg, color: colors.text, height: 56, fontSize: 18, fontWeight: '700' }]}
+                        placeholder="0" 
+                        placeholderTextColor={colors.sub} 
+                        keyboardType="decimal-pad"
+                        value={addShares} 
+                        onChangeText={setAddShares} 
+                      />
+                    </View>
 
-                  {selectedAsset.type !== 'fund' && (
-                    <>
-                      <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800', marginTop: 16, marginBottom: 8 }}>
+                    <View>
+                      <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800', marginBottom: 8, marginLeft: 4 }}>
                         Precio de compra ({selectedAsset.currency || 'COP'})
                       </Text>
-                      <TextInput style={[s.input, { backgroundColor: colors.bg, color: colors.text }]}
-                        placeholder="Precio promedio de compra" 
-                        placeholderTextColor={colors.sub} keyboardType="decimal-pad"
-                        value={addAvgPrice} onChangeText={setAddAvgPrice} autoCorrect={false} />
-                    </>
-                  )}
-
-                  {addShares && parseFloat(addShares) > 0 && selectedAsset.type !== 'fund' && (
-                    <View style={[s.totalPreview, { backgroundColor: colors.bg }]}>
-                      <Text style={{ color: colors.sub, fontSize: 12 }}>Total inversión</Text>
-                      <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>
-                        {fmt((selectedAsset.currency === 'USD' ? selectedAsset.price * usdToCop : selectedAsset.price) * parseFloat(addShares || '0'))}
+                      <TextInput 
+                        style={[s.input, { backgroundColor: colors.bg, color: colors.text, height: 56, fontSize: 18, fontWeight: '700' }]}
+                        placeholder={selectedAsset.price.toString()} 
+                        placeholderTextColor={colors.sub} 
+                        keyboardType="decimal-pad"
+                        value={addAvgPrice} 
+                        onChangeText={setAddAvgPrice} 
+                      />
+                      <Text style={{ color: colors.sub, fontSize: 11, marginTop: 6, marginLeft: 4 }}>
+                        Si las compraste hace tiempo, pon el precio de ese entonces.
                       </Text>
+                    </View>
+                  </View>
+
+                  {/* LIVE CALCULATION DASHBOARD */}
+                  {addShares && parseFloat(addShares) > 0 && (
+                    <View style={{ marginTop: 25, gap: 10 }}>
+                      <View style={[s.calcCard, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+                        <View style={s.calcRow}>
+                          <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>Patrimonio Actual</Text>
+                          <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>
+                            {fmt((selectedAsset.currency === 'USD' ? selectedAsset.price * usdToCop : selectedAsset.price) * parseFloat(addShares || '0'))}
+                          </Text>
+                        </View>
+                        
+                        <View style={[s.calcRow, { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border + '50' }]}>
+                          <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>Inversión Inicial</Text>
+                          <Text style={{ color: colors.text, fontSize: 14, fontWeight: '700' }}>
+                            {fmt((selectedAsset.currency === 'USD' ? (parseFloat(addAvgPrice) || selectedAsset.price) * usdToCop : (parseFloat(addAvgPrice) || selectedAsset.price)) * parseFloat(addShares || '0'))}
+                          </Text>
+                        </View>
+
+                        {/* PROFIT INDICATOR */}
+                        {(() => {
+                          const currentPrice = selectedAsset.currency === 'USD' ? selectedAsset.price * usdToCop : selectedAsset.price;
+                          const buyPriceInput = parseFloat(addAvgPrice.replace(',', '.'));
+                          const buyPrice = isNaN(buyPriceInput) ? currentPrice : (selectedAsset.currency === 'USD' ? buyPriceInput * usdToCop : buyPriceInput);
+                          const shares = parseFloat(addShares.replace(',', '.'));
+                          const profit = (currentPrice - buyPrice) * shares;
+                          const profitPct = buyPrice > 0 ? ((currentPrice - buyPrice) / buyPrice) * 100 : 0;
+                          
+                          if (isNaN(profit) || Math.abs(profit) < 1) return null;
+
+                          return (
+                            <View style={[s.profitPreview, { backgroundColor: profit >= 0 ? '#10B98115' : '#EF444415', marginTop: 12 }]}>
+                              <Text style={{ color: profit >= 0 ? '#10B981' : '#EF4444', fontSize: 14, fontWeight: '900' }}>
+                                {profit >= 0 ? '¡Vas ganando ' : 'Vas perdiendo '} {fmt(Math.abs(profit))} ({profitPct.toFixed(1)}%)
+                              </Text>
+                            </View>
+                          );
+                        })()}
+                      </View>
                     </View>
                   )}
 
-                  <TouchableOpacity onPress={handleSavePosition} style={[s.confirmBtn, { backgroundColor: colors.accent }]}>
-                    <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '800' }}>Agregar al Portafolio</Text>
+                  <TouchableOpacity 
+                    onPress={handleSavePosition} 
+                    style={[s.confirmBtn, { backgroundColor: colors.accent, height: 56, marginTop: 25, borderRadius: 18 }]}
+                  >
+                    <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900' }}>Agregar al Portafolio</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -1136,4 +1233,9 @@ const s = StyleSheet.create({
   triiInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   triiInfoText: { fontSize: 12, fontWeight: '600' },
   triiPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
+
+  // Calc Dashboard
+  calcCard: { padding: 18, borderRadius: 24, borderWidth: 1 },
+  calcRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  profitPreview: { padding: 12, borderRadius: 14, alignItems: 'center' },
 });

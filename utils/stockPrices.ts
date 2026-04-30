@@ -27,25 +27,21 @@ const POPULAR_ASSETS: SearchResult[] = [
   { ticker: 'PFBCOLOM', name: 'Bancolombia Pref.', price: 33800, change: -700, changePercent: -2.03, type: 'stock', exchange: 'BVC' },
   { ticker: 'GEB', name: 'Grupo Energía Bogotá', price: 2580, change: -40, changePercent: -1.53, type: 'stock', exchange: 'BVC' },
   { ticker: 'ISA', name: 'Interconexión Eléctrica', price: 18400, change: -700, changePercent: -3.66, type: 'stock', exchange: 'BVC' },
-  { ticker: 'PFAVAL', name: 'Grupo Aval Pref.', price: 465, change: -15, changePercent: -3.12, type: 'stock', exchange: 'BVC' },
-  { ticker: 'NUTRESA', name: 'Grupo Nutresa', price: 46500, change: -1500, changePercent: -3.12, type: 'stock', exchange: 'BVC' },
+  { ticker: 'CELSIA', name: 'Celsia S.A. ESP', price: 3800, change: 0, changePercent: 0, type: 'stock', exchange: 'BVC' },
+  { ticker: 'MINEROS', name: 'Mineros S.A.', price: 3200, change: 0, changePercent: 0, type: 'stock', exchange: 'BVC' },
+  { ticker: 'TERPEL', name: 'Organización Terpel S.A.', price: 8500, change: 0, changePercent: 0, type: 'stock', exchange: 'BVC' },
+  { ticker: 'PFDAVVNDA', name: 'Banco Davivienda Pref.', price: 19000, change: 0, changePercent: 0, type: 'stock', exchange: 'BVC' },
+  { ticker: 'EXITO', name: 'Almacenes Éxito S.A.', price: 2800, change: 0, changePercent: 0, type: 'stock', exchange: 'BVC' },
+  { ticker: 'PFGRUPOARG', name: 'Grupo Argos Pref.', price: 11000, change: 0, changePercent: 0, type: 'stock', exchange: 'BVC' },
+  { ticker: 'CEMARGOS', name: 'Cementos Argos S.A.', price: 6500, change: 0, changePercent: 0, type: 'stock', exchange: 'BVC' },
   { ticker: 'AAPL', name: 'Apple Inc.', price: 191.2, change: 2.7, changePercent: 1.43, type: 'stock', exchange: 'NASDAQ', currency: 'USD' },
   { ticker: 'NVDA', name: 'NVIDIA Corp.', price: 845, change: 25, changePercent: 3.05, type: 'stock', exchange: 'NASDAQ', currency: 'USD' },
   { ticker: 'TSLA', name: 'Tesla, Inc.', price: 172, change: -3, changePercent: -1.71, type: 'stock', exchange: 'NASDAQ', currency: 'USD' },
-  { ticker: 'MSFT', name: 'Microsoft Corp.', price: 421, change: -4, changePercent: -0.94, type: 'stock', exchange: 'NASDAQ', currency: 'USD' },
-  { ticker: 'GOOGL', name: 'Alphabet Inc.', price: 158, change: 3, changePercent: 1.93, type: 'stock', exchange: 'NASDAQ', currency: 'USD' },
-  { ticker: 'AMZN', name: 'Amazon.com Inc.', price: 182, change: -3, changePercent: -1.62, type: 'stock', exchange: 'NASDAQ', currency: 'USD' },
   { ticker: 'NU', name: 'Nu Holdings (NuBank)', price: 13.2, change: 0.7, changePercent: 5.6, type: 'stock', exchange: 'NYSE', currency: 'USD' },
   { ticker: 'TRIIRENTA', name: 'triirenta Accival Vista', price: 1, change: 0, changePercent: 8.52, type: 'fund', exchange: 'Trii' },
   { ticker: 'FICACC', name: 'FIC Acciones Colombia', price: 14200, change: -1200, changePercent: -7.79, type: 'fund', exchange: 'Trii' },
-  { ticker: 'FICRENTA', name: 'FIC Renta Fija', price: 21800, change: 300, changePercent: 1.4, type: 'fund', exchange: 'Trii' },
-  { ticker: 'ICOLEAP', name: 'iShares MSCI Colombia ETF', price: 25.4, change: 0.15, changePercent: 0.59, type: 'etf', exchange: 'NYSE', currency: 'USD' },
   { ticker: 'BTC', name: 'Bitcoin', price: 67500, change: 1200, changePercent: 1.81, type: 'crypto', currency: 'USD' },
   { ticker: 'ETH', name: 'Ethereum', price: 3350, change: 85, changePercent: 2.6, type: 'crypto', currency: 'USD' },
-  { ticker: 'SOL', name: 'Solana', price: 142, change: 5.2, changePercent: 3.8, type: 'crypto', currency: 'USD' },
-  { ticker: 'BNB', name: 'BNB (Binance)', price: 580, change: -8, changePercent: -1.36, type: 'crypto', currency: 'USD' },
-  { ticker: 'XRP', name: 'XRP (Ripple)', price: 0.62, change: 0.02, changePercent: 3.33, type: 'crypto', currency: 'USD' },
-  { ticker: 'ADA', name: 'Cardano', price: 0.45, change: 0.01, changePercent: 2.27, type: 'crypto', currency: 'USD' },
 ];
 
 /**
@@ -79,6 +75,14 @@ const YAHOO_MAPPING: Record<string, string> = {
   'CELSIA': 'CELSIA.CO',
   'CNEC': 'CNEC.CO',
   'BVC': 'BVC.CO',
+  'MINEROS': 'MINEROS.CO',
+  'TERPEL': 'TERPEL.CO',
+  'PFDAVVNDA': 'PFDAVVNDA.CO',
+  'EXITO': 'EXITO.CO',
+  'PFGRUPOARG': 'PFGRUPOARG.CO',
+  'CEMARGOS': 'CEMARGOS.CO',
+  'CIBEST': 'CIBEST.CO',
+  'PFCIBEST': 'PFCIBEST.CO',
 };
 
 /**
@@ -251,13 +255,22 @@ export async function fetchLivePrice(ticker: string, type: string): Promise<numb
  * Fetch a summary of the Colombian market (BVC)
  */
 export async function fetchBvcMarketOverview(): Promise<SearchResult[]> {
-  const bvcTickers = ['ECOPETROL', 'BCOLOMBIA', 'PFBCOLOM', 'GEB', 'ISA', 'PFAVAL', 'NUTRESA', 'GRUPOSURA'];
+  const bvcTickers = [
+    'ECOPETROL', 'BCOLOMBIA', 'PFBCOLOM', 'GEB', 'ISA', 
+    'CELSIA', 'MINEROS', 'TERPEL', 'PFDAVVNDA', 'EXITO', 
+    'PFGRUPOARG', 'CEMARGOS', 'PFCIBEST', 'NU'
+  ];
   
   // Intento masivo con TradingView
   try {
     const url = 'https://scanner.tradingview.com/colombia/scan';
     const body = {
-      symbols: { tickers: bvcTickers.map(t => `BVC:${t}`) },
+      symbols: { 
+        tickers: bvcTickers.map(t => {
+          if (t === 'NU') return 'NYSE:NU';
+          return `BVC:${t}`;
+        }) 
+      },
       columns: ['close', 'change', 'change_abs', 'description']
     };
     
@@ -286,7 +299,8 @@ export async function fetchBvcMarketOverview(): Promise<SearchResult[]> {
         change: item.d[2],
         changePercent: item.d[1],
         type: 'stock' as const,
-        exchange: 'BVC'
+        exchange: bvcTickers[i] === 'NU' ? 'NYSE' : 'BVC',
+        currency: bvcTickers[i] === 'NU' ? 'USD' : 'COP'
       }));
     }
   } catch (e) {
@@ -304,7 +318,8 @@ export async function fetchBvcMarketOverview(): Promise<SearchResult[]> {
         change: live.change,
         changePercent: live.changePercent,
         type: 'stock' as const,
-        exchange: 'BVC'
+        exchange: ticker === 'NU' ? 'NYSE' : 'BVC',
+        currency: ticker === 'NU' ? 'USD' : 'COP'
       };
     }
     return popular || null;
