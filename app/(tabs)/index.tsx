@@ -85,9 +85,13 @@ export default function HomeScreen() {
   const [breakdownVisible, setBreakdownVisible] = useState(false);
   const [activeMoneyBreakdownVisible, setActiveMoneyBreakdownVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [monthlyReport, setMonthlyReport] = useState<any>(null);
   const [pendingItems, setPendingItems] = useState<any[]>([]);
   const [cardBalances, setCardBalances] = useState<Record<string, number>>({});
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [investmentTotal, setInvestmentTotal] = useState(0);
 
@@ -138,7 +142,7 @@ export default function HomeScreen() {
 
   const handleDismissReminders = async () => {
     if (!user?.id) return;
-    await AsyncStorage.setItem(SYNC_KEYS.REMINDER_PROMPT_DISMISSED(user.id), 'true');
+    await AsyncStorage.getItem(SYNC_KEYS.REMINDER_PROMPT_DISMISSED(user.id));
     await syncUp(user.id);
   };
 
@@ -146,6 +150,7 @@ export default function HomeScreen() {
 
   const loadData = async () => {
     if (!user) return;
+    setIsLoading(true);
     try {
       const { data: allTx, error: txError } = await supabase
         .from('transactions')
@@ -399,8 +404,63 @@ export default function HomeScreen() {
       }) || [];
       setPendingItems(urgent);
 
+      // Generar Reporte Mensual si es el inicio del mes (Días 1 al 5)
+      const now = new Date();
+      if (now.getDate() <= 5) {
+        const prevMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+        const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+
+        const monthTxs = (allTx || []).filter(tx => {
+          const d = new Date(tx.date);
+          return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
+        });
+
+        if (monthTxs.length > 0) {
+          let income = 0;
+          let expenses = 0;
+          const dailyInc: any = {};
+          const dailyExp: any = {};
+          const cats: any = {};
+
+          monthTxs.forEach(tx => {
+            const d = new Date(tx.date).getDate();
+            const amt = Number(tx.amount) || 0;
+            if (tx.type === 'income') {
+              if (tx.category !== 'Transferencia') {
+                income += amt;
+                dailyInc[d] = (dailyInc[d] || 0) + amt;
+              }
+            } else if (tx.type === 'expense' || (tx.type === 'transfer' && tx.category === 'Gasto')) {
+              if (tx.category !== 'Transferencia' && tx.category !== 'Ahorro') {
+                expenses += amt;
+                dailyExp[d] = (dailyExp[d] || 0) + amt;
+                cats[tx.category] = (cats[tx.category] || 0) + amt;
+              }
+            }
+          });
+
+          const bestInc = Object.entries(dailyInc).sort((a: any, b: any) => b[1] - a[1])[0];
+          const worstExp = Object.entries(dailyExp).sort((a: any, b: any) => b[1] - a[1])[0];
+          const topCat = Object.entries(cats).sort((a: any, b: any) => b[1] - a[1])[0];
+
+          setMonthlyReport({
+            income,
+            expenses,
+            savings: income - expenses,
+            savingsRate: income > 0 ? ((income - expenses) / income) * 100 : 0,
+            bestInc: bestInc ? { day: bestInc[0], amt: bestInc[1] } : null,
+            worstExp: worstExp ? { day: worstExp[0], amt: worstExp[1] } : null,
+            topCat: topCat ? { name: topCat[0], amt: topCat[1] } : null,
+            monthName: new Date(prevYear, prevMonth, 1).toLocaleDateString('es', { month: 'long' }),
+          });
+        }
+      }
+
     } catch (e) {
       console.error('Error cargando datos de Supabase:', e);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -862,7 +922,25 @@ export default function HomeScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              {pendingItems.length === 0 ? (
+              {monthlyReport && (
+                <TouchableOpacity 
+                  style={[styles.notificationItem, { backgroundColor: isDark ? '#6366F120' : '#EEF2FF', borderColor: '#6366F1' }]}
+                  onPress={() => {
+                    setNotificationsVisible(false);
+                    setTimeout(() => setReportModalVisible(true), 300);
+                  }}
+                >
+                  <View style={[styles.txIcon, { backgroundColor: '#6366F120' }]}>
+                    <MaterialIcons name="analytics" size={20} color="#6366F1" />
+                  </View>
+                  <View style={styles.txMeta}>
+                    <Text style={[styles.txTitle, { color: '#6366F1', fontWeight: '900' }]}>📊 Informe de {monthlyReport.monthName}</Text>
+                    <Text style={[styles.txSub, { color: colorsNav.sub }]}>Toca para ver tus estadísticas</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+
+              {pendingItems.length === 0 && !monthlyReport ? (
                 <View style={{ paddingVertical: 40, alignItems: 'center' }}>
                   <Ionicons name="notifications-off-outline" size={40} color={colorsNav.sub} />
                   <Text style={{ color: colorsNav.sub, marginTop: 12, textAlign: 'center' }}>No tienes pagos próximos o vencidos.</Text>
@@ -901,6 +979,106 @@ export default function HomeScreen() {
               onPress={() => setNotificationsVisible(false)}
             >
               <Text style={[styles.modalCloseBtnText, { color: colorsNav.text }]}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Modal de Reporte Mensual ─── */}
+      <Modal visible={reportModalVisible} transparent animationType="slide" onRequestClose={() => setReportModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: isDark ? colorsNav.card : '#FFF', maxWidth: 450 }]}>
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#6366F120', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
+                <MaterialIcons name="insert-chart" size={32} color="#6366F1" />
+              </View>
+              <Text style={{ fontSize: 24, fontWeight: '900', color: colorsNav.text, textAlign: 'center' }}>
+                Resumen de {monthlyReport?.monthName?.toUpperCase()}
+              </Text>
+              <Text style={{ color: colorsNav.sub, fontSize: 13, fontWeight: '600' }}>Balance Mensual Finalizado</Text>
+            </View>
+
+            <ScrollView style={{ maxHeight: 500 }} showsVerticalScrollIndicator={false}>
+              <View style={{ gap: 12 }}>
+                {/* Cards de Resumen */}
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <View style={{ flex: 1, backgroundColor: '#10B98115', padding: 16, borderRadius: 20, borderWidth: 1, borderColor: '#10B98130' }}>
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: '#10B981', marginBottom: 4 }}>INGRESOS</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '900', color: '#10B981' }}>{fmt(monthlyReport?.income || 0)}</Text>
+                  </View>
+                  <View style={{ flex: 1, backgroundColor: '#EF444415', padding: 16, borderRadius: 20, borderWidth: 1, borderColor: '#EF444430' }}>
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: '#EF4444', marginBottom: 4 }}>GASTOS</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '900', color: '#EF4444' }}>{fmt(monthlyReport?.expenses || 0)}</Text>
+                  </View>
+                </View>
+
+                {/* Balance */}
+                <View style={{ backgroundColor: isDark ? colorsNav.cardBg : '#FDF8F3', padding: 20, borderRadius: 24, gap: 10 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ color: colorsNav.sub, fontWeight: '700' }}>Balance Neto</Text>
+                    <Text style={{ fontSize: 18, fontWeight: '900', color: (monthlyReport?.savings || 0) >= 0 ? '#10B981' : '#EF4444' }}>
+                      {fmt(monthlyReport?.savings || 0)}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ color: colorsNav.sub, fontWeight: '700' }}>Tasa de Ahorro</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '900', color: colorsNav.text }}>
+                      {monthlyReport?.savingsRate?.toFixed(1)}%
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Highlights */}
+                <View style={{ gap: 8 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '900', color: colorsNav.sub, marginLeft: 8, marginTop: 8 }}>HITOS DEL MES</Text>
+                  
+                  {monthlyReport?.bestInc && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? colorsNav.cardBg : '#FDF8F3', padding: 14, borderRadius: 18 }}>
+                      <Ionicons name="trending-up" size={20} color="#10B981" style={{ marginRight: 12 }} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colorsNav.text, fontWeight: '800', fontSize: 14 }}>Mejor Día de Ingreso</Text>
+                        <Text style={{ color: colorsNav.sub, fontSize: 12 }}>Día {monthlyReport.bestInc.day}: {fmt(monthlyReport.bestInc.amt)}</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {monthlyReport?.worstExp && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? colorsNav.cardBg : '#FDF8F3', padding: 14, borderRadius: 18 }}>
+                      <Ionicons name="trending-down" size={20} color="#EF4444" style={{ marginRight: 12 }} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colorsNav.text, fontWeight: '800', fontSize: 14 }}>Día con más Gastos</Text>
+                        <Text style={{ color: colorsNav.sub, fontSize: 12 }}>Día {monthlyReport.worstExp.day}: {fmt(monthlyReport.worstExp.amt)}</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {monthlyReport?.topCat && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? colorsNav.cardBg : '#FDF8F3', padding: 14, borderRadius: 18 }}>
+                      <Ionicons name="cart" size={20} color="#6366F1" style={{ marginRight: 12 }} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colorsNav.text, fontWeight: '800', fontSize: 14 }}>Categoría Principal</Text>
+                        <Text style={{ color: colorsNav.sub, fontSize: 12 }}>{monthlyReport.topCat.name}: {fmt(monthlyReport.topCat.amt)}</Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+
+                {/* Mensaje Final */}
+                <View style={{ padding: 20, alignItems: 'center' }}>
+                   <Text style={{ color: colorsNav.sub, fontSize: 12, fontWeight: '600', fontStyle: 'italic', textAlign: 'center' }}>
+                     {(monthlyReport?.savingsRate || 0) > 10 
+                       ? "¡Excelente gestión! Mantén ese ritmo de ahorro." 
+                       : "Fue un mes movido. ¡Vamos por un mejor control este mes!"}
+                   </Text>
+                </View>
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.modalCloseBtn, { backgroundColor: '#6366F1', marginTop: 10 }]}
+              onPress={() => setReportModalVisible(false)}
+            >
+              <Text style={[styles.modalCloseBtnText, { color: '#FFF' }]}>¡Entendido!</Text>
             </TouchableOpacity>
           </View>
         </View>
