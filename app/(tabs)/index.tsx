@@ -1006,46 +1006,53 @@ export default function HomeScreen() {
       <Modal visible={breakdownVisible} transparent animationType="fade" onRequestClose={() => setBreakdownVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, { backgroundColor: isDark ? colorsNav.card : '#FFF', maxWidth: 450 }]}>
-            <View style={{ alignItems: 'center', marginBottom: 20 }}>
-              <Text style={[styles.modalTitle, { color: colorsNav.text, fontSize: 18, marginBottom: 6 }]}>Dinero General (Patrimonio)</Text>
-              <Text style={{ fontSize: 32, fontWeight: '900', marginTop: 6, color: dineroGeneral >= 0 ? colorsNav.text : '#EF4444' }}>{fmt(dineroGeneral)}</Text>
-              <Text style={{ fontSize: 11, fontWeight: '600', marginTop: 6, color: '#64748B' }}>Suma de Disponible, Ahorro e Inversión - Deuda</Text>
+            <View style={{ alignItems: 'center', marginBottom: 24 }}>
+              <Text style={{ color: '#64748B', fontSize: 13, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>Patrimonio Neto</Text>
+              <Text style={{ fontSize: 38, fontWeight: '900', color: dineroGeneral >= 0 ? colorsNav.text : '#EF4444', letterSpacing: -1 }}>{fmt(dineroGeneral)}</Text>
             </View>
             
-            <View style={{ 
-              flexDirection: 'row', 
-              backgroundColor: isDark ? colorsNav.cardBg : '#FDF8F3', 
-              borderRadius: 16, 
-              paddingHorizontal: 16,
-              paddingVertical: 14, 
-              alignItems: 'center', 
-              justifyContent: 'space-between',
-              flexWrap: 'wrap'
-            }}>
-              <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 9, fontWeight: '800', color: '#64748B', letterSpacing: 0.5, marginBottom: 4 }}>DISPONIBLE</Text>
-                <Text style={{ fontSize: 13, fontWeight: '800', color: colorsNav.text }}>{fmt(dineroActivo)}</Text>
+            <View style={{ backgroundColor: isDark ? colorsNav.cardBg : '#FDF8F3', borderRadius: 20, padding: 16, gap: 16 }}>
+              
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#E8F5E9', justifyContent: 'center', alignItems: 'center' }}>
+                    <MaterialIcons name="account-balance-wallet" size={18} color="#2D5A3D" />
+                  </View>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: colorsNav.text }}>Disponible</Text>
+                </View>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: colorsNav.text }}>{fmt(dineroActivo)}</Text>
               </View>
-              
-              <View style={{ width: 1, height: 20, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }} />
-              
-              <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 9, fontWeight: '800', color: '#64748B', letterSpacing: 0.5, marginBottom: 4 }}>AHORRO</Text>
-                <Text style={{ fontSize: 13, fontWeight: '800', color: '#8B5CF6' }}>{fmt((ahorroBreakdown.metas || 0) + (ahorroBreakdown.cajitas || 0))}</Text>
+
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#F3E8FF', justifyContent: 'center', alignItems: 'center' }}>
+                    <MaterialIcons name="savings" size={18} color="#8B5CF6" />
+                  </View>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: colorsNav.text }}>Ahorros</Text>
+                </View>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: colorsNav.text }}>{fmt((ahorroBreakdown.metas || 0) + (ahorroBreakdown.cajitas || 0))}</Text>
               </View>
-              
-              <View style={{ width: 1, height: 20, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }} />
-              
-              <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 9, fontWeight: '800', color: '#64748B', letterSpacing: 0.5, marginBottom: 4 }}>INVERSIÓN</Text>
-                <Text style={{ fontSize: 13, fontWeight: '800', color: '#3B82F6' }}>{fmt(investmentTotal)}</Text>
+
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#E0F2FE', justifyContent: 'center', alignItems: 'center' }}>
+                    <MaterialIcons name="show-chart" size={18} color="#0EA5E9" />
+                  </View>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: colorsNav.text }}>Inversiones</Text>
+                </View>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: colorsNav.text }}>{fmt(investmentTotal)}</Text>
               </View>
-              
-              <Text style={{ fontSize: 14, fontWeight: '900', color: '#EF4444', marginHorizontal: 4 }}>-</Text>
-              
-              <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 9, fontWeight: '800', color: '#64748B', letterSpacing: 0.5, marginBottom: 4 }}>DEUDA</Text>
-                <Text style={{ fontSize: 13, fontWeight: '800', color: '#EF4444' }}>{fmt(debtTotal)}</Text>
+
+              <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', marginVertical: 2 }} />
+
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center' }}>
+                    <MaterialIcons name="credit-card" size={18} color="#EF4444" />
+                  </View>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: colorsNav.text }}>Deudas</Text>
+                </View>
+                <Text style={{ fontSize: 15, fontWeight: '900', color: '#EF4444' }}>- {fmt(debtTotal)}</Text>
               </View>
             </View>
 

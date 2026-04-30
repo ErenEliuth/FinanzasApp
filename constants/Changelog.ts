@@ -1,4 +1,4 @@
-export const LATEST_VERSION = '2026-04-30-v5'; // Sincronización en la nube (cajitas y portafolio)
+export const LATEST_VERSION = '2026-04-30-v6'; // Rediseño visual Patrimonio Modal
 
 export const CHANGELOG_UPDATES = [
   {
