@@ -121,22 +121,24 @@ export default function InvestScreen() {
   }, [positions]);
 
   const updateBvc = async () => {
+    // Basic 5 stocks as requested
+    const defaultTickers = ['ECOPETROL', 'NU', 'TERPEL', 'MINEROS', 'ISA'];
     const combined = Array.from(new Set([
-      'ECOPETROL', 'BCOLOMBIA', 'PFBCOLOM', 'GEB', 'ISA', 
-      'CELSIA', 'MINEROS', 'TERPEL', 'PFDAVVNDA', 'EXITO', 
-      'PFGRUPOARG', 'CEMARGOS', 'PFCIBEST', 'BOGOTA', 'CORFICOLCF',
-      'PFAVAL', 'NUTRESA', 'GRUPOARGOS', 'GRUPOSURA',
-      'NU', 'AAPL', 'TSLA', 'NVDA', 'MSFT',
+      ...defaultTickers,
       ...customWatchlist
     ]));
     
-    const data = await fetchBvcMarketOverview(combined);
-    const volatileData = data.map(asset => ({
-      ...asset,
-      price: simulateLiveVolatility(asset.price)
-    }));
-    setBvcMarket(volatileData);
-    setLastBvcUpdate(new Date());
+    try {
+      const data = await fetchBvcMarketOverview(combined);
+      const volatileData = data.map(asset => ({
+        ...asset,
+        price: simulateLiveVolatility(asset.price)
+      }));
+      setBvcMarket(volatileData);
+      setLastBvcUpdate(new Date());
+    } catch (err) {
+      console.error("Failed to update BVC:", err);
+    }
   };
 
   const getMarketStatus = () => {
@@ -980,37 +982,21 @@ export default function InvestScreen() {
 
               {addFlowStep === 'search' && (
                 <>
-                  <View style={[s.searchBar, { backgroundColor: colors.bg, borderRadius: 20, paddingHorizontal: 15, height: 54 }]}>
-                    <Ionicons name="search" size={20} color={colors.accent} />
-                    <TextInput style={{ flex: 1, color: colors.text, fontSize: 16, fontWeight: '700', marginLeft: 10 }}
-                      placeholder="Busca Ecopetrol, Nubank, Apple..." placeholderTextColor={colors.sub}
-                      value={searchQuery} onChangeText={handleSearch} autoFocus autoCorrect={false} autoCapitalize="none" textContentType="none" />
-                    {isSearching && <ActivityIndicator size="small" color={colors.accent} />}
-                    {searchQuery.length > 0 && (
-                      <TouchableOpacity onPress={() => handleSearch('')}>
-                        <Ionicons name="close-circle" size={20} color={colors.sub} />
-                      </TouchableOpacity>
-                    )}
+                  <View style={{ marginBottom: 15 }}>
+                    <Text style={{ color: colors.sub, fontSize: 13, fontWeight: '700' }}>Selecciona una acción para seguirla:</Text>
                   </View>
 
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, marginBottom: 10 }}>
-                    <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>{searchQuery.length > 0 ? 'RESULTADOS' : 'ACCIONES POPULARES'}</Text>
-                    {!isSearching && searchQuery.length === 0 && (
-                      <TouchableOpacity onPress={() => updateBvc()} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Ionicons name="refresh" size={12} color={colors.accent} />
-                        <Text style={{ color: colors.accent, fontSize: 11, fontWeight: '800' }}>ACTUALIZAR</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-
-                  <ScrollView style={{ maxHeight: 350 }} showsVerticalScrollIndicator={false}>
-                    {searchResults.map((asset, i) => (
+                  <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
+                    {POPULAR_ASSETS.filter(a => 
+                      a.type === 'stock' && 
+                      !bvcMarket.some(m => m.ticker === a.ticker)
+                    ).map((asset, i) => (
                       <TouchableOpacity key={i} style={[s.searchItem, { backgroundColor: colors.bg + '50', borderRadius: 16, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: colors.border }]} onPress={() => handleSelectAsset(asset)}>
                         <View style={[s.searchIcon, { backgroundColor: getAssetColor(asset.type as AssetType) + '15', width: 44, height: 44, borderRadius: 12 }]}>
                           {asset.ticker === 'NU' ? (
-                            <Image source={{ uri: 'https://cdn.worldvectorlogo.com/logos/nubank.svg' }} style={{ width: 24, height: 24, borderRadius: 6 }} />
+                            <MaterialCommunityIcons name="bank" size={24} color="#8A05BE" />
                           ) : (
-                            asset.type === 'crypto' ? <MaterialCommunityIcons name="bitcoin" size={24} color="#F7931A" /> : <MaterialIcons name="show-chart" size={24} color={colors.accent} />
+                            <MaterialIcons name="show-chart" size={24} color={colors.accent} />
                           )}
                         </View>
                         <View style={{ flex: 1, marginLeft: 12 }}>
@@ -1021,21 +1007,9 @@ export default function InvestScreen() {
                           <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900' }}>
                             {fmt(asset.currency === 'USD' ? asset.price * usdToCop : asset.price)}
                           </Text>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 4 }}>
-                            <Ionicons name={asset.changePercent >= 0 ? 'caret-up' : 'caret-down'} size={10} color={asset.changePercent >= 0 ? '#10B981' : '#EF4444'} />
-                            <Text style={{ color: asset.changePercent >= 0 ? '#10B981' : '#EF4444', fontSize: 12, fontWeight: '900' }}>
-                              {Math.abs(asset.changePercent).toFixed(2)}%
-                            </Text>
-                          </View>
                         </View>
                       </TouchableOpacity>
                     ))}
-                    {searchResults.length === 0 && !isSearching && (
-                      <View style={{ padding: 40, alignItems: 'center' }}>
-                        <Ionicons name="search-outline" size={40} color={colors.sub} />
-                        <Text style={{ textAlign: 'center', color: colors.sub, marginTop: 15, fontWeight: '700' }}>No encontramos "{searchQuery}"</Text>
-                      </View>
-                    )}
                   </ScrollView>
                 </>
               )}
