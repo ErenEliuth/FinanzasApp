@@ -1,4 +1,4 @@
-export const LATEST_VERSION = '2026-04-30-v3'; // Sincronización Exacta de Inversiones
+export const LATEST_VERSION = '2026-04-30-v4'; // Corrección Ahorros en Patrimonio
 
 export const CHANGELOG_UPDATES = [
   {

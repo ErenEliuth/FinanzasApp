@@ -469,7 +469,8 @@ export default function HomeScreen() {
     const realMoney = activeMoney - (isNaN(debtTotal) ? 0 : debtTotal);
 
     // Balance General (Patrimonio Total: Disponible + Ahorro + Inversión - Deudas)
-    const currentAhorro = isNaN(savTotal) ? 0 : savTotal;
+    const trueSavings = (ahorroBreakdown.metas || 0) + (ahorroBreakdown.cajitas || 0);
+    const currentAhorro = trueSavings > 0 ? trueSavings : (isNaN(savTotal) ? 0 : savTotal);
     const currentInvestment = isNaN(investmentTotal) ? 0 : investmentTotal;
     const currentDebt = isNaN(debtTotal) ? 0 : debtTotal;
     
@@ -502,7 +503,7 @@ export default function HomeScreen() {
       saldoDisponible: realMoney,
       derivedAccountTotals: accs
     };
-  }, [allTransactions, debtTotal, cards, investmentTotal, customAccounts]);
+  }, [allTransactions, debtTotal, cards, investmentTotal, customAccounts, ahorroBreakdown]);
 
   const handleLogout = async () => {
     if (Platform.OS === 'web') {
@@ -1030,7 +1031,7 @@ export default function HomeScreen() {
               
               <View style={{ alignItems: 'center' }}>
                 <Text style={{ fontSize: 9, fontWeight: '800', color: '#64748B', letterSpacing: 0.5, marginBottom: 4 }}>AHORRO</Text>
-                <Text style={{ fontSize: 13, fontWeight: '800', color: '#8B5CF6' }}>{fmt(ahorroTotal)}</Text>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#8B5CF6' }}>{fmt((ahorroBreakdown.metas || 0) + (ahorroBreakdown.cajitas || 0))}</Text>
               </View>
               
               <View style={{ width: 1, height: 20, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }} />
