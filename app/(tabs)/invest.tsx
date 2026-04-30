@@ -513,28 +513,6 @@ export default function InvestScreen() {
     }
   };
 
-  const handleDeleteBvcTicker = async (ticker: string) => {
-    Alert.alert(
-      "Ocultar Acción",
-      `¿No quieres ver ${ticker} en tu tira?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        { 
-          text: "Sí, ocultar", 
-          style: "destructive",
-          onPress: async () => {
-            const updated = [...hiddenBvcTickers, ticker];
-            setHiddenBvcTickers(updated);
-            await AsyncStorage.setItem('@hidden_bvc_tickers', JSON.stringify(updated));
-            if (Platform.OS !== 'web') {
-              const Haptics = require('expo-haptics');
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            }
-          }
-        }
-      ]
-    );
-  };
 
 
 
