@@ -549,7 +549,7 @@ export default function InvestScreen() {
   };
 
   const allocColors: Record<string, string> = { stock: colors.accent, crypto: '#F7931A', fixed: '#10B981', real_estate: '#6366F1', fund: '#3B82F6', etf: '#8B5CF6' };
-  const allocLabels: Record<string, string> = { stock: 'Acciones', crypto: 'Crypto', fixed: 'Renta Fija', real_estate: 'Inmuebles', fund: 'Fondos', etf: 'ETFs' };
+  const allocLabels: Record<string, string> = { stock: 'Acciones' };
 
   // ─── RENDER ────────────────────────────────────────────────
   return (
@@ -563,7 +563,12 @@ export default function InvestScreen() {
           {activeTab === 'hub' ? 'Inversiones' : activeTab === 'portfolio' ? 'Portafolio' : 'Dividendos'}
         </Text>
         {activeTab === 'portfolio' ? (
-          <TouchableOpacity onPress={() => { setModalVisible(true); setAddFlowStep('category'); }} style={[s.addBtn, { backgroundColor: colors.accent }]}>
+          <TouchableOpacity onPress={() => { 
+            setSelectedAssetType('stock');
+            setSearchResults(bvcMarket.length > 0 ? bvcMarket : POPULAR_ASSETS.filter(a => a.type === 'stock').slice(0, 8));
+            setAddFlowStep('search');
+            setModalVisible(true); 
+          }} style={[s.addBtn, { backgroundColor: colors.accent }]}>
             <Ionicons name="add" size={20} color="#FFF" />
           </TouchableOpacity>
         ) : <View style={{ width: 40 }} />}
@@ -893,17 +898,14 @@ export default function InvestScreen() {
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={Platform.OS === 'ios'}>
             <View style={[s.modalBox, { backgroundColor: colors.card }]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                {addFlowStep !== 'category' ? (
-                  <TouchableOpacity onPress={() => {
-                     if (addFlowStep === 'amount') setAddFlowStep('search');
-                     else setAddFlowStep('category');
-                  }} style={{ marginRight: 10 }}>
+                {addFlowStep === 'amount' ? (
+                  <TouchableOpacity onPress={() => setAddFlowStep('search')} style={{ marginRight: 10 }}>
                     <Ionicons name="arrow-back" size={24} color={colors.text} />
                   </TouchableOpacity>
                 ) : <View style={{ width: 34 }} />}
                 
                 <Text style={[s.modalTitle, { color: colors.text, flex: 1, textAlign: 'center' }]}>
-                  {addFlowStep === 'category' ? '¿Qué quieres agregar?' : addFlowStep === 'search' ? 'Buscar Activo' : 'Detalles'}
+                  {addFlowStep === 'search' ? 'Buscar Acción' : 'Detalles de Compra'}
                 </Text>
                 
                 <TouchableOpacity onPress={() => { setModalVisible(false); setSelectedAsset(null); setSearchQuery(''); }}>
@@ -911,37 +913,6 @@ export default function InvestScreen() {
                 </TouchableOpacity>
               </View>
 
-              {addFlowStep === 'category' && (
-                <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
-                  {[
-                    { id: 'stock', title: 'Acciones locales y ext.', icon: 'show-chart', color: colors.accent },
-                    { id: 'fund', title: 'Fondos de Inversión', icon: 'pie-chart', color: '#3B82F6' },
-                    { id: 'etf', title: 'ETFs y Canastas', icon: 'layers', color: '#8B5CF6' },
-                    { id: 'crypto', title: 'Crypto y NFT', icon: 'currency-exchange', color: '#F7931A' },
-                    { id: 'fixed', title: 'CDTs y Renta Fija', icon: 'trending-up', color: '#10B981' },
-                    { id: 'real_estate', title: 'Inmuebles', icon: 'apartment', color: '#6366F1' }
-                  ].map(cat => (
-                    <TouchableOpacity key={cat.id} style={[s.navCard, { backgroundColor: colors.bg, borderWidth: 0, paddingVertical: 18 }]} onPress={() => {
-                      setSelectedAssetType(cat.id as AssetType);
-                      if (cat.id === 'stock' && bvcMarket.length > 0) {
-                        setSearchResults(bvcMarket);
-                      } else {
-                        setSearchResults(POPULAR_ASSETS.filter(a => a.type === cat.id).slice(0, 8));
-                      }
-                      setAddFlowStep('search');
-                      setSearchQuery('');
-                    }}>
-                      <View style={[s.navIcon, { backgroundColor: cat.color + '12' }]}>
-                        {cat.id === 'crypto' ? <MaterialIcons name="currency-exchange" size={20} color={cat.color} /> : <MaterialIcons name={cat.icon as any} size={24} color={cat.color} />}
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800' }}>{cat.title}</Text>
-                      </View>
-                      <Ionicons name="chevron-forward" size={18} color={colors.sub} />
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              )}
 
               {addFlowStep === 'search' && (
                 <>
