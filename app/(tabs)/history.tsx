@@ -206,21 +206,21 @@ export default function HistoryScreen() {
                             <MaterialIcons name="call-received" size={12} color={colorsNav.accent} />
                         </View>
                         <Text style={[styles.summaryLabel, { color: colorsNav.sub }]}>INGRESOS</Text>
-                        <Text style={[styles.summaryValue, { color: colorsNav.text }]}>{fmt(totalIngresos)}</Text>
+                        <Text style={[styles.summaryValue, { color: colorsNav.text }]} numberOfLines={1} adjustsFontSizeToFit>{fmt(totalIngresos)}</Text>
                     </View>
                     <View style={[styles.summaryCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
                         <View style={[styles.miniIcon, { backgroundColor: '#FFEBEE' }]}>
                             <MaterialIcons name="call-made" size={12} color="#EF4444" />
                         </View>
                         <Text style={[styles.summaryLabel, { color: colorsNav.sub }]}>GASTOS</Text>
-                        <Text style={[styles.summaryValue, { color: colorsNav.text }]}>{fmt(totalGastos)}</Text>
+                        <Text style={[styles.summaryValue, { color: colorsNav.text }]} numberOfLines={1} adjustsFontSizeToFit>{fmt(totalGastos)}</Text>
                     </View>
                     <View style={[styles.summaryCard, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]}>
                         <View style={[styles.miniIcon, { backgroundColor: '#F0E6FF' }]}>
                             <MaterialIcons name="savings" size={12} color="#8B5CF6" />
                         </View>
                         <Text style={[styles.summaryLabel, { color: colorsNav.sub }]}>AHORRO</Text>
-                        <Text style={[styles.summaryValue, { color: colorsNav.text }]}>{fmt(totalAhorro)}</Text>
+                        <Text style={[styles.summaryValue, { color: colorsNav.text }]} numberOfLines={1} adjustsFontSizeToFit>{fmt(totalAhorro)}</Text>
                     </View>
                 </View>
             )}

@@ -1,4 +1,4 @@
-export const LATEST_VERSION = '2026-04-30-v6'; // Rediseño visual Patrimonio Modal
+export const LATEST_VERSION = '2026-04-30-v7'; // Fix visual en tarjetas de historial
 
 export const CHANGELOG_UPDATES = [
   {
