@@ -43,7 +43,7 @@ const POPULAR_ASSETS: SearchResult[] = [
   { ticker: 'NVDA', name: 'NVIDIA Corp.', price: 845, change: 25, changePercent: 3.05, type: 'stock', exchange: 'NASDAQ', currency: 'USD' },
   { ticker: 'TSLA', name: 'Tesla, Inc.', price: 172, change: -3, changePercent: -1.71, type: 'stock', exchange: 'NASDAQ', currency: 'USD' },
   { ticker: 'MSFT', name: 'Microsoft Corp.', price: 420, change: 5, changePercent: 1.2, type: 'stock', exchange: 'NASDAQ', currency: 'USD' },
-  { ticker: 'NU', name: 'Nu Holdings (Nubank)', price: 13.2, change: 0.7, changePercent: 5.6, type: 'stock', exchange: 'NYSE', currency: 'USD' },
+  { ticker: 'NU', name: 'Nu Holdings (Nubank)', price: 52480, change: 1280, changePercent: 2.5, type: 'stock', exchange: 'BVC', currency: 'COP' },
   { ticker: 'TRIIRENTA', name: 'triirenta Accival Vista', price: 1, change: 0, changePercent: 8.52, type: 'fund', exchange: 'Trii' },
   { ticker: 'FICACC', name: 'FIC Acciones Colombia', price: 14200, change: -1200, changePercent: -7.79, type: 'fund', exchange: 'Trii' },
   { ticker: 'BTC', name: 'Bitcoin', price: 67500, change: 1200, changePercent: 1.81, type: 'crypto', currency: 'USD' },
@@ -95,14 +95,14 @@ const YAHOO_MAPPING: Record<string, string> = {
  * Fetch live stock price from TradingView Scanner (more real-time for BVC)
  */
 export async function fetchTradingViewPrice(ticker: string): Promise<{ price: number; change: number; changePercent: number } | null> {
-  const isIntl = ['NU', 'AAPL', 'TSLA', 'NVDA', 'MSFT', 'AMZN', 'GOOGL', 'META'].includes(ticker.toUpperCase());
+  const isNasdaq = ['AAPL', 'TSLA', 'NVDA', 'MSFT', 'AMZN', 'GOOGL', 'META'].includes(ticker.toUpperCase());
   let symbol = ticker.toUpperCase();
   let url = 'https://scanner.tradingview.com/colombia/scan';
   
-  if (isIntl) {
+  if (isNasdaq) {
     url = 'https://scanner.tradingview.com/america/scan';
     if (!symbol.includes(':')) {
-        symbol = (symbol === 'NU' ? 'NYSE:NU' : `NASDAQ:${symbol}`);
+        symbol = `NASDAQ:${symbol}`;
     }
   } else if (!symbol.includes(':')) {
     symbol = `BVC:${symbol}`;
@@ -301,7 +301,6 @@ export async function fetchBvcMarketOverview(customTickers?: string[]): Promise<
     const body = {
       symbols: { 
         tickers: bvcTickers.map(t => {
-          if (t === 'NU') return 'NYSE:NU';
           if (['AAPL', 'TSLA', 'NVDA', 'MSFT', 'AMZN', 'GOOGL'].includes(t)) return `NASDAQ:${t}`;
           return `BVC:${t}`;
         })
