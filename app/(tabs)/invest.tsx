@@ -1007,6 +1007,12 @@ export default function InvestScreen() {
                           <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900' }}>
                             {fmt(asset.currency === 'USD' ? asset.price * usdToCop : asset.price)}
                           </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 4 }}>
+                            <Ionicons name={asset.changePercent >= 0 ? 'caret-up' : 'caret-down'} size={10} color={asset.changePercent >= 0 ? '#10B981' : '#EF4444'} />
+                            <Text style={{ color: asset.changePercent >= 0 ? '#10B981' : '#EF4444', fontSize: 12, fontWeight: '900' }}>
+                              {Math.abs(asset.changePercent).toFixed(2)}%
+                            </Text>
+                          </View>
                         </View>
                       </TouchableOpacity>
                     ))}
