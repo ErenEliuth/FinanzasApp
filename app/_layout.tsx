@@ -41,12 +41,12 @@ function RootStack() {
 
   useEffect(() => {
     if (Platform.OS === 'web') {
-      window.onerror = (message, source, lineno, colno, error) => {
-        alert(`CRASH DETECTED:\n${message}\nAt: ${source}:${lineno}:${colno}\nStack: ${error?.stack}`);
+      window.onerror = (message) => {
+        console.error("Global Error:", message);
         return false;
       };
       window.onunhandledrejection = (event) => {
-        alert(`ASYNC CRASH DETECTED:\n${event.reason}`);
+        console.error("Unhandled Rejection:", event.reason);
       };
     }
   }, []);

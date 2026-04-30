@@ -89,31 +89,46 @@ const YAHOO_MAPPING: Record<string, string> = {
  * Fetch live stock price from TradingView Scanner (more real-time for BVC)
  */
 export async function fetchTradingViewPrice(ticker: string): Promise<{ price: number; change: number; changePercent: number } | null> {
+  const symbol = ticker.toUpperCase().includes(':') ? ticker.toUpperCase() : `BVC:${ticker.toUpperCase()}`;
+  const url = 'https://scanner.tradingview.com/colombia/scan';
+  const body = {
+    symbols: { tickers: [symbol] },
+    columns: ['close', 'change', 'change_abs']
+  };
+
   try {
-    const symbol = ticker.toUpperCase().includes(':') ? ticker.toUpperCase() : `BVC:${ticker.toUpperCase()}`;
-    const url = 'https://scanner.tradingview.com/colombia/scan';
-    const body = {
-      symbols: { tickers: [symbol] },
-      columns: ['close', 'change', 'change_abs']
+    const fetchWithTimeout = (url: string, options: any, timeout = 6000) => {
+      return Promise.race([
+        fetch(url, options),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeout))
+      ]) as Promise<Response>;
     };
 
     let res;
     if (typeof window !== 'undefined' && window.location) {
-       // On web use corsproxy.io which handles POST better than allorigins for this case
-       const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-       res = await fetch(proxyUrl, {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify(body)
-       });
+      // Use corsproxy.io primarily
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+      try {
+        res = await fetchWithTimeout(proxyUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+      } catch (e) {
+        console.warn("Proxy failed, trying fallback...");
+        // Fallback or just return null
+        return null; 
+      }
     } else {
-       res = await fetch(url, {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify(body)
-       });
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
     }
     
+    if (!res || !res.ok) return null;
+
     const data = await res.json();
     const result = data.data?.[0]?.d;
     
@@ -137,12 +152,12 @@ export async function fetchTradingViewPrice(ticker: string): Promise<{ price: nu
 export async function fetchStockPrice(ticker: string): Promise<{ price: number; change: number; changePercent: number } | null> {
   // Prioritize TradingView for BVC stocks
   const isBvc = YAHOO_MAPPING[ticker.toUpperCase()] || ticker.toUpperCase() === 'ECOPETROL' || ticker.toUpperCase() === 'BCOLOMBIA';
-  if (isBvc) {
-    const tv = await fetchTradingViewPrice(ticker);
-    if (tv) return tv;
-  }
-
+  
   try {
+    if (isBvc) {
+      const tv = await fetchTradingViewPrice(ticker);
+      if (tv) return tv;
+    }
     const yTicker = YAHOO_MAPPING[ticker.toUpperCase()] || ticker.toUpperCase();
     // Use query2 for better reliability and skip proxy on native if possible
     const url = `https://query2.finance.yahoo.com/v8/finance/chart/${yTicker}?interval=1d&range=2d`;

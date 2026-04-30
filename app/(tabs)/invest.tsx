@@ -384,15 +384,25 @@ export default function InvestScreen() {
         }
         return; 
     }
-    setIsSearching(true);
-    const results = await searchAssets(q);
-    if (selectedAssetType) {
-        setSearchResults(results.filter(r => r.type === selectedAssetType));
-    } else {
-        setSearchResults(results);
+    
+    try {
+      setIsSearching(true);
+      const results = await searchAssets(q);
+      if (selectedAssetType) {
+          setSearchResults(results.filter(r => r.type === selectedAssetType));
+      } else {
+          setSearchResults(results);
+      }
+    } catch (err) {
+      console.error("Search failed:", err);
+      // Fallback to local search if remote fails
+      const q_upper = q.toUpperCase();
+      const local = POPULAR_ASSETS.filter(a => a.ticker.includes(q_upper) || a.name.toUpperCase().includes(q_upper));
+      setSearchResults(selectedAssetType ? local.filter(a => a.type === selectedAssetType) : local);
+    } finally {
+      setIsSearching(false);
     }
-    setIsSearching(false);
-  }, [selectedAssetType]);
+  }, [selectedAssetType, bvcMarket]);
 
   const handleSelectAsset = (asset: SearchResult) => {
     setSelectedAsset(asset);
