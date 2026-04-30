@@ -472,10 +472,17 @@ export default function InvestScreen() {
   };
 
   const handleSavePosition = async () => {
-    if (!selectedAsset || !addShares || !user) return;
+    if (!selectedAsset || !user) return;
+    try {
+      setIsSearching(true);
+      const sharesNum = parseFloat(addShares.replace(',', '.'));
+    if (isNaN(sharesNum) || sharesNum <= 0) {
+        Alert.alert("Error", "Ingresa una cantidad válida.");
+        return;
+    }
+
     const customPrice = parseFloat(addAvgPrice.replace(',', '.'));
     const basePrice = isNaN(customPrice) ? selectedAsset.price : customPrice;
-    
     let priceCOP = selectedAsset.currency === 'USD' ? basePrice * usdToCop : basePrice;
     
     const dbEntry = {
@@ -504,8 +511,11 @@ export default function InvestScreen() {
       setPositions(updated);
       setSelectedAsset(null); setAddShares(''); setSearchQuery(''); setModalVisible(false);
       refreshPrices(updated);
-    } else {
-      Alert.alert("Error", "No se pudo guardar la inversión en la nube.");
+    } catch (err) {
+      console.error(err);
+      Alert.alert("Error", "Ocurrió un error inesperado.");
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -1136,9 +1146,14 @@ export default function InvestScreen() {
 
                   <TouchableOpacity 
                     onPress={handleSavePosition} 
-                    style={[s.confirmBtn, { backgroundColor: colors.accent, height: 56, marginTop: 25, borderRadius: 18 }]}
+                    disabled={isSearching}
+                    style={[s.confirmBtn, { backgroundColor: colors.accent, height: 56, marginTop: 25, borderRadius: 18, opacity: isSearching ? 0.7 : 1 }]}
                   >
-                    <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900' }}>Agregar al Portafolio</Text>
+                    {isSearching ? (
+                      <ActivityIndicator color="#FFF" />
+                    ) : (
+                      <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900' }}>Agregar al Portafolio</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
               )}
