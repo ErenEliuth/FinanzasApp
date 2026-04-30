@@ -241,25 +241,25 @@ export default function HomeScreen() {
         if (invData && invData.length > 0) {
           // Primero calcular el base (mientras cargan los en vivo)
           const baseTotal = invData.reduce((sum, pos) => sum + (Number(pos.shares || 0) * (Number(pos.avg_price || 0))), 0);
-          setInvestmentTotal(baseTotal);
-
           // Ahora intentar obtener precios en vivo para el Patrimonio Total
           const tickers = [...new Set(invData.map(p => p.ticker))];
           const livePrices = await fetchBvcMarketOverview(tickers);
           
-          let currentTotal = 0;
-          invData.forEach(pos => {
-            const live = livePrices.find(l => l.ticker === pos.ticker);
-            const price = live ? live.price : pos.avg_price;
-            const currency = live ? (live.currency || pos.currency) : pos.currency;
+          if (livePrices && livePrices.length > 0) {
+            let currentTotal = 0;
+            invData.forEach(pos => {
+              const live = livePrices.find(l => l.ticker === pos.ticker);
+              const price = live ? live.price : pos.avg_price;
+              const currency = live ? (live.currency || pos.currency) : pos.currency;
+              
+              const value = Number(pos.shares || 0) * Number(price || 0);
+              const valueCOP = currency === 'USD' ? value * rates.USD : value;
+              currentTotal += valueCOP;
+            });
             
-            const value = Number(pos.shares || 0) * Number(price || 0);
-            const valueCOP = currency === 'USD' ? value * rates.USD : value;
-            currentTotal += valueCOP;
-          });
-          
-          if (currentTotal > 0) {
-            setInvestmentTotal(currentTotal);
+            if (currentTotal > 0) {
+              setInvestmentTotal(currentTotal);
+            }
           }
         } else {
           setInvestmentTotal(0);

@@ -1,4 +1,4 @@
-export const LATEST_VERSION = '2026-04-08-v29'; // Dashboard de Inversiones de Alto Impacto
+export const LATEST_VERSION = '2026-04-30-v1'; // Actualización de Inversiones en Vivo
 
 export const CHANGELOG_UPDATES = [
   {
