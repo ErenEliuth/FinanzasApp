@@ -911,34 +911,42 @@ export default function HomeScreen() {
       <Modal visible={activeMoneyBreakdownVisible} transparent animationType="fade" onRequestClose={() => setActiveMoneyBreakdownVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, { backgroundColor: isDark ? colorsNav.card : '#FFF', maxWidth: 450 }]}>
-            <View style={{ alignItems: 'center', marginBottom: 20 }}>
-              <Text style={[styles.modalTitle, { color: colorsNav.text, fontSize: 18, marginBottom: 15 }]}>Distribución de Dinero</Text>
+            <View style={{ alignItems: 'center', marginBottom: 24 }}>
+              <Text style={{ color: '#64748B', fontSize: 13, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>Distribución</Text>
+              <Text style={{ fontSize: 38, fontWeight: '900', color: colorsNav.text, letterSpacing: -1 }}>{fmt(dineroActivo)}</Text>
             </View>
             <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
-              {Object.entries(derivedAccountTotals)
-                .filter(([name]) => {
-                    const recAccs = ['Efectivo', ...(customAccounts || [])];
-                    const cNames = (cards || []).map(c => c?.name || '');
-                    return recAccs.includes(name) && 
-                           !cNames.includes(name) && 
-                           name !== 'Ahorro' && 
-                           name !== 'Crédito';
-                })
-                .map(([name, total], idx, arr) => (
-                  <View key={name} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomColor: colorsNav.border + '30', borderBottomWidth: idx === arr.length - 1 ? 0 : 1, paddingVertical: 14 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
-                      <View style={{ backgroundColor: name === 'Efectivo' ? '#E8F5E9' : '#F0E6FF', width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' }}>
-                        <MaterialIcons
-                          name={name === 'Efectivo' ? 'money' : (name === 'Transferencia' || name === 'Bancaria') ? 'account-balance' : 'wallet' as any}
-                          size={24}
-                          color={name === 'Efectivo' ? colorsNav.accent : '#8B5CF6'}
-                        />
+              <View style={{ backgroundColor: isDark ? colorsNav.cardBg : '#FDF8F3', borderRadius: 20, padding: 16, gap: 16 }}>
+                {Object.entries(derivedAccountTotals)
+                  .filter(([name]) => {
+                      const recAccs = ['Efectivo', ...(customAccounts || [])];
+                      const cNames = (cards || []).map(c => c?.name || '');
+                      return recAccs.includes(name) && 
+                             !cNames.includes(name) && 
+                             name !== 'Ahorro' && 
+                             name !== 'Crédito';
+                  })
+                  .map(([name, total], idx, arr) => (
+                    <View key={name}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                          <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: name === 'Efectivo' ? '#E8F5E9' : '#F3E8FF', justifyContent: 'center', alignItems: 'center' }}>
+                            <MaterialIcons
+                              name={name === 'Efectivo' ? 'money' : (name === 'Transferencia' || name === 'Bancaria') ? 'account-balance' : 'wallet' as any}
+                              size={18}
+                              color={name === 'Efectivo' ? '#2D5A3D' : '#8B5CF6'}
+                            />
+                          </View>
+                          <Text style={{ fontSize: 15, fontWeight: '700', color: colorsNav.text }}>{name}</Text>
+                        </View>
+                        <Text style={{ fontSize: 15, fontWeight: '800', color: colorsNav.text }}>{fmt(total as number)}</Text>
                       </View>
-                      <Text style={{ color: colorsNav.text, fontSize: 16, fontWeight: '800' }}>{name}</Text>
+                      {idx < arr.length - 1 && (
+                        <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', marginTop: 16 }} />
+                      )}
                     </View>
-                    <Text style={{ color: colorsNav.text, fontSize: 16, fontWeight: '900' }}>{fmt(total as number)}</Text>
-                  </View>
-                ))}
+                  ))}
+              </View>
             </ScrollView>
             <TouchableOpacity 
               style={[styles.modalCloseBtn, { backgroundColor: isDark ? '#3A3A52' : '#FDF8F3', marginTop: 20 }]} 
