@@ -107,11 +107,20 @@ export default function CardsScreen() {
     const calculateNextPayment = (card: CreditCard) => {
         const txs = cardTransactions[card.name] || [];
         const today = new Date();
-        const { month, year } = calculateFirstPaymentMonth(today, card.cutDay);
+        let targetMonth = today.getMonth();
+        let targetYear = today.getFullYear();
+        
+        if (today.getDate() > card.dueDay) {
+            targetMonth++;
+            if (targetMonth > 11) {
+                targetMonth = 0;
+                targetYear++;
+            }
+        }
         
         let total = 0;
         txs.forEach(tx => {
-            total += getAmountDueForMonth(tx, card, month, year);
+            total += getAmountDueForMonth(tx, card, targetMonth, targetYear);
         });
         
         return Math.max(0, total);
@@ -133,22 +142,7 @@ export default function CardsScreen() {
         return { type: 'info', msg: `Faltan ${diff} días para tu cierre de ciclo. Compra con calma.` };
     };
 
-    const getMonthlyProjection = (card: CreditCard) => {
-        const txs = cardTransactions[card.name] || [];
-        const months = Array(12).fill(0);
-        const today = new Date();
 
-        for (let i = 0; i < 12; i++) {
-            const targetDate = new Date(today.getFullYear(), today.getMonth() + i, 1);
-            const { month: billMonth, year: billYear } = calculateFirstPaymentMonth(targetDate, card.cutDay);
-            
-            txs.forEach(tx => {
-                months[i] += getAmountDueForMonth(tx, card, billMonth, billYear);
-            });
-        }
-
-        return months;
-    };
 
     const scrollRef = useRef<any>(null);
 
@@ -394,22 +388,7 @@ export default function CardsScreen() {
                             </View>
                         </View>
 
-                        {/* Proyección de Pagos */}
-                        <View style={[styles.dashboardCard, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
-                            <Text style={[styles.dashboardLabel, { color: colorsNav.sub }]}>PRÓXIMOS MESES</Text>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
-                                {getMonthlyProjection(currentCard).slice(0, 4).map((amt, idx) => (
-                                    <View key={idx} style={{ alignItems: 'center' }}>
-                                        <Text style={{ fontSize: 9, fontWeight: '800', color: colorsNav.sub, marginBottom: 4 }}>
-                                            {new Date(now.getFullYear(), now.getMonth() + idx, 1).toLocaleDateString('es', { month: 'short' }).toUpperCase()}
-                                        </Text>
-                                        <Text style={{ fontSize: 12, fontWeight: '900', color: idx === 0 ? colorsNav.accent : colorsNav.text }}>
-                                            {fmt(amt)}
-                                        </Text>
-                                    </View>
-                                ))}
-                            </View>
-                        </View>
+
 
                         {/* Actions */}
                         <TouchableOpacity 

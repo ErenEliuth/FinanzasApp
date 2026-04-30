@@ -1,4 +1,4 @@
-export const LATEST_VERSION = '2026-04-30-v9'; // Rediseño modal Distribucion de dinero
+export const LATEST_VERSION = '2026-04-30-v10'; // Ajuste exacto de lógica de tarjetas
 
 export const CHANGELOG_UPDATES = [
   {
