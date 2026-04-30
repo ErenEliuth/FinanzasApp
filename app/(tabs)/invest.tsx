@@ -712,7 +712,17 @@ export default function InvestScreen() {
                     <TouchableOpacity 
                       key={i} 
                       style={[s.bvcAssetCard, { backgroundColor: colors.bg, borderColor: colors.border }]}
-                      onLongPress={() => handleDeleteBvcTicker(asset.ticker)}
+                      onLongPress={() => {
+                        if (Platform.OS === 'web') {
+                            if (window.confirm(`¿Ocultar ${asset.ticker} de la tira?`)) {
+                                const newHidden = [...hiddenBvcTickers, asset.ticker];
+                                setHiddenBvcTickers(newHidden);
+                                AsyncStorage.setItem('@hidden_bvc_tickers', JSON.stringify(newHidden));
+                            }
+                        } else {
+                            handleDeleteBvcTicker(asset.ticker);
+                        }
+                      }}
                       activeOpacity={0.7}
                     >
                       <Text style={{ color: colors.text, fontSize: 13, fontWeight: '900' }}>{asset.ticker}</Text>
@@ -904,7 +914,12 @@ export default function InvestScreen() {
                 <View style={[s.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <MaterialIcons name="show-chart" size={40} color={colors.sub} />
                   <Text style={{ color: colors.sub, fontSize: 14, fontWeight: '700', marginTop: 12 }}>Agrega tu primer activo</Text>
-                  <TouchableOpacity onPress={() => { setModalVisible(true); setAddFlowStep('category'); }} style={[s.emptyBtn, { backgroundColor: colors.accent }]}>
+                  <TouchableOpacity onPress={() => { 
+                    setSelectedAssetType('stock');
+                    setSearchResults(bvcMarket.length > 0 ? bvcMarket : POPULAR_ASSETS.filter(a => a.type === 'stock').slice(0, 8));
+                    setAddFlowStep('search');
+                    setModalVisible(true); 
+                  }} style={[s.emptyBtn, { backgroundColor: colors.accent }]}>
                     <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 13 }}>+ Buscar Activo</Text>
                   </TouchableOpacity>
                 </View>
