@@ -1,4 +1,4 @@
-export const LATEST_VERSION = '2026-04-30-v10'; // Ajuste exacto de lógica de tarjetas
+export const LATEST_VERSION = '2026-04-30-v11'; // Hide tab bar on cards screen
 
 export const CHANGELOG_UPDATES = [
   {
