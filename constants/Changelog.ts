@@ -1,4 +1,4 @@
-export const LATEST_VERSION = '2026-04-30-v14'; // Reporte mensual hiper-completo
+export const LATEST_VERSION = '2026-04-30-v15'; // Diagnóstico de Salud Financiera
 
 export const CHANGELOG_UPDATES = [
   {

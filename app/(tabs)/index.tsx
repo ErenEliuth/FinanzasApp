@@ -558,7 +558,29 @@ export default function HomeScreen() {
       saludColor: healthClr,
       porcentajeMes: monthPct,
       saldoDisponible: realMoney,
-      derivedAccountTotals: accs
+      derivedAccountTotals: accs,
+      healthDiagnostic: (() => {
+        if (healthPct >= 85) return {
+          title: "Patrimonio Blindado",
+          desc: "Tu salud es excelente. Tus activos cubren ampliamente tus deudas. ¡Es un buen momento para diversificar inversiones!",
+          icon: "verified-user"
+        };
+        if (healthPct >= 70) return {
+          title: "Rumbo Correcto",
+          desc: "Tienes una base sólida. Recomendamos seguir fortaleciendo tu ahorro para protegerte de cualquier imprevisto.",
+          icon: "trending-up"
+        };
+        if (healthPct >= 40) return {
+          title: "Atención Necesaria",
+          desc: "Tus deudas están pesando sobre tus ahorros. Intenta liquidar saldos pequeños para mejorar tu flujo mensual.",
+          icon: "report-problem"
+        };
+        return {
+          title: "Alerta Financiera",
+          desc: "Tu nivel de deuda es crítico frente a tus activos. Prioriza el pago de deudas y evita gastos no esenciales.",
+          icon: "warning"
+        };
+      })()
     };
   }, [allTransactions, debtTotal, cards, investmentTotal, customAccounts, ahorroBreakdown]);
 
@@ -1220,6 +1242,27 @@ export default function HomeScreen() {
                   <Text style={{ fontSize: 15, fontWeight: '700', color: colorsNav.text }}>Deudas</Text>
                 </View>
                 <Text style={{ fontSize: 15, fontWeight: '900', color: '#EF4444' }}>- {fmt(debtTotal)}</Text>
+              </View>
+            </View>
+
+            {/* Sección de Diagnóstico */}
+            <View style={{ 
+              marginTop: 16, 
+              padding: 16, 
+              borderRadius: 20, 
+              backgroundColor: saludColor + '10', 
+              borderWidth: 1, 
+              borderColor: saludColor + '20',
+              flexDirection: 'row',
+              gap: 12,
+              alignItems: 'center'
+            }}>
+              <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: saludColor + '15', justifyContent: 'center', alignItems: 'center' }}>
+                <MaterialIcons name={healthDiagnostic.icon as any} size={22} color={saludColor} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '900', color: saludColor, marginBottom: 2 }}>{healthDiagnostic.title}</Text>
+                <Text style={{ fontSize: 12, color: colorsNav.sub, lineHeight: 16, fontWeight: '500' }}>{healthDiagnostic.desc}</Text>
               </View>
             </View>
 
