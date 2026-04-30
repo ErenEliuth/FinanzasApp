@@ -992,6 +992,10 @@ export default function InvestScreen() {
                         return a.type === 'stock' && !bvcMarket.some(m => m.ticker === a.ticker);
                       }
                       return a.type === 'stock' || a.type === 'crypto' || a.type === 'fund';
+                    }).map(a => {
+                      // Try to find fresh price in bvcMarket
+                      const fresh = bvcMarket.find(m => m.ticker === a.ticker);
+                      return fresh ? { ...a, price: fresh.price, changePercent: fresh.changePercent, change: fresh.change } : a;
                     }).map((asset, i) => (
                       <TouchableOpacity key={i} style={[s.searchItem, { backgroundColor: colors.bg + '50', borderRadius: 16, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: colors.border }]} onPress={() => handleSelectAsset(asset)}>
                         <View style={[s.searchIcon, { backgroundColor: getAssetColor(asset.type as AssetType) + '15', width: 44, height: 44, borderRadius: 12 }]}>
