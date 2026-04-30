@@ -34,10 +34,16 @@ const POPULAR_ASSETS: SearchResult[] = [
   { ticker: 'EXITO', name: 'Almacenes Éxito S.A.', price: 2800, change: 0, changePercent: 0, type: 'stock', exchange: 'BVC' },
   { ticker: 'PFGRUPOARG', name: 'Grupo Argos Pref.', price: 11000, change: 0, changePercent: 0, type: 'stock', exchange: 'BVC' },
   { ticker: 'CEMARGOS', name: 'Cementos Argos S.A.', price: 6500, change: 0, changePercent: 0, type: 'stock', exchange: 'BVC' },
+  { ticker: 'BOGOTA', name: 'Banco de Bogotá', price: 32000, change: 0, changePercent: 0, type: 'stock', exchange: 'BVC' },
+  { ticker: 'CORFICOLCF', name: 'Corficolombiana', price: 15000, change: 0, changePercent: 0, type: 'stock', exchange: 'BVC' },
+  { ticker: 'NUTRESA', name: 'Grupo Nutresa', price: 45000, change: 0, changePercent: 0, type: 'stock', exchange: 'BVC' },
+  { ticker: 'GRUPOARGOS', name: 'Grupo Argos', price: 14000, change: 0, changePercent: 0, type: 'stock', exchange: 'BVC' },
+  { ticker: 'GRUPOSURA', name: 'Grupo Sura', price: 35000, change: 0, changePercent: 0, type: 'stock', exchange: 'BVC' },
   { ticker: 'AAPL', name: 'Apple Inc.', price: 191.2, change: 2.7, changePercent: 1.43, type: 'stock', exchange: 'NASDAQ', currency: 'USD' },
   { ticker: 'NVDA', name: 'NVIDIA Corp.', price: 845, change: 25, changePercent: 3.05, type: 'stock', exchange: 'NASDAQ', currency: 'USD' },
   { ticker: 'TSLA', name: 'Tesla, Inc.', price: 172, change: -3, changePercent: -1.71, type: 'stock', exchange: 'NASDAQ', currency: 'USD' },
-  { ticker: 'NU', name: 'Nu Holdings (NuBank)', price: 13.2, change: 0.7, changePercent: 5.6, type: 'stock', exchange: 'NYSE', currency: 'USD' },
+  { ticker: 'MSFT', name: 'Microsoft Corp.', price: 420, change: 5, changePercent: 1.2, type: 'stock', exchange: 'NASDAQ', currency: 'USD' },
+  { ticker: 'NU', name: 'Nu Holdings (Nubank)', price: 13.2, change: 0.7, changePercent: 5.6, type: 'stock', exchange: 'NYSE', currency: 'USD' },
   { ticker: 'TRIIRENTA', name: 'triirenta Accival Vista', price: 1, change: 0, changePercent: 8.52, type: 'fund', exchange: 'Trii' },
   { ticker: 'FICACC', name: 'FIC Acciones Colombia', price: 14200, change: -1200, changePercent: -7.79, type: 'fund', exchange: 'Trii' },
   { ticker: 'BTC', name: 'Bitcoin', price: 67500, change: 1200, changePercent: 1.81, type: 'crypto', currency: 'USD' },
@@ -89,8 +95,19 @@ const YAHOO_MAPPING: Record<string, string> = {
  * Fetch live stock price from TradingView Scanner (more real-time for BVC)
  */
 export async function fetchTradingViewPrice(ticker: string): Promise<{ price: number; change: number; changePercent: number } | null> {
-  const symbol = ticker.toUpperCase().includes(':') ? ticker.toUpperCase() : `BVC:${ticker.toUpperCase()}`;
-  const url = 'https://scanner.tradingview.com/colombia/scan';
+  const isIntl = ['NU', 'AAPL', 'TSLA', 'NVDA', 'MSFT', 'AMZN', 'GOOGL', 'META'].includes(ticker.toUpperCase());
+  let symbol = ticker.toUpperCase();
+  let url = 'https://scanner.tradingview.com/colombia/scan';
+  
+  if (isIntl) {
+    url = 'https://scanner.tradingview.com/america/scan';
+    if (!symbol.includes(':')) {
+        symbol = (symbol === 'NU' ? 'NYSE:NU' : `NASDAQ:${symbol}`);
+    }
+  } else if (!symbol.includes(':')) {
+    symbol = `BVC:${symbol}`;
+  }
+
   const body = {
     symbols: { tickers: [symbol] },
     columns: ['close', 'change', 'change_abs']

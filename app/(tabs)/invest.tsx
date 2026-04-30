@@ -401,17 +401,18 @@ export default function InvestScreen() {
     try {
       setIsSearching(true);
       const results = await searchAssets(q);
+      
+      // Enrich results with fresh prices from bvcMarket if available
+      const freshResults = results.map(res => {
+          const fresh = bvcMarket.find(m => m.ticker === res.ticker);
+          return fresh ? { ...res, price: fresh.price, changePercent: fresh.changePercent, change: fresh.change } : res;
+      });
+
       if (selectedAssetType) {
-          setSearchResults(results.filter(r => r.type === selectedAssetType));
+          setSearchResults(freshResults.filter(r => r.type === selectedAssetType));
       } else {
-          setSearchResults(results);
+          setSearchResults(freshResults);
       }
-    } catch (err) {
-      console.error("Search failed:", err);
-      // Fallback to local search if remote fails
-      const q_upper = q.toUpperCase();
-      const local = POPULAR_ASSETS.filter(a => a.ticker.includes(q_upper) || a.name.toUpperCase().includes(q_upper));
-      setSearchResults(selectedAssetType ? local.filter(a => a.type === selectedAssetType) : local);
     } finally {
       setIsSearching(false);
     }
@@ -429,10 +430,14 @@ export default function InvestScreen() {
                 setHiddenBvcTickers(newHidden);
                 AsyncStorage.setItem('@hidden_bvc_tickers', JSON.stringify(newHidden));
             }
+            // Optimistic update for bvcMarket to show it immediately even if fetch is pending
+            if (!bvcMarket.find(m => m.ticker === asset.ticker)) {
+                setBvcMarket(prev => [...prev, asset]);
+            }
         }
         setModalVisible(false);
         setIsAddingToWatchlist(false);
-        updateBvc();
+        setTimeout(() => updateBvc(), 500); // Trigger a full fresh update
         return;
     }
     setSelectedAsset(asset);
