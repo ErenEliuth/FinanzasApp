@@ -478,7 +478,7 @@ export default function HomeScreen() {
     }
   };
 
-  const { dineroActivo, dineroReal, dineroGeneral, ahorroTotal, ingresosMes, gastosMes, ahorroDelMes, saludPorcentaje, saludLabel, saludColor, porcentajeMes, saldoDisponible, derivedAccountTotals } = React.useMemo(() => {
+  const { dineroActivo, dineroReal, dineroGeneral, ahorroTotal, ingresosMes, gastosMes, ahorroDelMes, saludPorcentaje, saludLabel, saludColor, porcentajeMes, saldoDisponible, derivedAccountTotals, healthDiagnostic } = React.useMemo(() => {
     const today = new Date();
     const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();
@@ -1258,11 +1258,11 @@ export default function HomeScreen() {
               alignItems: 'center'
             }}>
               <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: saludColor + '15', justifyContent: 'center', alignItems: 'center' }}>
-                <MaterialIcons name={healthDiagnostic.icon as any} size={22} color={saludColor} />
+                <MaterialIcons name={(healthDiagnostic?.icon || 'help-outline') as any} size={22} color={saludColor} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '900', color: saludColor, marginBottom: 2 }}>{healthDiagnostic.title}</Text>
-                <Text style={{ fontSize: 12, color: colorsNav.sub, lineHeight: 16, fontWeight: '500' }}>{healthDiagnostic.desc}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '900', color: saludColor, marginBottom: 2 }}>{healthDiagnostic?.title}</Text>
+                <Text style={{ fontSize: 12, color: colorsNav.sub, lineHeight: 16, fontWeight: '500' }}>{healthDiagnostic?.desc}</Text>
               </View>
             </View>
 
