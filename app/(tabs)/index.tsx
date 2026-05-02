@@ -681,7 +681,7 @@ export default function HomeScreen() {
                 onPress={() => setNotificationsVisible(true)}
               >
                 <Ionicons name="notifications-outline" size={18} color={isDark ? '#D4C5A9' : '#8B7355'} />
-                {pendingItems.length > 0 && <View style={styles.notifBadge} />}
+                {(pendingItems.length > 0 || !!monthlyReport) && <View style={styles.notifBadge} />}
               </TouchableOpacity>
             </View>
 
@@ -724,29 +724,6 @@ export default function HomeScreen() {
             
             <View style={{ marginBottom: isDesktop ? 25 : 6 }}>
                <Text style={[styles.greeting, { color: colorsNav.text }]}>Hola, {displayName.split(' ')[0]} 👋</Text>
-               {monthlyReport && (
-                 <View style={[styles.reportAlert, { backgroundColor: colorsNav.accent + '15', borderColor: colorsNav.accent }]}>
-                   <View style={{ flex: 1 }}>
-                     <Text style={{ fontSize: 14, fontWeight: '900', color: colorsNav.accent }}>¡Tu resumen mensual está listo!</Text>
-                     <Text style={[styles.reportDesc, { color: colorsNav.sub }]}>Tu resumen de {monthlyReport.monthName} ya está listo.</Text>
-                   </View>
-                   <View style={{ flexDirection: 'row', gap: 8 }}>
-                     <TouchableOpacity 
-                       onPress={async () => {
-                         const today = new Date();
-                         await AsyncStorage.setItem(`dismissed_report_${today.getMonth()}_${today.getFullYear()}`, 'true');
-                         setMonthlyReport(null);
-                       }}
-                       style={{ padding: 8 }}
-                     >
-                       <Ionicons name="close-circle-outline" size={24} color={colorsNav.sub} />
-                     </TouchableOpacity>
-                     <TouchableOpacity onPress={() => setReportModalVisible(true)} style={[styles.reportBtn, { backgroundColor: colorsNav.accent }]}>
-                       <Text style={styles.reportBtnText}>Ver Reporte</Text>
-                     </TouchableOpacity>
-                   </View>
-                 </View>
-               )}
             </View>
 
             {/* Gran Tarjeta Hero */}
@@ -984,21 +961,38 @@ export default function HomeScreen() {
 
             <ScrollView showsVerticalScrollIndicator={false}>
               {monthlyReport && (
-                <TouchableOpacity 
-                  style={[styles.notificationItem, { backgroundColor: isDark ? '#6366F120' : '#EEF2FF', borderColor: '#6366F1' }]}
-                  onPress={() => {
-                    setNotificationsVisible(false);
-                    setTimeout(() => setReportModalVisible(true), 300);
-                  }}
-                >
-                  <View style={[styles.txIcon, { backgroundColor: '#6366F120' }]}>
-                    <MaterialIcons name="analytics" size={20} color="#6366F1" />
-                  </View>
-                  <View style={styles.txMeta}>
-                    <Text style={[styles.txTitle, { color: '#6366F1', fontWeight: '900' }]}>📊 Informe de {monthlyReport.monthName}</Text>
-                    <Text style={[styles.txSub, { color: colorsNav.sub }]}>Toca para ver tus estadísticas</Text>
-                  </View>
-                </TouchableOpacity>
+                <View style={[styles.notificationItem, { backgroundColor: isDark ? '#4F46E520' : '#EEF2FF', borderColor: '#4F46E530', borderWidth: 1, padding: 16, borderRadius: 24, marginBottom: 16 }]}>
+                  <TouchableOpacity 
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }}
+                    onPress={() => {
+                      setNotificationsVisible(false);
+                      setTimeout(() => setReportModalVisible(true), 300);
+                    }}
+                  >
+                    <View style={[styles.txIcon, { backgroundColor: '#4F46E525', width: 48, height: 48, borderRadius: 16 }]}>
+                      <MaterialIcons name="analytics" size={24} color="#6366F1" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: colorsNav.text, fontWeight: '900', fontSize: 15 }}>Informe de {monthlyReport.monthName}</Text>
+                      <Text style={{ color: colorsNav.sub, fontSize: 12, marginTop: 2 }}>Tu análisis financiero está listo para revisar.</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
+                        <Text style={{ color: '#6366F1', fontWeight: '800', fontSize: 12 }}>VER AHORA</Text>
+                        <MaterialIcons name="arrow-forward" size={14} color="#6366F1" />
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    onPress={async () => {
+                      const today = new Date();
+                      await AsyncStorage.setItem(`dismissed_report_${today.getMonth()}_${today.getFullYear()}`, 'true');
+                      setMonthlyReport(null);
+                    }}
+                    style={{ padding: 8, position: 'absolute', top: 8, right: 8 }}
+                  >
+                    <Ionicons name="close-circle" size={22} color={colorsNav.sub} />
+                  </TouchableOpacity>
+                </View>
               )}
 
               {pendingItems.length === 0 && !monthlyReport ? (
@@ -1008,28 +1002,35 @@ export default function HomeScreen() {
                 </View>
               ) : (
                 pendingItems.map(item => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={[styles.txItem, { backgroundColor: isDark ? '#2A3447' : '#FFF8F0', marginBottom: 10, padding: 12 }]}
+                  <TouchableOpacity 
+                    key={item.id || item.notifKey}
+                    style={[styles.notificationItem, { backgroundColor: isDark ? '#1E293B' : '#F9FAFB', borderColor: colorsNav.border + '30', borderWidth: 1 }]}
                     onPress={() => {
                       setNotificationsVisible(false);
                       router.push('/(tabs)/debts');
                     }}
                   >
-                    <View style={[styles.txIcon, { backgroundColor: item.debt_type === 'fixed' ? '#F59E0B20' : '#EF444420' }]}>
+                    <View style={[styles.txIcon, { backgroundColor: item.debt_type === 'fixed' ? '#F59E0B15' : '#EF444415' }]}>
                       <MaterialIcons
-                        name={item.debt_type === 'fixed' ? 'repeat' : 'credit-card'}
-                        size={20}
+                        name={item.debt_type === 'fixed' ? 'event-repeat' : 'warning'}
+                        size={22}
                         color={item.debt_type === 'fixed' ? '#F59E0B' : '#EF4444'}
                       />
                     </View>
                     <View style={styles.txMeta}>
                       <Text style={[styles.txTitle, { color: colorsNav.text }]}>{item.client}</Text>
-                      <Text style={[styles.txSub, { color: colorsNav.sub }]}>Vence: {item.due_date}</Text>
+                      <Text style={[styles.txSub, { color: colorsNav.sub }]}>
+                        {item.debt_type === 'fixed' ? 'Gasto recurrente' : 'Pago pendiente'} • {item.due_date}
+                      </Text>
                     </View>
-                    <Text style={[styles.txAmount, { color: item.debt_type === 'fixed' ? '#F59E0B' : '#EF4444' }]}>
-                      {fmt(item.value - item.paid)}
-                    </Text>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={[styles.txAmount, { color: item.debt_type === 'fixed' ? '#F59E0B' : '#EF4444' }]}>
+                        {fmt(item.value - item.paid)}
+                      </Text>
+                      <View style={{ backgroundColor: item.debt_type === 'fixed' ? '#F59E0B20' : '#EF444420', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginTop: 4 }}>
+                        <Text style={{ fontSize: 8, color: item.debt_type === 'fixed' ? '#F59E0B' : '#EF4444', fontWeight: '900' }}>PENDIENTE</Text>
+                      </View>
+                    </View>
                   </TouchableOpacity>
                 ))
               )}
@@ -1671,6 +1672,7 @@ const styles = StyleSheet.create({
   txTitle: { fontSize: 15, fontWeight: '800', marginBottom: 2 },
   txSub: { fontSize: 12, opacity: 0.6, fontWeight: '600' },
   txAmount: { fontSize: 16, fontWeight: '900' },
+  notificationItem: { flexDirection: 'row', alignItems: 'center', padding: 16, marginBottom: 12, borderRadius: 24 },
 
   // Breakdown Refined
   refinedBreakdownBox: {
