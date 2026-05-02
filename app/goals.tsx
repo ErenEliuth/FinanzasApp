@@ -428,11 +428,12 @@ export default function GoalsScreen() {
                                     </View>
                                 )}
                                 {activeTab === 'cajitas' && (
-                                    <View style={{ position: 'absolute', top: 16, right: 16, zIndex: 10 }}>
-                                        <TouchableOpacity style={styles.delBtn} onPress={() => handleDelete(goal)}>
-                                            <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                                        </TouchableOpacity>
-                                    </View>
+                                    <TouchableOpacity 
+                                        style={[styles.delBtn, { top: 16, right: 16, backgroundColor: colors.bg }]} 
+                                        onPress={() => handleDelete(goal)}
+                                    >
+                                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                                    </TouchableOpacity>
                                 )}
 
                                 <View style={styles.goalBody}>
@@ -719,7 +720,7 @@ const styles = StyleSheet.create({
     medalTxt: { color: '#FFF', fontSize: 10, fontWeight: '800' },
     delBtn: { position: 'absolute', top: 12, right: 12, backgroundColor: '#FFF', width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
     
-    goalBody: { padding: 16 },
+    goalBody: { padding: 16, paddingRight: 50 },
     goalName: { fontSize: 18, fontWeight: '800', marginBottom: 12 },
     goalStats: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
     goalProgressBg: { flex: 1, height: 6, borderRadius: 3, backgroundColor: '#F0F0F0', overflow: 'hidden' },

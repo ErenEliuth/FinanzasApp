@@ -404,69 +404,73 @@ export default function HomeScreen() {
       }) || [];
       setPendingItems(urgent);
 
-      // Generar Reporte Mensual si es el inicio del mes (Días 1 al 5)
-      const now = new Date();
-      if (now.getDate() <= 5) {
-        const prevMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
-        const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+      // Generar Reporte Mensual si es el inicio del mes (Días 1 al 3)
+      const today = new Date();
+      const day = today.getDate();
+      if (day <= 3) {
+        const dismissed = await AsyncStorage.getItem(`dismissed_report_${today.getMonth()}_${today.getFullYear()}`);
+        if (!dismissed) {
+          const prevMonth = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
+          const prevYear = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
 
-        const monthTxs = (allTx || []).filter(tx => {
-          const d = new Date(tx.date);
-          return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
-        });
-
-        if (monthTxs.length > 0) {
-          let income = 0;
-          let expenses = 0;
-          const dailyInc: any = {};
-          const dailyExp: any = {};
-          const cats: any = {};
-
-          monthTxs.forEach(tx => {
-            const d = new Date(tx.date).getDate();
-            const amt = Number(tx.amount) || 0;
-            if (tx.type === 'income') {
-              if (tx.category !== 'Transferencia') {
-                income += amt;
-                dailyInc[d] = (dailyInc[d] || 0) + amt;
-              }
-            } else if (tx.type === 'expense' || (tx.type === 'transfer' && tx.category === 'Gasto')) {
-              if (tx.category !== 'Transferencia' && tx.category !== 'Ahorro') {
-                expenses += amt;
-                dailyExp[d] = (dailyExp[d] || 0) + amt;
-                cats[tx.category] = (cats[tx.category] || 0) + amt;
-              }
-            }
+          const monthTxs = (allTx || []).filter(tx => {
+            const normalized = tx.date.includes('T') ? tx.date : `${tx.date}T12:00:00`;
+            const d = new Date(normalized);
+            return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
           });
 
-          const bestInc = Object.entries(dailyInc).sort((a: any, b: any) => b[1] - a[1])[0];
-          const worstExp = Object.entries(dailyExp).sort((a: any, b: any) => b[1] - a[1])[0];
-          const topCat = Object.entries(cats).sort((a: any, b: any) => b[1] - a[1])[0];
+          if (monthTxs.length > 0) {
+            let income = 0;
+            let expenses = 0;
+            const dailyInc: any = {};
+            const dailyExp: any = {};
+            const cats: any = {};
 
-          // Comparación con el mes anterior al anterior
-          const prevPrevMonth = prevMonth === 0 ? 11 : prevMonth - 1;
-          const prevPrevYear = prevMonth === 0 ? prevYear - 1 : prevYear;
-          let prevExp = 0;
-          (allTx || []).forEach(tx => {
-            const d = new Date(tx.date);
-            if (d.getMonth() === prevPrevMonth && d.getFullYear() === prevPrevYear) {
-              if ((tx.type === 'expense' || tx.category === 'Gasto') && tx.category !== 'Transferencia' && tx.category !== 'Ahorro') {
-                prevExp += Number(tx.amount || 0);
+            monthTxs.forEach(tx => {
+              const d = new Date(tx.date).getDate();
+              const amt = Number(tx.amount) || 0;
+              if (tx.type === 'income') {
+                if (tx.category !== 'Transferencia') {
+                  income += amt;
+                  dailyInc[d] = (dailyInc[d] || 0) + amt;
+                }
+              } else if (tx.type === 'expense' || (tx.type === 'transfer' && tx.category === 'Gasto')) {
+                if (tx.category !== 'Transferencia' && tx.category !== 'Ahorro') {
+                  expenses += amt;
+                  dailyExp[d] = (dailyExp[d] || 0) + amt;
+                  cats[tx.category] = (cats[tx.category] || 0) + amt;
+                }
               }
-            }
-          });
+            });
 
-          setMonthlyReport({
-            income,
-            expenses,
-            savings: income - expenses,
-            savingsRate: income > 0 ? ((income - expenses) / income) * 100 : 0,
-            expenseChange: prevExp > 0 ? ((expenses - prevExp) / prevExp) * 100 : 0,
-            bestInc: bestInc ? { day: bestInc[0], amt: bestInc[1] } : null,
-            worstExp: worstExp ? { day: worstExp[0], amt: worstExp[1] } : null,
-            topCat: topCat ? { name: topCat[0], amt: topCat[1] } : null,
-            monthName: new Date(prevYear, prevMonth, 1).toLocaleDateString('es', { month: 'long' }),
-          });
+            const bestInc = Object.entries(dailyInc).sort((a: any, b: any) => b[1] - a[1])[0];
+            const worstExp = Object.entries(dailyExp).sort((a: any, b: any) => b[1] - a[1])[0];
+            const topCat = Object.entries(cats).sort((a: any, b: any) => b[1] - a[1])[0];
+
+            const prevPrevMonth = prevMonth === 0 ? 11 : prevMonth - 1;
+            const prevPrevYear = prevMonth === 0 ? prevYear - 1 : prevYear;
+            let prevExp = 0;
+            (allTx || []).forEach(tx => {
+              const d = new Date(tx.date);
+              if (d.getMonth() === prevPrevMonth && d.getFullYear() === prevPrevYear) {
+                if ((tx.type === 'expense' || tx.category === 'Gasto') && tx.category !== 'Transferencia' && tx.category !== 'Ahorro') {
+                  prevExp += Number(tx.amount || 0);
+                }
+              }
+            });
+
+            setMonthlyReport({
+              income,
+              expenses,
+              savings: income - expenses,
+              savingsRate: income > 0 ? ((income - expenses) / income) * 100 : 0,
+              expenseChange: prevExp > 0 ? ((expenses - prevExp) / prevExp) * 100 : 0,
+              bestInc: bestInc ? { day: bestInc[0], amt: bestInc[1] } : null,
+              worstExp: worstExp ? { day: worstExp[0], amt: worstExp[1] } : null,
+              topCat: topCat ? { name: topCat[0], amt: topCat[1] } : null,
+              monthName: new Date(prevYear, prevMonth, 1).toLocaleDateString('es', { month: 'long' }),
+            });
+          }
         }
       }
 
@@ -721,7 +725,29 @@ export default function HomeScreen() {
             
             <View style={{ marginBottom: isDesktop ? 25 : 6 }}>
                <Text style={[styles.greeting, { color: colorsNav.text }]}>Hola, {displayName.split(' ')[0]} 👋</Text>
-
+               {monthlyReport && (
+                 <View style={[styles.reportAlert, { backgroundColor: colorsNav.accent + '15', borderColor: colorsNav.accent }]}>
+                   <View style={{ flex: 1 }}>
+                     <Text style={{ fontSize: 14, fontWeight: '900', color: colorsNav.accent }}>¡Tu resumen mensual está listo!</Text>
+                     <Text style={[styles.reportDesc, { color: colorsNav.sub }]}>Tu resumen de {monthlyReport.monthName} ya está listo.</Text>
+                   </View>
+                   <View style={{ flexDirection: 'row', gap: 8 }}>
+                     <TouchableOpacity 
+                       onPress={async () => {
+                         const today = new Date();
+                         await AsyncStorage.setItem(`dismissed_report_${today.getMonth()}_${today.getFullYear()}`, 'true');
+                         setMonthlyReport(null);
+                       }}
+                       style={{ padding: 8 }}
+                     >
+                       <Ionicons name="close-circle-outline" size={24} color={colorsNav.sub} />
+                     </TouchableOpacity>
+                     <TouchableOpacity onPress={() => setReportModalVisible(true)} style={[styles.reportBtn, { backgroundColor: colorsNav.accent }]}>
+                       <Text style={styles.reportBtnText}>Ver Reporte</Text>
+                     </TouchableOpacity>
+                   </View>
+                 </View>
+               )}
             </View>
 
             {/* Gran Tarjeta Hero */}

@@ -63,7 +63,7 @@ function MonthHeatmap({ activeDays, colorsNav, onDayPress, reminders }: {
     while (cells.length % 7 !== 0) cells.push(null);
 
     const totalActive = [...activeDays.keys()].filter(k => {
-        const d = new Date(k);
+        const d = new Date(k + 'T12:00:00');
         return d.getMonth() === month && d.getFullYear() === year;
     }).length;
 
@@ -174,12 +174,24 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
     const today = new Date();
     const currMonth = today.getMonth();
     const currYear = today.getFullYear();
+    
+    // Gastos del mes
     const thisMonthExpenses = transactions.filter(t => {
         const normalizedDate = t.date.includes('T') ? t.date : `${t.date}T12:00:00`;
         const d = new Date(normalizedDate);
         return t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && d.getMonth() === currMonth && d.getFullYear() === currYear;
     });
-    const thisMonthTotal = thisMonthExpenses.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+    
+    // Ingresos del mes
+    const thisMonthIncome = transactions.filter(t => {
+        const normalizedDate = t.date.includes('T') ? t.date : `${t.date}T12:00:00`;
+        const d = new Date(normalizedDate);
+        return t.type === 'income' && t.category !== 'Transferencia' && d.getMonth() === currMonth && d.getFullYear() === currYear;
+    });
+
+    const thisMonthExpTotal = thisMonthExpenses.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+    const thisMonthIncTotal = thisMonthIncome.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+
     const categoryTotals: Record<string, number> = {};
     thisMonthExpenses.forEach(t => {
         const cat = t.category || 'Otros';
@@ -189,27 +201,43 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
     const maxVal = Math.max(...sortedCats.map(c => c[1]), 1);
 
     const chartLabels: string[] = [];
-    const chartData: number[] = [];
+    const chartExpData: number[] = [];
+    const chartIncData: number[] = [];
     for (let i = 5; i >= 0; i--) {
         const d = new Date(currYear, currMonth - i, 1);
         chartLabels.push(MONTH_NAMES[d.getMonth()]);
-        const monthTotal = transactions.filter(t => {
+        
+        const mExp = transactions.filter(t => {
             const normalizedDate = t.date.includes('T') ? t.date : `${t.date}T12:00:00`;
             const td = new Date(normalizedDate);
             return t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && td.getMonth() === d.getMonth() && td.getFullYear() === d.getFullYear();
         }).reduce((s, t) => s + Math.abs(t.amount || 0), 0);
-        chartData.push(monthTotal);
+        
+        const mInc = transactions.filter(t => {
+            const normalizedDate = t.date.includes('T') ? t.date : `${t.date}T12:00:00`;
+            const td = new Date(normalizedDate);
+            return t.type === 'income' && t.category !== 'Transferencia' && td.getMonth() === d.getMonth() && td.getFullYear() === d.getFullYear();
+        }).reduce((s, t) => s + Math.abs(t.amount || 0), 0);
+
+        chartExpData.push(mExp);
+        chartIncData.push(mInc);
     }
 
     return (
         <View style={{ gap: 24 }}>
             <View style={[statStyle.card, { backgroundColor: colorsNav.card }]}>
-                <Text style={[statStyle.title, { color: colorsNav.text, marginBottom: 15 }]}>Histórico (6 meses)</Text>
+                <Text style={[statStyle.title, { color: colorsNav.text, marginBottom: 15 }]}>Comparativa Ingresos vs Gastos</Text>
                 <LineChart
-                    data={{ labels: chartLabels, datasets: [{ data: chartData }] }}
+                    data={{ 
+                        labels: chartLabels, 
+                        datasets: [
+                            { data: chartIncData, color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`, strokeWidth: 3 }, // Verde para ingresos
+                            { data: chartExpData, color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`, strokeWidth: 3 } // Rojo para gastos
+                        ],
+                        legend: ["Ingresos", "Gastos"]
+                    }}
                     width={Dimensions.get('window').width - 70}
-                    height={180}
-                    yAxisLabel="$"
+                    height={200}
                     chartConfig={{
                         backgroundColor: colorsNav.card,
                         backgroundGradientFrom: colorsNav.card,
@@ -218,16 +246,24 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
                         color: (opacity = 1) => colorsNav.accent,
                         labelColor: (opacity = 1) => colorsNav.sub,
                         style: { borderRadius: 16 },
-                        propsForDots: { r: "5", strokeWidth: "2", stroke: colorsNav.accent }
+                        propsForDots: { r: "4", strokeWidth: "2", stroke: colorsNav.card }
                     }}
                     bezier
                     style={{ marginVertical: 8, borderRadius: 16, marginLeft: -15 }}
                 />
             </View>
-            <View style={[statStyle.card, { backgroundColor: colorsNav.card }]}>
-                <Text style={[statStyle.title, { color: colorsNav.text }]}>Gasto Total este Mes</Text>
-                <Text style={[statStyle.compVal, { color: colorsNav.text, fontSize: 32 }]}>{fmt(thisMonthTotal, currency, rates, isHidden)}</Text>
+
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+                <View style={[statStyle.card, { backgroundColor: colorsNav.card, flex: 1 }]}>
+                    <Text style={[statStyle.title, { color: colorsNav.text, fontSize: 14 }]}>Ingresos Mes</Text>
+                    <Text style={[statStyle.compVal, { color: '#10B981', fontSize: 20 }]}>{fmt(thisMonthIncTotal, currency, rates, isHidden)}</Text>
+                </View>
+                <View style={[statStyle.card, { backgroundColor: colorsNav.card, flex: 1 }]}>
+                    <Text style={[statStyle.title, { color: colorsNav.text, fontSize: 14 }]}>Gastos Mes</Text>
+                    <Text style={[statStyle.compVal, { color: '#EF4444', fontSize: 20 }]}>{fmt(thisMonthExpTotal, currency, rates, isHidden)}</Text>
+                </View>
             </View>
+
             <View style={[statStyle.card, { backgroundColor: colorsNav.card }]}>
                 <Text style={[statStyle.title, { color: colorsNav.text, marginBottom: 20 }]}>Gastos por Categoría</Text>
                 {sortedCats.map(([cat, val]) => {
@@ -297,6 +333,7 @@ export default function ProfileScreen() {
     const [newName, setNewName] = useState(user?.user_metadata?.name || '');
     const [avatarUri, setAvatarUri] = useState<string | null>(null);
     const [weeklySpending, setWeeklySpending] = useState(0);
+    const [weeklyIncome, setWeeklyIncome] = useState(0);
     const [weeklySummaryData, setWeeklySummaryData] = useState<[string, number][]>([]);
 
     const scrollRef = useRef<any>(null);
@@ -325,14 +362,24 @@ export default function ProfileScreen() {
             map.set(k, (map.get(k) ?? 0) + 1);
         });
         setActiveDays(map);
-        const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+        const weekAgo = new Date(); 
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        weekAgo.setHours(0,0,0,0);
+
         const weekTxs = txs.filter(t => {
             const normalizedDate = t.date.includes('T') ? t.date : `${t.date}T12:00:00`;
-            return t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && new Date(normalizedDate) >= weekAgo;
+            const d = new Date(normalizedDate);
+            return d >= weekAgo;
         });
-        setWeeklySpending(weekTxs.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0));
+
+        const wExpenses = weekTxs.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia');
+        const wIncome = weekTxs.filter(t => t.type === 'income' && t.category !== 'Transferencia');
+
+        setWeeklySpending(wExpenses.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0));
+        setWeeklyIncome(wIncome.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0));
+
         const catMap: Record<string, number> = {};
-        weekTxs.forEach(t => { catMap[t.category || 'Otros'] = (catMap[t.category || 'Otros'] || 0) + Math.abs(t.amount || 0); });
+        wExpenses.forEach(t => { catMap[t.category || 'Otros'] = (catMap[t.category || 'Otros'] || 0) + Math.abs(t.amount || 0); });
         setWeeklySummaryData(Object.entries(catMap).sort((a, b) => b[1] - a[1]));
 
         // Fetch reminders and fixed expenses
@@ -411,7 +458,15 @@ export default function ProfileScreen() {
     const getDayReminders = (date: Date | null) => {
         if (!date) return [];
         const day = date.getDate();
-        return reminders.filter(r => r.due_day === day);
+        const key = toKey(date);
+        return reminders.filter(r => {
+            if (r.due_day === day) return true;
+            if (r.due_date) {
+                const normalized = r.due_date.includes('T') ? r.due_date : `${r.due_date}T12:00:00`;
+                if (toKey(new Date(normalized)) === key) return true;
+            }
+            return false;
+        });
     };
 
     const handleUpdateName = async () => {
@@ -700,9 +755,15 @@ export default function ProfileScreen() {
                             <Text style={[styles.modalTitle, { color: colorsNav.text, marginBottom: 0 }]}>Gasto Semanal</Text>
                             <TouchableOpacity onPress={() => setWeeklyModalVisible(false)}><MaterialIcons name="close" size={24} color={colorsNav.sub} /></TouchableOpacity>
                         </View>
-                        <View style={{ alignItems: 'center', marginVertical: 20 }}>
-                            <Text style={{ fontSize: 12, color: colorsNav.sub, fontWeight: '700' }}>TOTAL ÚLTIMOS 7 DÍAS</Text>
-                            <Text style={{ fontSize: 36, fontWeight: '900', color: '#EF4444' }}>{fmt(weeklySpending, currency, rates, isHidden)}</Text>
+                        <View style={{ flexDirection: 'row', gap: 12, marginVertical: 20 }}>
+                            <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#EF444410', padding: 16, borderRadius: 20 }}>
+                                <Text style={{ fontSize: 10, color: '#EF4444', fontWeight: '800' }}>GASTOS 7 DÍAS</Text>
+                                <Text style={{ fontSize: 24, fontWeight: '900', color: '#EF4444' }}>{fmt(weeklySpending, currency, rates, isHidden)}</Text>
+                            </View>
+                            <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#10B98110', padding: 16, borderRadius: 20 }}>
+                                <Text style={{ fontSize: 10, color: '#10B981', fontWeight: '800' }}>INGRESOS 7 DÍAS</Text>
+                                <Text style={{ fontSize: 24, fontWeight: '900', color: '#10B981' }}>{fmt(weeklyIncome, currency, rates, isHidden)}</Text>
+                            </View>
                         </View>
                         <ScrollView style={{ maxHeight: 300 }}>
                             {weeklySummaryData.map(([cat, amt]) => {
