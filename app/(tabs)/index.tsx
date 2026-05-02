@@ -405,7 +405,6 @@ export default function HomeScreen() {
       setPendingItems(urgent);
 
       // Generar Reporte Mensual si es el inicio del mes (Días 1 al 3)
-      const today = new Date();
       const day = today.getDate();
       if (day <= 3) {
         const dismissed = await AsyncStorage.getItem(`dismissed_report_${today.getMonth()}_${today.getFullYear()}`);
