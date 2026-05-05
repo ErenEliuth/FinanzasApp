@@ -453,35 +453,40 @@ export default function GoalsScreen() {
                         <View style={[styles.progressFill, { width: `${Math.min(100, (assignedAhorro / (totalAhorro || 1)) * 100)}%`, backgroundColor: colors.accent }]} />
                     </View>
 
-                    <View style={styles.summaryFooter}>
-                        <View>
-                            <Text style={[styles.footerLab, { color: colors.sub }]}>Bolsa Total</Text>
-                            <Text style={[styles.footerVal, { color: colors.text }]}>{fmt(totalAhorro)}</Text>
+                    <View style={[styles.summaryFooter, { borderTopWidth: 1, borderTopColor: colors.bg, paddingTop: 16, marginTop: 4 }]}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.footerLab, { color: colors.sub, textTransform: 'uppercase', letterSpacing: 0.5 }]}>Bolsa Total</Text>
+                            <Text style={[styles.footerVal, { color: colors.text, fontSize: 18 }]}>{fmt(totalAhorro)}</Text>
                         </View>
-                        <View style={{ alignItems: 'flex-end' }}>
-                            <Text style={[styles.footerLab, { color: colors.sub }]}>Disponible</Text>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                <Text style={[styles.footerVal, { color: '#10B981', fontWeight: '900' }]}>{fmt(availableAhorro)}</Text>
-                                {availableAhorro > 0 && (
-                                    <View style={{ flexDirection: 'row', gap: 6 }}>
-                                        <TouchableOpacity 
-                                            style={[styles.distBtn, { backgroundColor: colors.accent }, isProcessing && { opacity: 0.6 }]} 
-                                            onPress={handleDistributeSavings}
-                                            disabled={isProcessing}
-                                        >
-                                            <Text style={styles.distBtnText}>{isProcessing ? '...' : 'Distribuir'}</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity 
-                                            style={[styles.distBtn, { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border }]} 
-                                            onPress={() => setWithdrawAccountModalVisible(true)}
-                                        >
-                                            <Text style={[styles.distBtnText, { color: colors.text }]}>Retirar</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                )}
-                            </View>
+                        <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                            <Text style={[styles.footerLab, { color: colors.sub, textTransform: 'uppercase', letterSpacing: 0.5 }]}>Disponible</Text>
+                            <Text style={[styles.footerVal, { color: '#10B981', fontWeight: '900', fontSize: 18 }]}>{fmt(availableAhorro)}</Text>
                         </View>
                     </View>
+
+                    {availableAhorro > 0 && (
+                        <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                            <TouchableOpacity 
+                                style={[styles.distBtn, { flex: 1, backgroundColor: colors.accent, height: 38, justifyContent: 'center', alignItems: 'center' }, isProcessing && { opacity: 0.6 }]} 
+                                onPress={handleDistributeSavings}
+                                disabled={isProcessing}
+                            >
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                    <MaterialIcons name="auto-fix-high" size={14} color="#FFF" />
+                                    <Text style={[styles.distBtnText, { fontSize: 13 }]}>{isProcessing ? 'Procesando...' : 'Distribuir Inteligente'}</Text>
+                                </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.distBtn, { flex: 0.6, backgroundColor: isDark ? '#3A3A52' : '#F5EDE0', height: 38, justifyContent: 'center', alignItems: 'center' }]} 
+                                onPress={() => setWithdrawAccountModalVisible(true)}
+                            >
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                    <MaterialIcons name="account-balance-wallet" size={14} color={colors.text} />
+                                    <Text style={[styles.distBtnText, { color: colors.text, fontSize: 13 }]}>Retirar</Text>
+                                </View>
+                            </TouchableOpacity>
+                        </View>
+                    )}
                 </View>
 
 
@@ -738,9 +743,22 @@ export default function GoalsScreen() {
                 <View style={styles.overlayCenter}>
                     <View style={[styles.miniModal, { backgroundColor: colors.card }]}>
                         <Text style={[styles.miniTitle, { color: colors.text }]}>Retirar a cuenta</Text>
-                        <Text style={[styles.miniSub, { color: colors.sub }]}>Disponible: {fmt(availableAhorro)}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <Text style={[styles.miniSub, { color: colors.sub }]}>Disponible: {fmt(availableAhorro)}</Text>
+                            <TouchableOpacity 
+                                onPress={() => {
+                                    const val = convertCurrency(availableAhorro, currency, rates);
+                                    const info = getCurrencyInfo(currency);
+                                    const cleanStr = info.hasDecimals ? val.toFixed(2) : Math.floor(val).toString();
+                                    setWithdrawAccountAmount(formatInput(cleanStr));
+                                }}
+                                style={{ backgroundColor: colors.accent + '20', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}
+                            >
+                                <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '800' }}>USAR TODO</Text>
+                            </TouchableOpacity>
+                        </View>
                         
-                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border, textAlign: 'center', fontSize: 24, width: '100%' }]} 
+                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border, textAlign: 'center', fontSize: 32, width: '100%', marginVertical: 10 }]} 
                             placeholder="$ 0" placeholderTextColor={colors.sub + '40'} keyboardType="decimal-pad" autoFocus
                             value={withdrawAccountAmount} onChangeText={t => setWithdrawAccountAmount(formatInput(t))} />
 

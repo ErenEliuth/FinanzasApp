@@ -12,7 +12,7 @@ const path = require('path');
 
 const DIST_DIR = path.join(__dirname, '..', 'dist');
 const FONTS_DIR = path.join(DIST_DIR, 'fonts');
-const ASSETS_DIR = path.join(DIST_DIR, 'assets');
+const NODE_MODULES_FONTS = path.join(__dirname, '..', 'node_modules', '@expo/vector-icons', 'build', 'vendor', 'react-native-vector-icons', 'Fonts');
 
 // Las familias de fuentes que necesitamos
 const FONT_FAMILIES = [
@@ -21,13 +21,42 @@ const FONT_FAMILIES = [
   'MaterialCommunityIcons',
   'Feather',
   'FontAwesome',
+  'FontAwesome5_Regular',
+  'FontAwesome5_Solid',
+  'FontAwesome5_Brands',
+  'FontAwesome6_Regular',
+  'FontAwesome6_Solid',
+  'FontAwesome6_Brands',
 ];
 
-// Buscar archivos recursivamente
+console.log('🔧 Fixing web fonts for GitHub Pages...');
+
+// 1. Crear directorio fonts/
+if (!fs.existsSync(FONTS_DIR)) {
+  fs.mkdirSync(FONTS_DIR, { recursive: true });
+}
+
+// 2. Copiar fuentes directamente desde node_modules
+console.log('📦 Copying fonts from node_modules...');
+const fontMappings = {};
+
+for (const family of FONT_FAMILIES) {
+  const srcPath = path.join(NODE_MODULES_FONTS, `${family}.ttf`);
+  if (fs.existsSync(srcPath)) {
+    const destName = `${family}.ttf`;
+    const destPath = path.join(FONTS_DIR, destName);
+    fs.copyFileSync(srcPath, destPath);
+    fontMappings[family] = destName;
+    console.log(`  ✅ Copied ${destName}`);
+  } else {
+    console.warn(`  ⚠️ Could not find ${family}.ttf in node_modules`);
+  }
+}
+
+// 3. Inyectar @font-face en archivos HTML
 function findFiles(dir, ext) {
   let results = [];
   if (!fs.existsSync(dir)) return results;
-  
   const items = fs.readdirSync(dir, { withFileTypes: true });
   for (const item of items) {
     const fullPath = path.join(dir, item.name);
@@ -40,50 +69,32 @@ function findFiles(dir, ext) {
   return results;
 }
 
-console.log('🔧 Fixing web fonts for GitHub Pages...');
-
-// 1. Crear directorio fonts/
-if (!fs.existsSync(FONTS_DIR)) {
-  fs.mkdirSync(FONTS_DIR, { recursive: true });
-}
-
-// 2. Encontrar todos los archivos .ttf en dist/assets/
-const ttfFiles = findFiles(ASSETS_DIR, '.ttf');
-console.log(`Found ${ttfFiles.length} .ttf files in dist/assets/`);
-
-// 3. Copiar los que coincidan con nuestras familias y mapear nombres reales de archivos de Expo
-const fontMappings = {}; // mapping from original filename to family.ttf
-
-for (const ttfPath of ttfFiles) {
-  const fileName = path.basename(ttfPath);
-  
-  for (const family of FONT_FAMILIES) {
-    if (fileName.startsWith(family + '.')) {
-      const destName = `${family}.ttf`;
-      const destPath = path.join(FONTS_DIR, destName);
-      fs.copyFileSync(ttfPath, destPath);
-      fontMappings[fileName] = destName;
-      console.log(`  ✅ Copied ${fileName} → fonts/${destName}`);
-      break;
-    }
-  }
-}
-
-// 4. Inyectar @font-face en archivos HTML
 const htmlFiles = findFiles(DIST_DIR, '.html');
 console.log(`\n📄 Patching ${htmlFiles.length} HTML files...`);
 
-const fontFaceCSS = Object.entries(fontMappings).map(([orig, dest]) => {
-  const family = dest.replace('.ttf', '');
+// Obtener baseUrl de app.json
+let baseUrl = '/FinanzasApp';
+try {
+  const appJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'app.json'), 'utf-8'));
+  if (appJson.expo && appJson.expo.experiments && appJson.expo.experiments.baseUrl) {
+    baseUrl = appJson.expo.experiments.baseUrl;
+  }
+} catch (e) {
+  console.warn('Could not read baseUrl from app.json, using default /FinanzasApp');
+}
+
+const fontFaceCSS = Object.keys(fontMappings).map((family) => {
+  const dest = `${family}.ttf`;
   const aliases = [family];
+  
   if (family === 'Ionicons') aliases.push('ionicons');
   if (family === 'MaterialIcons') aliases.push('Material Icons', 'material', 'materialicons');
-  if (family === 'MaterialCommunityIcons') aliases.push('Material Community Icons', 'materialcommunityicons');
+  if (family === 'MaterialCommunityIcons') aliases.push('Material Community Icons', 'materialcommunityicons', 'Material Design Icons', 'material-community');
   if (family === 'Feather') aliases.push('feather');
-  if (family === 'FontAwesome') aliases.push('fontawesome');
+  if (family === 'FontAwesome') aliases.push('FontAwesome', 'fontawesome');
   
   return aliases.map(alias => 
-    `@font-face { font-family: "${alias}"; src: url('/FinanzasApp/fonts/${dest}') format('truetype'); font-display: swap; }`
+    `@font-face { font-family: "${alias}"; src: url('${baseUrl}/fonts/${dest}') format('truetype'); font-display: swap; }`
   ).join('\n    ');
 }).join('\n    ');
 
@@ -101,27 +112,5 @@ for (const htmlPath of htmlFiles) {
   fs.writeFileSync(htmlPath, html, 'utf-8');
 }
 
-// 5. PARTE CRÍTICA: Reemplazar rutas en archivos JS generados
-console.log('\n📦 Patching JS bundles to fix relative font paths...');
-const jsFiles = findFiles(DIST_DIR, '.js');
-
-for (const jsPath of jsFiles) {
-  let content = fs.readFileSync(jsPath, 'utf-8');
-  let replacedAny = false;
-
-  Object.entries(fontMappings).forEach(([orig, dest]) => {
-    // Buscar la ruta de assets que Expo usa: "assets/node_modules/..." o "/assets/..."
-    const regex = new RegExp(`[\\/]assets[\\/]node_modules[\\/].*?${orig.replace('.', '\\.')}`, 'g');
-    if (regex.test(content)) {
-      content = content.replace(regex, `/FinanzasApp/fonts/${dest}`);
-      replacedAny = true;
-    }
-  });
-
-  if (replacedAny) {
-    fs.writeFileSync(jsPath, content, 'utf-8');
-    console.log(`  ✅ Patched ${path.relative(DIST_DIR, jsPath)}`);
-  }
-}
-
 console.log('\n🎉 Web fonts fix complete!\n');
+

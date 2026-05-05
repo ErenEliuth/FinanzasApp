@@ -9,7 +9,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useFonts } from 'expo-font';
-import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialIcons, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
 import * as SplashScreen from 'expo-splash-screen';
 import SanctuaryLock from '@/components/SanctuaryLock';
 import * as Notifications from 'expo-notifications';
@@ -37,6 +37,8 @@ function RootStack() {
     ...Ionicons.font,
     ...MaterialIcons.font,
     ...Feather.font,
+    ...MaterialCommunityIcons.font,
+    ...FontAwesome.font,
   });
 
   useEffect(() => {
