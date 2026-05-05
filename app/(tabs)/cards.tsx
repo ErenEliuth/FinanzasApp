@@ -1,4 +1,5 @@
 import { useAuth } from '@/utils/auth';
+import { getLocalISOString } from '@/utils/dateUtils';
 import { syncUp, SYNC_KEYS } from '@/utils/sync';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -262,8 +263,8 @@ export default function CardsScreen() {
 
         try {
             await supabase.from('transactions').insert([
-                { user_id: user?.id, amount: payVal, type: 'expense', category: 'Tarjetas', description: `Pago a ${selectedCard.name}`, account: selectedAccount, date: new Date().toISOString() },
-                { user_id: user?.id, amount: payVal, type: 'income', category: 'Tarjetas', description: `Abono desde ${selectedAccount}`, account: selectedCard.name, date: new Date().toISOString() }
+                { user_id: user?.id, amount: payVal, type: 'expense', category: 'Tarjetas', description: `Pago a ${selectedCard.name}`, account: selectedAccount, date: getLocalISOString() },
+                { user_id: user?.id, amount: payVal, type: 'income', category: 'Tarjetas', description: `Abono desde ${selectedAccount}`, account: selectedCard.name, date: getLocalISOString() }
             ]);
             setPayModalVisible(false); setPayAmount(''); loadData();
         } catch (e) { console.error(e); }

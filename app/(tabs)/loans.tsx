@@ -1,4 +1,5 @@
 import { useAuth } from '@/utils/auth';
+import { getLocalISOString } from '@/utils/dateUtils';
 import { SYNC_KEYS } from '@/utils/sync';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -127,7 +128,7 @@ export default function LoansScreen() {
             if (isEditing && editId) {
                 await supabase.from('debts').update({ client: name.trim(), value: val, due_date: dateStr }).eq('id', editId);
             } else {
-                await supabase.from('debts').insert([{ user_id: user?.id, client: name.trim(), value: val, paid: 0, due_date: dateStr, debt_type: 'loan', created_date: new Date().toISOString() }]);
+                await supabase.from('debts').insert([{ user_id: user?.id, client: name.trim(), value: val, paid: 0, due_date: dateStr, debt_type: 'loan', created_date: getLocalISOString() }]);
                 // When lending money, create an expense transaction to deduct it from the account
                 await supabase.from('transactions').insert([{ 
                     user_id: user?.id, 
@@ -136,7 +137,7 @@ export default function LoansScreen() {
                     category: 'Préstamos', 
                     description: `Préstamo a ${name.trim()}`, 
                     account: selectedAccount, 
-                    date: new Date().toISOString() 
+                    date: getLocalISOString() 
                 }]);
             }
             setModalVisible(false); resetForm(); loadData();
@@ -182,7 +183,7 @@ export default function LoansScreen() {
                 category: 'Préstamos', 
                 description: `Abono de ${selectedLoan.client}`, 
                 account: selectedAccount, 
-                date: new Date().toISOString() 
+                date: getLocalISOString() 
             }]);
             setPayModalVisible(false); setPayAmount(''); setSelectedLoan(null); loadData();
         } catch (e) { console.error(e); }

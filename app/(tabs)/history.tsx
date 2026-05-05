@@ -5,6 +5,7 @@ import { useIsFocused } from '@react-navigation/native';
 import React, { useEffect, useRef, useState } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatCurrency, convertCurrency } from '@/utils/currency';
+import { parseLocalDate } from '@/utils/dateUtils';
 import {
     Alert,
     Dimensions,
@@ -93,8 +94,7 @@ export default function HistoryScreen() {
     };
 
     const filteredTransactions = transactions.filter(t => {
-        const normalized = t.date.includes('T') ? t.date : `${t.date}T12:00:00`;
-        const d = new Date(normalized);
+        const d = parseLocalDate(t.date);
         return d.getMonth() === selectedDate.getMonth() && d.getFullYear() === selectedDate.getFullYear();
     });
 
@@ -151,8 +151,7 @@ export default function HistoryScreen() {
       const dateStr = tx.date;
       if (!dateStr) return '';
       
-      const normalized = dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`;
-      const txDate = new Date(normalized);
+      const txDate = parseLocalDate(dateStr);
 
       return `${txDate.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }).toUpperCase()}`;
     };

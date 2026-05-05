@@ -7,6 +7,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 // Eliminado: MagicAuraButton
 import { formatCurrency, getCurrencyInfo, convertCurrency, convertToBase, CURRENCIES, formatInputDisplay, parseInputToNumber } from '@/utils/currency';
+import { getLocalISOString } from '@/utils/dateUtils';
 import React, { useEffect, useRef, useState } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import {
@@ -240,7 +241,7 @@ export default function AddTransactionScreen() {
           description: desc,
           category: 'Transferencia',
           account: account,
-          date: new Date().toISOString(),
+          date: getLocalISOString(),
         }]);
         if (err1) throw new Error(err1.message);
 
@@ -251,7 +252,7 @@ export default function AddTransactionScreen() {
           description: desc,
           category: 'Transferencia',
           account: destAccount,
-          date: new Date().toISOString(),
+          date: getLocalISOString(),
         }]);
         if (err2) throw new Error(err2.message);
 
@@ -311,7 +312,7 @@ export default function AddTransactionScreen() {
 
     try {
       const { error } = await supabase.from('transactions').insert([{
-        user_id: user?.id, type: dbType, amount: parsed, description: desc, category: dbCategory, account: account, date: new Date().toISOString(),
+        user_id: user?.id, type: dbType, amount: parsed, description: desc, category: dbCategory, account: account, date: getLocalISOString(),
       }]);
       if (error) throw error;
 
@@ -366,7 +367,7 @@ export default function AddTransactionScreen() {
     setIsSaving(true);
     try {
       const { error } = await supabase.from('transactions').insert([{
-        user_id: user?.id, type: 'expense', amount: suggestedAmount, description: 'Ahorro Sugerido Sanctuary', category: 'Ahorro', account: account, date: new Date().toISOString(),
+        user_id: user?.id, type: 'expense', amount: suggestedAmount, description: 'Ahorro Sugerido Sanctuary', category: 'Ahorro', account: account, date: getLocalISOString(),
       }]);
       if (error) throw error;
       setShowAiModal(false);

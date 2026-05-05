@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatCurrency, convertCurrency, convertToBase, formatInputDisplay, parseInputToNumber, getCurrencyInfo } from '@/utils/currency';
+import { getLocalISOString, getLocalDateKey } from '@/utils/dateUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { syncUp, SYNC_KEYS } from '@/utils/sync';
 import {
@@ -30,7 +31,7 @@ import { uploadImage } from '@/utils/storage';
 export default function GoalsScreen() {
     const isFocused = useIsFocused();
     const router = useRouter();
-    const { user, theme, isHidden, currency, rates } = useAuth();
+    const { user, theme, isHidden, currency, rates, customAccounts } = useAuth();
     const colors = useThemeColors();
     const isDark = colors.isDark;
 
@@ -58,6 +59,10 @@ export default function GoalsScreen() {
 
     const [goalSelectorVisible, setGoalSelectorVisible] = useState(false);
     const [selectorAction, setSelectorAction] = useState<'pay' | 'withdraw'>('pay');
+    
+    const [withdrawAccountModalVisible, setWithdrawAccountModalVisible] = useState(false);
+    const [withdrawAccountAmount, setWithdrawAccountAmount] = useState('');
+    const [selectedDestAccount, setSelectedDestAccount] = useState('Efectivo');
 
     const openSelector = (action: 'pay' | 'withdraw') => {
         setSelectorAction(action);
@@ -89,28 +94,79 @@ export default function GoalsScreen() {
             const goalsData = await applyDailyInterests(rawGoalsData || [], iMap);
             setGoals(goalsData);
             
-            const { data: txData } = await supabase.from('transactions').select('amount').eq('user_id', user.id).eq('category', 'Ahorro');
-            const total = txData?.reduce((s, tx) => s + tx.amount, 0) || 0;
+            const { data: txData } = await supabase.from('transactions').select('amount, type, account').eq('user_id', user.id).eq('category', 'Ahorro');
+            const total = txData?.reduce((s, tx) => {
+                if (tx.type === 'expense') return s + tx.amount;
+                if (tx.type === 'income') {
+                    if (tx.account === 'Ahorro') return s + tx.amount; // Intereses
+                    return s - tx.amount; // Retiro a cuenta
+                }
+                return s;
+            }, 0) || 0;
             setTotalAhorro(total);
         } catch (e) { console.error(e); }
     };
 
+    // Lock para evitar ejecuciones concurrentes de intereses
+    const isApplyingInterestRef = React.useRef(false);
+
     const applyDailyInterests = async (goalsData: any[], currentMap?: any) => {
         if (!user) return goalsData;
+        // Evitar ejecuciones simultáneas
+        if (isApplyingInterestRef.current) return goalsData;
+        isApplyingInterestRef.current = true;
+        
         try {
             const interestData = currentMap || (JSON.parse(await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user.id)) || '{}'));
-            if (!interestData || Object.keys(interestData).length === 0) return goalsData;
+            if (!interestData || Object.keys(interestData).length === 0) {
+                isApplyingInterestRef.current = false;
+                return goalsData;
+            }
             
             let updatedAny = false;
             let newTotalInterest = 0;
-            const today = new Date().toISOString().split('T')[0];
+            const today = getLocalDateKey();
+
+            // Verificar en la BD si ya se generaron rendimientos hoy
+            const { data: existingInterest } = await supabase
+                .from('transactions')
+                .select('id')
+                .eq('user_id', user.id)
+                .eq('category', 'Ahorro')
+                .like('description', 'Rendimientos cajita:%')
+                .gte('date', `${today}T00:00:00`)
+                .lte('date', `${today}T23:59:59`)
+                .limit(1);
+
+            if (existingInterest && existingInterest.length > 0) {
+                // Ya se aplicaron intereses hoy, solo actualizar last_updated
+                for (const goal of goalsData) {
+                    const info = interestData[goal.id];
+                    if (info && info.rate > 0) {
+                        const lastUpdated = info.last_updated || '';
+                        if (lastUpdated !== today) {
+                            info.last_updated = today;
+                            updatedAny = true;
+                        }
+                    }
+                }
+                if (updatedAny) {
+                    setInterestMap(interestData);
+                    await AsyncStorage.setItem(SYNC_KEYS.GOALS_INTEREST(user.id), JSON.stringify(interestData));
+                }
+                isApplyingInterestRef.current = false;
+                return goalsData;
+            }
 
             for (const goal of goalsData) {
                 const info = interestData[goal.id];
                 if (info && info.rate > 0) {
                     const lastUpdated = info.last_updated || today;
-                    if (lastUpdated !== today) {
-                        const daysDiff = Math.floor((new Date(today).getTime() - new Date(lastUpdated).getTime()) / (1000 * 60 * 60 * 24));
+                    // Normalizar la fecha de last_updated (quitar Z si existe)
+                    const cleanLastUpdated = lastUpdated.split('T')[0];
+                    
+                    if (cleanLastUpdated !== today) {
+                        const daysDiff = Math.floor((new Date(today + 'T12:00:00').getTime() - new Date(cleanLastUpdated + 'T12:00:00').getTime()) / (1000 * 60 * 60 * 24));
                         if (daysDiff > 0 && goal.current_amount > 0) {
                             const dailyRate = (info.rate / 100) / 365;
                             const newAmount = goal.current_amount * Math.pow(1 + dailyRate, daysDiff);
@@ -124,7 +180,7 @@ export default function GoalsScreen() {
                                     category: 'Ahorro',
                                     description: `Rendimientos cajita: ${goal.name}`,
                                     account: 'Ahorro',
-                                    date: new Date().toISOString()
+                                    date: getLocalISOString()
                                 }]);
                                 goal.current_amount += interest;
                                 info.last_updated = today;
@@ -149,8 +205,11 @@ export default function GoalsScreen() {
             } else if (!currentMap) {
                 setInterestMap(interestData);
             }
+            isApplyingInterestRef.current = false;
             return goalsData;
         } catch(e) {
+            console.error('Error aplicando intereses:', e);
+            isApplyingInterestRef.current = false;
             return goalsData;
         }
     };
@@ -208,7 +267,7 @@ export default function GoalsScreen() {
                 if (!isNaN(interestRate) && interestRate > 0) {
                     const saved = await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user.id!));
                     const interestData = saved ? JSON.parse(saved) : {};
-                    interestData[newGoalData[0].id] = { rate: interestRate, last_updated: new Date().toISOString().split('T')[0] };
+                    interestData[newGoalData[0].id] = { rate: interestRate, last_updated: getLocalDateKey() };
                     await AsyncStorage.setItem(SYNC_KEYS.GOALS_INTEREST(user.id!), JSON.stringify(interestData));
                     await syncUp(user.id!);
                 }
@@ -251,6 +310,37 @@ export default function GoalsScreen() {
             await supabase.from('goals').update({ current_amount: selectedGoal.current_amount - val }).eq('id', selectedGoal.id);
             setWithdrawAmount(''); setWithdrawModalVisible(false); loadData();
         } catch (e) { console.error(e); }
+    };
+
+    const handleWithdrawToAccount = async () => {
+        const typedVal = parseInputToNumber(withdrawAccountAmount, currency);
+        const val = convertToBase(typedVal, currency, rates);
+        if (isNaN(val) || val <= 0 || val > availableAhorro || isProcessing) return;
+        
+        setIsProcessing(true);
+        try {
+            const { error } = await supabase.from('transactions').insert([{
+                user_id: user?.id,
+                type: 'income',
+                amount: val,
+                description: 'Retiro de ahorros',
+                category: 'Ahorro',
+                account: selectedDestAccount,
+                date: getLocalISOString()
+            }]);
+            
+            if (error) throw error;
+            
+            setWithdrawAccountAmount('');
+            setWithdrawAccountModalVisible(false);
+            loadData();
+            Alert.alert('Éxito', `Se han retirado ${fmt(val)} a ${selectedDestAccount}.`);
+        } catch (e) {
+            console.error('Error al retirar a cuenta:', e);
+            Alert.alert('Error', 'No se pudo realizar el retiro.');
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
     const handleDistributeSavings = async () => {
@@ -373,13 +463,21 @@ export default function GoalsScreen() {
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                 <Text style={[styles.footerVal, { color: '#10B981', fontWeight: '900' }]}>{fmt(availableAhorro)}</Text>
                                 {availableAhorro > 0 && (
-                                    <TouchableOpacity 
-                                        style={[styles.distBtn, { backgroundColor: colors.accent }, isProcessing && { opacity: 0.6 }]} 
-                                        onPress={handleDistributeSavings}
-                                        disabled={isProcessing}
-                                    >
-                                        <Text style={styles.distBtnText}>{isProcessing ? '...' : 'Distribuir'}</Text>
-                                    </TouchableOpacity>
+                                    <View style={{ flexDirection: 'row', gap: 6 }}>
+                                        <TouchableOpacity 
+                                            style={[styles.distBtn, { backgroundColor: colors.accent }, isProcessing && { opacity: 0.6 }]} 
+                                            onPress={handleDistributeSavings}
+                                            disabled={isProcessing}
+                                        >
+                                            <Text style={styles.distBtnText}>{isProcessing ? '...' : 'Distribuir'}</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity 
+                                            style={[styles.distBtn, { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border }]} 
+                                            onPress={() => setWithdrawAccountModalVisible(true)}
+                                        >
+                                            <Text style={[styles.distBtnText, { color: colors.text }]}>Retirar</Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 )}
                             </View>
                         </View>
@@ -629,6 +727,55 @@ export default function GoalsScreen() {
                             </TouchableOpacity>
                             <TouchableOpacity style={[styles.miniBtn, { backgroundColor: '#EF4444' }]} onPress={handleWithdrawMoney}>
                                 <Text style={{ color: '#FFF', fontWeight: '800' }}>Retirar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Modal Retirar a Cuenta */}
+            <Modal visible={withdrawAccountModalVisible} animationType="fade" transparent>
+                <View style={styles.overlayCenter}>
+                    <View style={[styles.miniModal, { backgroundColor: colors.card }]}>
+                        <Text style={[styles.miniTitle, { color: colors.text }]}>Retirar a cuenta</Text>
+                        <Text style={[styles.miniSub, { color: colors.sub }]}>Disponible: {fmt(availableAhorro)}</Text>
+                        
+                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border, textAlign: 'center', fontSize: 24, width: '100%' }]} 
+                            placeholder="$ 0" placeholderTextColor={colors.sub + '40'} keyboardType="decimal-pad" autoFocus
+                            value={withdrawAccountAmount} onChangeText={t => setWithdrawAccountAmount(formatInput(t))} />
+
+                        <View style={{ width: '100%', marginTop: 10 }}>
+                            <Text style={[styles.mLabel, { color: colors.sub, marginBottom: 12 }]}>CUENTA DE DESTINO</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                                {['Efectivo', ...(customAccounts || [])].map(acc => (
+                                    <TouchableOpacity 
+                                        key={acc}
+                                        style={{ 
+                                            paddingHorizontal: 16, 
+                                            paddingVertical: 10, 
+                                            borderRadius: 12, 
+                                            backgroundColor: selectedDestAccount === acc ? colors.accent : colors.bg,
+                                            borderWidth: 1,
+                                            borderColor: colors.border
+                                        }}
+                                        onPress={() => setSelectedDestAccount(acc)}
+                                    >
+                                        <Text style={{ color: selectedDestAccount === acc ? '#FFF' : colors.text, fontWeight: '700' }}>{acc}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+
+                        <View style={styles.miniBtns}>
+                            <TouchableOpacity style={[styles.miniBtn, { backgroundColor: colors.bg }]} onPress={() => setWithdrawAccountModalVisible(false)}>
+                                <Text style={{ color: colors.text }}>Cancelar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.miniBtn, { backgroundColor: colors.accent }, (!withdrawAccountAmount || isProcessing) && { opacity: 0.6 }]} 
+                                onPress={handleWithdrawToAccount}
+                                disabled={!withdrawAccountAmount || isProcessing}
+                            >
+                                <Text style={{ color: '#FFF', fontWeight: '800' }}>Confirmar</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

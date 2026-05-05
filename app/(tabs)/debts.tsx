@@ -1,4 +1,5 @@
 import { useAuth } from '@/utils/auth';
+import { getLocalISOString } from '@/utils/dateUtils';
 import { SYNC_KEYS } from '@/utils/sync';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -173,7 +174,7 @@ export default function DebtsScreen() {
             if (isEditing && editId) {
                 await supabase.from('debts').update({ client: name.trim(), value: val, due_date: dateStr }).eq('id', editId);
             } else {
-                await supabase.from('debts').insert([{ user_id: user?.id, client: name.trim(), value: val, paid: initialPaid, due_date: dateStr, debt_type: viewMode, created_date: new Date().toISOString() }]);
+                await supabase.from('debts').insert([{ user_id: user?.id, client: name.trim(), value: val, paid: initialPaid, due_date: dateStr, debt_type: viewMode, created_date: getLocalISOString() }]);
             }
             setModalVisible(false); setConfirmMonthModal(false); setPendingItem(null); resetForm(); loadData();
         } catch (e) { console.error(e); }
@@ -225,7 +226,7 @@ export default function DebtsScreen() {
         const actualPay = isFixed ? pVal : Math.min(pVal, selectedDebt.value - selectedDebt.paid);
         try {
             await supabase.from('debts').update({ paid: selectedDebt.paid + actualPay }).eq('id', selectedDebt.id);
-            await supabase.from('transactions').insert([{ user_id: user?.id, amount: actualPay, type: 'expense', category: isFixed ? 'Gasto Fijo' : 'Deudas', description: isFixed ? `Pago: ${selectedDebt.client}` : `Abono: ${selectedDebt.client}`, account: selectedAccount, date: new Date().toISOString() }]);
+            await supabase.from('transactions').insert([{ user_id: user?.id, amount: actualPay, type: 'expense', category: isFixed ? 'Gasto Fijo' : 'Deudas', description: isFixed ? `Pago: ${selectedDebt.client}` : `Abono: ${selectedDebt.client}`, account: selectedAccount, date: getLocalISOString() }]);
             setPayModalVisible(false); setPayAmount(''); setSelectedDebt(null); loadData();
         } catch (e) { console.error(e); }
     };

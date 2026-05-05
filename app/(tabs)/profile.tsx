@@ -12,6 +12,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatCurrency, convertCurrency, CURRENCIES } from '@/utils/currency';
 import { uploadImage } from '@/utils/storage';
 import { syncUp, SYNC_KEYS } from '@/utils/sync';
+import { parseLocalDate } from '@/utils/dateUtils';
 import {
     Alert,
     Dimensions,
@@ -177,15 +178,13 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
     
     // Gastos del mes
     const thisMonthExpenses = transactions.filter(t => {
-        const normalizedDate = t.date.includes('T') ? t.date : `${t.date}T12:00:00`;
-        const d = new Date(normalizedDate);
+        const d = parseLocalDate(t.date);
         return t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && d.getMonth() === currMonth && d.getFullYear() === currYear;
     });
     
     // Ingresos del mes
     const thisMonthIncome = transactions.filter(t => {
-        const normalizedDate = t.date.includes('T') ? t.date : `${t.date}T12:00:00`;
-        const d = new Date(normalizedDate);
+        const d = parseLocalDate(t.date);
         return t.type === 'income' && t.category !== 'Transferencia' && d.getMonth() === currMonth && d.getFullYear() === currYear;
     });
 
@@ -208,14 +207,12 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
         chartLabels.push(MONTH_NAMES[d.getMonth()]);
         
         const mExp = transactions.filter(t => {
-            const normalizedDate = t.date.includes('T') ? t.date : `${t.date}T12:00:00`;
-            const td = new Date(normalizedDate);
+            const td = parseLocalDate(t.date);
             return t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && td.getMonth() === d.getMonth() && td.getFullYear() === d.getFullYear();
         }).reduce((s, t) => s + Math.abs(t.amount || 0), 0);
         
         const mInc = transactions.filter(t => {
-            const normalizedDate = t.date.includes('T') ? t.date : `${t.date}T12:00:00`;
-            const td = new Date(normalizedDate);
+            const td = parseLocalDate(t.date);
             return t.type === 'income' && t.category !== 'Transferencia' && td.getMonth() === d.getMonth() && td.getFullYear() === d.getFullYear();
         }).reduce((s, t) => s + Math.abs(t.amount || 0), 0);
 
@@ -356,9 +353,7 @@ export default function ProfileScreen() {
         setTransactions(txs);
         const map = new Map<string, number>();
         txs.forEach(tx => {
-            // Normalizamos a las 12:00:00 para evitar desajustes de zona horaria
-            const normalizedDate = tx.date.includes('T') ? tx.date : `${tx.date}T12:00:00`;
-            const k = toKey(new Date(normalizedDate));
+            const k = toKey(parseLocalDate(tx.date));
             map.set(k, (map.get(k) ?? 0) + 1);
         });
         setActiveDays(map);
@@ -367,8 +362,7 @@ export default function ProfileScreen() {
         weekAgo.setHours(0,0,0,0);
 
         const weekTxs = txs.filter(t => {
-            const normalizedDate = t.date.includes('T') ? t.date : `${t.date}T12:00:00`;
-            const d = new Date(normalizedDate);
+            const d = parseLocalDate(t.date);
             return d >= weekAgo;
         });
 
@@ -439,8 +433,7 @@ export default function ProfileScreen() {
         if (!date) return [];
         const key = toKey(date);
         return transactions.filter(t => {
-            const normalizedDate = t.date.includes('T') ? t.date : `${t.date}T12:00:00`;
-            return toKey(new Date(normalizedDate)) === key && t.category !== 'Transferencia';
+            return toKey(parseLocalDate(t.date)) === key && t.category !== 'Transferencia';
         });
     };
 

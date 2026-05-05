@@ -9,6 +9,7 @@ import { syncUp, SYNC_KEYS } from '@/utils/sync';
 import { THEMES, ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatCurrency, convertCurrency } from '@/utils/currency';
+import { parseLocalDate } from '@/utils/dateUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LATEST_VERSION, CHANGELOG_UPDATES } from '@/constants/Changelog';
 import { fetchLivePrice, simulateLiveVolatility } from '@/utils/stockPrices';
@@ -171,14 +172,26 @@ export default function HomeScreen() {
       let accs: any = {};
 
       allTx?.forEach(tx => {
-        const txDate = new Date(tx.date);
+        const txDate = parseLocalDate(tx.date);
         const isThisMonth = txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
         const amount = Number(tx.amount) || 0;
 
         if (tx.type === 'income') {
           const acc = tx.account || 'Efectivo';
           if (!accs[acc]) accs[acc] = 0;
-          if (isThisMonth && tx.category !== 'Transferencia') inc += amount;
+          
+          if (tx.category === 'Ahorro') {
+            if (tx.account === 'Ahorro') {
+              savTotal += amount;
+              if (isThisMonth) savMes += amount;
+            } else {
+              savTotal -= amount;
+              if (isThisMonth) savMes -= amount;
+            }
+          } else if (tx.category !== 'Transferencia') {
+            if (isThisMonth) inc += amount;
+          }
+          
           accs[acc] += amount;
         } else {
           if (tx.category === 'Ahorro') {
@@ -426,7 +439,7 @@ export default function HomeScreen() {
             const cats: any = {};
 
             monthTxs.forEach(tx => {
-              const d = new Date(tx.date).getDate();
+              const d = parseLocalDate(tx.date).getDate();
               const amt = Number(tx.amount) || 0;
               if (tx.type === 'income') {
                 if (tx.category !== 'Transferencia') {
@@ -450,7 +463,7 @@ export default function HomeScreen() {
             const prevPrevYear = prevMonth === 0 ? prevYear - 1 : prevYear;
             let prevExp = 0;
             (allTx || []).forEach(tx => {
-              const d = new Date(tx.date);
+              const d = parseLocalDate(tx.date);
               if (d.getMonth() === prevPrevMonth && d.getFullYear() === prevPrevYear) {
                 if ((tx.type === 'expense' || tx.category === 'Gasto') && tx.category !== 'Transferencia' && tx.category !== 'Ahorro') {
                   prevExp += Number(tx.amount || 0);
@@ -490,14 +503,26 @@ export default function HomeScreen() {
     let accs: any = {};
 
     allTransactions.forEach(tx => {
-      const txDate = new Date(tx.date);
+      const txDate = parseLocalDate(tx.date);
       const isThisMonth = txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
       const amount = Number(tx.amount) || 0;
 
       if (tx.type === 'income') {
         const acc = tx.account || 'Efectivo';
         if (!accs[acc]) accs[acc] = 0;
-        if (isThisMonth && tx.category !== 'Transferencia') inc += amount;
+        
+        if (tx.category === 'Ahorro') {
+          if (tx.account === 'Ahorro') {
+            savTotal += amount;
+            if (isThisMonth) savMes += amount;
+          } else {
+            savTotal -= amount;
+            if (isThisMonth) savMes -= amount;
+          }
+        } else if (tx.category !== 'Transferencia') {
+          if (isThisMonth) inc += amount;
+        }
+        
         accs[acc] += amount;
       } else {
         if (tx.category === 'Ahorro') {
