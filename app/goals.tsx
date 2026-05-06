@@ -60,6 +60,14 @@ export default function GoalsScreen() {
     const [goalSelectorVisible, setGoalSelectorVisible] = useState(false);
     const [selectorAction, setSelectorAction] = useState<'pay' | 'withdraw'>('pay');
     
+    const [optionsModalVisible, setOptionsModalVisible] = useState(false);
+    const [goalForOptions, setGoalForOptions] = useState<any | null>(null);
+
+    const openOptions = (goal: any) => {
+        setGoalForOptions(goal);
+        setOptionsModalVisible(true);
+    };
+    
     const [withdrawAccountModalVisible, setWithdrawAccountModalVisible] = useState(false);
     const [withdrawAccountAmount, setWithdrawAccountAmount] = useState('');
     const [selectedDestAccount, setSelectedDestAccount] = useState('Efectivo');
@@ -465,25 +473,22 @@ export default function GoalsScreen() {
                     </View>
 
                     {availableAhorro > 0 && (
-                        <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                        <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
                             <TouchableOpacity 
-                                style={[styles.distBtn, { flex: 1, backgroundColor: colors.accent, height: 38, justifyContent: 'center', alignItems: 'center' }, isProcessing && { opacity: 0.6 }]} 
+                                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colors.accent + '15', paddingVertical: 10, borderRadius: 14 }} 
                                 onPress={handleDistributeSavings}
                                 disabled={isProcessing}
                             >
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                    <MaterialIcons name="auto-fix-high" size={14} color="#FFF" />
-                                    <Text style={[styles.distBtnText, { fontSize: 13 }]}>{isProcessing ? 'Procesando...' : 'Distribuir Inteligente'}</Text>
-                                </View>
+                                <MaterialIcons name="auto-fix-high" size={14} color={colors.accent} />
+                                <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '800' }}>{isProcessing ? '...' : 'Distribuir'}</Text>
                             </TouchableOpacity>
+                            
                             <TouchableOpacity 
-                                style={[styles.distBtn, { flex: 0.6, backgroundColor: isDark ? '#3A3A52' : '#F5EDE0', height: 38, justifyContent: 'center', alignItems: 'center' }]} 
+                                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, borderRadius: 14 }} 
                                 onPress={() => setWithdrawAccountModalVisible(true)}
                             >
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                    <MaterialIcons name="account-balance-wallet" size={14} color={colors.text} />
-                                    <Text style={[styles.distBtnText, { color: colors.text, fontSize: 13 }]}>Retirar</Text>
-                                </View>
+                                <MaterialIcons name="account-balance-wallet" size={14} color={colors.text} />
+                                <Text style={{ color: colors.text, fontSize: 12, fontWeight: '800' }}>Retirar a cuenta</Text>
                             </TouchableOpacity>
                         </View>
                     )}
@@ -507,6 +512,7 @@ export default function GoalsScreen() {
                             <TouchableOpacity 
                                 key={goal.id} 
                                 style={[styles.goalCard, { backgroundColor: colors.card }]}
+                                onPress={() => openOptions(goal)}
                                 onLongPress={() => handleDelete(goal)}
                                 activeOpacity={0.9}
                             >
@@ -525,18 +531,10 @@ export default function GoalsScreen() {
                                                 <Text style={styles.medalTxt}>¡Logrado!</Text>
                                             </View>
                                         )}
-                                        <TouchableOpacity style={styles.delBtn} onPress={() => handleDelete(goal)}>
-                                            <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                                        </TouchableOpacity>
                                     </View>
                                 )}
                                 {activeTab === 'cajitas' && (
-                                    <TouchableOpacity 
-                                        style={[styles.delBtn, { top: 16, right: 16, backgroundColor: colors.bg }]} 
-                                        onPress={() => handleDelete(goal)}
-                                    >
-                                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                                    </TouchableOpacity>
+                                    <View style={{ height: 16 }} />
                                 )}
 
                                 <View style={styles.goalBody}>
@@ -830,27 +828,79 @@ export default function GoalsScreen() {
                 </View>
             </Modal>
 
-            {/* BARRA DE ACCIONES FLOTANTE */}
-            <View style={{ position: 'absolute', bottom: 30, left: 20, right: 20, flexDirection: 'row', gap: 12, backgroundColor: colors.card, padding: 10, borderRadius: 24, elevation: 12, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12 }}>
-                <TouchableOpacity 
-                    style={[styles.actionBtn, { backgroundColor: colors.accent, height: 48 }]} 
-                    onPress={() => openSelector('pay')}
-                >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <Ionicons name="add-circle" size={20} color="#FFF" />
-                        <Text style={[styles.actionBtnTxt, { fontSize: 15 }]}>Asignar</Text>
+            {/* MODAL DE OPCIONES DE META */}
+            <Modal visible={optionsModalVisible} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <TouchableWithoutFeedback onPress={() => setOptionsModalVisible(false)}>
+                        <View style={StyleSheet.absoluteFill} />
+                    </TouchableWithoutFeedback>
+                    <View style={[styles.modalBox, { backgroundColor: colors.card }]}>
+                        <View style={styles.modalHeaderInner}>
+                            <View>
+                                <Text style={[styles.modalTitle, { color: colors.text }]}>{goalForOptions?.name}</Text>
+                                <Text style={[styles.miniSub, { color: colors.sub }]}>{fmt(goalForOptions?.current_amount || 0)} ahorrados</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setOptionsModalVisible(false)}>
+                                <Ionicons name="close" size={24} color={colors.sub} />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        <View style={{ gap: 12 }}>
+                            <TouchableOpacity 
+                                style={[styles.optionItem, { backgroundColor: colors.bg }]} 
+                                onPress={() => {
+                                    setOptionsModalVisible(false);
+                                    setSelectedGoal(goalForOptions);
+                                    setPayModalVisible(true);
+                                }}
+                            >
+                                <View style={[styles.optionIcon, { backgroundColor: colors.accent + '20' }]}>
+                                    <Ionicons name="add" size={22} color={colors.accent} />
+                                </View>
+                                <View>
+                                    <Text style={[styles.optionTitle, { color: colors.text }]}>Asignar dinero</Text>
+                                    <Text style={[styles.optionSub, { color: colors.sub }]}>Mover saldo disponible a esta meta</Text>
+                                </View>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity 
+                                style={[styles.optionItem, { backgroundColor: colors.bg }]} 
+                                onPress={() => {
+                                    setOptionsModalVisible(false);
+                                    setSelectedGoal(goalForOptions);
+                                    setWithdrawModalVisible(true);
+                                }}
+                            >
+                                <View style={[styles.optionIcon, { backgroundColor: '#EF444420' }]}>
+                                    <Ionicons name="remove" size={22} color="#EF4444" />
+                                </View>
+                                <View>
+                                    <Text style={[styles.optionTitle, { color: colors.text }]}>Retirar dinero</Text>
+                                    <Text style={[styles.optionSub, { color: colors.sub }]}>Mover de esta meta a saldo disponible</Text>
+                                </View>
+                            </TouchableOpacity>
+
+                            <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 8 }} />
+
+                            <TouchableOpacity 
+                                style={[styles.optionItem, { backgroundColor: colors.bg }]} 
+                                onPress={() => {
+                                    setOptionsModalVisible(false);
+                                    handleDelete(goalForOptions);
+                                }}
+                            >
+                                <View style={[styles.optionIcon, { backgroundColor: colors.sub + '15' }]}>
+                                    <Ionicons name="trash-outline" size={20} color={colors.sub} />
+                                </View>
+                                <View>
+                                    <Text style={[styles.optionTitle, { color: colors.sub }]}>Eliminar</Text>
+                                    <Text style={[styles.optionSub, { color: colors.sub, opacity: 0.7 }]}>Borrar permanentemente</Text>
+                                </View>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                    style={[styles.actionBtn, { backgroundColor: colors.bg, height: 48, borderWidth: 1, borderColor: colors.border }]} 
-                    onPress={() => openSelector('withdraw')}
-                >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <Ionicons name="remove-circle" size={20} color={colors.text} />
-                        <Text style={[styles.actionBtnTxt, { color: colors.text, fontSize: 15 }]}>Retirar</Text>
-                    </View>
-                </TouchableOpacity>
-            </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -924,4 +974,8 @@ const styles = StyleSheet.create({
     prioBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
     prioBadgeText: { fontSize: 9, fontWeight: '900' },
     listItem: { flexDirection: 'row', alignItems: 'center' },
+    optionItem: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 16, borderRadius: 20 },
+    optionIcon: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+    optionTitle: { fontSize: 16, fontWeight: '800' },
+    optionSub: { fontSize: 12, fontWeight: '600' },
 });
