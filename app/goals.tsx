@@ -29,6 +29,7 @@ import {
 import { uploadImage } from '@/utils/storage';
 import { scheduleDailyReminder } from '@/utils/notifications';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function GoalsScreen() {
     const isFocused = useIsFocused();
