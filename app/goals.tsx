@@ -712,9 +712,17 @@ export default function GoalsScreen() {
                             </View>
                         ) : (
                             challenges.map(challenge => {
-                                const dailyAmounts = JSON.parse(challenge.daily_amounts || '[]');
-                                const completedIndices = JSON.parse(challenge.completed_indices || '[]');
-                                const pct = (completedIndices.length / dailyAmounts.length) * 100;
+                                const parseData = (val: any) => {
+                                    if (!val) return [];
+                                    if (typeof val === 'string') {
+                                        try { return JSON.parse(val); } catch(e) { return []; }
+                                    }
+                                    return val;
+                                };
+                                const dailyAmounts = parseData(challenge.daily_amounts);
+                                const completedIndices = parseData(challenge.completed_indices);
+                                const totalDays = dailyAmounts.length || 1;
+                                const pct = Math.min(100, (completedIndices.length / totalDays) * 100);
                                 
                                 return (
                                     <TouchableOpacity 

@@ -71,9 +71,16 @@ export default function ChallengeDetailScreen() {
         setIsProcessing(true);
         
         try {
-            const dailyAmounts = JSON.parse(challenge.daily_amounts);
+            const parseData = (val: any) => {
+                if (!val) return [];
+                if (typeof val === 'string') {
+                    try { return JSON.parse(val); } catch(e) { return []; }
+                }
+                return val;
+            };
+            const dailyAmounts = parseData(challenge.daily_amounts);
             const amountToPay = dailyAmounts[selectedIndex];
-            const completedIndices = JSON.parse(challenge.completed_indices);
+            const completedIndices = parseData(challenge.completed_indices);
             
             if (completedIndices.includes(selectedIndex)) {
                 setIsProcessing(false);
@@ -149,13 +156,34 @@ export default function ChallengeDetailScreen() {
         );
     }
 
-    const dailyAmounts = JSON.parse(challenge.daily_amounts || '[]');
-    const completedIndices = JSON.parse(challenge.completed_indices || '[]');
+    if (!challenge) {
+        return (
+            <View style={[styles.container, { backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+                <Ionicons name="alert-circle-outline" size={60} color={colors.sub} />
+                <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginTop: 16 }}>No se pudo cargar el reto</Text>
+                <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
+                    <Text style={{ color: colors.accent, fontWeight: '800' }}>Volver atrás</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+    const parseData = (val: any) => {
+        if (!val) return [];
+        if (typeof val === 'string') {
+            try { return JSON.parse(val); } catch(e) { return []; }
+        }
+        return val; // Ya es un objeto/array
+    };
+
+    const dailyAmounts = parseData(challenge.daily_amounts);
+    const completedIndices = parseData(challenge.completed_indices);
     const pendingDays = dailyAmounts
         .map((amount: number, index: number) => ({ amount, index }))
         .filter((item: any) => !completedIndices.includes(item.index));
 
-    const pct = (completedIndices.length / dailyAmounts.length) * 100;
+    const totalDays = dailyAmounts.length || 1;
+    const pct = Math.min(100, (completedIndices.length / totalDays) * 100);
     const tier = getTierStyles(pct);
 
     return (
