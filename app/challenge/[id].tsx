@@ -1,25 +1,17 @@
 import { useAuth } from '@/utils/auth';
 import { supabase } from '@/utils/supabase';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { formatCurrency, convertCurrency, convertToBase } from '@/utils/currency';
+import { formatCurrency, convertCurrency } from '@/utils/currency';
 import { getLocalISOString } from '@/utils/dateUtils';
 import {
-    Alert,
-    Modal,
-    Platform,
-    SafeAreaView,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-    ActivityIndicator,
-    Dimensions
+    Alert, Modal, Platform, SafeAreaView, FlatList, ScrollView,
+    StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Dimensions
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import AnimatedJar from '@/components/AnimatedJar';
 
 const { width } = Dimensions.get('window');
 
@@ -34,6 +26,12 @@ const FINANCIAL_TIPS = [
     "No busques el momento perfecto, solo comienza. El mejor momento para ahorrar fue ayer."
 ];
 
+const parseData = (val: any) => {
+    if (!val) return [];
+    if (typeof val === 'string') { try { return JSON.parse(val); } catch { return []; } }
+    return val;
+};
+
 export default function ChallengeDetailScreen() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
@@ -47,6 +45,8 @@ export default function ChallengeDetailScreen() {
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [selectedAccount, setSelectedAccount] = useState('Efectivo');
     const [isProcessing, setIsProcessing] = useState(false);
+    const [coinDrop, setCoinDrop] = useState(false);
+    const [coinRemove, setCoinRemove] = useState(false);
 
     const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
 
@@ -60,7 +60,8 @@ export default function ChallengeDetailScreen() {
             setChallenge(data);
         } catch (e) {
             console.error(e);
-            Alert.alert('Error', 'No se pudo cargar el reto.');
+            if (Platform.OS === 'web') window.alert('No se pudo cargar el reto.');
+            else Alert.alert('Error', 'No se pudo cargar el reto.');
             router.back();
         } finally {
             setLoading(false);
@@ -70,44 +71,22 @@ export default function ChallengeDetailScreen() {
     const handlePayAmount = async () => {
         if (selectedIndex === null || !challenge || isProcessing) return;
         setIsProcessing(true);
-        
         try {
-            const parseData = (val: any) => {
-                if (!val) return [];
-                if (typeof val === 'string') {
-                    try { return JSON.parse(val); } catch(e) { return []; }
-                }
-                return val;
-            };
             const dailyAmounts = parseData(challenge.daily_amounts);
             const amountToPay = dailyAmounts[selectedIndex];
             const completedIndices = parseData(challenge.completed_indices);
-            
-            if (completedIndices.includes(selectedIndex)) {
-                setIsProcessing(false);
-                return;
-            }
+            if (completedIndices.includes(selectedIndex)) { setIsProcessing(false); return; }
 
             const newCompleted = [...completedIndices, selectedIndex];
             const newAmount = challenge.current_amount + amountToPay;
-
             const today = new Date().toISOString().split('T')[0];
             let newStreak = (challenge.current_streak || 0);
             const lastPayment = challenge.last_payment_date;
 
-            if (!lastPayment) {
-                newStreak = 1;
-            } else {
-                const lastDate = new Date(lastPayment);
-                const todayDate = new Date(today);
-                const diffTime = Math.abs(todayDate.getTime() - lastDate.getTime());
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                if (diffDays === 1) {
-                    newStreak += 1;
-                } else if (diffDays > 1) {
-                    newStreak = 1;
-                }
+            if (!lastPayment) { newStreak = 1; }
+            else {
+                const diffDays = Math.ceil(Math.abs(new Date(today).getTime() - new Date(lastPayment).getTime()) / 86400000);
+                newStreak = diffDays === 1 ? newStreak + 1 : 1;
             }
 
             const { error: updateError } = await supabase.from('saving_challenges').update({
@@ -116,25 +95,25 @@ export default function ChallengeDetailScreen() {
                 current_streak: newStreak,
                 last_payment_date: today
             }).eq('id', challenge.id);
-
             if (updateError) throw updateError;
 
             await supabase.from('transactions').insert([{
-                user_id: user?.id,
-                type: 'expense',
-                amount: amountToPay,
-                description: `Ahorro Reto: ${challenge.name}`,
-                category: 'Ahorro',
-                account: selectedAccount,
-                date: getLocalISOString()
+                user_id: user?.id, type: 'expense', amount: amountToPay,
+                description: `Ahorro Reto: ${challenge.name}`, category: 'Ahorro',
+                account: selectedAccount, date: getLocalISOString()
             }]);
 
             setPayModalVisible(false);
             setSelectedIndex(null);
-            loadChallenge();
-            
-            const randomTip = FINANCIAL_TIPS[Math.floor(Math.random() * FINANCIAL_TIPS.length)];
-            Alert.alert('¡Ahorrado!', `Has sumado ${fmt(amountToPay)} a tu reto. 🚀\n\n🧠 Tip del día:\n"${randomTip}"`);
+            // Trigger coin drop animation FIRST, then reload
+            setCoinDrop(true);
+            setTimeout(() => loadChallenge(), 300);
+
+            const tip = FINANCIAL_TIPS[Math.floor(Math.random() * FINANCIAL_TIPS.length)];
+            setTimeout(() => {
+                if (Platform.OS === 'web') window.alert(`¡Ahorrado! ${fmt(amountToPay)} 🚀\n\n🧠 Tip:\n"${tip}"`);
+                else Alert.alert('¡Ahorrado!', `Has sumado ${fmt(amountToPay)} a tu reto. 🚀\n\n🧠 Tip del día:\n"${tip}"`);
+            }, 1200);
         } catch (e) {
             console.error(e);
             Alert.alert('Error', 'No se pudo registrar el ahorro.');
@@ -145,51 +124,42 @@ export default function ChallengeDetailScreen() {
 
     const handleUndoPay = async (idx: number) => {
         if (!challenge || isProcessing) return;
-        
-        const confirmMsg = Platform.OS === 'web' ? true : await new Promise(resolve => {
-            Alert.alert('Deshacer pago', '¿Quieres anular el pago de este día?', [
-                { text: 'No', onPress: () => resolve(false) },
-                { text: 'Sí, deshacer', style: 'destructive', onPress: () => resolve(true) }
-            ]);
-        });
-        if (!confirmMsg) return;
+        const doUndo = Platform.OS === 'web'
+            ? window.confirm('¿Quieres anular el pago de este día?')
+            : await new Promise(r => Alert.alert('Deshacer pago', '¿Anular el pago de este día?', [
+                { text: 'No', onPress: () => r(false) },
+                { text: 'Sí', style: 'destructive', onPress: () => r(true) }
+            ]));
+        if (!doUndo) return;
 
         setIsProcessing(true);
         try {
-            const parseData = (val: any) => {
-                if (!val) return [];
-                if (typeof val === 'string') {
-                    try { return JSON.parse(val); } catch(e) { return []; }
-                }
-                return val;
-            };
             const dailyAmounts = parseData(challenge.daily_amounts);
             const amountToUndo = dailyAmounts[idx];
             const completedIndices = parseData(challenge.completed_indices);
-            
             const newCompleted = completedIndices.filter((i: number) => i !== idx);
             const newAmount = Math.max(0, challenge.current_amount - amountToUndo);
 
-            // 1. Actualizar Reto
-            const { error: updateError } = await supabase.from('saving_challenges').update({
-                current_amount: newAmount,
-                completed_indices: JSON.stringify(newCompleted),
+            const { error } = await supabase.from('saving_challenges').update({
+                current_amount: newAmount, completed_indices: JSON.stringify(newCompleted),
             }).eq('id', challenge.id);
+            if (error) throw error;
 
-            if (updateError) throw updateError;
-
-            // 2. Intentar borrar transacción vinculada
-            await supabase.from('transactions')
-                .delete()
+            await supabase.from('transactions').delete()
                 .eq('user_id', user?.id)
                 .eq('description', `Ahorro Reto: ${challenge.name}`)
                 .eq('amount', amountToUndo)
                 .limit(1);
 
             setCompletedModalVisible(false);
-            loadChallenge();
-            if (Platform.OS === 'web') window.alert('Pago deshecho correctamente.');
-            else Alert.alert('Hecho', 'Se ha revertido el pago del día.');
+            // Trigger remove animation, then reload
+            setCoinRemove(true);
+            setTimeout(() => loadChallenge(), 300);
+
+            setTimeout(() => {
+                if (Platform.OS === 'web') window.alert('Pago deshecho correctamente.');
+                else Alert.alert('Hecho', 'Se ha revertido el pago del día.');
+            }, 1200);
         } catch (e) {
             console.error(e);
             Alert.alert('Error', 'No se pudo deshacer el pago.');
@@ -198,233 +168,211 @@ export default function ChallengeDetailScreen() {
         }
     };
 
-    const getTierStyles = (pct: number) => {
-        if (pct < 30) return { colors: ['#A85E32', '#7A431D'], label: 'BRONCE', icon: 'medal-outline' };
-        if (pct < 70) return { colors: ['#94A3B8', '#475569'], label: 'PLATA', icon: 'medal' };
-        return { colors: ['#F59E0B', '#B45309'], label: 'ORO', icon: 'trophy' };
+    const getTier = (p: number) => {
+        if (p < 30) return { colors: ['#A85E32', '#7A431D'], label: 'BRONCE' };
+        if (p < 70) return { colors: ['#94A3B8', '#475569'], label: 'PLATA' };
+        return { colors: ['#F59E0B', '#B45309'], label: 'ORO' };
     };
 
-    if (loading) {
-        return (
-            <View style={[styles.container, { backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color={colors.accent} />
-            </View>
-        );
-    }
-
-    if (!challenge) {
-        return (
-            <View style={[styles.container, { backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
-                <Ionicons name="alert-circle-outline" size={60} color={colors.sub} />
-                <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginTop: 16 }}>No se pudo cargar el reto</Text>
-                <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
-                    <Text style={{ color: colors.accent, fontWeight: '800' }}>Volver atrás</Text>
-                </TouchableOpacity>
-            </View>
-        );
-    }
-
-    const parseData = (val: any) => {
-        if (!val) return [];
-        if (typeof val === 'string') {
-            try { return JSON.parse(val); } catch(e) { return []; }
-        }
-        return val; // Ya es un objeto/array
+    const handleDelete = () => {
+        const doIt = async () => {
+            await supabase.from('saving_challenges').delete().eq('id', challenge.id);
+            router.back();
+        };
+        if (Platform.OS === 'web') { if (window.confirm('¿Eliminar este reto?')) doIt(); }
+        else Alert.alert('Eliminar Reto', '¿Deseas eliminar este reto?', [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Eliminar', style: 'destructive', onPress: doIt }
+        ]);
     };
 
+    // --- LOADING / ERROR ---
+    if (loading) return (
+        <View style={[st.container, { backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator size="large" color={colors.accent} />
+        </View>
+    );
+    if (!challenge) return (
+        <View style={[st.container, { backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+            <Ionicons name="alert-circle-outline" size={60} color={colors.sub} />
+            <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginTop: 16 }}>No se pudo cargar el reto</Text>
+            <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
+                <Text style={{ color: colors.accent, fontWeight: '800' }}>Volver atrás</Text>
+            </TouchableOpacity>
+        </View>
+    );
+
+    // --- DATA ---
     const dailyAmounts = parseData(challenge.daily_amounts);
     const completedIndices = parseData(challenge.completed_indices);
-    const pendingDays = dailyAmounts
-        .map((amount: number, index: number) => ({ amount, index }))
-        .filter((item: any) => !completedIndices.includes(item.index));
-
+    const pendingDays = dailyAmounts.map((amount: number, index: number) => ({ amount, index })).filter((i: any) => !completedIndices.includes(i.index));
     const totalDays = dailyAmounts.length || 1;
     const pct = Math.min(100, (completedIndices.length / totalDays) * 100);
-    const tier = getTierStyles(pct);
+    const tier = getTier(pct);
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={[styles.circleBtn, { backgroundColor: colors.card }]}>
-                    <Ionicons name="arrow-back" size={24} color={colors.text} />
-                </TouchableOpacity>
-                <View style={{ flex: 1, marginLeft: 16 }}>
-                    <Text style={[styles.headerTitle, { color: colors.text }]}>{challenge.name}</Text>
-                    <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>Meta: {fmt(challenge.target_amount)}</Text>
+        <SafeAreaView style={[st.container, { backgroundColor: colors.bg }]}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+                {/* Header */}
+                <View style={st.header}>
+                    <TouchableOpacity onPress={() => router.back()} style={[st.circleBtn, { backgroundColor: colors.card }]}>
+                        <Ionicons name="arrow-back" size={24} color={colors.text} />
+                    </TouchableOpacity>
+                    <View style={{ flex: 1, marginLeft: 16 }}>
+                        <Text style={[st.headerTitle, { color: colors.text }]}>{challenge.name}</Text>
+                        <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>Meta: {fmt(challenge.target_amount)}</Text>
+                    </View>
+                    <TouchableOpacity onPress={handleDelete} style={[st.circleBtn, { backgroundColor: colors.card }]}>
+                        <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                    </TouchableOpacity>
                 </View>
-                <TouchableOpacity onPress={() => {
-                    Alert.alert('Eliminar Reto', '¿Deseas eliminar este reto?', [
-                        { text: 'Cancelar', style: 'cancel' },
-                        { text: 'Eliminar', style: 'destructive', onPress: async () => {
-                            await supabase.from('saving_challenges').delete().eq('id', challenge.id);
-                            router.back();
-                        }}
-                    ]);
-                }} style={[styles.circleBtn, { backgroundColor: colors.card }]}>
-                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
-                </TouchableOpacity>
-            </View>
 
-            <View style={styles.content}>
-                {/* JAR CENTER TOP */}
-                <View style={styles.jarWrapper}>
-                    <View style={[styles.jarContainer, { borderColor: colors.border }]}>
-                        <View style={styles.jarNeck} />
-                        <View style={[styles.jarBody, { borderColor: colors.border + '40' }]}>
-                            <View style={[styles.jarWater, { height: `${pct}%`, backgroundColor: tier.colors[0] }]} />
-                            {completedIndices.length > 0 && (
-                                <View style={{ position: 'absolute', bottom: '20%', alignSelf: 'center' }}>
-                                    <Ionicons name="cash" size={40} color="rgba(255,255,255,0.4)" />
-                                </View>
-                            )}
-                        </View>
-                    </View>
-                    <View style={styles.statusBadge}>
-                        <Text style={{ color: colors.text, fontWeight: '900', fontSize: 16 }}>{Math.round(pct)}%</Text>
-                    </View>
+                {/* Tier Badge */}
+                <View style={{ alignSelf: 'center', marginTop: 8 }}>
+                    <LinearGradient colors={tier.colors as [string, string]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                        style={{ paddingHorizontal: 20, paddingVertical: 6, borderRadius: 20 }}>
+                        <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 11, letterSpacing: 2 }}>🏅 {tier.label}</Text>
+                    </LinearGradient>
+                </View>
+
+                {/* ANIMATED JAR */}
+                <View style={{ marginTop: 10 }}>
+                    <AnimatedJar
+                        pct={pct}
+                        tierColor={tier.colors[0]}
+                        coinCount={completedIndices.length}
+                        showCoinDrop={coinDrop}
+                        showCoinRemove={coinRemove}
+                        onAnimDone={() => { setCoinDrop(false); setCoinRemove(false); }}
+                    />
                 </View>
 
                 {/* INFO CARDS */}
-                <View style={styles.infoRow}>
-                    <View style={[styles.infoBox, { backgroundColor: colors.card }]}>
-                        <Text style={[styles.infoLabel, { color: colors.sub }]}>LLEVAMOS</Text>
-                        <Text style={[styles.infoVal, { color: colors.text }]}>{fmt(challenge.current_amount)}</Text>
+                <View style={st.infoRow}>
+                    <View style={[st.infoBox, { backgroundColor: colors.card }]}>
+                        <Text style={[st.infoLabel, { color: colors.sub }]}>LLEVAMOS</Text>
+                        <Text style={[st.infoVal, { color: colors.text }]}>{fmt(challenge.current_amount)}</Text>
                     </View>
-                    <View style={[styles.infoBox, { backgroundColor: colors.card }]}>
-                        <Text style={[styles.infoLabel, { color: colors.sub }]}>RACHA</Text>
+                    <View style={[st.infoBox, { backgroundColor: colors.card }]}>
+                        <Text style={[st.infoLabel, { color: colors.sub }]}>RACHA</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                            <Text style={[styles.infoVal, { color: colors.text }]}>{challenge.current_streak || 0}</Text>
+                            <Text style={[st.infoVal, { color: colors.text }]}>{challenge.current_streak || 0}</Text>
                             <Ionicons name="flame" size={16} color="#FF9F0A" />
                         </View>
                     </View>
+                    <View style={[st.infoBox, { backgroundColor: colors.card }]}>
+                        <Text style={[st.infoLabel, { color: colors.sub }]}>FALTAN</Text>
+                        <Text style={[st.infoVal, { color: colors.text }]}>{pendingDays.length}</Text>
+                    </View>
                 </View>
 
-                {/* CAROUSEL OF PENDING DAYS */}
-                <View style={{ flex: 1, marginTop: 20 }}>
-                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Próximos Ahorros</Text>
-                    <Text style={{ color: colors.sub, fontSize: 13, marginBottom: 20, marginLeft: 20 }}>Toca un día para completarlo.</Text>
-                    
-                    {pendingDays.length > 0 ? (
-                        <FlatList
-                            data={pendingDays}
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={{ paddingHorizontal: 20, gap: 16 }}
-                            renderItem={({ item }) => (
-                                <TouchableOpacity 
-                                    style={[styles.dayCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-                                    onPress={() => {
-                                        setSelectedIndex(item.index);
-                                        setPayModalVisible(true);
-                                    }}
-                                >
-                                    <LinearGradient colors={[tier.colors[0], tier.colors[0] + '80']} style={styles.dayHeader}>
-                                        <Text style={styles.dayHeaderText}>DÍA {item.index + 1}</Text>
-                                    </LinearGradient>
-                                    <View style={styles.dayBody}>
-                                        <Text style={[styles.dayAmount, { color: colors.text }]}>
-                                            {fmt(item.amount)}
-                                        </Text>
-                                        <View style={styles.saveBtn}>
-                                            <Text style={styles.saveBtnText}>AHORRAR</Text>
-                                        </View>
+                {/* CAROUSEL */}
+                <Text style={[st.sectionTitle, { color: colors.text }]}>Próximos Ahorros</Text>
+                <Text style={{ color: colors.sub, fontSize: 13, marginBottom: 16, marginLeft: 20 }}>Toca un día para completarlo.</Text>
+
+                {pendingDays.length > 0 ? (
+                    <FlatList
+                        data={pendingDays}
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{ paddingHorizontal: 20, gap: 14 }}
+                        keyExtractor={item => item.index.toString()}
+                        renderItem={({ item }) => (
+                            <TouchableOpacity
+                                style={[st.dayCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                                onPress={() => { setSelectedIndex(item.index); setPayModalVisible(true); }}
+                            >
+                                <LinearGradient colors={[tier.colors[0], tier.colors[0] + '80']} style={st.dayHeader}>
+                                    <Text style={st.dayHeaderText}>DÍA {item.index + 1}</Text>
+                                </LinearGradient>
+                                <View style={st.dayBody}>
+                                    <Text style={{ fontSize: 22, marginBottom: 4 }}>🪙</Text>
+                                    <Text style={[st.dayAmount, { color: colors.text }]}>{fmt(item.amount)}</Text>
+                                    <View style={st.saveBtn}>
+                                        <Text style={st.saveBtnText}>AHORRAR</Text>
                                     </View>
-                                </TouchableOpacity>
-                            )}
-                        />
-                    ) : (
-                        <View style={styles.allDone}>
-                            <Ionicons name="trophy" size={60} color="#F59E0B" />
-                            <Text style={[styles.allDoneTitle, { color: colors.text }]}>¡RETO COMPLETADO!</Text>
-                            <Text style={[styles.allDoneSub, { color: colors.sub }]}>Has cumplido con todos los días de ahorro.</Text>
-                        </View>
-                    )}
+                                </View>
+                            </TouchableOpacity>
+                        )}
+                    />
+                ) : (
+                    <View style={st.allDone}>
+                        <Ionicons name="trophy" size={60} color="#F59E0B" />
+                        <Text style={[st.allDoneTitle, { color: colors.text }]}>¡RETO COMPLETADO!</Text>
+                        <Text style={[st.allDoneSub, { color: colors.sub }]}>Has cumplido con todos los días de ahorro.</Text>
+                    </View>
+                )}
 
-                    {completedIndices.length > 0 && (
-                        <TouchableOpacity 
-                            style={{ alignSelf: 'center', marginTop: 30, padding: 10 }}
-                            onPress={() => setCompletedModalVisible(true)}
-                        >
-                            <Text style={{ color: colors.accent, fontWeight: '800', fontSize: 13, textDecorationLine: 'underline' }}>
-                                Ver días completados ({completedIndices.length})
-                            </Text>
-                        </TouchableOpacity>
-                    )}
-                </View>
-            </View>
+                {completedIndices.length > 0 && (
+                    <TouchableOpacity style={{ alignSelf: 'center', marginTop: 24, padding: 10 }} onPress={() => setCompletedModalVisible(true)}>
+                        <Text style={{ color: colors.accent, fontWeight: '800', fontSize: 13, textDecorationLine: 'underline' }}>
+                            Ver días completados ({completedIndices.length})
+                        </Text>
+                    </TouchableOpacity>
+                )}
+            </ScrollView>
 
-            {/* Modal de Completados */}
+            {/* Modal Completados */}
             <Modal visible={completedModalVisible} transparent animationType="slide">
-                <View style={styles.overlay}>
-                    <View style={[styles.modal, { backgroundColor: colors.card, maxHeight: '80%' }]}>
+                <View style={st.overlay}>
+                    <View style={[st.modal, { backgroundColor: colors.card, maxHeight: '80%' }]}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: 20 }}>
-                            <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 0 }]}>Días Pagados</Text>
+                            <Text style={[st.modalTitle, { color: colors.text, marginBottom: 0 }]}>Días Pagados</Text>
                             <TouchableOpacity onPress={() => setCompletedModalVisible(false)}>
                                 <Ionicons name="close" size={24} color={colors.sub} />
                             </TouchableOpacity>
                         </View>
-                        
                         <FlatList
-                            data={completedIndices.sort((a: number, b: number) => a - b)}
+                            data={[...completedIndices].sort((a: number, b: number) => a - b)}
                             style={{ width: '100%' }}
                             keyExtractor={item => item.toString()}
-                            renderItem={({ item: idx }) => {
-                                const dayAmount = dailyAmounts[idx];
-                                return (
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border + '30' }}>
-                                        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: tier.colors[0] + '20', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
-                                            <Text style={{ color: tier.colors[0], fontWeight: '900', fontSize: 12 }}>{idx + 1}</Text>
-                                        </View>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={{ color: colors.text, fontWeight: '700' }}>Día {idx + 1}</Text>
-                                            <Text style={{ color: colors.sub, fontSize: 12 }}>{fmt(dayAmount)}</Text>
-                                        </View>
-                                        <TouchableOpacity 
-                                            onPress={() => handleUndoPay(idx)}
-                                            style={{ padding: 8 }}
-                                        >
-                                            <Ionicons name="reload" size={20} color={colors.sub} />
-                                        </TouchableOpacity>
+                            renderItem={({ item: idx }) => (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border + '20' }}>
+                                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: tier.colors[0] + '20', justifyContent: 'center', alignItems: 'center', marginRight: 14 }}>
+                                        <Text style={{ fontSize: 16 }}>🪙</Text>
                                     </View>
-                                );
-                            }}
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ color: colors.text, fontWeight: '700' }}>Día {idx + 1}</Text>
+                                        <Text style={{ color: colors.sub, fontSize: 12 }}>{fmt(dailyAmounts[idx])}</Text>
+                                    </View>
+                                    <TouchableOpacity onPress={() => handleUndoPay(idx)}
+                                        style={{ backgroundColor: '#EF444415', padding: 10, borderRadius: 14 }}>
+                                        <Ionicons name="arrow-undo" size={18} color="#EF4444" />
+                                    </TouchableOpacity>
+                                </View>
+                            )}
                         />
                     </View>
                 </View>
             </Modal>
 
-            {/* Modal de Pago */}
+            {/* Modal Pago */}
             <Modal visible={payModalVisible} transparent animationType="fade">
-                <View style={styles.overlay}>
-                    <View style={[styles.modal, { backgroundColor: colors.card }]}>
-                        <Text style={[styles.modalTitle, { color: colors.text }]}>Confirmar Ahorro</Text>
+                <View style={st.overlay}>
+                    <View style={[st.modal, { backgroundColor: colors.card }]}>
+                        <Text style={{ fontSize: 40, marginBottom: 8 }}>🪙</Text>
+                        <Text style={[st.modalTitle, { color: colors.text }]}>Confirmar Ahorro</Text>
                         <Text style={{ color: colors.sub, textAlign: 'center', marginBottom: 20 }}>
                             ¿Quieres ahorrar {fmt(selectedIndex !== null ? dailyAmounts[selectedIndex!] : 0)} hoy?
                         </Text>
-                        
-                        <Text style={[styles.label, { color: colors.sub }]}>¿DE DÓNDE SALE EL DINERO?</Text>
-                        <FlatList 
-                            horizontal
-                            data={['Efectivo', ...(customAccounts || [])]}
+                        <Text style={[st.label, { color: colors.sub }]}>¿DE DÓNDE SALE EL DINERO?</Text>
+                        <FlatList horizontal data={['Efectivo', ...(customAccounts || [])]}
                             showsHorizontalScrollIndicator={false}
                             style={{ marginBottom: 20, width: '100%' }}
                             renderItem={({ item: acc }) => (
-                                <TouchableOpacity 
-                                    style={[styles.accBtn, { backgroundColor: selectedAccount === acc ? colors.accent : colors.bg, borderColor: colors.border }]}
-                                    onPress={() => setSelectedAccount(acc)}
-                                >
+                                <TouchableOpacity
+                                    style={[st.accBtn, { backgroundColor: selectedAccount === acc ? colors.accent : colors.bg, borderColor: colors.border }]}
+                                    onPress={() => setSelectedAccount(acc)}>
                                     <Text style={{ color: selectedAccount === acc ? '#FFF' : colors.text, fontWeight: '700' }}>{acc}</Text>
                                 </TouchableOpacity>
                             )}
                         />
-
-                        <View style={styles.modalBtns}>
-                            <TouchableOpacity style={[styles.btn, { backgroundColor: colors.bg }]} onPress={() => setPayModalVisible(false)}>
+                        <View style={st.modalBtns}>
+                            <TouchableOpacity style={[st.btn, { backgroundColor: colors.bg }]} onPress={() => setPayModalVisible(false)}>
                                 <Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[styles.btn, { backgroundColor: colors.accent }]} onPress={handlePayAmount} disabled={isProcessing}>
-                                <Text style={{ color: '#FFF', fontWeight: '800' }}>{isProcessing ? '...' : 'Confirmar'}</Text>
+                            <TouchableOpacity style={[st.btn, { backgroundColor: colors.accent }]} onPress={handlePayAmount} disabled={isProcessing}>
+                                <Text style={{ color: '#FFF', fontWeight: '800' }}>{isProcessing ? '...' : '💰 Ahorrar'}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -434,43 +382,31 @@ export default function ChallengeDetailScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const st = StyleSheet.create({
     container: { flex: 1 },
-    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? 50 : 20, marginBottom: 10 },
+    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? 50 : 20, marginBottom: 6 },
     headerTitle: { fontSize: 20, fontWeight: '900' },
     circleBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-    content: { flex: 1 },
-    
-    jarWrapper: { alignItems: 'center', marginVertical: 30 },
-    jarContainer: { width: 140, height: 200, alignItems: 'center', justifyContent: 'flex-end' },
-    jarNeck: { width: 80, height: 16, backgroundColor: 'rgba(200,200,200,0.4)', borderRadius: 8, marginBottom: -4, zIndex: 1, borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)' },
-    jarBody: { width: 140, height: 180, borderLeftWidth: 4, borderRightWidth: 4, borderBottomWidth: 4, borderBottomLeftRadius: 50, borderBottomRightRadius: 50, overflow: 'hidden', justifyContent: 'flex-end', backgroundColor: 'rgba(255,255,255,0.05)' },
-    jarWater: { width: '100%', position: 'absolute', bottom: 0 },
-    statusBadge: { backgroundColor: '#FFF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, marginTop: -20, elevation: 5, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10 },
-
-    infoRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 20 },
-    infoBox: { flex: 1, padding: 16, borderRadius: 24, elevation: 2 },
-    infoLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1, marginBottom: 4 },
-    infoVal: { fontSize: 18, fontWeight: '900' },
-
-    sectionTitle: { fontSize: 18, fontWeight: '900', marginLeft: 20 },
-    dayCard: { width: width * 0.45, borderRadius: 24, borderWidth: 1, overflow: 'hidden', height: 180 },
+    infoRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginTop: 10 },
+    infoBox: { flex: 1, padding: 14, borderRadius: 20, elevation: 2 },
+    infoLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 1, marginBottom: 4 },
+    infoVal: { fontSize: 17, fontWeight: '900' },
+    sectionTitle: { fontSize: 18, fontWeight: '900', marginLeft: 20, marginTop: 24 },
+    dayCard: { width: width * 0.42, borderRadius: 22, borderWidth: 1, overflow: 'hidden', height: 170 },
     dayHeader: { paddingVertical: 10, alignItems: 'center' },
-    dayHeaderText: { color: '#FFF', fontSize: 12, fontWeight: '900' },
-    dayBody: { flex: 1, padding: 16, alignItems: 'center', justifyContent: 'center' },
-    dayAmount: { fontSize: 20, fontWeight: '900', marginBottom: 12 },
-    saveBtn: { backgroundColor: 'rgba(0,0,0,0.05)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12 },
-    saveBtnText: { fontSize: 11, fontWeight: '800', opacity: 0.7 },
-
-    allDone: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
+    dayHeaderText: { color: '#FFF', fontSize: 12, fontWeight: '900', letterSpacing: 1 },
+    dayBody: { flex: 1, padding: 14, alignItems: 'center', justifyContent: 'center' },
+    dayAmount: { fontSize: 18, fontWeight: '900', marginBottom: 10 },
+    saveBtn: { backgroundColor: 'rgba(0,0,0,0.06)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
+    saveBtnText: { fontSize: 11, fontWeight: '800', opacity: 0.6 },
+    allDone: { alignItems: 'center', paddingVertical: 40 },
     allDoneTitle: { fontSize: 22, fontWeight: '900', marginTop: 16 },
     allDoneSub: { fontSize: 14, fontWeight: '600', marginTop: 8 },
-
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 },
     modal: { borderRadius: 32, padding: 24, alignItems: 'center' },
     modalTitle: { fontSize: 22, fontWeight: '900', marginBottom: 12 },
     label: { fontSize: 11, fontWeight: '800', alignSelf: 'flex-start', marginBottom: 12 },
     accBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14, marginRight: 8, borderWidth: 1, height: 40 },
     modalBtns: { flexDirection: 'row', gap: 12, width: '100%' },
-    btn: { flex: 1, paddingVertical: 16, borderRadius: 18, alignItems: 'center' }
+    btn: { flex: 1, paddingVertical: 16, borderRadius: 18, alignItems: 'center' },
 });
