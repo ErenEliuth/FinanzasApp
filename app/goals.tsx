@@ -302,12 +302,14 @@ export default function GoalsScreen() {
                     end_date: end.toISOString().split('T')[0],
                     daily_amounts: JSON.stringify(amounts),
                     completed_indices: JSON.stringify([]),
+                    current_streak: 0,
+                    last_payment_date: null,
                     created_at: getLocalISOString()
                 }]).select();
 
                 if (error) {
                     console.error("Supabase insert error:", error);
-                    throw new Error("Error al guardar en la nube. Revisa tu conexión.");
+                    throw new Error(error.message || "Error al guardar en la nube. Revisa tu conexión.");
                 }
 
                 // Agendar notificación diaria para el reto
