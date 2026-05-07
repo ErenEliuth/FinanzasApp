@@ -43,6 +43,7 @@ export default function ChallengeDetailScreen() {
     const [challenge, setChallenge] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [payModalVisible, setPayModalVisible] = useState(false);
+    const [completedModalVisible, setCompletedModalVisible] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [selectedAccount, setSelectedAccount] = useState('Efectivo');
     const [isProcessing, setIsProcessing] = useState(false);
@@ -137,6 +138,61 @@ export default function ChallengeDetailScreen() {
         } catch (e) {
             console.error(e);
             Alert.alert('Error', 'No se pudo registrar el ahorro.');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleUndoPay = async (idx: number) => {
+        if (!challenge || isProcessing) return;
+        
+        const confirmMsg = Platform.OS === 'web' ? true : await new Promise(resolve => {
+            Alert.alert('Deshacer pago', '¿Quieres anular el pago de este día?', [
+                { text: 'No', onPress: () => resolve(false) },
+                { text: 'Sí, deshacer', style: 'destructive', onPress: () => resolve(true) }
+            ]);
+        });
+        if (!confirmMsg) return;
+
+        setIsProcessing(true);
+        try {
+            const parseData = (val: any) => {
+                if (!val) return [];
+                if (typeof val === 'string') {
+                    try { return JSON.parse(val); } catch(e) { return []; }
+                }
+                return val;
+            };
+            const dailyAmounts = parseData(challenge.daily_amounts);
+            const amountToUndo = dailyAmounts[idx];
+            const completedIndices = parseData(challenge.completed_indices);
+            
+            const newCompleted = completedIndices.filter((i: number) => i !== idx);
+            const newAmount = Math.max(0, challenge.current_amount - amountToUndo);
+
+            // 1. Actualizar Reto
+            const { error: updateError } = await supabase.from('saving_challenges').update({
+                current_amount: newAmount,
+                completed_indices: JSON.stringify(newCompleted),
+            }).eq('id', challenge.id);
+
+            if (updateError) throw updateError;
+
+            // 2. Intentar borrar transacción vinculada
+            await supabase.from('transactions')
+                .delete()
+                .eq('user_id', user?.id)
+                .eq('description', `Ahorro Reto: ${challenge.name}`)
+                .eq('amount', amountToUndo)
+                .limit(1);
+
+            setCompletedModalVisible(false);
+            loadChallenge();
+            if (Platform.OS === 'web') window.alert('Pago deshecho correctamente.');
+            else Alert.alert('Hecho', 'Se ha revertido el pago del día.');
+        } catch (e) {
+            console.error(e);
+            Alert.alert('Error', 'No se pudo deshacer el pago.');
         } finally {
             setIsProcessing(false);
         }
@@ -284,8 +340,59 @@ export default function ChallengeDetailScreen() {
                             <Text style={[styles.allDoneSub, { color: colors.sub }]}>Has cumplido con todos los días de ahorro.</Text>
                         </View>
                     )}
+
+                    {completedIndices.length > 0 && (
+                        <TouchableOpacity 
+                            style={{ alignSelf: 'center', marginTop: 30, padding: 10 }}
+                            onPress={() => setCompletedModalVisible(true)}
+                        >
+                            <Text style={{ color: colors.accent, fontWeight: '800', fontSize: 13, textDecorationLine: 'underline' }}>
+                                Ver días completados ({completedIndices.length})
+                            </Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             </View>
+
+            {/* Modal de Completados */}
+            <Modal visible={completedModalVisible} transparent animationType="slide">
+                <View style={styles.overlay}>
+                    <View style={[styles.modal, { backgroundColor: colors.card, maxHeight: '80%' }]}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: 20 }}>
+                            <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 0 }]}>Días Pagados</Text>
+                            <TouchableOpacity onPress={() => setCompletedModalVisible(false)}>
+                                <Ionicons name="close" size={24} color={colors.sub} />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        <FlatList
+                            data={completedIndices.sort((a: number, b: number) => a - b)}
+                            style={{ width: '100%' }}
+                            keyExtractor={item => item.toString()}
+                            renderItem={({ item: idx }) => {
+                                const dayAmount = dailyAmounts[idx];
+                                return (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border + '30' }}>
+                                        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: tier.colors[0] + '20', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                                            <Text style={{ color: tier.colors[0], fontWeight: '900', fontSize: 12 }}>{idx + 1}</Text>
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ color: colors.text, fontWeight: '700' }}>Día {idx + 1}</Text>
+                                            <Text style={{ color: colors.sub, fontSize: 12 }}>{fmt(dayAmount)}</Text>
+                                        </View>
+                                        <TouchableOpacity 
+                                            onPress={() => handleUndoPay(idx)}
+                                            style={{ padding: 8 }}
+                                        >
+                                            <Ionicons name="reload" size={20} color={colors.sub} />
+                                        </TouchableOpacity>
+                                    </View>
+                                );
+                            }}
+                        />
+                    </View>
+                </View>
+            </Modal>
 
             {/* Modal de Pago */}
             <Modal visible={payModalVisible} transparent animationType="fade">
