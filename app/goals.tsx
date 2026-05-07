@@ -28,6 +28,7 @@ import {
 } from 'react-native';
 import { uploadImage } from '@/utils/storage';
 import { scheduleDailyReminder } from '@/utils/notifications';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function GoalsScreen() {
     const isFocused = useIsFocused();
@@ -49,7 +50,8 @@ export default function GoalsScreen() {
     const [newGoalInterest, setNewGoalInterest] = useState('');
     const [activeTab, setActiveTab] = useState<'metas' | 'cajitas' | 'retos'>('metas');
     const [challenges, setChallenges] = useState<any[]>([]);
-    const [newChallengeDays, setNewChallengeDays] = useState('30');
+    const [newGoalEndDate, setNewGoalEndDate] = useState(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
+    const [showDatePicker, setShowDatePicker] = useState(false);
     const [interestMap, setInterestMap] = useState<Record<string, any>>({});
     const [isProcessing, setIsProcessing] = useState(false);
     const [breakdownVisible, setBreakdownVisible] = useState(false);
@@ -280,11 +282,16 @@ export default function GoalsScreen() {
         setIsProcessing(true);
         try {
             if (activeTab === 'retos') {
-                const days = parseInt(newChallengeDays) || 30;
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                const end = new Date(newGoalEndDate);
+                end.setHours(0,0,0,0);
+                
+                const diffTime = end.getTime() - today.getTime();
+                const days = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+                
                 const amounts = generateChallengeAmounts(val, days);
                 const startDate = getLocalDateKey();
-                const endDate = new Date();
-                endDate.setDate(endDate.getDate() + days);
                 
                 const { data: newChallenge, error } = await supabase.from('saving_challenges').insert([{
                     user_id: user?.id,
@@ -292,20 +299,23 @@ export default function GoalsScreen() {
                     target_amount: val,
                     current_amount: 0,
                     start_date: startDate,
-                    end_date: endDate.toISOString().split('T')[0],
+                    end_date: end.toISOString().split('T')[0],
                     daily_amounts: JSON.stringify(amounts),
                     completed_indices: JSON.stringify([]),
                     created_at: getLocalISOString()
                 }]).select();
 
-                if (error) throw error;
+                if (error) {
+                    console.error("Supabase insert error:", error);
+                    throw new Error("Error al guardar en la nube. Revisa tu conexión.");
+                }
 
                 // Agendar notificación diaria para el reto
                 if (Platform.OS !== 'web') {
                     await scheduleDailyReminder(8, 0, `🎯 Reto: ${newGoalName.trim()}`, `Hoy te toca ahorrar un valor de tu plan. ¡No te rindas!`);
                 }
 
-                setNewGoalName(''); setNewGoalTarget(''); setNewChallengeDays('30'); setAddModalVisible(false);
+                setNewGoalName(''); setNewGoalTarget(''); setNewGoalEndDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)); setAddModalVisible(false);
                 loadData();
                 return;
             }
@@ -502,62 +512,70 @@ export default function GoalsScreen() {
                     </View>
                 </View>
 
-                {/* ── Resumen ── */}
-                <View style={[styles.summaryBox, { backgroundColor: colors.card }]}>
-                    <View style={styles.summaryHeader}>
-                        <View style={[styles.iconBox, { backgroundColor: '#E0E7FF' }]}>
-                            <Ionicons name="wallet" size={20} color="#6366F1" />
+                {/* ── Resumen (Ocultar si es Retos) ── */}
+                {activeTab !== 'retos' ? (
+                    <View style={[styles.summaryBox, { backgroundColor: colors.card }]}>
+                        <View style={styles.summaryHeader}>
+                            <View style={[styles.iconBox, { backgroundColor: '#E0E7FF' }]}>
+                                <Ionicons name="wallet" size={20} color="#6366F1" />
+                            </View>
+                            <View>
+                                <Text style={[styles.summaryLabel, { color: colors.sub }]}>
+                                    {activeTab === 'metas' ? 'Total en Metas' : 'Total en Cajitas'}
+                                </Text>
+                                <Text style={[styles.summaryMainVal, { color: colors.text }]}>
+                                    {activeTab === 'metas' ? fmt(totalMetas) : (
+                                        <Text>
+                                            {fmt(totalCajitas - totalEarnings)}
+                                            <Text style={{ color: '#10B981', fontSize: 16 }}> +{fmt(totalEarnings)}</Text>
+                                        </Text>
+                                    )}
+                                </Text>
+                            </View>
                         </View>
-                        <View>
-                            <Text style={[styles.summaryLabel, { color: colors.sub }]}>
-                                {activeTab === 'metas' ? 'Total en Metas' : 'Total en Cajitas'}
-                            </Text>
-                            <Text style={[styles.summaryMainVal, { color: colors.text }]}>
-                                {activeTab === 'metas' ? fmt(totalMetas) : (
-                                    <Text>
-                                        {fmt(totalCajitas - totalEarnings)}
-                                        <Text style={{ color: '#10B981', fontSize: 16 }}> +{fmt(totalEarnings)}</Text>
-                                    </Text>
-                                )}
-                            </Text>
+                        <View style={[styles.progressBar, { backgroundColor: colors.bg }]}>
+                            <View style={[styles.progressFill, { width: `${Math.min(100, (assignedAhorro / (totalAhorro || 1)) * 100)}%`, backgroundColor: colors.accent }]} />
                         </View>
-                    </View>
-                    <View style={[styles.progressBar, { backgroundColor: colors.bg }]}>
-                        <View style={[styles.progressFill, { width: `${Math.min(100, (assignedAhorro / (totalAhorro || 1)) * 100)}%`, backgroundColor: colors.accent }]} />
-                    </View>
 
-                    <View style={[styles.summaryFooter, { borderTopWidth: 1, borderTopColor: colors.bg, paddingTop: 16, marginTop: 4 }]}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={[styles.footerLab, { color: colors.sub, textTransform: 'uppercase', letterSpacing: 0.5 }]}>Bolsa Total</Text>
-                            <Text style={[styles.footerVal, { color: colors.text, fontSize: 18 }]}>{fmt(totalAhorro)}</Text>
+                        <View style={[styles.summaryFooter, { borderTopWidth: 1, borderTopColor: colors.bg, paddingTop: 16, marginTop: 4 }]}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.footerLab, { color: colors.sub, textTransform: 'uppercase', letterSpacing: 0.5 }]}>Bolsa Total</Text>
+                                <Text style={[styles.footerVal, { color: colors.text, fontSize: 18 }]}>{fmt(totalAhorro)}</Text>
+                            </View>
+                            <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                                <Text style={[styles.footerLab, { color: colors.sub, textTransform: 'uppercase', letterSpacing: 0.5 }]}>Disponible</Text>
+                                <Text style={[styles.footerVal, { color: '#10B981', fontWeight: '900', fontSize: 18 }]}>{fmt(availableAhorro)}</Text>
+                            </View>
                         </View>
-                        <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                            <Text style={[styles.footerLab, { color: colors.sub, textTransform: 'uppercase', letterSpacing: 0.5 }]}>Disponible</Text>
-                            <Text style={[styles.footerVal, { color: '#10B981', fontWeight: '900', fontSize: 18 }]}>{fmt(availableAhorro)}</Text>
-                        </View>
-                    </View>
 
-                    {availableAhorro > 0 && (
-                        <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
-                            <TouchableOpacity 
-                                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colors.accent + '15', paddingVertical: 10, borderRadius: 14 }} 
-                                onPress={handleDistributeSavings}
-                                disabled={isProcessing}
-                            >
-                                <MaterialIcons name="auto-fix-high" size={14} color={colors.accent} />
-                                <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '800' }}>{isProcessing ? '...' : 'Distribuir'}</Text>
-                            </TouchableOpacity>
-                            
-                            <TouchableOpacity 
-                                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, borderRadius: 14 }} 
-                                onPress={() => setWithdrawAccountModalVisible(true)}
-                            >
-                                <MaterialIcons name="account-balance-wallet" size={14} color={colors.text} />
-                                <Text style={{ color: colors.text, fontSize: 12, fontWeight: '800' }}>Retirar a cuenta</Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
-                </View>
+                        {availableAhorro > 0 && (
+                            <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
+                                <TouchableOpacity 
+                                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colors.accent + '15', paddingVertical: 10, borderRadius: 14 }} 
+                                    onPress={handleDistributeSavings}
+                                    disabled={isProcessing}
+                                >
+                                    <MaterialIcons name="auto-fix-high" size={14} color={colors.accent} />
+                                    <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '800' }}>{isProcessing ? '...' : 'Distribuir'}</Text>
+                                </TouchableOpacity>
+                                
+                                <TouchableOpacity 
+                                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, borderRadius: 14 }} 
+                                    onPress={() => setWithdrawAccountModalVisible(true)}
+                                >
+                                    <MaterialIcons name="account-balance-wallet" size={14} color={colors.text} />
+                                    <Text style={{ color: colors.text, fontSize: 12, fontWeight: '800' }}>Retirar a cuenta</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                    </View>
+                ) : (
+                    /* Header Alternativo para Retos */
+                    <View style={{ marginBottom: 30, paddingHorizontal: 4 }}>
+                        <Text style={{ fontSize: 32, fontWeight: '900', color: colors.text }}>Mis Retos</Text>
+                        <Text style={{ color: colors.sub, fontSize: 14, fontWeight: '600', marginTop: 4 }}>Alcanza tus objetivos paso a paso</Text>
+                    </View>
+                )}
 
 
                 {/* ── Lista de Metas/Cajitas ── */}
@@ -680,16 +698,18 @@ export default function GoalsScreen() {
                     <View style={{ gap: 16 }}>
                         {challenges.length === 0 ? (
                             <View style={styles.empty}>
-                                <Ionicons name="trophy-outline" size={80} color={colors.accent + '40'} />
-                                <Text style={[styles.emptyTitle, { color: colors.text }]}>Desafía tus límites</Text>
+                                <View style={{ width: 120, height: 120, borderRadius: 60, backgroundColor: colors.accent + '10', justifyContent: 'center', alignItems: 'center', marginBottom: 24 }}>
+                                    <Ionicons name="trophy" size={60} color={colors.accent} />
+                                </View>
+                                <Text style={[styles.emptyTitle, { color: colors.text }]}>¿Listo para un desafío?</Text>
                                 <Text style={[styles.emptySub, { color: colors.sub }]}>
-                                    Crea un plan de ahorro diario y alcanza tus metas paso a paso.
+                                    Crea un plan de ahorro con fecha límite y te diremos cuánto guardar cada día para lograrlo.
                                 </Text>
                                 <TouchableOpacity 
-                                    style={[styles.mPrimaryBtn, { backgroundColor: colors.accent, marginTop: 20, width: '60%' }]}
+                                    style={[styles.mPrimaryBtn, { backgroundColor: colors.accent, marginTop: 32, paddingHorizontal: 40 }]}
                                     onPress={() => setAddModalVisible(true)}
                                 >
-                                    <Text style={styles.mPrimaryBtnTxt}>Crear Reto</Text>
+                                    <Text style={styles.mPrimaryBtnTxt}>Empezar Nuevo Reto</Text>
                                 </TouchableOpacity>
                             </View>
                         ) : (
@@ -787,10 +807,27 @@ export default function GoalsScreen() {
 
                             {activeTab === 'retos' && (
                                 <View style={styles.mInputCont}>
-                                    <Text style={[styles.mLabel, { color: colors.sub }]}>DURACIÓN (DÍAS)</Text>
-                                    <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
-                                        placeholder="30" placeholderTextColor={colors.sub + '80'} keyboardType="number-pad"
-                                        value={newChallengeDays} onChangeText={setNewChallengeDays} />
+                                    <Text style={[styles.mLabel, { color: colors.sub }]}>FECHA LÍMITE</Text>
+                                    <TouchableOpacity 
+                                        style={[styles.mInput, { borderBottomColor: colors.border, justifyContent: 'center' }]} 
+                                        onPress={() => setShowDatePicker(true)}
+                                    >
+                                        <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>
+                                            {newGoalEndDate.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                        </Text>
+                                    </TouchableOpacity>
+                                    {showDatePicker && (
+                                        <DateTimePicker
+                                            value={newGoalEndDate}
+                                            mode="date"
+                                            display="calendar"
+                                            minimumDate={new Date(Date.now() + 24 * 60 * 60 * 1000)}
+                                            onChange={(event, date) => {
+                                                setShowDatePicker(false);
+                                                if (date) setNewGoalEndDate(date);
+                                            }}
+                                        />
+                                    )}
                                 </View>
                             )}
                             
