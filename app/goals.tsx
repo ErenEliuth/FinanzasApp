@@ -803,25 +803,50 @@ export default function GoalsScreen() {
                             {activeTab === 'retos' && (
                                 <View style={styles.mInputCont}>
                                     <Text style={[styles.mLabel, { color: colors.sub }]}>FECHA LÍMITE</Text>
-                                    <TouchableOpacity 
-                                        style={[styles.mInput, { borderBottomColor: colors.border, justifyContent: 'center' }]} 
-                                        onPress={() => setShowDatePicker(true)}
-                                    >
-                                        <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>
-                                            {newGoalEndDate.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}
-                                        </Text>
-                                    </TouchableOpacity>
-                                    {showDatePicker && (
-                                        <DateTimePicker
-                                            value={newGoalEndDate}
-                                            mode="date"
-                                            display="calendar"
-                                            minimumDate={new Date(Date.now() + 24 * 60 * 60 * 1000)}
-                                            onChange={(event, date) => {
-                                                setShowDatePicker(false);
-                                                if (date) setNewGoalEndDate(date);
+                                    {Platform.OS === 'web' ? (
+                                        <input 
+                                            type="date"
+                                            value={newGoalEndDate.toISOString().split('T')[0]}
+                                            onChange={(e) => {
+                                                const d = new Date(e.target.value);
+                                                if (!isNaN(d.getTime())) setNewGoalEndDate(d);
+                                            }}
+                                            style={{
+                                                backgroundColor: 'transparent',
+                                                color: colors.text,
+                                                border: 'none',
+                                                borderBottom: `1px solid ${colors.border}`,
+                                                fontSize: '18px',
+                                                fontWeight: '700',
+                                                padding: '10px 0',
+                                                width: '100%',
+                                                outline: 'none',
+                                                fontFamily: 'inherit'
                                             }}
                                         />
+                                    ) : (
+                                        <>
+                                            <TouchableOpacity 
+                                                style={[styles.mInput, { borderBottomColor: colors.border, justifyContent: 'center' }]} 
+                                                onPress={() => setShowDatePicker(true)}
+                                            >
+                                                <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>
+                                                    {newGoalEndDate.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                                </Text>
+                                            </TouchableOpacity>
+                                            {showDatePicker && (
+                                                <DateTimePicker
+                                                    value={newGoalEndDate}
+                                                    mode="date"
+                                                    display="calendar"
+                                                    minimumDate={new Date(Date.now() + 24 * 60 * 60 * 1000)}
+                                                    onChange={(event, date) => {
+                                                        setShowDatePicker(false);
+                                                        if (date) setNewGoalEndDate(date);
+                                                    }}
+                                                />
+                                            )}
+                                        </>
                                     )}
                                 </View>
                             )}
