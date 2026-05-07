@@ -308,22 +308,19 @@ export default function ChallengeDetailScreen() {
                             keyExtractor={item => item.index.toString()}
                             renderItem={({ item }) => (
                                 <TouchableOpacity
-                                    style={[st.dayCard, { backgroundColor: colors.card, borderColor: colors.isDark ? 'rgba(255,215,0,0.15)' : 'rgba(184,134,11,0.15)' }]}
+                                    style={[st.dayCard, { backgroundColor: colors.card, borderColor: colors.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}
                                     onPress={() => { setSelectedIndex(item.index); setPayModalVisible(true); }}
-                                    activeOpacity={0.85}
+                                    activeOpacity={0.8}
                                 >
-                                    <View style={st.dayBadge}>
-                                        <Text style={st.dayBadgeText}>DÍA {item.index + 1}</Text>
+                                    <View style={{ paddingTop: 14, alignItems: 'center' }}>
+                                        <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '900', letterSpacing: 2 }}>DÍA</Text>
+                                        <Text style={{ color: colors.text, fontSize: 28, fontWeight: '900', marginTop: -2 }}>{item.index + 1}</Text>
                                     </View>
                                     <View style={st.dayBody}>
                                         <Text style={[st.dayAmount, { color: colors.text }]}>{fmt(item.amount)}</Text>
-                                        <LinearGradient
-                                            colors={['#FFD700', '#DAA520']}
-                                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                                            style={st.saveBtn}
-                                        >
-                                            <Text style={st.saveBtnText}>💰 AHORRAR</Text>
-                                        </LinearGradient>
+                                        <View style={[st.saveBtn, { backgroundColor: colors.accent }]}>
+                                            <Ionicons name="add" size={18} color="#FFF" />
+                                        </View>
                                     </View>
                                 </TouchableOpacity>
                             )}
@@ -427,18 +424,12 @@ const st = StyleSheet.create({
     infoVal: { fontSize: 17, fontWeight: '900' },
     sectionTitle: { fontSize: 18, fontWeight: '900', marginLeft: 20 },
     dayCard: {
-        width: width * 0.38, borderRadius: 20, borderWidth: 1.5, overflow: 'hidden',
-        shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3,
+        width: width * 0.36, borderRadius: 22, borderWidth: 1, overflow: 'hidden',
+        shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 2,
     },
-    dayBadge: {
-        backgroundColor: 'rgba(218,165,32,0.15)', paddingVertical: 8, alignItems: 'center',
-        borderBottomWidth: 1, borderBottomColor: 'rgba(218,165,32,0.1)',
-    },
-    dayBadgeText: { color: '#B8860B', fontSize: 11, fontWeight: '900', letterSpacing: 2 },
-    dayBody: { flex: 1, padding: 16, alignItems: 'center', justifyContent: 'center', gap: 12 },
-    dayAmount: { fontSize: 20, fontWeight: '900' },
-    saveBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 14 },
-    saveBtnText: { fontSize: 12, fontWeight: '900', color: '#FFF', letterSpacing: 0.5 },
+    dayBody: { flex: 1, paddingBottom: 16, alignItems: 'center', justifyContent: 'center', gap: 8 },
+    dayAmount: { fontSize: 16, fontWeight: '800' },
+    saveBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
     allDone: { alignItems: 'center', paddingVertical: 40 },
     allDoneTitle: { fontSize: 22, fontWeight: '900', marginTop: 16 },
     allDoneSub: { fontSize: 14, fontWeight: '600', marginTop: 8 },
