@@ -6,6 +6,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatCurrency, convertCurrency } from '@/utils/currency';
 import { getLocalISOString } from '@/utils/dateUtils';
+import { parseLocalDate } from '@/utils/dateUtils';
 import {
     Alert, Modal, Platform, SafeAreaView, FlatList, ScrollView,
     StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Dimensions
@@ -68,6 +69,22 @@ export default function ChallengeDetailScreen() {
         }
     };
 
+    const getAccountBalance = async (accountName: string): Promise<number> => {
+        if (!user) return 0;
+        try {
+            const { data: txs } = await supabase.from('transactions').select('*').eq('user_id', user.id);
+            if (!txs) return 0;
+            let balance = 0;
+            txs.forEach(tx => {
+                const acc = tx.account || 'Efectivo';
+                if (acc !== accountName) return;
+                if (tx.type === 'income') balance += Number(tx.amount || 0);
+                else balance -= Number(tx.amount || 0);
+            });
+            return balance;
+        } catch { return 0; }
+    };
+
     const handlePayAmount = async () => {
         if (selectedIndex === null || !challenge || isProcessing) return;
         setIsProcessing(true);
@@ -76,6 +93,16 @@ export default function ChallengeDetailScreen() {
             const amountToPay = dailyAmounts[selectedIndex];
             const completedIndices = parseData(challenge.completed_indices);
             if (completedIndices.includes(selectedIndex)) { setIsProcessing(false); return; }
+
+            // Validar saldo de la cuenta seleccionada
+            const accountBalance = await getAccountBalance(selectedAccount);
+            if (accountBalance < amountToPay) {
+                setIsProcessing(false);
+                const msg = `La cuenta "${selectedAccount}" no tiene saldo suficiente.\n\nDisponible: ${fmt(Math.max(0, accountBalance))}\nNecesitas: ${fmt(amountToPay)}`;
+                if (Platform.OS === 'web') window.alert(msg);
+                else Alert.alert('Saldo insuficiente', msg);
+                return;
+            }
 
             const newCompleted = [...completedIndices, selectedIndex];
             const newAmount = challenge.current_amount + amountToPay;
@@ -243,6 +270,7 @@ export default function ChallengeDetailScreen() {
                         coinCount={completedIndices.length}
                         showCoinDrop={coinDrop}
                         showCoinRemove={coinRemove}
+                        isDark={colors.isDark}
                         onAnimDone={() => { setCoinDrop(false); setCoinRemove(false); }}
                     />
                 </View>
