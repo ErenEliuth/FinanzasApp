@@ -357,10 +357,11 @@ export default function GoalsScreen() {
             
             setNewGoalName(''); setNewGoalTarget(''); setNewGoalImage(null); setNewGoalInterest(''); setAddModalVisible(false);
             loadData();
-        } catch (e) { 
+        } catch (e: any) { 
             console.error('Error al crear meta:', e); 
-            if (Platform.OS === 'web') window.alert('Error al crear meta. Verifica tu conexión.');
-            else Alert.alert('Error', 'No se pudo crear la meta.');
+            const msg = e.message || 'Error al crear meta. Verifica tu conexión.';
+            if (Platform.OS === 'web') window.alert('Error: ' + msg);
+            else Alert.alert('Error', msg);
         } finally {
             setIsProcessing(false);
         }
@@ -417,9 +418,9 @@ export default function GoalsScreen() {
             setWithdrawAccountModalVisible(false);
             loadData();
             Alert.alert('Éxito', `Se han retirado ${fmt(val)} a ${selectedDestAccount}.`);
-        } catch (e) {
-            console.error('Error al retirar a cuenta:', e);
-            Alert.alert('Error', 'No se pudo realizar el retiro.');
+        } catch (error: any) {
+            console.error(error);
+            Alert.alert('Error', error.message || 'Error al crear meta. Verifica tu conexión.');
         } finally {
             setIsProcessing(false);
         }
