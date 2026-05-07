@@ -27,6 +27,7 @@ import {
     View,
 } from 'react-native';
 import { uploadImage } from '@/utils/storage';
+import { scheduleDailyReminder } from '@/utils/notifications';
 
 export default function GoalsScreen() {
     const isFocused = useIsFocused();
@@ -46,7 +47,9 @@ export default function GoalsScreen() {
     const [newGoalImage, setNewGoalImage] = useState<string | null>(null);
     const [newGoalPriority, setNewGoalPriority] = useState<'high' | 'medium' | 'low'>('medium');
     const [newGoalInterest, setNewGoalInterest] = useState('');
-    const [activeTab, setActiveTab] = useState<'metas' | 'cajitas'>('metas');
+    const [activeTab, setActiveTab] = useState<'metas' | 'cajitas' | 'retos'>('metas');
+    const [challenges, setChallenges] = useState<any[]>([]);
+    const [newChallengeDays, setNewChallengeDays] = useState('30');
     const [interestMap, setInterestMap] = useState<Record<string, any>>({});
     const [isProcessing, setIsProcessing] = useState(false);
     const [breakdownVisible, setBreakdownVisible] = useState(false);
@@ -112,6 +115,14 @@ export default function GoalsScreen() {
                 return s;
             }, 0) || 0;
             setTotalAhorro(total);
+
+            // Cargar Retos desde Supabase o Local (Aquí usamos Supabase para consistencia si existe la tabla)
+            try {
+                const { data: challengesData } = await supabase.from('saving_challenges').select('*').eq('user_id', user.id).order('id', { ascending: false });
+                if (challengesData) setChallenges(challengesData);
+            } catch (e) {
+                console.log("Tabla saving_challenges no encontrada en Supabase - omitiendo sync.");
+            }
         } catch (e) { console.error(e); }
     };
 
@@ -237,9 +248,29 @@ export default function GoalsScreen() {
         if (!result.canceled) setNewGoalImage(result.assets[0].uri);
     };
 
+    const generateChallengeAmounts = (target: number, days: number) => {
+        // Generar una progresión aritmética que sume al target
+        // Sum = n/2 * (2a + (n-1)d)
+        // Fijamos a = target / (days * 2) (empezar con la mitad del promedio)
+        const n = days;
+        const a = Math.floor(target / (n * 2));
+        // d = (2 * Sum / n - 2a) / (n - 1)
+        const d = Math.floor((2 * target / n - 2 * a) / (n - 1));
+        
+        let amounts = [];
+        let currentSum = 0;
+        for (let i = 0; i < n - 1; i++) {
+            const val = a + i * d;
+            amounts.push(val);
+            currentSum += val;
+        }
+        amounts.push(target - currentSum); // El último ajusta el total
+        return amounts;
+    };
+
     const handleCreateGoal = async () => {
         let val = 1000000000; // Target muy alto para cajitas por defecto
-        if (activeTab === 'metas') {
+        if (activeTab === 'metas' || activeTab === 'retos') {
             const typedVal = parseInputToNumber(newGoalTarget, currency);
             val = convertToBase(typedVal, currency, rates);
             if (isNaN(val) || val <= 0) return;
@@ -248,6 +279,37 @@ export default function GoalsScreen() {
         if (!newGoalName.trim() || isProcessing) return;
         setIsProcessing(true);
         try {
+            if (activeTab === 'retos') {
+                const days = parseInt(newChallengeDays) || 30;
+                const amounts = generateChallengeAmounts(val, days);
+                const startDate = getLocalDateKey();
+                const endDate = new Date();
+                endDate.setDate(endDate.getDate() + days);
+                
+                const { data: newChallenge, error } = await supabase.from('saving_challenges').insert([{
+                    user_id: user?.id,
+                    name: newGoalName.trim(),
+                    target_amount: val,
+                    current_amount: 0,
+                    start_date: startDate,
+                    end_date: endDate.toISOString().split('T')[0],
+                    daily_amounts: JSON.stringify(amounts),
+                    completed_indices: JSON.stringify([]),
+                    created_at: getLocalISOString()
+                }]).select();
+
+                if (error) throw error;
+
+                // Agendar notificación diaria para el reto
+                if (Platform.OS !== 'web') {
+                    await scheduleDailyReminder(8, 0, `🎯 Reto: ${newGoalName.trim()}`, `Hoy te toca ahorrar un valor de tu plan. ¡No te rindas!`);
+                }
+
+                setNewGoalName(''); setNewGoalTarget(''); setNewChallengeDays('30'); setAddModalVisible(false);
+                loadData();
+                return;
+            }
+
             let finalImageUri = newGoalImage;
             
             // Subir a la nube si hay una imagen seleccionada
@@ -429,10 +491,13 @@ export default function GoalsScreen() {
                 <View style={{ paddingHorizontal: 0, marginBottom: 20 }}>
                     <View style={{ flexDirection: 'row', borderRadius: 20, padding: 6, backgroundColor: colors.card }}>
                         <TouchableOpacity onPress={() => setActiveTab('metas')} style={{ flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center', backgroundColor: activeTab === 'metas' ? colors.accent : 'transparent' }}>
-                            <Text style={{ fontSize: 14, fontWeight: '800', color: activeTab === 'metas' ? '#FFF' : colors.sub }}>Metas de Ahorro</Text>
+                            <Text style={{ fontSize: 13, fontWeight: '800', color: activeTab === 'metas' ? '#FFF' : colors.sub }}>Metas</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setActiveTab('cajitas')} style={{ flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center', backgroundColor: activeTab === 'cajitas' ? colors.accent : 'transparent' }}>
-                            <Text style={{ fontSize: 14, fontWeight: '800', color: activeTab === 'cajitas' ? '#FFF' : colors.sub }}>Cajitas</Text>
+                            <Text style={{ fontSize: 13, fontWeight: '800', color: activeTab === 'cajitas' ? '#FFF' : colors.sub }}>Cajitas</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setActiveTab('retos')} style={{ flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center', backgroundColor: activeTab === 'retos' ? colors.accent : 'transparent' }}>
+                            <Text style={{ fontSize: 13, fontWeight: '800', color: activeTab === 'retos' ? '#FFF' : colors.sub }}>Retos</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -609,6 +674,71 @@ export default function GoalsScreen() {
                         );
                     })
                 )}
+
+                {/* ── Retos de Ahorro ── */}
+                {activeTab === 'retos' && (
+                    <View style={{ gap: 16 }}>
+                        {challenges.length === 0 ? (
+                            <View style={styles.empty}>
+                                <Ionicons name="trophy-outline" size={80} color={colors.accent + '40'} />
+                                <Text style={[styles.emptyTitle, { color: colors.text }]}>Desafía tus límites</Text>
+                                <Text style={[styles.emptySub, { color: colors.sub }]}>
+                                    Crea un plan de ahorro diario y alcanza tus metas paso a paso.
+                                </Text>
+                                <TouchableOpacity 
+                                    style={[styles.mPrimaryBtn, { backgroundColor: colors.accent, marginTop: 20, width: '60%' }]}
+                                    onPress={() => setAddModalVisible(true)}
+                                >
+                                    <Text style={styles.mPrimaryBtnTxt}>Crear Reto</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ) : (
+                            challenges.map(challenge => {
+                                const dailyAmounts = JSON.parse(challenge.daily_amounts || '[]');
+                                const completedIndices = JSON.parse(challenge.completed_indices || '[]');
+                                const pct = (completedIndices.length / dailyAmounts.length) * 100;
+                                
+                                return (
+                                    <TouchableOpacity 
+                                        key={challenge.id} 
+                                        style={[styles.goalCard, { backgroundColor: colors.card, overflow: 'hidden' }]}
+                                        onPress={() => router.push({ pathname: '/challenge/[id]', params: { id: challenge.id } } as any)}
+                                        activeOpacity={0.9}
+                                    >
+                                        <LinearGradient colors={[colors.accent, colors.accent + 'CC']} start={{x:0, y:0}} end={{x:1, y:0}} style={{ height: 4, width: '100%' }} />
+                                        <View style={{ padding: 20 }}>
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                                <View>
+                                                    <Text style={[styles.goalName, { color: colors.text, marginBottom: 2 }]}>{challenge.name}</Text>
+                                                    <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>{dailyAmounts.length} días de reto</Text>
+                                                </View>
+                                                <View style={{ alignItems: 'flex-end' }}>
+                                                    <Text style={{ color: colors.accent, fontSize: 18, fontWeight: '900' }}>{Math.round(pct)}%</Text>
+                                                    <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '800' }}>COMPLETADO</Text>
+                                                </View>
+                                            </View>
+                                            
+                                            <View style={[styles.goalProgressBg, { height: 8, marginBottom: 16 }]}>
+                                                <View style={[styles.goalProgressFill, { width: `${pct}%`, backgroundColor: colors.accent }]} />
+                                            </View>
+                                            
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                <View>
+                                                    <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '800' }}>RECAUDADO</Text>
+                                                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>{fmt(challenge.current_amount)}</Text>
+                                                </View>
+                                                <View style={{ alignItems: 'flex-end' }}>
+                                                    <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '800' }}>OBJETIVO</Text>
+                                                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>{fmt(challenge.target_amount)}</Text>
+                                                </View>
+                                            </View>
+                                        </View>
+                                    </TouchableOpacity>
+                                );
+                            })
+                        )}
+                    </View>
+                )}
                 <View style={{ height: 100 }} />
             </ScrollView>
 
@@ -620,7 +750,9 @@ export default function GoalsScreen() {
                     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%' }}>
                         <View style={[styles.modalBox, { backgroundColor: colors.card }]}>
                             <View style={styles.modalHeaderInner}>
-                                <Text style={[styles.modalTitle, { color: colors.text }]}>{activeTab === 'metas' ? 'Nueva Meta' : 'Nueva Cajita'}</Text>
+                                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                                    {activeTab === 'metas' ? 'Nueva Meta' : activeTab === 'cajitas' ? 'Nueva Cajita' : 'Nuevo Reto'}
+                                </Text>
                                 <TouchableOpacity onPress={() => setAddModalVisible(false)}>
                                     <Ionicons name="close" size={24} color={colors.sub} />
                                 </TouchableOpacity>
@@ -640,16 +772,25 @@ export default function GoalsScreen() {
                             <View style={styles.mInputCont}>
                                 <Text style={[styles.mLabel, { color: colors.sub }]}>NOMBRE</Text>
                                 <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
-                                    placeholder={activeTab === 'metas' ? "Ej. Mi primer auto" : "Ej. Ahorro Emergencia"} placeholderTextColor={colors.sub + '80'}
+                                    placeholder={activeTab === 'metas' ? "Ej. Mi primer auto" : activeTab === 'cajitas' ? "Ej. Ahorro Emergencia" : "Ej. Reto 30 días"} placeholderTextColor={colors.sub + '80'}
                                     value={newGoalName} onChangeText={setNewGoalName} />
                             </View>
 
-                            {activeTab === 'metas' && (
+                            {(activeTab === 'metas' || activeTab === 'retos') && (
                                 <View style={styles.mInputCont}>
                                     <Text style={[styles.mLabel, { color: colors.sub }]}>MONTO OBJETIVO</Text>
                                     <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
                                         placeholder="$ 0" placeholderTextColor={colors.sub + '80'} keyboardType="decimal-pad"
                                         value={newGoalTarget} onChangeText={t => setNewGoalTarget(formatInput(t))} />
+                                </View>
+                            )}
+
+                            {activeTab === 'retos' && (
+                                <View style={styles.mInputCont}>
+                                    <Text style={[styles.mLabel, { color: colors.sub }]}>DURACIÓN (DÍAS)</Text>
+                                    <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
+                                        placeholder="30" placeholderTextColor={colors.sub + '80'} keyboardType="number-pad"
+                                        value={newChallengeDays} onChangeText={setNewChallengeDays} />
                                 </View>
                             )}
                             
@@ -688,7 +829,9 @@ export default function GoalsScreen() {
                                 onPress={handleCreateGoal}
                                 disabled={isProcessing}
                             >
-                                <Text style={styles.mPrimaryBtnTxt}>{isProcessing ? 'Guardando...' : 'Comenzar a ahorrar'}</Text>
+                                <Text style={styles.mPrimaryBtnTxt}>
+                                    {isProcessing ? 'Guardando...' : activeTab === 'retos' ? 'Comenzar Reto' : 'Comenzar a ahorrar'}
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     </KeyboardAvoidingView>

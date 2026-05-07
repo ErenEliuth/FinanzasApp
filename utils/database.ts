@@ -1,7 +1,7 @@
 import { type SQLiteDatabase } from 'expo-sqlite';
 
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
-  const DATABASE_VERSION = 5;
+  const DATABASE_VERSION = 7;
 
   let result = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   let currentDbVersion = result?.user_version ?? 0;
@@ -108,8 +108,23 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
         image_uri TEXT,
         created_at TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS saving_challenges (
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+        user_id INTEGER NOT NULL DEFAULT 0,
+        name TEXT NOT NULL,
+        target_amount REAL NOT NULL,
+        current_amount REAL NOT NULL DEFAULT 0,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        daily_amounts TEXT NOT NULL, -- JSON array of amounts
+        completed_indices TEXT NOT NULL DEFAULT '[]', -- JSON array of paid indices
+        current_streak INTEGER NOT NULL DEFAULT 0,
+        last_payment_date TEXT,
+        created_at TEXT NOT NULL
+      );
     `);
-    currentDbVersion = 5;
+    currentDbVersion = 7;
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
@@ -153,5 +168,20 @@ export interface Goal {
   target_amount: number;
   current_amount: number;
   image_uri: string | null;
+  created_at: string;
+}
+
+export interface SavingChallenge {
+  id: number;
+  user_id: number;
+  name: string;
+  target_amount: number;
+  current_amount: number;
+  start_date: string;
+  end_date: string;
+  daily_amounts: string; // JSON string
+  completed_indices: string; // JSON string
+  current_streak: number;
+  last_payment_date: string | null;
   created_at: string;
 }

@@ -31,7 +31,7 @@ export async function registerForPushNotificationsAsync() {
     return finalStatus === 'granted';
 }
 
-export async function scheduleDailyReminder(hour: number, minute: number) {
+export async function scheduleDailyReminder(hour: number, minute: number, title?: string, body?: string) {
     // Cancelar previos para no duplicar
     await Notifications.cancelAllScheduledNotificationsAsync();
 
@@ -44,8 +44,8 @@ export async function scheduleDailyReminder(hour: number, minute: number) {
 
     await Notifications.scheduleNotificationAsync({
         content: {
-            title: "💰 ¡No olvides tus finanzas!",
-            body: "¿Ya anotaste tus gastos de hoy? Mantén el control de tu dinero.",
+            title: title || "💰 ¡No olvides tus finanzas!",
+            body: body || "¿Ya anotaste tus gastos de hoy? Mantén el control de tu dinero.",
             data: { screen: 'explore' },
         },
         trigger: {
