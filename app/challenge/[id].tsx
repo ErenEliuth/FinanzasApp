@@ -12,6 +12,7 @@ import {
     StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Dimensions
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Rect, Path, Circle, Text as SvgText } from 'react-native-svg';
 import AnimatedJar from '@/components/AnimatedJar';
 
 const { width } = Dimensions.get('window');
@@ -308,19 +309,32 @@ export default function ChallengeDetailScreen() {
                             keyExtractor={item => item.index.toString()}
                             renderItem={({ item }) => (
                                 <TouchableOpacity
-                                    style={[st.dayCard, { backgroundColor: colors.card, borderColor: colors.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}
                                     onPress={() => { setSelectedIndex(item.index); setPayModalVisible(true); }}
-                                    activeOpacity={0.8}
+                                    activeOpacity={0.85}
+                                    style={{ width: width * 0.52, height: 120 }}
                                 >
-                                    <View style={{ paddingTop: 14, alignItems: 'center' }}>
-                                        <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '900', letterSpacing: 2 }}>DÍA</Text>
-                                        <Text style={{ color: colors.text, fontSize: 28, fontWeight: '900', marginTop: -2 }}>{item.index + 1}</Text>
-                                    </View>
-                                    <View style={st.dayBody}>
-                                        <Text style={[st.dayAmount, { color: colors.text }]}>{fmt(item.amount)}</Text>
-                                        <View style={[st.saveBtn, { backgroundColor: colors.accent }]}>
-                                            <Ionicons name="add" size={18} color="#FFF" />
-                                        </View>
+                                    <Svg width="100%" height="100%" viewBox="0 0 220 110">
+                                        {/* Bill background */}
+                                        <Rect x="2" y="2" width="216" height="106" rx="10" fill="#4CAF50" />
+                                        <Rect x="6" y="6" width="208" height="98" rx="8" fill="#66BB6A" stroke="#388E3C" strokeWidth="1.5" strokeDasharray="4 3" />
+                                        <Rect x="12" y="12" width="196" height="86" rx="6" fill="#81C784" />
+                                        {/* Corner ornaments */}
+                                        <Path d="M 22 22 L 22 35 M 22 22 L 35 22" stroke="#388E3C" strokeWidth="2.5" strokeLinecap="round" />
+                                        <Path d="M 198 22 L 198 35 M 198 22 L 185 22" stroke="#388E3C" strokeWidth="2.5" strokeLinecap="round" />
+                                        <Path d="M 22 88 L 22 75 M 22 88 L 35 88" stroke="#388E3C" strokeWidth="2.5" strokeLinecap="round" />
+                                        <Path d="M 198 88 L 198 75 M 198 88 L 185 88" stroke="#388E3C" strokeWidth="2.5" strokeLinecap="round" />
+                                        {/* Dollar signs */}
+                                        <SvgText x="32" y="42" fontSize="16" fontWeight="900" fill="#2E7D32" textAnchor="middle" opacity={0.6}>$</SvgText>
+                                        <SvgText x="188" y="42" fontSize="16" fontWeight="900" fill="#2E7D32" textAnchor="middle" opacity={0.6}>$</SvgText>
+                                        {/* Center circle */}
+                                        <Circle cx="110" cy="52" r="28" fill="#66BB6A" stroke="#388E3C" strokeWidth="1.5" />
+                                        <Circle cx="110" cy="52" r="22" fill="#81C784" stroke="#388E3C" strokeWidth="0.8" />
+                                    </Svg>
+                                    {/* Overlay text */}
+                                    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+                                        <Text style={{ color: '#1B5E20', fontSize: 8, fontWeight: '900', letterSpacing: 2, marginBottom: 2 }}>DÍA {item.index + 1}</Text>
+                                        <Text style={{ color: '#1B5E20', fontSize: 16, fontWeight: '900' }}>{fmt(item.amount)}</Text>
+                                        <Text style={{ color: '#2E7D32', fontSize: 8, fontWeight: '700', marginTop: 4, opacity: 0.7 }}>TOCA PARA AHORRAR</Text>
                                     </View>
                                 </TouchableOpacity>
                             )}
