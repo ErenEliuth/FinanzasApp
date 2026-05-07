@@ -295,41 +295,47 @@ export default function ChallengeDetailScreen() {
                 </View>
 
                 {/* CAROUSEL */}
-                <Text style={[st.sectionTitle, { color: colors.text }]}>Próximos Ahorros</Text>
-                <Text style={{ color: colors.sub, fontSize: 13, marginBottom: 16, marginLeft: 20 }}>Toca un día para completarlo.</Text>
+                <View style={{ marginTop: 24 }}>
+                    <Text style={[st.sectionTitle, { color: colors.text }]}>Próximos Ahorros</Text>
+                    <Text style={{ color: colors.sub, fontSize: 12, marginBottom: 16, marginLeft: 20 }}>Toca un día para completarlo</Text>
 
-                {pendingDays.length > 0 ? (
-                    <FlatList
-                        data={pendingDays}
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={{ paddingHorizontal: 20, gap: 14 }}
-                        keyExtractor={item => item.index.toString()}
-                        renderItem={({ item }) => (
-                            <TouchableOpacity
-                                style={[st.dayCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-                                onPress={() => { setSelectedIndex(item.index); setPayModalVisible(true); }}
-                            >
-                                <LinearGradient colors={[tier.colors[0], tier.colors[0] + '80']} style={st.dayHeader}>
-                                    <Text style={st.dayHeaderText}>DÍA {item.index + 1}</Text>
-                                </LinearGradient>
-                                <View style={st.dayBody}>
-                                    <Text style={{ fontSize: 22, marginBottom: 4 }}>🪙</Text>
-                                    <Text style={[st.dayAmount, { color: colors.text }]}>{fmt(item.amount)}</Text>
-                                    <View style={st.saveBtn}>
-                                        <Text style={st.saveBtnText}>AHORRAR</Text>
+                    {pendingDays.length > 0 ? (
+                        <FlatList
+                            data={pendingDays}
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
+                            keyExtractor={item => item.index.toString()}
+                            renderItem={({ item }) => (
+                                <TouchableOpacity
+                                    style={[st.dayCard, { backgroundColor: colors.card, borderColor: colors.isDark ? 'rgba(255,215,0,0.15)' : 'rgba(184,134,11,0.15)' }]}
+                                    onPress={() => { setSelectedIndex(item.index); setPayModalVisible(true); }}
+                                    activeOpacity={0.85}
+                                >
+                                    <View style={st.dayBadge}>
+                                        <Text style={st.dayBadgeText}>DÍA {item.index + 1}</Text>
                                     </View>
-                                </View>
-                            </TouchableOpacity>
-                        )}
-                    />
-                ) : (
-                    <View style={st.allDone}>
-                        <Ionicons name="trophy" size={60} color="#F59E0B" />
-                        <Text style={[st.allDoneTitle, { color: colors.text }]}>¡RETO COMPLETADO!</Text>
-                        <Text style={[st.allDoneSub, { color: colors.sub }]}>Has cumplido con todos los días de ahorro.</Text>
-                    </View>
-                )}
+                                    <View style={st.dayBody}>
+                                        <Text style={[st.dayAmount, { color: colors.text }]}>{fmt(item.amount)}</Text>
+                                        <LinearGradient
+                                            colors={['#FFD700', '#DAA520']}
+                                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                                            style={st.saveBtn}
+                                        >
+                                            <Text style={st.saveBtnText}>💰 AHORRAR</Text>
+                                        </LinearGradient>
+                                    </View>
+                                </TouchableOpacity>
+                            )}
+                        />
+                    ) : (
+                        <View style={st.allDone}>
+                            <Ionicons name="trophy" size={60} color="#F59E0B" />
+                            <Text style={[st.allDoneTitle, { color: colors.text }]}>¡RETO COMPLETADO!</Text>
+                            <Text style={[st.allDoneSub, { color: colors.sub }]}>Has cumplido con todos los días de ahorro.</Text>
+                        </View>
+                    )}
+                </View>
 
                 {completedIndices.length > 0 && (
                     <TouchableOpacity style={{ alignSelf: 'center', marginTop: 24, padding: 10 }} onPress={() => setCompletedModalVisible(true)}>
@@ -356,8 +362,8 @@ export default function ChallengeDetailScreen() {
                             keyExtractor={item => item.toString()}
                             renderItem={({ item: idx }) => (
                                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border + '20' }}>
-                                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: tier.colors[0] + '20', justifyContent: 'center', alignItems: 'center', marginRight: 14 }}>
-                                        <Text style={{ fontSize: 16 }}>🪙</Text>
+                                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFD70020', justifyContent: 'center', alignItems: 'center', marginRight: 14 }}>
+                                        <Text style={{ fontSize: 18 }}>🪙</Text>
                                     </View>
                                     <View style={{ flex: 1 }}>
                                         <Text style={{ color: colors.text, fontWeight: '700' }}>Día {idx + 1}</Text>
@@ -419,14 +425,20 @@ const st = StyleSheet.create({
     infoBox: { flex: 1, padding: 14, borderRadius: 20, elevation: 2 },
     infoLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 1, marginBottom: 4 },
     infoVal: { fontSize: 17, fontWeight: '900' },
-    sectionTitle: { fontSize: 18, fontWeight: '900', marginLeft: 20, marginTop: 24 },
-    dayCard: { width: width * 0.42, borderRadius: 22, borderWidth: 1, overflow: 'hidden', height: 170 },
-    dayHeader: { paddingVertical: 10, alignItems: 'center' },
-    dayHeaderText: { color: '#FFF', fontSize: 12, fontWeight: '900', letterSpacing: 1 },
-    dayBody: { flex: 1, padding: 14, alignItems: 'center', justifyContent: 'center' },
-    dayAmount: { fontSize: 18, fontWeight: '900', marginBottom: 10 },
-    saveBtn: { backgroundColor: 'rgba(0,0,0,0.06)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
-    saveBtnText: { fontSize: 11, fontWeight: '800', opacity: 0.6 },
+    sectionTitle: { fontSize: 18, fontWeight: '900', marginLeft: 20 },
+    dayCard: {
+        width: width * 0.38, borderRadius: 20, borderWidth: 1.5, overflow: 'hidden',
+        shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3,
+    },
+    dayBadge: {
+        backgroundColor: 'rgba(218,165,32,0.15)', paddingVertical: 8, alignItems: 'center',
+        borderBottomWidth: 1, borderBottomColor: 'rgba(218,165,32,0.1)',
+    },
+    dayBadgeText: { color: '#B8860B', fontSize: 11, fontWeight: '900', letterSpacing: 2 },
+    dayBody: { flex: 1, padding: 16, alignItems: 'center', justifyContent: 'center', gap: 12 },
+    dayAmount: { fontSize: 20, fontWeight: '900' },
+    saveBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 14 },
+    saveBtnText: { fontSize: 12, fontWeight: '900', color: '#FFF', letterSpacing: 0.5 },
     allDone: { alignItems: 'center', paddingVertical: 40 },
     allDoneTitle: { fontSize: 22, fontWeight: '900', marginTop: 16 },
     allDoneSub: { fontSize: 14, fontWeight: '600', marginTop: 8 },
