@@ -244,7 +244,7 @@ export default function ChallengeDetailScreen() {
                                         </Text>
                                         <View style={styles.saveBtn}>
                                             <Text style={styles.saveBtnText}>AHORRAR</Text>
-                                        </TouchableOpacity>
+                                        </View>
                                     </View>
                                 </TouchableOpacity>
                             )}
