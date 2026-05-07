@@ -136,12 +136,6 @@ export default function ChallengeDetailScreen() {
             // Trigger coin drop animation FIRST, then reload
             setCoinDrop(true);
             setTimeout(() => loadChallenge(), 300);
-
-            const tip = FINANCIAL_TIPS[Math.floor(Math.random() * FINANCIAL_TIPS.length)];
-            setTimeout(() => {
-                if (Platform.OS === 'web') window.alert(`¡Ahorrado! ${fmt(amountToPay)} 🚀\n\n🧠 Tip:\n"${tip}"`);
-                else Alert.alert('¡Ahorrado!', `Has sumado ${fmt(amountToPay)} a tu reto. 🚀\n\n🧠 Tip del día:\n"${tip}"`);
-            }, 1200);
         } catch (e) {
             console.error(e);
             Alert.alert('Error', 'No se pudo registrar el ahorro.');

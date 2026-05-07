@@ -66,27 +66,27 @@ export default function AnimatedJar({ pct, tierColor, coinCount, isDark = true, 
         ])).start();
     }, []);
 
-    // Coin drop
+    // Coin drop animation
     useEffect(() => {
         if (showCoinDrop) {
             coinY.setValue(-80); coinOpacity.setValue(1); coinScale.setValue(0.5); coinRotate.setValue(0);
             Animated.sequence([
                 Animated.parallel([
-                    Animated.timing(coinY, { toValue: 55, duration: 550, easing: Easing.bezier(0.33, 0, 0.67, 1), useNativeDriver: true }),
+                    Animated.timing(coinY, { toValue: 180, duration: 600, easing: Easing.bezier(0.33, 0, 0.67, 1), useNativeDriver: true }),
                     Animated.timing(coinScale, { toValue: 1.1, duration: 400, useNativeDriver: true }),
-                    Animated.timing(coinRotate, { toValue: 4, duration: 550, useNativeDriver: true }),
+                    Animated.timing(coinRotate, { toValue: 4, duration: 600, useNativeDriver: true }),
                 ]),
                 // Bounce
                 Animated.parallel([
-                    Animated.timing(coinY, { toValue: 45, duration: 120, useNativeDriver: true }),
-                    Animated.timing(coinScale, { toValue: 0.9, duration: 120, useNativeDriver: true }),
+                    Animated.timing(coinY, { toValue: 160, duration: 150, useNativeDriver: true }),
+                    Animated.timing(coinScale, { toValue: 0.9, duration: 150, useNativeDriver: true }),
                 ]),
                 Animated.parallel([
-                    Animated.timing(coinY, { toValue: 52, duration: 100, useNativeDriver: true }),
-                    Animated.timing(coinScale, { toValue: 1, duration: 100, useNativeDriver: true }),
+                    Animated.timing(coinY, { toValue: 175, duration: 150, useNativeDriver: true }),
+                    Animated.timing(coinScale, { toValue: 1, duration: 150, useNativeDriver: true }),
                 ]),
                 // Settle & fade into pile
-                Animated.delay(300),
+                Animated.delay(200),
                 Animated.parallel([
                     Animated.timing(coinOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
                     Animated.timing(coinScale, { toValue: 0.8, duration: 400, useNativeDriver: true }),
@@ -98,7 +98,7 @@ export default function AnimatedJar({ pct, tierColor, coinCount, isDark = true, 
     // Coin remove (hand grab)
     useEffect(() => {
         if (showCoinRemove) {
-            handX.setValue(80); handY.setValue(10); handOpacity.setValue(0); removeOpacity.setValue(1);
+            handX.setValue(80); handY.setValue(40); handOpacity.setValue(0); removeOpacity.setValue(1);
             Animated.sequence([
                 Animated.parallel([
                     Animated.timing(handOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
@@ -121,16 +121,14 @@ export default function AnimatedJar({ pct, tierColor, coinCount, isDark = true, 
     // Coin layout inside jar - stacking from bottom
     const maxCoins = Math.min(coinCount, 20);
     const cols = 4;
-    const coinSize = 22;
-    const jarInnerLeft = 30;
-    const jarBottom = 22;
+    const coinSize = 24;
     const coinPositions = Array.from({ length: maxCoins }, (_, i) => {
         const row = Math.floor(i / cols);
         const col = i % cols;
         const offset = row % 2 === 1 ? 12 : 0; // Stagger odd rows
         return {
-            left: jarInnerLeft + col * (coinSize + 2) + offset,
-            bottom: jarBottom + row * (coinSize - 6),
+            x: 36 + col * 28 + offset,
+            y: 210 - row * 16,
         };
     });
 
@@ -149,10 +147,26 @@ export default function AnimatedJar({ pct, tierColor, coinCount, isDark = true, 
                         <Stop offset="0" stopColor={rimC1} stopOpacity={0.9} />
                         <Stop offset="1" stopColor={rimC2} stopOpacity={0.7} />
                     </SvgGrad>
+                    <SvgGrad id="coinGradInner" x1="0" y1="0" x2="1" y2="1">
+                        <Stop offset="0" stopColor="#FFD700" />
+                        <Stop offset="0.3" stopColor="#FFEC80" />
+                        <Stop offset="0.6" stopColor="#FFD700" />
+                        <Stop offset="1" stopColor="#DAA520" />
+                    </SvgGrad>
                 </Defs>
-                {/* Jar body */}
+                {/* Jar back/body */}
                 <Path d="M 42 65 C 30 78, 25 95, 25 125 L 25 195 C 25 222, 42 238, 90 238 C 138 238, 155 222, 155 195 L 155 125 C 155 95, 150 78, 138 65 Z"
                     fill="url(#glass)" stroke={glassStroke} strokeWidth="2.5" />
+                
+                {/* Coins rendered directly inside SVG so they are contained and behind highlights */}
+                {coinPositions.map((pos, i) => (
+                    <Svg key={`coin-${i}`} x={pos.x} y={pos.y} width={coinSize} height={coinSize} viewBox="0 0 24 24">
+                        <Circle cx="12" cy="12" r="11" fill="url(#coinGradInner)" stroke="#B8860B" strokeWidth="1.5" />
+                        <Circle cx="12" cy="12" r="8" fill="none" stroke="#B8860B" strokeWidth="0.5" opacity={0.4} />
+                        <Path d="M 10 8 L 14 8 L 13 11 L 15 11 L 10 17 L 11 13 L 9 13 Z" fill="#B8860B" opacity={0.5} />
+                    </Svg>
+                ))}
+
                 {/* Neck */}
                 <Rect x="48" y="42" width="84" height="24" rx="5" fill={neckFill} stroke={neckStroke} strokeWidth="1.5" />
                 {/* Lid */}
@@ -164,15 +178,6 @@ export default function AnimatedJar({ pct, tierColor, coinCount, isDark = true, 
                 {/* Shadow */}
                 <Ellipse cx="90" cy="234" rx="45" ry="5" fill={shadowFill} />
             </Svg>
-
-            {/* Coins inside jar */}
-            <View style={s.coinsContainer}>
-                {coinPositions.map((pos, i) => (
-                    <View key={`coin-${i}`} style={[s.coinSlot, { left: pos.left, bottom: pos.bottom }]}>
-                        <GoldCoin size={coinSize} />
-                    </View>
-                ))}
-            </View>
 
             {/* Shimmer */}
             <AnimatedView style={[s.shimmer, { opacity: shimmerOp, backgroundColor: shimmerColor }]} />
@@ -211,16 +216,11 @@ export default function AnimatedJar({ pct, tierColor, coinCount, isDark = true, 
 const s = StyleSheet.create({
     wrap: { width: 180, height: 280, alignItems: 'center', alignSelf: 'center' },
     svg: { position: 'absolute', top: 0, left: 0 },
-    coinsContainer: {
-        position: 'absolute', top: 68, left: 0, right: 0, bottom: 14,
-        overflow: 'hidden',
-    },
-    coinSlot: { position: 'absolute' },
     shimmer: {
         position: 'absolute', top: 70, left: 36, width: 3, height: 130, borderRadius: 2,
     },
-    fallingCoin: { position: 'absolute', top: 10, left: 75 },
-    hand: { position: 'absolute', top: 120, left: 80 },
+    fallingCoin: { position: 'absolute', top: -20, left: 75 },
+    hand: { position: 'absolute', top: 140, left: 80 },
     badge: {
         position: 'absolute', bottom: 0,
         paddingHorizontal: 18, paddingVertical: 7,
