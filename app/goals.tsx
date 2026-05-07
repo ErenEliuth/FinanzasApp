@@ -577,120 +577,115 @@ export default function GoalsScreen() {
                     </View>
                 )}
 
-
                 {/* ── Lista de Metas/Cajitas ── */}
-                {goals.filter(g => activeTab === 'cajitas' ? interestMap[g.id]?.rate > 0 : !interestMap[g.id]?.rate).length === 0 ? (
-                    <View style={styles.empty}>
-                        <Ionicons name="leaf-outline" size={80} color={colors.accent + '40'} />
-                        <Text style={[styles.emptyTitle, { color: colors.text }]}>Siembra tus sueños</Text>
-                        <Text style={[styles.emptySub, { color: colors.sub }]}>
-                            {activeTab === 'metas' ? 'Crea una meta y comienza a asignar tus ahorros.' : 'Crea una cajita para ganar intereses diarios.'}
-                        </Text>
-                    </View>
-                ) : (
-                    goals.filter(g => activeTab === 'cajitas' ? interestMap[g.id]?.rate > 0 : !interestMap[g.id]?.rate).map(goal => {
-                        const pct = Math.min(100, (goal.current_amount / goal.target_amount) * 100);
-                        const isDone = pct >= 100;
-                        return (
-                            <TouchableOpacity 
-                                key={goal.id} 
-                                style={[styles.goalCard, { backgroundColor: colors.card }]}
-                                onPress={() => openOptions(goal)}
-                                onLongPress={() => handleDelete(goal)}
-                                activeOpacity={0.9}
-                            >
-                                {activeTab === 'metas' && (
-                                    <View style={styles.goalImgCont}>
-                                        {goal.image_uri ? (
-                                            <Image source={{ uri: goal.image_uri }} style={styles.goalImg} />
-                                        ) : (
-                                            <View style={[styles.goalImgPlaceholder, { backgroundColor: colors.bg }]}>
-                                                <Ionicons name="golf-outline" size={32} color={colors.accent + '60'} />
-                                            </View>
-                                        )}
-                                        {isDone && (
-                                            <View style={styles.medal}>
-                                                <MaterialIcons name="emoji-events" size={16} color="#FFF" />
-                                                <Text style={styles.medalTxt}>¡Logrado!</Text>
-                                            </View>
-                                        )}
-                                    </View>
-                                )}
-
-                                {activeTab === 'cajitas' && (
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 20, paddingBottom: 0 }}>
-                                        <View style={[styles.iconBox, { backgroundColor: colors.accent + '15', width: 44, height: 44 }]}>
-                                            <MaterialIcons name="account-balance" size={24} color={colors.accent} />
-                                        </View>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={[styles.goalName, { color: colors.text, marginBottom: 0 }]} numberOfLines={1}>
-                                                {goal.name}
-                                            </Text>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                                <MaterialIcons name="trending-up" size={12} color="#10B981" />
-                                                <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '800' }}>{interestMap[goal.id]?.rate}% E.A.</Text>
-                                            </View>
-                                        </View>
-                                    </View>
-                                )}
-
-                                <View style={[styles.goalBody, { paddingRight: 20, paddingTop: activeTab === 'cajitas' ? 12 : 16, paddingBottom: 20 }]}>
+                {(activeTab === 'metas' || activeTab === 'cajitas') && (
+                    goals.filter(g => activeTab === 'cajitas' ? interestMap[g.id]?.rate > 0 : !interestMap[g.id]?.rate).length === 0 ? (
+                        <View style={styles.empty}>
+                            <Ionicons name="leaf-outline" size={80} color={colors.accent + '40'} />
+                            <Text style={[styles.emptyTitle, { color: colors.text }]}>Siembra tus sueños</Text>
+                            <Text style={[styles.emptySub, { color: colors.sub }]}>
+                                {activeTab === 'metas' ? 'Crea una meta y comienza a asignar tus ahorros.' : 'Crea una cajita para ganar intereses diarios.'}
+                            </Text>
+                        </View>
+                    ) : (
+                        goals.filter(g => activeTab === 'cajitas' ? interestMap[g.id]?.rate > 0 : !interestMap[g.id]?.rate).map(goal => {
+                            const pct = Math.min(100, (goal.current_amount / goal.target_amount) * 100);
+                            const isDone = pct >= 100;
+                            return (
+                                <TouchableOpacity 
+                                    key={goal.id} 
+                                    style={[styles.goalCard, { backgroundColor: colors.card }]}
+                                    onPress={() => openOptions(goal)}
+                                    onLongPress={() => handleDelete(goal)}
+                                    activeOpacity={0.9}
+                                >
                                     {activeTab === 'metas' && (
-                                        <>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 }}>
-                                                <Text style={[styles.goalName, { color: colors.text, marginBottom: 0, flex: 1 }]} numberOfLines={1}>
-                                                    {goal.name}
-                                                </Text>
-                                                <View style={[styles.prioBadge, { backgroundColor: goal.priority === 'high' ? '#EF444420' : goal.priority === 'medium' ? '#F59E0B20' : '#10B98120' }]}>
-                                                    <Text style={[styles.prioBadgeText, { color: goal.priority === 'high' ? '#EF4444' : goal.priority === 'medium' ? '#F59E0B' : '#10B981' }]}>
-                                                        {goal.priority === 'high' ? 'ALTA' : goal.priority === 'medium' ? 'MEDIA' : 'BAJA'}
-                                                    </Text>
-                                                </View>
-                                            </View>
-                                            <View style={styles.goalStats}>
-                                                <View style={styles.goalProgressBg}>
-                                                    <View style={[styles.goalProgressFill, { width: `${pct}%`, backgroundColor: colors.accent }]} />
-                                                </View>
-                                                <Text style={[styles.goalPct, { color: colors.accent }]}>{Math.round(pct)}%</Text>
-                                            </View>
-                                        </>
-                                    )}
-
-                                    <View style={styles.goalAmounts}>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={[styles.amtLabel, { color: colors.sub }]}>
-                                                {activeTab === 'cajitas' ? 'SALDO TOTAL' : 'VALOR ASIGNADO'}
-                                            </Text>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                                <Text style={[styles.amtVal, { color: colors.text, fontSize: activeTab === 'cajitas' ? 26 : 20, fontWeight: '900' }]}>
-                                                    {fmt(goal.current_amount)}
-                                                </Text>
-                                                {activeTab === 'cajitas' && (interestMap[goal.id]?.last_earned > 0) && (
-                                                    <View style={{ backgroundColor: '#10B98115', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                                                        <Text style={{ color: '#10B981', fontSize: 10, fontWeight: '900' }}>+{fmt(interestMap[goal.id].last_earned)}</Text>
-                                                    </View>
-                                                )}
-                                            </View>
-                                            
-                                            {activeTab === 'cajitas' && (interestMap[goal.id]?.total_earned > 0) && (
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
-                                                    <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>Rendimientos totales:</Text>
-                                                    <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '900' }}>+{fmt(interestMap[goal.id].total_earned)}</Text>
+                                        <View style={styles.goalImgCont}>
+                                            {goal.image_uri ? (
+                                                <Image source={{ uri: goal.image_uri }} style={styles.goalImg} />
+                                            ) : (
+                                                <View style={[styles.goalImgPlaceholder, { backgroundColor: colors.bg }]}>
+                                                    <Ionicons name="golf-outline" size={32} color={colors.accent + '60'} />
                                                 </View>
                                             )}
                                         </View>
+                                    )}
 
-                                        {activeTab === 'metas' && (
-                                            <View style={{ alignItems: 'flex-end' }}>
-                                                <Text style={[styles.amtLabel, { color: colors.sub }]}>OBJETIVO</Text>
-                                                <Text style={[styles.amtVal, { color: colors.text }]}>{fmt(goal.target_amount)}</Text>
+                                    {activeTab === 'cajitas' && (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 20, paddingBottom: 0 }}>
+                                            <View style={[styles.iconBox, { backgroundColor: colors.accent + '15', width: 44, height: 44 }]}>
+                                                <MaterialIcons name="account-balance" size={24} color={colors.accent} />
                                             </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={[styles.goalName, { color: colors.text, marginBottom: 0 }]} numberOfLines={1}>
+                                                    {goal.name}
+                                                </Text>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                                    <MaterialIcons name="trending-up" size={12} color="#10B981" />
+                                                    <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '800' }}>{interestMap[goal.id]?.rate}% E.A.</Text>
+                                                </View>
+                                            </View>
+                                        </View>
+                                    )}
+
+                                    <View style={[styles.goalBody, { paddingRight: 20, paddingTop: activeTab === 'cajitas' ? 12 : 16, paddingBottom: 20 }]}>
+                                        {activeTab === 'metas' && (
+                                            <>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+                                                    <Text style={[styles.goalName, { color: colors.text, marginBottom: 0, flex: 1 }]} numberOfLines={1}>
+                                                        {goal.name}
+                                                    </Text>
+                                                    <View style={[styles.prioBadge, { backgroundColor: goal.priority === 'high' ? '#EF444420' : goal.priority === 'medium' ? '#F59E0B20' : '#10B98120' }]}>
+                                                        <Text style={[styles.prioBadgeText, { color: goal.priority === 'high' ? '#EF4444' : goal.priority === 'medium' ? '#F59E0B' : '#10B981' }]}>
+                                                            {goal.priority === 'high' ? 'ALTA' : goal.priority === 'medium' ? 'MEDIA' : 'BAJA'}
+                                                        </Text>
+                                                    </View>
+                                                </View>
+                                                <View style={styles.goalStats}>
+                                                    <View style={styles.goalProgressBg}>
+                                                        <View style={[styles.goalProgressFill, { width: `${pct}%`, backgroundColor: colors.accent }]} />
+                                                    </View>
+                                                    <Text style={[styles.goalPct, { color: colors.accent }]}>{Math.round(pct)}%</Text>
+                                                </View>
+                                            </>
                                         )}
+
+                                        <View style={styles.goalAmounts}>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={[styles.amtLabel, { color: colors.sub }]}>
+                                                    {activeTab === 'cajitas' ? 'SALDO TOTAL' : 'VALOR ASIGNADO'}
+                                                </Text>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                    <Text style={[styles.amtVal, { color: colors.text, fontSize: activeTab === 'cajitas' ? 26 : 20, fontWeight: '900' }]}>
+                                                        {fmt(goal.current_amount)}
+                                                    </Text>
+                                                    {activeTab === 'cajitas' && (interestMap[goal.id]?.last_earned > 0) && (
+                                                        <View style={{ backgroundColor: '#10B98115', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                                                            <Text style={{ color: '#10B981', fontSize: 10, fontWeight: '900' }}>+{fmt(interestMap[goal.id].last_earned)}</Text>
+                                                        </View>
+                                                    )}
+                                                </View>
+                                                
+                                                {activeTab === 'cajitas' && (interestMap[goal.id]?.total_earned > 0) && (
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
+                                                        <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>Rendimientos totales:</Text>
+                                                        <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '900' }}>+{fmt(interestMap[goal.id].total_earned)}</Text>
+                                                    </View>
+                                                )}
+                                            </View>
+
+                                            {activeTab === 'metas' && (
+                                                <View style={{ alignItems: 'flex-end' }}>
+                                                    <Text style={[styles.amtLabel, { color: colors.sub }]}>OBJETIVO</Text>
+                                                    <Text style={[styles.amtVal, { color: colors.text }]}>{fmt(goal.target_amount)}</Text>
+                                                </View>
+                                            )}
+                                        </View>
                                     </View>
-                                </View>
-                            </TouchableOpacity>
-                        );
-                    })
+                                </TouchableOpacity>
+                            );
+                        })
+                    )
                 )}
 
                 {/* ── Retos de Ahorro ── */}
