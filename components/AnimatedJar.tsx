@@ -26,9 +26,11 @@ const GoldCoin = ({ size = 20, style }: { size?: number; style?: any }) => (
                     <Stop offset="1" stopColor="#DAA520" />
                 </SvgGrad>
             </Defs>
-            <Circle cx="12" cy="12" r="11" fill="url(#coinGrad)" stroke="#B8860B" strokeWidth="1.5" />
-            <Circle cx="12" cy="12" r="8" fill="none" stroke="#B8860B" strokeWidth="0.5" opacity={0.4} />
-            <Path d="M 10 8 L 14 8 L 13 11 L 15 11 L 10 17 L 11 13 L 9 13 Z" fill="#B8860B" opacity={0.5} />
+            <G transform="translate(12, 12) scale(1, 0.45) translate(-12, -12)">
+                <Circle cx="12" cy="12" r="11" fill="url(#coinGrad)" stroke="#B8860B" strokeWidth="1.5" />
+                <Circle cx="12" cy="12" r="8" fill="none" stroke="#B8860B" strokeWidth="0.5" opacity={0.4} />
+                <Path d="M 10 8 L 14 8 L 13 11 L 15 11 L 10 17 L 11 13 L 9 13 Z" fill="#B8860B" opacity={0.5} />
+            </G>
         </Svg>
     </View>
 );
@@ -75,9 +77,9 @@ export default function AnimatedJar({ pct, tierColor, coinCount, isDark = true, 
             const cols = 4;
             const row = Math.floor(newIndex / cols);
             const col = newIndex % cols;
-            const offset = row % 2 === 1 ? 12 : 0;
+            const offset = row % 2 === 1 ? 14 : 0;
             const targetX = 36 + col * 28 + offset;
-            const targetY = 210 - row * 16;
+            const targetY = 220 - row * 7;
 
             coinX.setValue(75);
             coinY.setValue(-80); 
@@ -127,10 +129,10 @@ export default function AnimatedJar({ pct, tierColor, coinCount, isDark = true, 
     const coinPositions = Array.from({ length: maxCoins }, (_, i) => {
         const row = Math.floor(i / cols);
         const col = i % cols;
-        const offset = row % 2 === 1 ? 12 : 0; // Stagger odd rows
+        const offset = row % 2 === 1 ? 14 : 0; // Stagger odd rows
         return {
             x: 36 + col * 28 + offset,
-            y: 210 - row * 16,
+            y: 220 - row * 7,
         };
     });
 
@@ -163,9 +165,11 @@ export default function AnimatedJar({ pct, tierColor, coinCount, isDark = true, 
                 {/* Coins rendered directly inside SVG so they are contained and behind highlights */}
                 {coinPositions.map((pos, i) => (
                     <Svg key={`coin-${i}`} x={pos.x} y={pos.y} width={coinSize} height={coinSize} viewBox="0 0 24 24">
-                        <Circle cx="12" cy="12" r="11" fill="url(#coinGradInner)" stroke="#B8860B" strokeWidth="1.5" />
-                        <Circle cx="12" cy="12" r="8" fill="none" stroke="#B8860B" strokeWidth="0.5" opacity={0.4} />
-                        <Path d="M 10 8 L 14 8 L 13 11 L 15 11 L 10 17 L 11 13 L 9 13 Z" fill="#B8860B" opacity={0.5} />
+                        <G transform="translate(12, 12) scale(1, 0.45) translate(-12, -12)">
+                            <Circle cx="12" cy="12" r="11" fill="url(#coinGradInner)" stroke="#B8860B" strokeWidth="1.5" />
+                            <Circle cx="12" cy="12" r="8" fill="none" stroke="#B8860B" strokeWidth="0.5" opacity={0.4} />
+                            <Path d="M 10 8 L 14 8 L 13 11 L 15 11 L 10 17 L 11 13 L 9 13 Z" fill="#B8860B" opacity={0.5} />
+                        </G>
                     </Svg>
                 ))}
 

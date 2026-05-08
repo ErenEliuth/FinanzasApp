@@ -295,7 +295,7 @@ export default function ChallengeDetailScreen() {
                     </View>
                     <View style={[st.infoBox, { backgroundColor: colors.card }]}>
                         <Text style={[st.infoLabel, { color: colors.sub }]}>FALTAN</Text>
-                        <Text style={[st.infoVal, { color: colors.text }]}>{pendingDays.length} <Text style={{fontSize: 10, color: colors.sub}}>hoy</Text></Text>
+                        <Text style={[st.infoVal, { color: colors.text }]}>{totalDays - completedIndices.length} <Text style={{fontSize: 10, color: colors.sub}}>días</Text></Text>
                     </View>
                 </View>
 
@@ -456,7 +456,7 @@ const st = StyleSheet.create({
     saveBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
     allDone: { alignItems: 'center', paddingVertical: 40 },
     allDoneTitle: { fontSize: 22, fontWeight: '900', marginTop: 16 },
-    allDoneSub: { fontSize: 14, fontWeight: '600', marginTop: 8 },
+    allDoneSub: { fontSize: 14, fontWeight: '600', marginTop: 8, textAlign: 'center', paddingHorizontal: 20 },
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 },
     modal: { borderRadius: 32, padding: 24, alignItems: 'center' },
     modalTitle: { fontSize: 22, fontWeight: '900', marginBottom: 12 },
