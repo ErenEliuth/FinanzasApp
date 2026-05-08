@@ -238,6 +238,7 @@ export default function ChallengeDetailScreen() {
     const completedIndices = parseData(challenge.completed_indices);
     const pendingDays = dailyAmounts.map((amount: number, index: number) => ({ amount, index })).filter((i: any) => !completedIndices.includes(i.index) && i.index < diffDays);
     const totalDays = dailyAmounts.length || 1;
+    const isFullyCompleted = completedIndices.length === totalDays;
     const pct = Math.min(100, (completedIndices.length / totalDays) * 100);
     const tier = getTier(pct);
 
@@ -294,7 +295,7 @@ export default function ChallengeDetailScreen() {
                     </View>
                     <View style={[st.infoBox, { backgroundColor: colors.card }]}>
                         <Text style={[st.infoLabel, { color: colors.sub }]}>FALTAN</Text>
-                        <Text style={[st.infoVal, { color: colors.text }]}>{pendingDays.length}</Text>
+                        <Text style={[st.infoVal, { color: colors.text }]}>{pendingDays.length} <Text style={{fontSize: 10, color: colors.sub}}>hoy</Text></Text>
                     </View>
                 </View>
 
@@ -342,11 +343,17 @@ export default function ChallengeDetailScreen() {
                                 </TouchableOpacity>
                             )}
                         />
-                    ) : (
+                    ) : isFullyCompleted ? (
                         <View style={st.allDone}>
                             <Ionicons name="trophy" size={60} color="#F59E0B" />
                             <Text style={[st.allDoneTitle, { color: colors.text }]}>¡RETO COMPLETADO!</Text>
                             <Text style={[st.allDoneSub, { color: colors.sub }]}>Has cumplido con todos los días de ahorro.</Text>
+                        </View>
+                    ) : (
+                        <View style={st.allDone}>
+                            <Ionicons name="checkmark-circle" size={60} color="#10B981" />
+                            <Text style={[st.allDoneTitle, { color: colors.text }]}>¡ESTÁS AL DÍA!</Text>
+                            <Text style={[st.allDoneSub, { color: colors.sub }]}>Falta poco, sigue así. Vuelve mañana para tu próximo ahorro.</Text>
                         </View>
                     )}
                 </View>
