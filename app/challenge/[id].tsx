@@ -135,7 +135,7 @@ export default function ChallengeDetailScreen() {
             setSelectedIndex(null);
             // Trigger coin drop animation FIRST, then reload
             setCoinDrop(true);
-            setTimeout(() => loadChallenge(), 300);
+            setTimeout(() => loadChallenge(), 800);
         } catch (e) {
             console.error(e);
             Alert.alert('Error', 'No se pudo registrar el ahorro.');
@@ -176,7 +176,7 @@ export default function ChallengeDetailScreen() {
             setCompletedModalVisible(false);
             // Trigger remove animation, then reload
             setCoinRemove(true);
-            setTimeout(() => loadChallenge(), 300);
+            setTimeout(() => loadChallenge(), 800);
 
             setTimeout(() => {
                 if (Platform.OS === 'web') window.alert('Pago deshecho correctamente.');

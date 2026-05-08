@@ -35,6 +35,7 @@ const GoldCoin = ({ size = 20, style }: { size?: number; style?: any }) => (
 
 export default function AnimatedJar({ pct, tierColor, coinCount, isDark = true, showCoinDrop, showCoinRemove, onAnimDone }: Props) {
     const coinY = useRef(new Animated.Value(-80)).current;
+    const coinX = useRef(new Animated.Value(75)).current;
     const coinOpacity = useRef(new Animated.Value(0)).current;
     const coinScale = useRef(new Animated.Value(0.5)).current;
     const coinRotate = useRef(new Animated.Value(0)).current;
@@ -69,28 +70,29 @@ export default function AnimatedJar({ pct, tierColor, coinCount, isDark = true, 
     // Coin drop animation
     useEffect(() => {
         if (showCoinDrop) {
-            coinY.setValue(-80); coinOpacity.setValue(1); coinScale.setValue(0.5); coinRotate.setValue(0);
+            // Target is the next coin slot
+            const newIndex = Math.min(coinCount, 19);
+            const cols = 4;
+            const row = Math.floor(newIndex / cols);
+            const col = newIndex % cols;
+            const offset = row % 2 === 1 ? 12 : 0;
+            const targetX = 36 + col * 28 + offset;
+            const targetY = 210 - row * 16;
+
+            coinX.setValue(75);
+            coinY.setValue(-80); 
+            coinOpacity.setValue(1); 
+            coinScale.setValue(1.5); 
+            coinRotate.setValue(0);
+            
             Animated.sequence([
                 Animated.parallel([
-                    Animated.timing(coinY, { toValue: 180, duration: 600, easing: Easing.bezier(0.33, 0, 0.67, 1), useNativeDriver: true }),
-                    Animated.timing(coinScale, { toValue: 1.1, duration: 400, useNativeDriver: true }),
-                    Animated.timing(coinRotate, { toValue: 4, duration: 600, useNativeDriver: true }),
+                    Animated.timing(coinX, { toValue: targetX, duration: 750, easing: Easing.bezier(0.25, 0.1, 0.25, 1), useNativeDriver: true }),
+                    Animated.timing(coinY, { toValue: targetY, duration: 750, easing: Easing.bounce, useNativeDriver: true }),
+                    Animated.timing(coinScale, { toValue: 1, duration: 750, useNativeDriver: true }),
+                    Animated.timing(coinRotate, { toValue: 2, duration: 750, useNativeDriver: true }),
                 ]),
-                // Bounce
-                Animated.parallel([
-                    Animated.timing(coinY, { toValue: 160, duration: 150, useNativeDriver: true }),
-                    Animated.timing(coinScale, { toValue: 0.9, duration: 150, useNativeDriver: true }),
-                ]),
-                Animated.parallel([
-                    Animated.timing(coinY, { toValue: 175, duration: 150, useNativeDriver: true }),
-                    Animated.timing(coinScale, { toValue: 1, duration: 150, useNativeDriver: true }),
-                ]),
-                // Settle & fade into pile
-                Animated.delay(200),
-                Animated.parallel([
-                    Animated.timing(coinOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
-                    Animated.timing(coinScale, { toValue: 0.8, duration: 400, useNativeDriver: true }),
-                ]),
+                Animated.timing(coinOpacity, { toValue: 0, duration: 0, delay: 50, useNativeDriver: true }),
             ]).start(() => onAnimDone?.());
         }
     }, [showCoinDrop]);
@@ -185,10 +187,10 @@ export default function AnimatedJar({ pct, tierColor, coinCount, isDark = true, 
             {/* Falling coin animation */}
             {showCoinDrop && (
                 <AnimatedView style={[s.fallingCoin, {
-                    transform: [{ translateY: coinY }, { scale: coinScale }, { rotate: spin }],
+                    transform: [{ translateX: coinX }, { translateY: coinY }, { scale: coinScale }, { rotate: spin }],
                     opacity: coinOpacity,
                 }]}>
-                    <GoldCoin size={30} />
+                    <GoldCoin size={24} />
                 </AnimatedView>
             )}
 
@@ -219,7 +221,7 @@ const s = StyleSheet.create({
     shimmer: {
         position: 'absolute', top: 70, left: 36, width: 3, height: 130, borderRadius: 2,
     },
-    fallingCoin: { position: 'absolute', top: -20, left: 75 },
+    fallingCoin: { position: 'absolute', top: 0, left: 0 },
     hand: { position: 'absolute', top: 140, left: 80 },
     badge: {
         position: 'absolute', bottom: 0,

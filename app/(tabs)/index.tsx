@@ -233,8 +233,8 @@ export default function HomeScreen() {
       } catch (e) { }
 
       let urgentChallenges: any[] = [];
-      const todayDate = new Date();
-      todayDate.setHours(0, 0, 0, 0);
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
 
       // Cargar total de inversiones desde Supabase y actualizar con precios en vivo
       try {
@@ -314,7 +314,7 @@ export default function HomeScreen() {
               return new Date(d.getFullYear(), d.getMonth(), d.getDate());
           };
           const startDateLocal = parseLocal(c.created_at || new Date().toISOString());
-          const diffTime = todayDate.getTime() - startDateLocal.getTime();
+          const diffTime = startOfDay.getTime() - startDateLocal.getTime();
           const diffDays = Math.max(1, Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1);
 
           let dAmounts = [];
@@ -330,7 +330,7 @@ export default function HomeScreen() {
              urgentChallenges.push({
                isChallenge: true,
                id: c.id,
-               notifKey: `challenge_${c.id}_${todayDate.getTime()}`,
+               notifKey: `challenge_${c.id}_${startOfDay.getTime()}`,
                client: c.name,
                value: pendingTotal,
                paid: 0,
