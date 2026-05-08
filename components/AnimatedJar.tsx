@@ -164,13 +164,13 @@ export default function AnimatedJar({ pct, tierColor, coinCount, isDark = true, 
                 
                 {/* Coins rendered directly inside SVG so they are contained and behind highlights */}
                 {coinPositions.map((pos, i) => (
-                    <Svg key={`coin-${i}`} x={pos.x} y={pos.y} width={coinSize} height={coinSize} viewBox="0 0 24 24">
+                    <G key={`coin-${i}`} x={pos.x} y={pos.y}>
                         <G originX="12" originY="12" scaleY={0.45}>
                             <Circle cx="12" cy="12" r="11" fill="url(#coinGradInner)" stroke="#B8860B" strokeWidth="1.5" />
                             <Circle cx="12" cy="12" r="8" fill="none" stroke="#B8860B" strokeWidth="0.5" opacity={0.4} />
                             <Path d="M 10 8 L 14 8 L 13 11 L 15 11 L 10 17 L 11 13 L 9 13 Z" fill="#B8860B" opacity={0.5} />
                         </G>
-                    </Svg>
+                    </G>
                 ))}
 
                 {/* Neck */}
