@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, View, StyleSheet, Text, Easing } from 'react-native';
-import Svg, { Path, Defs, LinearGradient as SvgGrad, Stop, Ellipse, Rect, Circle } from 'react-native-svg';
+import Svg, { Path, Defs, LinearGradient as SvgGrad, Stop, Ellipse, Rect, Circle, G } from 'react-native-svg';
 
 const AnimatedView = Animated.View;
 
