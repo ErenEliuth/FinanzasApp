@@ -226,8 +226,17 @@ export default function ChallengeDetailScreen() {
 
     // --- DATA ---
     const dailyAmounts = parseData(challenge.daily_amounts);
+    const parseLocal = (dStr: string) => {
+        const d = new Date(dStr);
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    };
+    const startD = parseLocal(challenge.created_at || new Date().toISOString());
+    const todayD = new Date();
+    const diffTime = new Date(todayD.getFullYear(), todayD.getMonth(), todayD.getDate()).getTime() - startD.getTime();
+    const diffDays = Math.max(1, Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1);
+
     const completedIndices = parseData(challenge.completed_indices);
-    const pendingDays = dailyAmounts.map((amount: number, index: number) => ({ amount, index })).filter((i: any) => !completedIndices.includes(i.index));
+    const pendingDays = dailyAmounts.map((amount: number, index: number) => ({ amount, index })).filter((i: any) => !completedIndices.includes(i.index) && i.index < diffDays);
     const totalDays = dailyAmounts.length || 1;
     const pct = Math.min(100, (completedIndices.length / totalDays) * 100);
     const tier = getTier(pct);

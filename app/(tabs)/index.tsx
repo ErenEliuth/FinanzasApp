@@ -98,7 +98,7 @@ export default function HomeScreen() {
 
   const scrollRef = useRef<any>(null);
 
-  const [ahorroBreakdown, setAhorroBreakdown] = useState({ metas: 0, cajitas: 0 });
+  const [ahorroBreakdown, setAhorroBreakdown] = useState({ metas: 0, cajitas: 0, retos: 0 });
 
   useEffect(() => {
     let interval: any;
@@ -232,6 +232,10 @@ export default function HomeScreen() {
           setCardBalances(balances);
       } catch (e) { }
 
+      let urgentChallenges: any[] = [];
+      const todayDate = new Date();
+      todayDate.setHours(0, 0, 0, 0);
+
       // Cargar total de inversiones desde Supabase y actualizar con precios en vivo
       try {
         const { data: invData } = await supabase
@@ -289,17 +293,54 @@ export default function HomeScreen() {
       // Ahorros breakdown
       try {
         const { data: goalsData } = await supabase.from('goals').select('*').eq('user_id', user.id);
+        const { data: challengesData } = await supabase.from('saving_challenges').select('*').eq('user_id', user.id);
         const storedInterest = await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user.id));
         const interestData = storedInterest ? JSON.parse(storedInterest) : {};
         
         let sumMetas = 0;
         let sumCajitas = 0;
+        let sumRetos = 0;
+        
         goalsData?.forEach(g => {
           if (interestData[g.id]?.rate > 0) sumCajitas += g.current_amount;
           else sumMetas += g.current_amount;
         });
+
+        challengesData?.forEach(c => {
+          sumRetos += (Number(c.current_amount) || 0);
+
+          const parseLocal = (dStr: string) => {
+              const d = new Date(dStr);
+              return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+          };
+          const startDateLocal = parseLocal(c.created_at || new Date().toISOString());
+          const diffTime = todayDate.getTime() - startDateLocal.getTime();
+          const diffDays = Math.max(1, Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1);
+
+          let dAmounts = [];
+          try { dAmounts = typeof c.daily_amounts === 'string' ? JSON.parse(c.daily_amounts) : c.daily_amounts || []; } catch { }
+          let cIndices = [];
+          try { cIndices = typeof c.completed_indices === 'string' ? JSON.parse(c.completed_indices) : c.completed_indices || []; } catch { }
+
+          const pendingForToday = dAmounts.map((amount: number, index: number) => ({ amount, index }))
+            .filter((i: any) => !cIndices.includes(i.index) && i.index < diffDays);
+
+          if (pendingForToday.length > 0) {
+             const pendingTotal = pendingForToday.reduce((sum: number, x: any) => sum + x.amount, 0);
+             urgentChallenges.push({
+               isChallenge: true,
+               id: c.id,
+               notifKey: `challenge_${c.id}_${todayDate.getTime()}`,
+               client: c.name,
+               value: pendingTotal,
+               paid: 0,
+               due_date: 'Hoy',
+               debt_type: 'challenge',
+             });
+          }
+        });
         
-        setAhorroBreakdown({ metas: sumMetas, cajitas: sumCajitas });
+        setAhorroBreakdown({ metas: sumMetas, cajitas: sumCajitas, retos: sumRetos });
       } catch (e) { }
 
       const { data: allDebts, error: debtError } = await supabase
@@ -415,7 +456,7 @@ export default function HomeScreen() {
           return diffDays <= 3 && diffDays >= -7;
         } catch (e) { return false; }
       }) || [];
-      setPendingItems(urgent);
+      setPendingItems([...urgent, ...urgentChallenges]);
 
       // Generar Reporte Mensual si es el inicio del mes (Días 1 al 3)
       const day = today.getDate();
@@ -554,7 +595,7 @@ export default function HomeScreen() {
     const realMoney = activeMoney - (isNaN(debtTotal) ? 0 : debtTotal);
 
     // Balance General (Patrimonio Total: Disponible + Ahorro + Inversión - Deudas)
-    const trueSavings = (ahorroBreakdown.metas || 0) + (ahorroBreakdown.cajitas || 0);
+    const trueSavings = (ahorroBreakdown.metas || 0) + (ahorroBreakdown.cajitas || 0) + (ahorroBreakdown.retos || 0);
     const currentAhorro = trueSavings > 0 ? trueSavings : (isNaN(savTotal) ? 0 : savTotal);
     const currentInvestment = isNaN(investmentTotal) ? 0 : investmentTotal;
     const currentDebt = isNaN(debtTotal) ? 0 : debtTotal;
@@ -796,7 +837,7 @@ export default function HomeScreen() {
                   </View>
                   <Text style={styles.statLabelRefined}>AHORROS</Text>
                   <Text style={[styles.statValueRefined, { color: colorsNav.text }]}>
-                    {fmt(ahorroBreakdown.metas + ahorroBreakdown.cajitas)}
+                    {fmt((ahorroBreakdown.metas || 0) + (ahorroBreakdown.cajitas || 0) + (ahorroBreakdown.retos || 0))}
                   </Text>
                 </TouchableOpacity>
 
@@ -834,7 +875,7 @@ export default function HomeScreen() {
                     </View>
                     <Text style={[styles.statLabelRefined, { fontSize: 10, marginTop: 8 }]}>AHORROS</Text>
                     <Text style={[styles.mobileStatValue, { color: colorsNav.text }]}>
-                      {fmt(ahorroBreakdown.metas + ahorroBreakdown.cajitas)}
+                      {fmt((ahorroBreakdown.metas || 0) + (ahorroBreakdown.cajitas || 0) + (ahorroBreakdown.retos || 0))}
                     </Text>
                   </TouchableOpacity>
 
@@ -1032,28 +1073,32 @@ export default function HomeScreen() {
                     style={[styles.notificationItem, { backgroundColor: isDark ? '#1E293B' : '#F9FAFB', borderColor: colorsNav.border + '30', borderWidth: 1 }]}
                     onPress={() => {
                       setNotificationsVisible(false);
-                      router.push('/(tabs)/debts');
+                      if (item.isChallenge) {
+                        router.push(`/challenge/${item.id}`);
+                      } else {
+                        router.push('/(tabs)/debts');
+                      }
                     }}
                   >
-                    <View style={[styles.txIcon, { backgroundColor: item.debt_type === 'fixed' ? '#F59E0B15' : '#EF444415' }]}>
+                    <View style={[styles.txIcon, { backgroundColor: item.isChallenge ? '#FCD34D15' : item.debt_type === 'fixed' ? '#F59E0B15' : '#EF444415' }]}>
                       <MaterialIcons
-                        name={item.debt_type === 'fixed' ? 'event-repeat' : 'warning'}
+                        name={item.isChallenge ? 'emoji-events' : item.debt_type === 'fixed' ? 'event-repeat' : 'warning'}
                         size={22}
-                        color={item.debt_type === 'fixed' ? '#F59E0B' : '#EF4444'}
+                        color={item.isChallenge ? '#F59E0B' : item.debt_type === 'fixed' ? '#F59E0B' : '#EF4444'}
                       />
                     </View>
                     <View style={styles.txMeta}>
                       <Text style={[styles.txTitle, { color: colorsNav.text }]}>{item.client}</Text>
                       <Text style={[styles.txSub, { color: colorsNav.sub }]}>
-                        {item.debt_type === 'fixed' ? 'Gasto recurrente' : 'Pago pendiente'} • {item.due_date}
+                        {item.isChallenge ? 'Reto pendiente' : item.debt_type === 'fixed' ? 'Gasto recurrente' : 'Pago pendiente'} • {item.due_date}
                       </Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={[styles.txAmount, { color: item.debt_type === 'fixed' ? '#F59E0B' : '#EF4444' }]}>
+                      <Text style={[styles.txAmount, { color: item.isChallenge ? '#F59E0B' : item.debt_type === 'fixed' ? '#F59E0B' : '#EF4444' }]}>
                         {fmt(item.value - item.paid)}
                       </Text>
-                      <View style={{ backgroundColor: item.debt_type === 'fixed' ? '#F59E0B20' : '#EF444420', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginTop: 4 }}>
-                        <Text style={{ fontSize: 8, color: item.debt_type === 'fixed' ? '#F59E0B' : '#EF4444', fontWeight: '900' }}>PENDIENTE</Text>
+                      <View style={{ backgroundColor: item.isChallenge ? '#F59E0B20' : item.debt_type === 'fixed' ? '#F59E0B20' : '#EF444420', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginTop: 4 }}>
+                        <Text style={{ fontSize: 8, color: item.isChallenge ? '#F59E0B' : item.debt_type === 'fixed' ? '#F59E0B' : '#EF4444', fontWeight: '900' }}>PENDIENTE</Text>
                       </View>
                     </View>
                   </TouchableOpacity>

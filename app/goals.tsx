@@ -49,7 +49,7 @@ export default function GoalsScreen() {
     const [newGoalImage, setNewGoalImage] = useState<string | null>(null);
     const [newGoalPriority, setNewGoalPriority] = useState<'high' | 'medium' | 'low'>('medium');
     const [newGoalInterest, setNewGoalInterest] = useState('');
-    const [activeTab, setActiveTab] = useState<'metas' | 'cajitas' | 'retos'>('metas');
+    const [activeTab, setActiveTab] = useState<'metas' | 'cajitas' | 'retos'>('cajitas');
     const [challenges, setChallenges] = useState<any[]>([]);
     const [newGoalEndDate, setNewGoalEndDate] = useState(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -77,6 +77,7 @@ export default function GoalsScreen() {
     const [withdrawAccountModalVisible, setWithdrawAccountModalVisible] = useState(false);
     const [withdrawAccountAmount, setWithdrawAccountAmount] = useState('');
     const [selectedDestAccount, setSelectedDestAccount] = useState('Efectivo');
+    const [selectedSourceAccount, setSelectedSourceAccount] = useState('Disponible');
 
     const openSelector = (action: 'pay' | 'withdraw') => {
         setSelectorAction(action);
@@ -373,16 +374,38 @@ export default function GoalsScreen() {
         const typedVal = parseInputToNumber(payAmount, currency);
         const val = convertToBase(typedVal, currency, rates);
         if (isNaN(val) || val <= 0) return;
-        if (val > availableAhorro) {
+        
+        if (selectedSourceAccount === 'Disponible' && val > availableAhorro) {
             Alert.alert('Saldo insuficiente', 'No tienes suficiente Ahorro Disponible.');
             return;
         }
+        
         const remainingNeeded = selectedGoal.target_amount - selectedGoal.current_amount;
         const actualAddition = Math.min(val, remainingNeeded);
         try {
+            setIsProcessing(true);
+            
+            if (selectedSourceAccount !== 'Disponible') {
+                const { error } = await supabase.from('transactions').insert([{
+                    user_id: user?.id,
+                    type: 'expense',
+                    amount: actualAddition,
+                    description: `Aporte a ${activeTab === 'metas' ? 'meta' : 'cajita'}: ${selectedGoal.name}`,
+                    category: 'Ahorro',
+                    account: selectedSourceAccount,
+                    date: getLocalISOString()
+                }]);
+                if (error) throw error;
+            }
+
             await supabase.from('goals').update({ current_amount: selectedGoal.current_amount + actualAddition }).eq('id', selectedGoal.id);
             setPayAmount(''); setPayModalVisible(false); loadData();
-        } catch (e) { console.error(e); }
+        } catch (e: any) { 
+            console.error(e);
+            Alert.alert('Error', e?.message || 'No se pudo procesar el aporte.');
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
     const handleWithdrawMoney = async () => {
@@ -391,9 +414,29 @@ export default function GoalsScreen() {
         const val = convertToBase(typedVal, currency, rates);
         if (isNaN(val) || val <= 0 || val > selectedGoal.current_amount) return;
         try {
+            setIsProcessing(true);
+            
+            if (selectedDestAccount !== 'Disponible') {
+                const { error } = await supabase.from('transactions').insert([{
+                    user_id: user?.id,
+                    type: 'income',
+                    amount: val,
+                    description: `Retiro de ${activeTab === 'metas' ? 'meta' : 'cajita'}: ${selectedGoal.name}`,
+                    category: 'Ahorro',
+                    account: selectedDestAccount,
+                    date: getLocalISOString()
+                }]);
+                if (error) throw error;
+            }
+
             await supabase.from('goals').update({ current_amount: selectedGoal.current_amount - val }).eq('id', selectedGoal.id);
             setWithdrawAmount(''); setWithdrawModalVisible(false); loadData();
-        } catch (e) { console.error(e); }
+        } catch (e: any) { 
+            console.error(e);
+            Alert.alert('Error', e?.message || 'No se pudo procesar el retiro.');
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
     const handleWithdrawToAccount = async () => {
@@ -504,11 +547,11 @@ export default function GoalsScreen() {
                 {/* TAB SELECTOR - NOW AT TOP */}
                 <View style={{ paddingHorizontal: 0, marginBottom: 20 }}>
                     <View style={{ flexDirection: 'row', borderRadius: 20, padding: 6, backgroundColor: colors.card }}>
-                        <TouchableOpacity onPress={() => setActiveTab('metas')} style={{ flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center', backgroundColor: activeTab === 'metas' ? colors.accent : 'transparent' }}>
-                            <Text style={{ fontSize: 13, fontWeight: '800', color: activeTab === 'metas' ? '#FFF' : colors.sub }}>Metas</Text>
-                        </TouchableOpacity>
                         <TouchableOpacity onPress={() => setActiveTab('cajitas')} style={{ flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center', backgroundColor: activeTab === 'cajitas' ? colors.accent : 'transparent' }}>
                             <Text style={{ fontSize: 13, fontWeight: '800', color: activeTab === 'cajitas' ? '#FFF' : colors.sub }}>Cajitas</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setActiveTab('metas')} style={{ flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center', backgroundColor: activeTab === 'metas' ? colors.accent : 'transparent' }}>
+                            <Text style={{ fontSize: 13, fontWeight: '800', color: activeTab === 'metas' ? '#FFF' : colors.sub }}>Metas</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setActiveTab('retos')} style={{ flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center', backgroundColor: activeTab === 'retos' ? colors.accent : 'transparent' }}>
                             <Text style={{ fontSize: 13, fontWeight: '800', color: activeTab === 'retos' ? '#FFF' : colors.sub }}>Retos</Text>
@@ -516,68 +559,44 @@ export default function GoalsScreen() {
                     </View>
                 </View>
 
-                {/* ── Resumen (Ocultar si es Retos) ── */}
-                {activeTab !== 'retos' ? (
-                    <View style={[styles.summaryBox, { backgroundColor: colors.card }]}>
-                        <View style={styles.summaryHeader}>
-                            <View style={[styles.iconBox, { backgroundColor: '#E0E7FF' }]}>
-                                <Ionicons name="wallet" size={20} color="#6366F1" />
-                            </View>
-                            <View>
-                                <Text style={[styles.summaryLabel, { color: colors.sub }]}>
-                                    {activeTab === 'metas' ? 'Total en Metas' : 'Total en Cajitas'}
+                {/* ── Headers ── */}
+                {activeTab === 'cajitas' && (
+                    <View style={{ marginBottom: 30, paddingHorizontal: 4 }}>
+                        <Text style={{ fontSize: 32, fontWeight: '900', color: colors.text }}>Mis Cajitas</Text>
+                        <Text style={{ color: colors.sub, fontSize: 14, fontWeight: '600', marginTop: 4 }}>
+                            Ahorra libremente y genera rendimientos diarios.
+                        </Text>
+                        <View style={{ marginTop: 16, backgroundColor: colors.accent + '15', padding: 16, borderRadius: 20 }}>
+                            <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '800' }}>TOTAL AHORRADO EN CAJITAS</Text>
+                            <Text style={{ color: colors.text, fontSize: 24, fontWeight: '900', marginTop: 4 }}>{fmt(totalCajitas)}</Text>
+                            {totalEarnings > 0 && (
+                                <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '800', marginTop: 4 }}>
+                                    +{fmt(totalEarnings)} en intereses generados
                                 </Text>
-                                <Text style={[styles.summaryMainVal, { color: colors.text }]}>
-                                    {activeTab === 'metas' ? fmt(totalMetas) : (
-                                        <Text>
-                                            {fmt(totalCajitas - totalEarnings)}
-                                            <Text style={{ color: '#10B981', fontSize: 16 }}> +{fmt(totalEarnings)}</Text>
-                                        </Text>
-                                    )}
-                                </Text>
-                            </View>
+                            )}
                         </View>
-                        <View style={[styles.progressBar, { backgroundColor: colors.bg }]}>
-                            <View style={[styles.progressFill, { width: `${Math.min(100, (assignedAhorro / (totalAhorro || 1)) * 100)}%`, backgroundColor: colors.accent }]} />
-                        </View>
-
-                        <View style={[styles.summaryFooter, { borderTopWidth: 1, borderTopColor: colors.bg, paddingTop: 16, marginTop: 4 }]}>
-                            <View style={{ flex: 1 }}>
-                                <Text style={[styles.footerLab, { color: colors.sub, textTransform: 'uppercase', letterSpacing: 0.5 }]}>Bolsa Total</Text>
-                                <Text style={[styles.footerVal, { color: colors.text, fontSize: 18 }]}>{fmt(totalAhorro)}</Text>
-                            </View>
-                            <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                                <Text style={[styles.footerLab, { color: colors.sub, textTransform: 'uppercase', letterSpacing: 0.5 }]}>Disponible</Text>
-                                <Text style={[styles.footerVal, { color: '#10B981', fontWeight: '900', fontSize: 18 }]}>{fmt(availableAhorro)}</Text>
-                            </View>
-                        </View>
-
-                        {availableAhorro > 0 && (
-                            <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
-                                <TouchableOpacity 
-                                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colors.accent + '15', paddingVertical: 10, borderRadius: 14 }} 
-                                    onPress={handleDistributeSavings}
-                                    disabled={isProcessing}
-                                >
-                                    <MaterialIcons name="auto-fix-high" size={14} color={colors.accent} />
-                                    <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '800' }}>{isProcessing ? '...' : 'Distribuir'}</Text>
-                                </TouchableOpacity>
-                                
-                                <TouchableOpacity 
-                                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, borderRadius: 14 }} 
-                                    onPress={() => setWithdrawAccountModalVisible(true)}
-                                >
-                                    <MaterialIcons name="account-balance-wallet" size={14} color={colors.text} />
-                                    <Text style={{ color: colors.text, fontSize: 12, fontWeight: '800' }}>Retirar a cuenta</Text>
-                                </TouchableOpacity>
-                            </View>
-                        )}
                     </View>
-                ) : (
-                    /* Header Alternativo para Retos */
+                )}
+
+                {activeTab === 'metas' && (
+                    <View style={{ marginBottom: 30, paddingHorizontal: 4 }}>
+                        <Text style={{ fontSize: 32, fontWeight: '900', color: colors.text }}>Mis Metas</Text>
+                        <Text style={{ color: colors.sub, fontSize: 14, fontWeight: '600', marginTop: 4 }}>
+                            Dales un nombre y persigue tus sueños.
+                        </Text>
+                        <View style={{ marginTop: 16, backgroundColor: colors.accent + '15', padding: 16, borderRadius: 20 }}>
+                            <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '800' }}>TOTAL AHORRADO EN METAS</Text>
+                            <Text style={{ color: colors.text, fontSize: 24, fontWeight: '900', marginTop: 4 }}>{fmt(totalMetas)}</Text>
+                        </View>
+                    </View>
+                )}
+
+                {activeTab === 'retos' && (
                     <View style={{ marginBottom: 30, paddingHorizontal: 4 }}>
                         <Text style={{ fontSize: 32, fontWeight: '900', color: colors.text }}>Mis Retos</Text>
-                        <Text style={{ color: colors.sub, fontSize: 14, fontWeight: '600', marginTop: 4 }}>Alcanza tus objetivos paso a paso</Text>
+                        <Text style={{ color: colors.sub, fontSize: 14, fontWeight: '600', marginTop: 4 }}>
+                            Alcanza tus objetivos paso a paso
+                        </Text>
                     </View>
                 )}
 
@@ -912,28 +931,60 @@ export default function GoalsScreen() {
                 <View style={styles.overlayCenter}>
                     <View style={[styles.miniModal, { backgroundColor: colors.card }]}>
                         <Text style={[styles.miniTitle, { color: colors.text }]}>Asignar Ahorro</Text>
+                        
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                            <Text style={[styles.miniSub, { color: colors.sub }]}>Disponible: {fmt(availableAhorro)}</Text>
+                            {selectedSourceAccount === 'Disponible' ? (
+                                <Text style={[styles.miniSub, { color: colors.sub }]}>Disponible: {fmt(availableAhorro)}</Text>
+                            ) : null}
                             <TouchableOpacity 
                                 onPress={() => {
-                                    const val = convertCurrency(availableAhorro, currency, rates);
+                                    const sourceAmount = selectedSourceAccount === 'Disponible' ? availableAhorro : (selectedGoal.target_amount - selectedGoal.current_amount);
+                                    const amountToUse = Math.min(sourceAmount, selectedGoal.target_amount - selectedGoal.current_amount);
+                                    const val = convertCurrency(amountToUse, currency, rates);
                                     const info = getCurrencyInfo(currency);
                                     const cleanStr = info.hasDecimals ? val.toFixed(2) : Math.floor(val).toString();
                                     setPayAmount(formatInput(cleanStr));
                                 }}
                                 style={{ backgroundColor: colors.accent + '20', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}
                             >
-                                <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '800' }}>USAR TODO</Text>
+                                <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '800' }}>USAR MÁXIMO</Text>
                             </TouchableOpacity>
                         </View>
-                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border, textAlign: 'center', fontSize: 24, width: '100%' }]} 
+                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border, textAlign: 'center', fontSize: 32, width: '100%', marginVertical: 10 }]} 
                             placeholder="$ 0" placeholderTextColor={colors.sub + '40'} keyboardType="decimal-pad" autoFocus
                             value={payAmount} onChangeText={t => setPayAmount(formatInput(t))} />
+
+                        <View style={{ width: '100%', marginTop: 10 }}>
+                            <Text style={[styles.mLabel, { color: colors.sub, marginBottom: 12 }]}>CUENTA DE ORIGEN</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                                {['Disponible', 'Efectivo', ...(customAccounts || [])].map(acc => (
+                                    <TouchableOpacity 
+                                        key={acc}
+                                        style={{ 
+                                            paddingHorizontal: 16, 
+                                            paddingVertical: 10, 
+                                            borderRadius: 12, 
+                                            backgroundColor: selectedSourceAccount === acc ? colors.accent : colors.bg,
+                                            borderWidth: 1,
+                                            borderColor: colors.border
+                                        }}
+                                        onPress={() => setSelectedSourceAccount(acc)}
+                                    >
+                                        <Text style={{ color: selectedSourceAccount === acc ? '#FFF' : colors.text, fontWeight: '700' }}>{acc}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+
                         <View style={styles.miniBtns}>
                             <TouchableOpacity style={[styles.miniBtn, { backgroundColor: colors.bg }]} onPress={() => setPayModalVisible(false)}>
                                 <Text style={{ color: colors.text }}>Cancelar</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[styles.miniBtn, { backgroundColor: colors.accent }]} onPress={handleAddMoney}>
+                            <TouchableOpacity 
+                                style={[styles.miniBtn, { backgroundColor: colors.accent }, (!payAmount || isProcessing) && { opacity: 0.6 }]} 
+                                onPress={handleAddMoney}
+                                disabled={!payAmount || isProcessing}
+                            >
                                 <Text style={{ color: '#FFF', fontWeight: '800' }}>Confirmar</Text>
                             </TouchableOpacity>
                         </View>
@@ -960,14 +1011,41 @@ export default function GoalsScreen() {
                                 <Text style={{ color: '#EF4444', fontSize: 10, fontWeight: '800' }}>RETIRAR TODO</Text>
                             </TouchableOpacity>
                         </View>
-                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border, textAlign: 'center', fontSize: 24, width: '100%' }]} 
+                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border, textAlign: 'center', fontSize: 32, width: '100%', marginVertical: 10 }]} 
                             placeholder="$ 0" placeholderTextColor={colors.sub + '40'} keyboardType="decimal-pad" autoFocus
                             value={withdrawAmount} onChangeText={t => setWithdrawAmount(formatInput(t))} />
+
+                        <View style={{ width: '100%', marginTop: 10 }}>
+                            <Text style={[styles.mLabel, { color: colors.sub, marginBottom: 12 }]}>CUENTA DE DESTINO</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                                {['Disponible', 'Efectivo', ...(customAccounts || [])].map(acc => (
+                                    <TouchableOpacity 
+                                        key={acc}
+                                        style={{ 
+                                            paddingHorizontal: 16, 
+                                            paddingVertical: 10, 
+                                            borderRadius: 12, 
+                                            backgroundColor: selectedDestAccount === acc ? '#EF4444' : colors.bg,
+                                            borderWidth: 1,
+                                            borderColor: colors.border
+                                        }}
+                                        onPress={() => setSelectedDestAccount(acc)}
+                                    >
+                                        <Text style={{ color: selectedDestAccount === acc ? '#FFF' : colors.text, fontWeight: '700' }}>{acc}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+
                         <View style={styles.miniBtns}>
                             <TouchableOpacity style={[styles.miniBtn, { backgroundColor: colors.bg }]} onPress={() => setWithdrawModalVisible(false)}>
                                 <Text style={{ color: colors.text }}>Cancelar</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[styles.miniBtn, { backgroundColor: '#EF4444' }]} onPress={handleWithdrawMoney}>
+                            <TouchableOpacity 
+                                style={[styles.miniBtn, { backgroundColor: '#EF4444' }, (!withdrawAmount || isProcessing) && { opacity: 0.6 }]} 
+                                onPress={handleWithdrawMoney}
+                                disabled={!withdrawAmount || isProcessing}
+                            >
                                 <Text style={{ color: '#FFF', fontWeight: '800' }}>Retirar</Text>
                             </TouchableOpacity>
                         </View>
