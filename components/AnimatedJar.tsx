@@ -74,12 +74,12 @@ export default function AnimatedJar({ pct, tierColor, coinCount, isDark = true, 
         if (showCoinDrop) {
             // Target is the next coin slot
             const newIndex = Math.min(coinCount, 19);
-            const cols = 4;
+            const cols = 3;
             const row = Math.floor(newIndex / cols);
             const col = newIndex % cols;
-            const offset = row % 2 === 1 ? 14 : 0;
-            const targetX = 36 + col * 28 + offset;
-            const targetY = 220 - row * 7;
+            const offset = row % 2 === 1 ? 12 : 0;
+            const targetX = 52 + col * 26 + offset;
+            const targetY = 205 - row * 7;
 
             coinX.setValue(75);
             coinY.setValue(-80); 
@@ -124,15 +124,15 @@ export default function AnimatedJar({ pct, tierColor, coinCount, isDark = true, 
 
     // Coin layout inside jar - stacking from bottom
     const maxCoins = Math.min(coinCount, 20);
-    const cols = 4;
+    const cols = 3;
     const coinSize = 24;
     const coinPositions = Array.from({ length: maxCoins }, (_, i) => {
         const row = Math.floor(i / cols);
         const col = i % cols;
-        const offset = row % 2 === 1 ? 14 : 0; // Stagger odd rows
+        const offset = row % 2 === 1 ? 12 : 0; // Stagger odd rows
         return {
-            x: 36 + col * 28 + offset,
-            y: 220 - row * 7,
+            x: 52 + col * 26 + offset,
+            y: 205 - row * 7,
         };
     });
 
