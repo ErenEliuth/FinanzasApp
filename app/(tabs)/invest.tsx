@@ -132,8 +132,11 @@ export default function InvestScreen() {
   }, [positions]);
 
   const updateBvc = async () => {
-    // Basic 5 stocks as requested
-    const defaultTickers = ['ECOPETROL', 'NU', 'TERPEL', 'MINEROS', 'ISA'];
+    // Colombian + International Blue Chips + Index Funds
+    const defaultTickers = [
+      'ECOPETROL', 'NU', 'TERPEL', 'MINEROS', 'ISA', 
+      'NVDA', 'AAPL', 'VOO', 'QQQ', 'BTC'
+    ];
     const combined = Array.from(new Set([
       ...defaultTickers,
       ...customWatchlist
@@ -157,18 +160,27 @@ export default function InvestScreen() {
     const insights: InvestmentInsight[] = [];
 
     // 1. Oportunidades en el mercado general (Top Caídas)
-    const bigDroppers = market
-      .filter(a => (a.changePercent || 0) < -1.5)
-      .sort((a, b) => (a.changePercent || 0) - (b.changePercent || 0))
-      .slice(0, 3);
-
-    bigDroppers.forEach(asset => {
+    const candidates = market.filter(a => (a.changePercent || 0) < -0.8);
+    
+    candidates.forEach(asset => {
       let priority: 'high' | 'medium' | 'low' = 'medium';
-      let reason = 'Fuerte retroceso diario. Punto de entrada técnico.';
+      let reason = 'Retroceso diario detectado.';
+      const isIntl = ['NVDA', 'AAPL', 'VOO', 'QQQ', 'BTC'].includes(asset.ticker);
       
-      if ((asset.changePercent || 0) < -3.5) {
+      if (asset.ticker === 'NVDA' && asset.changePercent < -2) {
+        reason = 'NVIDIA en oferta. El sector de IA presenta un punto de entrada atractivo.';
         priority = 'high';
-        reason = 'Caída severa. Oportunidad agresiva de compra.';
+      } else if (asset.ticker === 'VOO' && asset.changePercent < -1.5) {
+        reason = 'El S&P 500 está en descuento. Momento ideal para promediar el mercado de USA.';
+        priority = 'high';
+      } else if (asset.ticker === 'QQQ' && asset.changePercent < -1.5) {
+        reason = 'Tecnología pesada (Nasdaq) con retroceso saludable.';
+        priority = 'medium';
+      } else if (asset.changePercent < -3.5) {
+        priority = 'high';
+        reason = isIntl ? 'Activo internacional en zona de descuento agresiva.' : 'Caída severa en BVC. Oportunidad de compra técnica.';
+      } else if (asset.changePercent < -1.5) {
+        reason = isIntl ? 'Ajuste de precio en mercado global.' : 'Retroceso saludable en activo local.';
       }
 
       insights.push({
@@ -187,13 +199,13 @@ export default function InvestScreen() {
       const live = market.find(m => m.ticker === p.ticker);
       if (live && live.price) {
         const dropFromAvg = ((p.avgPrice - live.price) / p.avgPrice) * 100;
-        if (dropFromAvg > 4) {
+        if (dropFromAvg > 3) {
           insights.push({
             ticker: p.ticker,
             name: p.name || p.ticker,
-            reason: `Está un ${dropFromAvg.toFixed(1)}% abajo de tu promedio. ¡Ideal para promediar!`,
+            reason: `Un ${dropFromAvg.toFixed(1)}% abajo de tu costo promedio. Oportunidad de promediar a la baja.`,
             type: 'buy',
-            priority: dropFromAvg > 8 ? 'high' : 'medium',
+            priority: dropFromAvg > 7 ? 'high' : 'medium',
             price: live.price,
             change: live.changePercent || 0
           });
@@ -201,18 +213,18 @@ export default function InvestScreen() {
       }
     });
 
-    // 3. Recomendaciones "Safe Haven" si todo está verde
-    if (insights.length < 2) {
-      const nu = market.find(m => m.ticker === 'NU');
-      if (nu && (nu.changePercent || 0) < 0.5) {
+    // 3. Recomendaciones "Safe Haven" / Growth
+    if (insights.length < 3) {
+      const btc = market.find(m => m.ticker === 'BTC');
+      if (btc && btc.changePercent < 0) {
         insights.push({
-          ticker: 'NU',
-          name: 'Nubank',
-          reason: 'Activo con alto crecimiento. Mantener vigilancia para compras.',
+          ticker: btc.ticker,
+          name: btc.name || btc.ticker,
+          reason: 'Criptoactivo líder en zona de acumulación.',
           type: 'buy',
           priority: 'low',
-          price: nu.price || 0,
-          change: nu.changePercent || 0
+          price: btc.price || 0,
+          change: btc.changePercent || 0
         });
       }
     }
@@ -220,7 +232,7 @@ export default function InvestScreen() {
     setRecommendations(insights.sort((a, b) => {
         const pMap = { high: 0, medium: 1, low: 2 };
         return pMap[a.priority] - pMap[b.priority];
-    }).slice(0, 5));
+    }).slice(0, 6));
   };
 
   const getMarketStatus = () => {
@@ -737,58 +749,70 @@ export default function InvestScreen() {
                   </TouchableOpacity>
                 </View>
 
-                {/* HEALTH SCORE GAUGE */}
-                <View style={{ width: '100%', height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, marginTop: 25 }}>
-                   <View style={{ width: `${healthScore}%`, height: '100%', backgroundColor: '#FFF', borderRadius: 2 }} />
-                </View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-                   <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: '800' }}>SALUD PORTAFOLIO</Text>
-                   <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '900' }}>{healthScore}/100</Text>
-                </View>
+                 {/* 📊 MINI GRÁFICA DE RENDIMIENTO (SIMULADA) */}
+                 {showPerfChart && (
+                   <View style={{ width: '100%', height: 70, marginTop: 15, justifyContent: 'center' }}>
+                     <LineChart
+                       data={{
+                         labels: ["1", "2", "3", "4", "5", "6"],
+                         datasets: [{
+                           data: [
+                             totalCurrent * 0.95 + 100, 
+                             totalCurrent * 0.97 - 50, 
+                             totalCurrent * 0.98 + 20, 
+                             totalCurrent * 0.96 + 80, 
+                             totalCurrent * 0.99 - 10, 
+                             totalCurrent
+                           ]
+                         }]
+                       }}
+                       width={Dimensions.get('window').width - 80}
+                       height={60}
+                       chartConfig={{
+                         backgroundColor: 'transparent',
+                         backgroundGradientFrom: '#FFF',
+                         backgroundGradientTo: '#FFF',
+                         backgroundGradientFromOpacity: 0,
+                         backgroundGradientToOpacity: 0,
+                         paddingRight: 0,
+                         paddingTop: 0,
+                         decimalPlaces: 0,
+                         color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                         style: { borderRadius: 16 },
+                         propsForBackgroundLines: { strokeOpacity: 0 },
+                         propsForDots: { r: "0" }
+                       }}
+                       bezier
+                       style={{ marginLeft: -20, marginBottom: -10 }}
+                       withInnerLines={false}
+                       withOuterLines={false}
+                       withHorizontalLabels={false}
+                       withVerticalLabels={false}
+                     />
+                   </View>
+                 )}
 
-                {/* 📊 MINI GRÁFICA DE RENDIMIENTO (SIMULADA) */}
-                {showPerfChart && (
-                  <View style={{ width: '100%', height: 70, marginTop: 15, justifyContent: 'center' }}>
-                    <LineChart
-                      data={{
-                        labels: ["1", "2", "3", "4", "5", "6"],
-                        datasets: [{
-                          data: [
-                            totalCurrent * 0.95 + 100, 
-                            totalCurrent * 0.97 - 50, 
-                            totalCurrent * 0.98 + 20, 
-                            totalCurrent * 0.96 + 80, 
-                            totalCurrent * 0.99 - 10, 
-                            totalCurrent
-                          ]
-                        }]
-                      }}
-                      width={Dimensions.get('window').width - 80}
-                      height={60}
-                      chartConfig={{
-                        backgroundColor: 'transparent',
-                        backgroundGradientFrom: '#FFF',
-                        backgroundGradientTo: '#FFF',
-                        backgroundGradientFromOpacity: 0,
-                        backgroundGradientToOpacity: 0,
-                        paddingRight: 0,
-                        paddingTop: 0,
-                        decimalPlaces: 0,
-                        color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-                        style: { borderRadius: 16 },
-                        propsForBackgroundLines: { strokeOpacity: 0 },
-                        propsForDots: { r: "0" }
-                      }}
-                      bezier
-                      style={{ marginLeft: -20, marginBottom: -10 }}
-                      withInnerLines={false}
-                      withOuterLines={false}
-                      withHorizontalLabels={false}
-                      withVerticalLabels={false}
-                    />
-                  </View>
-                )}
-              </LinearGradient>
+                 {/* 🏷️ CONSOLIDATED QUICK STATS (Inside Card) */}
+                 <View style={{ flexDirection: 'row', width: '100%', marginTop: showPerfChart ? 5 : 20, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', justifyContent: 'space-between' }}>
+                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                     <MaterialIcons name="pie-chart" size={14} color="rgba(255,255,255,0.7)" />
+                     <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800' }}>{positions.length} ACTIVOS</Text>
+                   </View>
+                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                     <MaterialIcons name="payments" size={14} color="rgba(255,255,255,0.7)" />
+                     <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800' }}>{fmt(nextMonthDiv)} PRÓX. DIV</Text>
+                   </View>
+                 </View>
+
+                 {/* HEALTH SCORE GAUGE */}
+                 <View style={{ width: '100%', height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, marginTop: 15 }}>
+                    <View style={{ width: `${healthScore}%`, height: '100%', backgroundColor: '#FFF', borderRadius: 2 }} />
+                 </View>
+                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+                    <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 9, fontWeight: '800' }}>SALUD PORTAFOLIO</Text>
+                    <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900' }}>{healthScore}/100</Text>
+                 </View>
+               </LinearGradient>
 
               {/* 🕒 BVC MARKET STATUS SECTION */}
               <View style={[s.bvcMarketSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -860,58 +884,41 @@ export default function InvestScreen() {
 
               {/* 🧠 IA INSIGHTS SECTION */}
               {recommendations.length > 0 && (
-                <View style={[s.santyAdviceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                      <View style={[s.adviceIconWrap, { backgroundColor: colors.accent + '20' }]}>
-                        <MaterialCommunityIcons name="robot-confused" size={22} color={colors.accent} />
+                <View style={[s.santyAdviceCard, { backgroundColor: colors.card, borderColor: colors.border, padding: 16 }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <View style={[s.adviceIconWrap, { backgroundColor: colors.accent + '20', width: 32, height: 32 }]}>
+                        <MaterialCommunityIcons name="robot-confused" size={18} color={colors.accent} />
                       </View>
                       <View>
-                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>IA Inversiones</Text>
-                        <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '700' }}>Análisis técnico de Santy</Text>
+                        <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900' }}>Santy IA</Text>
+                        <Text style={{ color: colors.sub, fontSize: 9, fontWeight: '700' }}>Insights del mercado</Text>
                       </View>
                     </View>
-                    <View style={{ backgroundColor: colors.accent + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 }}>
-                      <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '900' }}>{recommendations.length} IDEAS</Text>
+                    <View style={{ backgroundColor: colors.accent + '15', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+                      <Text style={{ color: colors.accent, fontSize: 9, fontWeight: '900' }}>{recommendations.length} IDEAS</Text>
                     </View>
                   </View>
 
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20, paddingHorizontal: 20 }}>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -16, paddingHorizontal: 16 }}>
                     {recommendations.map((rec, i) => (
-                      <View key={i} style={[s.adviceItem, { backgroundColor: colors.bg, borderColor: colors.border, width: 280, marginRight: 12 }]}>
+                      <View key={i} style={[s.adviceItem, { backgroundColor: colors.bg, borderColor: colors.border, width: 220, marginRight: 10, padding: 12 }]}>
                         <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900' }}>{rec.ticker}</Text>
-                              <View style={{ backgroundColor: rec.priority === 'high' ? '#EF444420' : '#F59E0B20', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                                <Text style={{ color: rec.priority === 'high' ? '#EF4444' : '#F59E0B', fontSize: 8, fontWeight: '900' }}>{rec.priority.toUpperCase()}</Text>
+                              <Text style={{ color: colors.text, fontSize: 13, fontWeight: '900' }}>{rec.ticker}</Text>
+                              <View style={{ backgroundColor: rec.priority === 'high' ? '#EF444420' : '#F59E0B20', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 5 }}>
+                                <Text style={{ color: rec.priority === 'high' ? '#EF4444' : '#F59E0B', fontSize: 7, fontWeight: '900' }}>{rec.priority.toUpperCase()}</Text>
                               </View>
                             </View>
-                            <Text style={{ color: rec.change >= 0 ? '#10B981' : '#EF4444', fontSize: 12, fontWeight: '800' }}>
+                            <Text style={{ color: rec.change >= 0 ? '#10B981' : '#EF4444', fontSize: 11, fontWeight: '800' }}>
                               {rec.change >= 0 ? '+' : ''}{rec.change.toFixed(2)}%
                             </Text>
                           </View>
                           
-                          <Text style={{ color: colors.text, fontSize: 12, fontWeight: '600', lineHeight: 16, marginBottom: 12 }}>
+                          <Text style={{ color: colors.text, fontSize: 11, fontWeight: '600', lineHeight: 14 }}>
                             {rec.reason}
                           </Text>
-
-                          <TouchableOpacity 
-                            style={[s.addSmallBtn, { backgroundColor: colors.accent, width: '100%', flexDirection: 'row', gap: 6, height: 36 }]}
-                            onPress={() => {
-                                handleSelectAsset({
-                                    ticker: rec.ticker,
-                                    name: rec.name,
-                                    price: rec.price,
-                                    type: 'stock',
-                                    currency: 'COP'
-                                });
-                                setModalVisible(true);
-                            }}
-                          >
-                            <Ionicons name="cart-outline" size={16} color="#FFF" />
-                            <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900' }}>COMPRAR AHORA</Text>
-                          </TouchableOpacity>
                         </View>
                       </View>
                     ))}
@@ -920,37 +927,25 @@ export default function InvestScreen() {
                 </View>
               )}
 
-              {/* Quick Stats Row */}
-              <View style={s.quickRow}>
-                <View style={[s.quickStat, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <MaterialIcons name="pie-chart" size={18} color={colors.accent} />
-                  <Text style={[s.quickNum, { color: colors.text }]}>{positions.length}</Text>
-                  <Text style={[s.quickLabel, { color: colors.sub }]}>Activos</Text>
-                </View>
-                <View style={[s.quickStat, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <MaterialIcons name="payments" size={18} color="#3B82F6" />
-                  <Text style={[s.quickNum, { color: colors.text }]}>{fmt(nextMonthDiv)}</Text>
-                  <Text style={[s.quickLabel, { color: colors.sub }]}>Próx. Div</Text>
-                </View>
-              </View>
-
-              {/* Navigation Cards */}
-              <View style={{ gap: 12, marginTop: 8 }}>
-                {[
-                  { id: 'portfolio', label: 'Mi Portafolio', sub: `${positions.length} activos · ${fmt(totalCurrent)}`, icon: 'pie-chart', color: colors.accent },
-                  { id: 'calendar', label: 'Dividendos & Rentas', sub: `Anual est: ${fmt(projectedDivs.reduce((a,b)=>a+b, 0))}`, icon: 'calendar-month', color: '#3B82F6' },
-                ].map(item => (
-                  <TouchableOpacity key={item.id} style={[s.navCard, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => setActiveTab(item.id as any)}>
-                    <View style={[s.navIcon, { backgroundColor: item.color + '12' }]}>
-                      <MaterialIcons name={item.icon as any} size={24} color={item.color} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800' }}>{item.label}</Text>
-                      <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '600', marginTop: 2 }}>{item.sub}</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={18} color={colors.sub} />
-                  </TouchableOpacity>
-                ))}
+              {/* Main Portfolio Navigation */}
+              <View style={{ marginTop: 8 }}>
+                <TouchableOpacity 
+                  style={[s.navCard, { backgroundColor: colors.card, borderColor: colors.border, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 16, borderRadius: 20 }]} 
+                  onPress={() => setActiveTab('portfolio')}
+                >
+                  <View style={[s.navIcon, { backgroundColor: colors.accent + '12', width: 48, height: 48, borderRadius: 16 }]}>
+                    <MaterialIcons name="pie-chart" size={24} color={colors.accent} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>Mi Portafolio</Text>
+                    <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '600', marginTop: 2 }}>
+                      {positions.length} activos · {fmt(totalCurrent)} actuales
+                    </Text>
+                  </View>
+                  <View style={{ backgroundColor: colors.bg, padding: 6, borderRadius: 10 }}>
+                    <Ionicons name="chevron-forward" size={16} color={colors.sub} />
+                  </View>
+                </TouchableOpacity>
               </View>
             </View>
           )}
