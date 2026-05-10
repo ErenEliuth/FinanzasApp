@@ -46,6 +46,16 @@ const MOCK_DIVS: Record<string, { yield: number, months: number[] }> = {
   'AAPL': { yield: 2.4, months: [1, 4, 7, 10] },
 };
 
+interface InvestmentInsight {
+  ticker: string;
+  name: string;
+  reason: string;
+  type: 'buy' | 'warning';
+  priority: 'high' | 'medium' | 'low';
+  price: number;
+  change: number;
+}
+
 const TRII_FEE = 14875;
 
 export default function InvestScreen() {
@@ -94,6 +104,7 @@ export default function InvestScreen() {
   const [hiddenBvcTickers, setHiddenBvcTickers] = useState<string[]>([]);
   const [customWatchlist, setCustomWatchlist] = useState<string[]>([]);
   const [isAddingToWatchlist, setIsAddingToWatchlist] = useState(false);
+  const [recommendations, setRecommendations] = useState<InvestmentInsight[]>([]);
 
   const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates || {}), currency, isHidden);
   const usdToCop = rates?.USD || 3950;
@@ -136,9 +147,80 @@ export default function InvestScreen() {
       }));
       setBvcMarket(volatileData);
       setLastBvcUpdate(new Date());
+      generateRecommendations(volatileData, positions);
     } catch (err) {
       console.error("Failed to update BVC:", err);
     }
+  };
+
+  const generateRecommendations = (market: SearchResult[], pos: Position[]) => {
+    const insights: InvestmentInsight[] = [];
+
+    // 1. Oportunidades en el mercado general (Top Caídas)
+    const bigDroppers = market
+      .filter(a => (a.changePercent || 0) < -1.5)
+      .sort((a, b) => (a.changePercent || 0) - (b.changePercent || 0))
+      .slice(0, 3);
+
+    bigDroppers.forEach(asset => {
+      let priority: 'high' | 'medium' | 'low' = 'medium';
+      let reason = 'Fuerte retroceso diario. Punto de entrada técnico.';
+      
+      if ((asset.changePercent || 0) < -3.5) {
+        priority = 'high';
+        reason = 'Caída severa. Oportunidad agresiva de compra.';
+      }
+
+      insights.push({
+        ticker: asset.ticker,
+        name: asset.name || asset.ticker,
+        reason,
+        type: 'buy',
+        priority,
+        price: asset.price || 0,
+        change: asset.changePercent || 0
+      });
+    });
+
+    // 2. Oportunidades en Portafolio (Buy the Dip)
+    pos.forEach(p => {
+      const live = market.find(m => m.ticker === p.ticker);
+      if (live && live.price) {
+        const dropFromAvg = ((p.avgPrice - live.price) / p.avgPrice) * 100;
+        if (dropFromAvg > 4) {
+          insights.push({
+            ticker: p.ticker,
+            name: p.name || p.ticker,
+            reason: `Está un ${dropFromAvg.toFixed(1)}% abajo de tu promedio. ¡Ideal para promediar!`,
+            type: 'buy',
+            priority: dropFromAvg > 8 ? 'high' : 'medium',
+            price: live.price,
+            change: live.changePercent || 0
+          });
+        }
+      }
+    });
+
+    // 3. Recomendaciones "Safe Haven" si todo está verde
+    if (insights.length < 2) {
+      const nu = market.find(m => m.ticker === 'NU');
+      if (nu && (nu.changePercent || 0) < 0.5) {
+        insights.push({
+          ticker: 'NU',
+          name: 'Nubank',
+          reason: 'Activo con alto crecimiento. Mantener vigilancia para compras.',
+          type: 'buy',
+          priority: 'low',
+          price: nu.price || 0,
+          change: nu.changePercent || 0
+        });
+      }
+    }
+
+    setRecommendations(insights.sort((a, b) => {
+        const pMap = { high: 0, medium: 1, low: 2 };
+        return pMap[a.priority] - pMap[b.priority];
+    }).slice(0, 5));
   };
 
   const getMarketStatus = () => {
@@ -775,6 +857,68 @@ export default function InvestScreen() {
                     <View style={{ width: 40 }} />
                 </ScrollView>
               </View>
+
+              {/* 🧠 IA INSIGHTS SECTION */}
+              {recommendations.length > 0 && (
+                <View style={[s.santyAdviceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <View style={[s.adviceIconWrap, { backgroundColor: colors.accent + '20' }]}>
+                        <MaterialCommunityIcons name="robot-confused" size={22} color={colors.accent} />
+                      </View>
+                      <View>
+                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>IA Inversiones</Text>
+                        <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '700' }}>Análisis técnico de Santy</Text>
+                      </View>
+                    </View>
+                    <View style={{ backgroundColor: colors.accent + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 }}>
+                      <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '900' }}>{recommendations.length} IDEAS</Text>
+                    </View>
+                  </View>
+
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20, paddingHorizontal: 20 }}>
+                    {recommendations.map((rec, i) => (
+                      <View key={i} style={[s.adviceItem, { backgroundColor: colors.bg, borderColor: colors.border, width: 280, marginRight: 12 }]}>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900' }}>{rec.ticker}</Text>
+                              <View style={{ backgroundColor: rec.priority === 'high' ? '#EF444420' : '#F59E0B20', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                                <Text style={{ color: rec.priority === 'high' ? '#EF4444' : '#F59E0B', fontSize: 8, fontWeight: '900' }}>{rec.priority.toUpperCase()}</Text>
+                              </View>
+                            </View>
+                            <Text style={{ color: rec.change >= 0 ? '#10B981' : '#EF4444', fontSize: 12, fontWeight: '800' }}>
+                              {rec.change >= 0 ? '+' : ''}{rec.change.toFixed(2)}%
+                            </Text>
+                          </View>
+                          
+                          <Text style={{ color: colors.text, fontSize: 12, fontWeight: '600', lineHeight: 16, marginBottom: 12 }}>
+                            {rec.reason}
+                          </Text>
+
+                          <TouchableOpacity 
+                            style={[s.addSmallBtn, { backgroundColor: colors.accent, width: '100%', flexDirection: 'row', gap: 6, height: 36 }]}
+                            onPress={() => {
+                                handleSelectAsset({
+                                    ticker: rec.ticker,
+                                    name: rec.name,
+                                    price: rec.price,
+                                    type: 'stock',
+                                    currency: 'COP'
+                                });
+                                setModalVisible(true);
+                            }}
+                          >
+                            <Ionicons name="cart-outline" size={16} color="#FFF" />
+                            <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900' }}>COMPRAR AHORA</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))}
+                    <View style={{ width: 20 }} />
+                  </ScrollView>
+                </View>
+              )}
 
               {/* Quick Stats Row */}
               <View style={s.quickRow}>

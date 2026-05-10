@@ -9,7 +9,7 @@ import { getLocalISOString } from '@/utils/dateUtils';
 import { parseLocalDate } from '@/utils/dateUtils';
 import {
     Alert, Modal, Platform, SafeAreaView, FlatList, ScrollView,
-    StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Dimensions
+    StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Dimensions, TextInput
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Rect, Path, Circle, Text as SvgText } from 'react-native-svg';
@@ -50,6 +50,10 @@ export default function ChallengeDetailScreen() {
     const [coinDrop, setCoinDrop] = useState(false);
     const [coinRemove, setCoinRemove] = useState(false);
 
+    const [editModalVisible, setEditModalVisible] = useState(false);
+    const [editName, setEditName] = useState('');
+    const [editTarget, setEditTarget] = useState('');
+
     const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
 
     useEffect(() => { loadChallenge(); }, [id]);
@@ -59,9 +63,38 @@ export default function ChallengeDetailScreen() {
         try {
             const { data, error } = await supabase.from('saving_challenges').select('*').eq('id', id).single();
             if (error) throw error;
+            
+            // Punto 5: Reconciliación de saldo (Simplificado para evitar errores de sintaxis en el filtro)
+            try {
+                const { data: txs, error: txError } = await supabase
+                    .from('transactions')
+                    .select('amount')
+                    .eq('user_id', user.id)
+                    .ilike('description', `Ahorro Reto: %`);
+                
+                if (!txError && txs) {
+                    // Filtramos localmente para ser más seguros con nombres especiales
+                    const filteredTxs = txs.filter(tx => 
+                        tx.description === `Ahorro Reto: ${data.name}` || 
+                        tx.description === `Ahorro Reto: ${data.name} #${id}` ||
+                        tx.description?.includes(`#${id}`)
+                    );
+                    const realAmount = filteredTxs.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+                    
+                    if (realAmount !== data.current_amount) {
+                        await supabase.from('saving_challenges').update({ current_amount: realAmount }).eq('id', id);
+                        data.current_amount = realAmount;
+                    }
+                }
+            } catch (reconcileError) {
+                console.warn('Reconciliation failed:', reconcileError);
+            }
+
             setChallenge(data);
+            setEditName(data?.name || '');
+            setEditTarget((data?.target_amount || 0).toString());
         } catch (e) {
-            console.error(e);
+            console.error('Load challenge error:', e);
             if (Platform.OS === 'web') window.alert('No se pudo cargar el reto.');
             else Alert.alert('Error', 'No se pudo cargar el reto.');
             router.back();
@@ -125,9 +158,10 @@ export default function ChallengeDetailScreen() {
             }).eq('id', challenge.id);
             if (updateError) throw updateError;
 
+            // Punto 1: Vincular por ID en la descripción para mayor seguridad
             await supabase.from('transactions').insert([{
                 user_id: user?.id, type: 'expense', amount: amountToPay,
-                description: `Ahorro Reto: ${challenge.name}`, category: 'Ahorro',
+                description: `Ahorro Reto: ${challenge.name} #${challenge.id}`, category: 'Ahorro',
                 account: selectedAccount, date: getLocalISOString()
             }]);
 
@@ -167,9 +201,10 @@ export default function ChallengeDetailScreen() {
             }).eq('id', challenge.id);
             if (error) throw error;
 
+            // Punto 1: Buscar por ID o descripción exacta (retrocompatibilidad)
             await supabase.from('transactions').delete()
                 .eq('user_id', user?.id)
-                .eq('description', `Ahorro Reto: ${challenge.name}`)
+                .or(`description.eq.Ahorro Reto: ${challenge.name},description.eq.Ahorro Reto: ${challenge.name} #${challenge.id}`)
                 .eq('amount', amountToUndo)
                 .limit(1);
 
@@ -196,13 +231,76 @@ export default function ChallengeDetailScreen() {
         return { colors: ['#F59E0B', '#B45309'], label: 'ORO' };
     };
 
+    const handleEditChallenge = async () => {
+        if (!editName.trim() || isProcessing) return;
+        setIsProcessing(true);
+        try {
+            const newTarget = Number(editTarget);
+            if (isNaN(newTarget) || newTarget <= 0) throw new Error("Meta inválida");
+
+            const { error } = await supabase.from('saving_challenges').update({
+                name: editName.trim(),
+                target_amount: newTarget
+            }).eq('id', challenge.id);
+
+            if (error) throw error;
+
+            setEditModalVisible(false);
+            loadChallenge();
+            if (Platform.OS === 'web') window.alert('Reto actualizado correctamente.');
+            else Alert.alert('Éxito', 'Reto actualizado correctamente.');
+        } catch (e: any) {
+            console.error(e);
+            Alert.alert('Error', e.message || 'No se pudo actualizar el reto.');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
     const handleDelete = () => {
+        const dailyAmounts = parseData(challenge.daily_amounts);
+        const completedIndices = parseData(challenge.completed_indices);
+        const isFinished = completedIndices.length >= dailyAmounts.length && dailyAmounts.length > 0;
+
         const doIt = async () => {
-            await supabase.from('saving_challenges').delete().eq('id', challenge.id);
-            router.back();
+            setIsProcessing(true);
+            try {
+                if (!isFinished) {
+                    // 1. Eliminar transacciones asociadas (Punto 1: Soporte para ID y nombre)
+                    const { error: txError } = await supabase
+                        .from('transactions')
+                        .delete()
+                        .eq('user_id', user?.id)
+                        .or(`description.eq.Ahorro Reto: ${challenge.name},description.like.%#${challenge.id}`);
+                    
+                    if (txError) throw txError;
+                }
+
+                // 2. Eliminar el reto
+                const { error: challengeError } = await supabase
+                    .from('saving_challenges')
+                    .delete()
+                    .eq('id', challenge.id);
+                
+                if (challengeError) throw challengeError;
+
+                router.back();
+            } catch (e) {
+                console.error(e);
+                if (Platform.OS === 'web') window.alert('Error: No se pudo eliminar el reto.');
+                else Alert.alert('Error', 'No se pudo eliminar el reto.');
+            } finally {
+                setIsProcessing(false);
+            }
         };
-        if (Platform.OS === 'web') { if (window.confirm('¿Eliminar este reto?')) doIt(); }
-        else Alert.alert('Eliminar Reto', '¿Deseas eliminar este reto?', [
+
+        const confirmMsg = isFinished 
+            ? `¿Eliminar el reto "${challenge.name}"? Como ya lo terminaste, los registros de ahorro se mantendrán en tu historial.`
+            : `¿Eliminar "${challenge.name}"? Los fondos ahorrados volverán a tus cuentas originales.`;
+
+        if (Platform.OS === 'web') { 
+            if (window.confirm(confirmMsg)) doIt(); 
+        }
+        else Alert.alert('Eliminar Reto', confirmMsg, [
             { text: 'Cancelar', style: 'cancel' },
             { text: 'Eliminar', style: 'destructive', onPress: doIt }
         ]);
@@ -254,6 +352,9 @@ export default function ChallengeDetailScreen() {
                         <Text style={[st.headerTitle, { color: colors.text }]}>{challenge.name}</Text>
                         <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>Meta: {fmt(challenge.target_amount)}</Text>
                     </View>
+                    <TouchableOpacity onPress={() => setEditModalVisible(true)} style={[st.circleBtn, { backgroundColor: colors.card, marginRight: 8 }]}>
+                        <Ionicons name="pencil-outline" size={20} color={colors.text} />
+                    </TouchableOpacity>
                     <TouchableOpacity onPress={handleDelete} style={[st.circleBtn, { backgroundColor: colors.card }]}>
                         <Ionicons name="trash-outline" size={20} color="#EF4444" />
                     </TouchableOpacity>
@@ -334,11 +435,20 @@ export default function ChallengeDetailScreen() {
                                         <Circle cx="110" cy="52" r="28" fill="#66BB6A" stroke="#388E3C" strokeWidth="1.5" />
                                         <Circle cx="110" cy="52" r="22" fill="#81C784" stroke="#388E3C" strokeWidth="0.8" />
                                     </Svg>
+                                    {/* Punto 3: Visual de día vencido */}
+                                    {item.index < diffDays - 1 && (
+                                        <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: '#EF4444', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, zIndex: 1 }}>
+                                            <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900' }}>VENCIDO</Text>
+                                        </View>
+                                    )}
+                                    
                                     {/* Overlay text */}
                                     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
                                         <Text style={{ color: '#1B5E20', fontSize: 8, fontWeight: '900', letterSpacing: 2, marginBottom: 2 }}>DÍA {item.index + 1}</Text>
                                         <Text style={{ color: '#1B5E20', fontSize: 16, fontWeight: '900' }}>{fmt(item.amount)}</Text>
-                                        <Text style={{ color: '#2E7D32', fontSize: 8, fontWeight: '700', marginTop: 4, opacity: 0.7 }}>TOCA PARA AHORRAR</Text>
+                                        <Text style={{ color: item.index < diffDays - 1 ? '#EF4444' : '#2E7D32', fontSize: 8, fontWeight: '700', marginTop: 4, opacity: 0.9 }}>
+                                            {item.index < diffDays - 1 ? '¡PONTE AL DÍA!' : 'TOCA PARA AHORRAR'}
+                                        </Text>
                                     </View>
                                 </TouchableOpacity>
                             )}
@@ -428,6 +538,51 @@ export default function ChallengeDetailScreen() {
                             </TouchableOpacity>
                             <TouchableOpacity style={[st.btn, { backgroundColor: colors.accent }]} onPress={handlePayAmount} disabled={isProcessing}>
                                 <Text style={{ color: '#FFF', fontWeight: '800' }}>{isProcessing ? '...' : '💰 Ahorrar'}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+            {/* Modal Editar Reto (Punto 2) */}
+            <Modal visible={editModalVisible} transparent animationType="slide">
+                <View style={st.overlay}>
+                    <View style={[st.modal, { backgroundColor: colors.card }]}>
+                        <Text style={[st.modalTitle, { color: colors.text }]}>Editar Reto</Text>
+                        
+                        <View style={{ width: '100%', marginBottom: 16 }}>
+                            <Text style={[st.label, { color: colors.sub }]}>NOMBRE DEL RETO</Text>
+                            <View style={{ backgroundColor: colors.bg, borderRadius: 16, padding: 4 }}>
+                                <TextInput 
+                                    style={{ color: colors.text, padding: 12, fontSize: 16, fontWeight: '600' }}
+                                    value={editName}
+                                    onChangeText={setEditName}
+                                    placeholder="Nombre del reto"
+                                    placeholderTextColor={colors.sub + '80'}
+                                />
+                            </View>
+                        </View>
+
+                        <View style={{ width: '100%', marginBottom: 24 }}>
+                            <Text style={[st.label, { color: colors.sub }]}>META TOTAL (SOLO VISUAL)</Text>
+                            <View style={{ backgroundColor: colors.bg, borderRadius: 16, padding: 4 }}>
+                                <TextInput 
+                                    style={{ color: colors.text, padding: 12, fontSize: 16, fontWeight: '600' }}
+                                    value={editTarget}
+                                    onChangeText={setEditTarget}
+                                    keyboardType="numeric"
+                                    placeholder="Valor de la meta"
+                                    placeholderTextColor={colors.sub + '80'}
+                                />
+                            </View>
+                            <Text style={{ color: colors.sub, fontSize: 10, marginTop: 4 }}>* Cambiar la meta no recalcula los días actuales.</Text>
+                        </View>
+
+                        <View style={st.modalBtns}>
+                            <TouchableOpacity style={[st.btn, { backgroundColor: colors.bg }]} onPress={() => setEditModalVisible(false)}>
+                                <Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[st.btn, { backgroundColor: colors.accent }]} onPress={handleEditChallenge} disabled={isProcessing}>
+                                <Text style={{ color: '#FFF', fontWeight: '800' }}>{isProcessing ? '...' : 'Guardar'}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
