@@ -67,7 +67,7 @@ export default function LoansScreen() {
     const [selectedLoan, setSelectedLoan] = useState<LoanItem | null>(null);
     const [payAmount, setPayAmount] = useState('');
     const [accounts, setAccounts] = useState<string[]>(['Efectivo']);
-    const [selectedAccount, setSelectedAccount] = useState('Efectivo');
+    const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
 
     const scrollRef = useRef<any>(null);
 
@@ -130,21 +130,23 @@ export default function LoansScreen() {
             } else {
                 await supabase.from('debts').insert([{ user_id: user?.id, client: name.trim(), value: val, paid: 0, due_date: dateStr, debt_type: 'loan', created_date: getLocalISOString() }]);
                 // When lending money, create an expense transaction to deduct it from the account
-                await supabase.from('transactions').insert([{ 
-                    user_id: user?.id, 
-                    amount: val, 
-                    type: 'expense', 
-                    category: 'Préstamos', 
-                    description: `Préstamo a ${name.trim()}`, 
-                    account: selectedAccount, 
-                    date: getLocalISOString() 
-                }]);
+                if (selectedAccount) {
+                    await supabase.from('transactions').insert([{ 
+                        user_id: user?.id, 
+                        amount: val, 
+                        type: 'expense', 
+                        category: 'Préstamos', 
+                        description: `Préstamo a ${name.trim()}`, 
+                        account: selectedAccount, 
+                        date: getLocalISOString() 
+                    }]);
+                }
             }
             setModalVisible(false); resetForm(); loadData();
         } catch (e) { console.error(e); }
     };
 
-    const resetForm = () => { setName(''); setAmount(''); setDueDate(new Date()); setIsEditing(false); setEditId(null); setSelectedAccount('Efectivo'); };
+    const resetForm = () => { setName(''); setAmount(''); setDueDate(new Date()); setIsEditing(false); setEditId(null); setSelectedAccount(null); };
 
     const handleEditStart = (item: LoanItem) => {
         setName(item.client);
@@ -169,6 +171,11 @@ export default function LoansScreen() {
 
     const handlePayment = async () => {
         if (!selectedLoan) return;
+        if (!selectedAccount) {
+            if (Platform.OS === 'web') window.alert('Selecciona una cuenta destino');
+            else Alert.alert('Error', 'Selecciona una cuenta destino');
+            return;
+        }
         const typedPay = parseInputToNumber(payAmount, currency);
         const pVal = convertToBase(typedPay, currency, rates);
         if (isNaN(pVal) || pVal <= 0) return;
@@ -249,7 +256,7 @@ export default function LoansScreen() {
                             <TouchableOpacity 
                                 key={item.id} 
                                 style={[styles.itemCard, { backgroundColor: colors.card }]}
-                                onPress={() => { setSelectedLoan(item); setPayModalVisible(true); }}
+                                onPress={() => { setSelectedAccount(accounts[0] || 'Efectivo'); setSelectedLoan(item); setPayModalVisible(true); }}
                                 onLongPress={() => handleEditStart(item)}
                             >
                                 <View style={styles.cardInfo}>
@@ -353,6 +360,9 @@ export default function LoansScreen() {
                                 <>
                                     <Text style={[styles.mLabel, { color: colors.sub, marginTop: 10, marginBottom: 8 }]}>CUENTA ORIGEN (de donde sale el dinero)</Text>
                                     <View style={styles.accountRow}>
+                                        <TouchableOpacity onPress={() => setSelectedAccount(null)} style={[styles.accBtn, { borderColor: colors.border }, selectedAccount === null && { backgroundColor: colors.accent, borderColor: colors.accent }]}>
+                                            <Text style={[styles.accTxt, { color: selectedAccount === null ? '#FFF' : colors.sub }]}>Ninguna (Ya prestado)</Text>
+                                        </TouchableOpacity>
                                         {accounts.map(acc => (
                                             <TouchableOpacity key={acc} onPress={() => setSelectedAccount(acc)} style={[styles.accBtn, { borderColor: colors.border }, selectedAccount === acc && { backgroundColor: colors.accent, borderColor: colors.accent }]}>
                                                 <Text style={[styles.accTxt, { color: selectedAccount === acc ? '#FFF' : colors.sub }]}>{acc}</Text>
