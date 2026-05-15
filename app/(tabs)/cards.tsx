@@ -152,7 +152,7 @@ export default function CardsScreen() {
             loadData(); 
             scrollRef.current?.scrollTo({ y: 0, animated: false });
         } 
-    }, [isFocused]);
+    }, [isFocused, cards.length]);
 
     const handleLimitChange = (text: string) => {
         setNewLimit(formatInputDisplay(text, currency));
@@ -463,23 +463,23 @@ export default function CardsScreen() {
 
                                     <View style={styles.inputGroup}>
                                         <Text style={[styles.inputLabel, { color: colorsNav.sub }]}>LÍMITE DE CRÉDITO</Text>
-                                        <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="$ 0" placeholderTextColor={colorsNav.sub} keyboardType="numeric" value={newLimit} onChangeText={handleLimitChange} />
+                                        <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="$ 0" placeholderTextColor={colorsNav.sub} keyboardType="decimal-pad" value={newLimit} onChangeText={handleLimitChange} />
                                     </View>
 
                                     <View style={{ flexDirection: 'row', gap: 15, marginBottom: 20 }}>
                                         <View style={{ flex: 1 }}>
                                             <Text style={[styles.inputLabel, { color: colorsNav.sub }]}>DÍA CORTE</Text>
-                                            <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="1 - 31" placeholderTextColor={colorsNav.sub} keyboardType="numeric" value={newCutDay} onChangeText={setNewCutDay} maxLength={2} />
+                                            <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="1 - 31" placeholderTextColor={colorsNav.sub} keyboardType="decimal-pad" value={newCutDay} onChangeText={setNewCutDay} maxLength={2} />
                                         </View>
                                         <View style={{ flex: 1 }}>
                                             <Text style={[styles.inputLabel, { color: colorsNav.sub }]}>DÍA PAGO</Text>
-                                            <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="1 - 31" placeholderTextColor={colorsNav.sub} keyboardType="numeric" value={newDueDay} onChangeText={setNewDueDay} maxLength={2} />
+                                            <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="1 - 31" placeholderTextColor={colorsNav.sub} keyboardType="decimal-pad" value={newDueDay} onChangeText={setNewDueDay} maxLength={2} />
                                         </View>
                                     </View>
 
                                     <View style={styles.inputGroup}>
                                         <Text style={[styles.inputLabel, { color: colorsNav.sub }]}>INTERÉS ANUAL (E.A. %)</Text>
-                                        <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="Ej: 28" placeholderTextColor={colorsNav.sub} keyboardType="numeric" value={newInterest} onChangeText={setNewInterest} />
+                                        <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border }]} placeholder="Ej: 28" placeholderTextColor={colorsNav.sub} keyboardType="decimal-pad" value={newInterest} onChangeText={setNewInterest} />
                                     </View>
 
                                     <View style={styles.inputGroup}>
@@ -521,7 +521,7 @@ export default function CardsScreen() {
                 <View style={[styles.overlay, { justifyContent: 'flex-end' }]}>
                     <View style={[styles.modal, { backgroundColor: colorsNav.card, borderTopLeftRadius: 32, borderTopRightRadius: 32, width: '100%' }]}>
                         <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Registrar Pago</Text>
-                        <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border, fontSize: 24, padding: 20 }]} placeholder="$ 0" placeholderTextColor={colorsNav.sub} keyboardType="numeric" value={payAmount} onChangeText={t => setPayAmount(formatInputDisplay(t, currency))} autoFocus />
+                        <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border, fontSize: 24, padding: 20 }]} placeholder="$ 0" placeholderTextColor={colorsNav.sub} keyboardType="decimal-pad" value={payAmount} onChangeText={t => setPayAmount(formatInputDisplay(t, currency))} autoFocus />
                         <Text style={{ fontSize: 12, fontWeight: '800', color: colorsNav.sub, marginVertical: 10 }}>¿DESDE QUÉ CUENTA?</Text>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
                             {['Efectivo', ...customAccounts].filter(acc => !cards.some(c => c.name === acc)).map(acc => (

@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setLoading(false); // Liberamos la UI rápidamente
 
                     // 2. SINCRONIZACIÓN EN SEGUNDO PLANO: Buscamos actualizaciones en la nube sin bloquear al usuario
-                    if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
+                    if (_event === 'INITIAL_SESSION' || _event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
                         // Estas tareas corren en paralelo y actualizarán el estado cuando terminen
                         (async () => {
                             try {
