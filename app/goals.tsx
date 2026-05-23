@@ -374,8 +374,8 @@ export default function GoalsScreen() {
         }
     };
 
-    const metas = goals.filter(g => !interestMap[g.id]?.rate);
-    const cajitas = goals.filter(g => interestMap[g.id]?.rate > 0);
+    const metas = goals.filter(g => !interestMap[g.id]);
+    const cajitas = goals.filter(g => !!interestMap[g.id]);
 
     const totalMetas = metas.reduce((sum, g) => sum + g.current_amount, 0);
     const totalCajitas = cajitas.reduce((sum, g) => sum + g.current_amount, 0);
@@ -510,10 +510,8 @@ export default function GoalsScreen() {
                         incomes_amount: convertToBase(parseInputToNumber(wizardIncome, currency), currency, rates),
                         recommended_amount: convertToBase(getEmergencyFundRecommendation(parseInputToNumber(wizardExpense, currency)), currency, rates)
                     };
-                } else if (newGoalInterest) {
-                    if (!isNaN(interestRate) && interestRate > 0) {
-                        interestData[newGoalData[0].id] = { rate: interestRate, last_updated: getLocalDateKey() };
-                    }
+                } else if (activeTab === 'cajitas') {
+                    interestData[newGoalData[0].id] = { rate: !isNaN(interestRate) ? interestRate : 0, last_updated: getLocalDateKey() };
                 }
                 
                 await AsyncStorage.setItem(SYNC_KEYS.GOALS_INTEREST(user.id!), JSON.stringify(interestData));
@@ -795,7 +793,7 @@ export default function GoalsScreen() {
 
                 {/* ── Lista de Metas/Cajitas ── */}
                 {(activeTab === 'metas' || activeTab === 'cajitas') && (
-                    goals.filter(g => activeTab === 'cajitas' ? interestMap[g.id]?.rate > 0 : !interestMap[g.id]?.rate).length === 0 ? (
+                    goals.filter(g => activeTab === 'cajitas' ? !!interestMap[g.id] : !interestMap[g.id]).length === 0 ? (
                         <View style={styles.empty}>
                             <Ionicons name="leaf-outline" size={80} color={colors.accent + '40'} />
                             <Text style={[styles.emptyTitle, { color: colors.text }]}>Siembra tus sueños</Text>
@@ -804,7 +802,7 @@ export default function GoalsScreen() {
                             </Text>
                         </View>
                     ) : (
-                        goals.filter(g => activeTab === 'cajitas' ? interestMap[g.id]?.rate > 0 : !interestMap[g.id]?.rate).map(goal => {
+                        goals.filter(g => activeTab === 'cajitas' ? !!interestMap[g.id] : !interestMap[g.id]).map(goal => {
                             const pct = Math.min(100, (goal.current_amount / goal.target_amount) * 100);
                             const isDone = pct >= 100;
                             const isEF = activeTab === 'cajitas' && interestMap[goal.id]?.is_emergency_fund;
@@ -1721,7 +1719,7 @@ export default function GoalsScreen() {
                             </TouchableOpacity>
                         </View>
                         <ScrollView showsVerticalScrollIndicator={false}>
-                            {goals.filter(g => activeTab === 'cajitas' ? interestMap[g.id]?.rate > 0 : !interestMap[g.id]?.rate).map(goal => (
+                            {goals.filter(g => activeTab === 'cajitas' ? !!interestMap[g.id] : !interestMap[g.id]).map(goal => (
                                 <TouchableOpacity 
                                     key={goal.id} 
                                     style={[styles.listItem, { backgroundColor: colors.bg, padding: 16, borderRadius: 16, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
