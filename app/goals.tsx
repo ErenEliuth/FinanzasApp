@@ -142,11 +142,11 @@ export default function GoalsScreen() {
         setIsAnalyzingHealth(true);
         try {
             const { data: txs } = await supabase.from('transactions').select('amount, type, category, date').eq('user_id', user.id);
-            const { data: debtsData } = await supabase.from('debts').select('value, paid').eq('user_id', user.id);
+            const { data: debtsData } = await supabase.from('debts').select('value, paid, debt_type').eq('user_id', user.id);
 
             let activeDebts = 0;
             debtsData?.forEach(d => {
-                if (d.value > d.paid) {
+                if (d.debt_type !== 'loan' && d.value > d.paid) {
                     activeDebts += (d.value - d.paid);
                 }
             });
