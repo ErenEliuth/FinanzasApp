@@ -365,20 +365,45 @@ export default function AddTransactionScreen() {
 
       if (type === 'expense') {
         try {
-          const { data: allTx } = await supabase.from('transactions').select('amount, type, category').eq('user_id', user?.id);
+          const { data: allTx } = await supabase.from('transactions').select('amount, type, category, account').eq('user_id', user?.id);
           const { data: allDebts } = await supabase.from('debts').select('value, paid, debt_type').eq('user_id', user?.id);
           
-          let totalActive = 0, totalAhorro = 0;
-          allTx?.forEach(t => {
-              if (t.type === 'income') totalActive += t.amount;
-              else {
-                  if (t.category === 'Ahorro') totalAhorro += t.amount;
-                  totalActive -= t.amount;
+          let accs: Record<string, number> = {};
+          let savTotal = 0;
+          allTx?.forEach(tx => {
+            const amount = Number(tx.amount) || 0;
+            if (tx.type === 'income') {
+              const acc = tx.account || 'Efectivo';
+              if (!accs[acc]) accs[acc] = 0;
+              if (tx.category === 'Ahorro') {
+                if (tx.account === 'Ahorro') savTotal += amount;
+                else savTotal -= amount;
               }
+              accs[acc] += amount;
+            } else {
+              if (tx.category === 'Ahorro') savTotal += amount;
+              const acc = !tx.account ? 'Efectivo' : tx.account;
+              if (!accs[acc]) accs[acc] = 0;
+              accs[acc] -= amount;
+            }
           });
+
+          const validAccNames = ['Efectivo', ...(customAccounts || [])];
+          const cardNamesForFilter = (cards || []).map(c => c?.name || '');
+          const activeMoney = Object.entries(accs)
+            .filter(([accName]) => validAccNames.includes(accName) && !cardNamesForFilter.includes(accName) && accName !== 'Ahorro')
+            .reduce((sum, [_, amt]) => sum + Number(amt), 0);
+          
+          // Investment is hard to fetch perfectly here without loading goals fully, but let's approximate or just use savTotal
+          const currentAhorro = savTotal;
+          const currentInvestment = 0; // we skip investment for now to simplify, or assume 0
+          
           const debtTotal = allDebts?.filter(d => d.debt_type !== 'loan').reduce((sum, d) => sum + (d.value - d.paid), 0) || 0;
-          const realMoney = (totalActive + totalAhorro) - debtTotal;
-          const healthPct = (totalActive + totalAhorro) > 0 ? (realMoney / (totalActive + totalAhorro)) * 100 : 0;
+          const realMoney = activeMoney - debtTotal;
+          const assetsTotal = activeMoney + currentAhorro + currentInvestment;
+          
+          const rawHealthPct = assetsTotal > 0 ? Math.max(0, Math.min(100, Math.round((realMoney / assetsTotal) * 100))) : 0;
+          const healthPct = isNaN(rawHealthPct) ? 0 : rawHealthPct;
           
           // Buscar Fondo
           const { data: goalsData } = await supabase.from('goals').select('id, name, current_amount, target_amount').eq('user_id', user?.id);
@@ -389,25 +414,28 @@ export default function AddTransactionScreen() {
           let shouldShowAlert = false;
           let message = '';
           
+          const suggLow = Math.round(parsed * 0.2);
+          const suggHigh = Math.round(parsed * 0.4);
+          
           if (healthPct < 40) {
               shouldShowAlert = true;
-              message = `Tras este gasto, tu salud financiera general ha bajado al ${Math.max(0, healthPct).toFixed(0)}%.`;
+              message = `Piensas gastarte ${fmt(parsed)}, ¿qué tal si mejor ahorras una parte en tu fondo de emergencia para mejorar tu salud financiera (${healthPct}%)? Unos ${fmt(suggLow)} - ${fmt(suggHigh)} estarían genial.`;
           } else if (!efGoal) {
               shouldShowAlert = true;
-              message = "Has registrado un gasto, pero notamos que aún no tienes un Fondo de Emergencia para imprevistos.";
+              message = `Piensas gastarte ${fmt(parsed)}, ¿qué tal si usas una parte para empezar a crear tu Fondo de Emergencia y estar más protegido? Unos ${fmt(suggLow)} - ${fmt(suggHigh)} estarían genial.`;
           } else if (efGoal && efGoal.current_amount < efGoal.target_amount * 0.6) {
               shouldShowAlert = true;
-              message = `Tu Fondo de Emergencia (${efGoal.name}) está por debajo del nivel seguro (menos del 60% de tu meta).`;
+              message = `Piensas gastarte ${fmt(parsed)}, ¿qué tal si mejor ahorras una parte para fortalecer tu fondo de emergencia? Unos ${fmt(suggLow)} - ${fmt(suggHigh)} te acercarían mucho más a tu meta de seguridad.`;
           }
           
           if (shouldShowAlert) {
               setHealthData({
-                  healthPct: Math.max(0, healthPct),
+                  healthPct,
                   emergencyFund: efGoal ? {
                       id: efGoal.id, name: efGoal.name, current: efGoal.current_amount, target: efGoal.target_amount
                   } : null,
                   expenseAmount: parsed,
-                  suggestedRedirect: Math.min(parsed, totalActive),
+                  suggestedRedirect: Math.round(parsed * 0.3),
                   message
               });
               setShowHealthAlert(true);
