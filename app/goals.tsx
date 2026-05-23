@@ -251,17 +251,21 @@ export default function GoalsScreen() {
             let totalAh = 0;
             let balances: Record<string, number> = {};
             txData?.forEach(tx => {
+                const amount = Number(tx.amount) || 0;
+                // Calcular totalAhorro (independiente de balances de cuenta)
                 if (tx.category === 'Ahorro') {
-                    if (tx.type === 'expense') totalAh += tx.amount;
+                    if (tx.type === 'expense') totalAh += amount;
                     else if (tx.type === 'income') {
-                        if (tx.account === 'Ahorro') totalAh += tx.amount; // Intereses
-                        else totalAh -= tx.amount; // Retiro a cuenta
+                        if (tx.account === 'Ahorro') totalAh += amount; // Intereses
+                        else totalAh -= amount; // Retiro a cuenta
                     }
-                } else {
-                    const acc = tx.account || 'Efectivo';
+                }
+                // Calcular balance por cuenta (TODAS las transacciones, igual que index.tsx)
+                const acc = tx.account || 'Efectivo';
+                if (acc !== 'Ahorro') {
                     if (!balances[acc]) balances[acc] = 0;
-                    if (tx.type === 'income') balances[acc] += tx.amount;
-                    else if (tx.type === 'expense') balances[acc] -= tx.amount;
+                    if (tx.type === 'income') balances[acc] += amount;
+                    else if (tx.type === 'expense') balances[acc] -= amount;
                 }
             });
             setTotalAhorro(totalAh);
