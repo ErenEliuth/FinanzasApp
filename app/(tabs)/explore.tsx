@@ -84,6 +84,15 @@ export default function AddTransactionScreen() {
   const [incomeJustSaved, setIncomeJustSaved] = useState(0);
   const [smartSavingsPref, setSmartSavingsPref] = useState<'enabled' | 'disabled' | 'unset'>('unset');
   const [showPreferenceModal, setShowPreferenceModal] = useState(false);
+  const [showHealthAlert, setShowHealthAlert] = useState(false);
+  const [healthData, setHealthData] = useState<{
+    healthPct: number;
+    emergencyFund: { id: number; name: string; current: number; target: number } | null;
+    expenseAmount: number;
+    suggestedRedirect: number;
+    message: string;
+  } | null>(null);
+  const [redirectAmount, setRedirectAmount] = useState('');
   const router = useRouter();
   const { user, currency, rates, isHidden, cards, customAccounts, refreshConfig } = useAuth();
   const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
@@ -354,6 +363,60 @@ export default function AddTransactionScreen() {
         } catch (e) { console.error('Error calculando sugerencia:', e); }
       }
 
+      if (type === 'expense') {
+        try {
+          const { data: allTx } = await supabase.from('transactions').select('amount, type, category').eq('user_id', user?.id);
+          const { data: allDebts } = await supabase.from('debts').select('value, paid, debt_type').eq('user_id', user?.id);
+          
+          let totalActive = 0, totalAhorro = 0;
+          allTx?.forEach(t => {
+              if (t.type === 'income') totalActive += t.amount;
+              else {
+                  if (t.category === 'Ahorro') totalAhorro += t.amount;
+                  totalActive -= t.amount;
+              }
+          });
+          const debtTotal = allDebts?.filter(d => d.debt_type !== 'loan').reduce((sum, d) => sum + (d.value - d.paid), 0) || 0;
+          const realMoney = (totalActive + totalAhorro) - debtTotal;
+          const healthPct = (totalActive + totalAhorro) > 0 ? (realMoney / (totalActive + totalAhorro)) * 100 : 0;
+          
+          // Buscar Fondo
+          const { data: goalsData } = await supabase.from('goals').select('id, name, current_amount, target_amount').eq('user_id', user?.id);
+          const storedInterests = await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user.id!));
+          const iMap = storedInterests ? JSON.parse(storedInterests) : {};
+          const efGoal = goalsData?.find(g => iMap[g.id]?.is_emergency_fund);
+          
+          let shouldShowAlert = false;
+          let message = '';
+          
+          if (healthPct < 40) {
+              shouldShowAlert = true;
+              message = `Tras este gasto, tu salud financiera general ha bajado al ${Math.max(0, healthPct).toFixed(0)}%.`;
+          } else if (!efGoal) {
+              shouldShowAlert = true;
+              message = "Has registrado un gasto, pero notamos que aún no tienes un Fondo de Emergencia para imprevistos.";
+          } else if (efGoal && efGoal.current_amount < efGoal.target_amount * 0.6) {
+              shouldShowAlert = true;
+              message = `Tu Fondo de Emergencia (${efGoal.name}) está por debajo del nivel seguro (menos del 60% de tu meta).`;
+          }
+          
+          if (shouldShowAlert) {
+              setHealthData({
+                  healthPct: Math.max(0, healthPct),
+                  emergencyFund: efGoal ? {
+                      id: efGoal.id, name: efGoal.name, current: efGoal.current_amount, target: efGoal.target_amount
+                  } : null,
+                  expenseAmount: parsed,
+                  suggestedRedirect: Math.min(parsed, totalActive),
+                  message
+              });
+              setShowHealthAlert(true);
+              setIsSaving(false);
+              return;
+          }
+        } catch(e) { console.error('Error evaluando salud financiera:', e); }
+      }
+
       setAmount(''); setDescription(''); setCategory('');
       if (router.canGoBack()) router.back(); else router.replace('/(tabs)');
     } catch (e) { 
@@ -361,6 +424,47 @@ export default function AddTransactionScreen() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleAcceptExpense = () => {
+      setShowHealthAlert(false);
+      setAmount(''); setDescription(''); setCategory('');
+      if (router.canGoBack()) router.back(); else router.replace('/(tabs)');
+  };
+
+  const handleRedirectToFund = async () => {
+      if (!healthData?.emergencyFund) {
+          setShowHealthAlert(false);
+          router.push('/goals');
+          return;
+      }
+      const val = parseInputToNumber(redirectAmount, currency);
+      const p = convertToBase(val, currency, rates);
+      if (isNaN(p) || p <= 0) return;
+      
+      setIsSaving(true);
+      try {
+          const { error } = await supabase.from('transactions').insert([{
+              user_id: user?.id,
+              type: 'expense',
+              amount: p,
+              description: `Aporte a fondo: ${healthData.emergencyFund.name}`,
+              category: 'Ahorro',
+              account: account,
+              date: getLocalISOString()
+          }]);
+          if (error) throw error;
+          
+          await supabase.from('goals').update({ current_amount: healthData.emergencyFund.current + p }).eq('id', healthData.emergencyFund.id);
+          setShowHealthAlert(false);
+          setAmount(''); setDescription(''); setCategory('');
+          if (router.canGoBack()) router.back(); else router.replace('/(tabs)');
+      } catch(e) {
+          console.error('Error redireccionando al fondo:', e);
+          Alert.alert('Error', 'No se pudo guardar la redirección de fondos.');
+      } finally {
+          setIsSaving(false);
+      }
   };
 
   const handleSaveSavingSuggestion = async () => {
@@ -715,6 +819,68 @@ export default function AddTransactionScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.accent }]} onPress={handleSaveSavingSuggestion} disabled={isSaving}>
                     <Text style={{ color: '#FFF', fontWeight: '800' }}>{isSaving ? 'Guardando...' : 'Ahorrar Ahora'}</Text>
+                  </TouchableOpacity>
+                </View>
+             </View>
+          </View>
+        </Modal>
+
+        <Modal visible={showHealthAlert} transparent animationType="slide">
+          <View style={styles.overlay}>
+             <View style={[styles.modalBox, { backgroundColor: colorsNav.card, alignItems: 'center' }]}>
+                <View style={[styles.aiIcon, { backgroundColor: '#EF444420' }]}>
+                  <MaterialIcons name="security" size={32} color="#EF4444" />
+                </View>
+                <Text style={[styles.modalTitle, { color: colorsNav.text, textAlign: 'center' }]}>Alerta de Salud Financiera</Text>
+                <Text style={[styles.modalSub, { color: colorsNav.sub, textAlign: 'center' }]}>
+                  {healthData?.message}
+                </Text>
+
+                {healthData?.emergencyFund ? (
+                    <View style={[styles.suggestionPill, { backgroundColor: colorsNav.bg, borderWidth: 1, borderColor: colorsNav.border }]}>
+                        <Text style={[styles.suggestionLab, { color: colorsNav.sub }]}>FONDO DE EMERGENCIA</Text>
+                        <Text style={[styles.suggestionAmt, { color: colorsNav.text, fontSize: 24 }]}>
+                            {fmt(healthData.emergencyFund.current)} <Text style={{fontSize: 14, color: colorsNav.sub}}>de {fmt(healthData.emergencyFund.target)}</Text>
+                        </Text>
+                        
+                        <View style={{ width: '100%', marginTop: 15 }}>
+                            <Text style={{ color: colorsNav.text, fontWeight: '700', marginBottom: 8, fontSize: 13, textAlign: 'center' }}>¿Quieres redirigir parte de tu dinero al fondo?</Text>
+                            <TextInput
+                                style={[styles.modalInput, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border, textAlign: 'center', fontSize: 24, fontWeight: '800' }]}
+                                value={redirectAmount}
+                                onChangeText={t => setRedirectAmount(formatInputDisplay(t, currency))}
+                                placeholder="$ 0"
+                                placeholderTextColor={colorsNav.sub + '50'}
+                                keyboardType="decimal-pad"
+                            />
+                        </View>
+                    </View>
+                ) : null}
+
+                <View style={{ flexDirection: 'column', gap: 10, width: '100%', marginTop: 10 }}>
+                  {healthData?.emergencyFund ? (
+                      <TouchableOpacity 
+                        style={[styles.mBtn, { backgroundColor: colorsNav.accent, paddingVertical: 16 }]} 
+                        onPress={handleRedirectToFund} disabled={isSaving || !redirectAmount}
+                      >
+                        <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 16, textAlign: 'center' }}>
+                            {isSaving ? 'Guardando...' : 'Redirigir al Fondo'}
+                        </Text>
+                      </TouchableOpacity>
+                  ) : (
+                      <TouchableOpacity 
+                        style={[styles.mBtn, { backgroundColor: colorsNav.accent, paddingVertical: 16 }]} 
+                        onPress={() => { setShowHealthAlert(false); router.push('/goals'); }}
+                      >
+                        <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 16, textAlign: 'center' }}>Crear Fondo de Emergencia</Text>
+                      </TouchableOpacity>
+                  )}
+                  
+                  <TouchableOpacity 
+                    style={[styles.mBtn, { backgroundColor: 'transparent', paddingVertical: 16 }]} 
+                    onPress={handleAcceptExpense} disabled={isSaving}
+                  >
+                    <Text style={{ color: colorsNav.sub, fontWeight: '700', fontSize: 16, textAlign: 'center' }}>Aceptar gasto y continuar</Text>
                   </TouchableOpacity>
                 </View>
              </View>
