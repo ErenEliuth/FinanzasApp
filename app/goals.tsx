@@ -92,7 +92,8 @@ export default function GoalsScreen() {
     const [withdrawAccountModalVisible, setWithdrawAccountModalVisible] = useState(false);
     const [withdrawAccountAmount, setWithdrawAccountAmount] = useState('');
     const [selectedDestAccount, setSelectedDestAccount] = useState('Efectivo');
-    const [selectedSourceAccount, setSelectedSourceAccount] = useState('Disponible');
+    const [selectedSourceAccount, setSelectedSourceAccount] = useState('Efectivo');
+    const [accountBalances, setAccountBalances] = useState<Record<string, number>>({});
 
     const openSelector = (action: 'pay' | 'withdraw') => {
         setSelectorAction(action);
@@ -246,16 +247,25 @@ export default function GoalsScreen() {
             const goalsData = await applyDailyInterests(rawGoalsData || [], iMap);
             setGoals(goalsData);
             
-            const { data: txData } = await supabase.from('transactions').select('amount, type, account').eq('user_id', user.id).eq('category', 'Ahorro');
-            const total = txData?.reduce((s, tx) => {
-                if (tx.type === 'expense') return s + tx.amount;
-                if (tx.type === 'income') {
-                    if (tx.account === 'Ahorro') return s + tx.amount; // Intereses
-                    return s - tx.amount; // Retiro a cuenta
+            const { data: txData } = await supabase.from('transactions').select('amount, type, account, category').eq('user_id', user.id);
+            let totalAh = 0;
+            let balances: Record<string, number> = {};
+            txData?.forEach(tx => {
+                if (tx.category === 'Ahorro') {
+                    if (tx.type === 'expense') totalAh += tx.amount;
+                    else if (tx.type === 'income') {
+                        if (tx.account === 'Ahorro') totalAh += tx.amount; // Intereses
+                        else totalAh -= tx.amount; // Retiro a cuenta
+                    }
+                } else {
+                    const acc = tx.account || 'Efectivo';
+                    if (!balances[acc]) balances[acc] = 0;
+                    if (tx.type === 'income') balances[acc] += tx.amount;
+                    else if (tx.type === 'expense') balances[acc] -= tx.amount;
                 }
-                return s;
-            }, 0) || 0;
-            setTotalAhorro(total);
+            });
+            setTotalAhorro(totalAh);
+            setAccountBalances(balances);
 
             // Cargar Retos desde Supabase o Local (Aquí usamos Supabase para consistencia si existe la tabla)
             try {
@@ -536,8 +546,9 @@ export default function GoalsScreen() {
         const val = convertToBase(typedVal, currency, rates);
         if (isNaN(val) || val <= 0) return;
         
-        if (selectedSourceAccount === 'Disponible' && val > availableAhorro) {
-            Alert.alert('Saldo insuficiente', 'No tienes suficiente Ahorro Disponible.');
+        const availableInAccount = accountBalances[selectedSourceAccount] || 0;
+        if (val > availableInAccount) {
+            Alert.alert('Saldo insuficiente', 'No tienes suficiente dinero en la cuenta seleccionada.');
             return;
         }
         
@@ -546,18 +557,16 @@ export default function GoalsScreen() {
         try {
             setIsProcessing(true);
             
-            if (selectedSourceAccount !== 'Disponible') {
-                const { error } = await supabase.from('transactions').insert([{
-                    user_id: user?.id,
-                    type: 'expense',
-                    amount: actualAddition,
-                    description: `Aporte a ${activeTab === 'metas' ? 'meta' : 'cajita'}: ${selectedGoal.name}`,
-                    category: 'Ahorro',
-                    account: selectedSourceAccount,
-                    date: getLocalISOString()
-                }]);
-                if (error) throw error;
-            }
+            const { error } = await supabase.from('transactions').insert([{
+                user_id: user?.id,
+                type: 'expense',
+                amount: actualAddition,
+                description: `Aporte a ${activeTab === 'metas' ? 'meta' : 'cajita'}: ${selectedGoal.name}`,
+                category: 'Ahorro',
+                account: selectedSourceAccount,
+                date: getLocalISOString()
+            }]);
+            if (error) throw error;
 
             await supabase.from('goals').update({ current_amount: selectedGoal.current_amount + actualAddition }).eq('id', selectedGoal.id);
             setPayAmount(''); setPayModalVisible(false); loadData();
@@ -577,18 +586,16 @@ export default function GoalsScreen() {
         try {
             setIsProcessing(true);
             
-            if (selectedDestAccount !== 'Disponible') {
-                const { error } = await supabase.from('transactions').insert([{
-                    user_id: user?.id,
-                    type: 'income',
-                    amount: val,
-                    description: `Retiro de ${activeTab === 'metas' ? 'meta' : 'cajita'}: ${selectedGoal.name}`,
-                    category: 'Ahorro',
-                    account: selectedDestAccount,
-                    date: getLocalISOString()
-                }]);
-                if (error) throw error;
-            }
+            const { error } = await supabase.from('transactions').insert([{
+                user_id: user?.id,
+                type: 'income',
+                amount: val,
+                description: `Retiro de ${activeTab === 'metas' ? 'meta' : 'cajita'}: ${selectedGoal.name}`,
+                category: 'Ahorro',
+                account: selectedDestAccount,
+                date: getLocalISOString()
+            }]);
+            if (error) throw error;
 
             await supabase.from('goals').update({ current_amount: selectedGoal.current_amount - val }).eq('id', selectedGoal.id);
             setWithdrawAmount(''); setWithdrawModalVisible(false); loadData();
@@ -1525,13 +1532,12 @@ export default function GoalsScreen() {
                         <Text style={[styles.miniTitle, { color: colors.text }]}>Asignar Ahorro</Text>
                         
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                            {selectedSourceAccount === 'Disponible' ? (
-                                <Text style={[styles.miniSub, { color: colors.sub }]}>Disponible: {fmt(availableAhorro)}</Text>
-                            ) : null}
+                            <Text style={[styles.miniSub, { color: colors.sub }]}>Disponible: {fmt(accountBalances[selectedSourceAccount] || 0)}</Text>
                             <TouchableOpacity 
                                 onPress={() => {
-                                    const sourceAmount = selectedSourceAccount === 'Disponible' ? availableAhorro : (selectedGoal.target_amount - selectedGoal.current_amount);
-                                    const amountToUse = Math.min(sourceAmount, selectedGoal.target_amount - selectedGoal.current_amount);
+                                    const availableInAcc = accountBalances[selectedSourceAccount] || 0;
+                                    const sourceAmount = Math.min(availableInAcc, selectedGoal.target_amount - selectedGoal.current_amount);
+                                    const amountToUse = Math.max(0, sourceAmount);
                                     const val = convertCurrency(amountToUse, currency, rates);
                                     const info = getCurrencyInfo(currency);
                                     const cleanStr = info.hasDecimals ? val.toFixed(2) : Math.floor(val).toString();
@@ -1549,7 +1555,7 @@ export default function GoalsScreen() {
                         <View style={{ width: '100%', marginTop: 10 }}>
                             <Text style={[styles.mLabel, { color: colors.sub, marginBottom: 12 }]}>CUENTA DE ORIGEN</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                                {['Disponible', 'Efectivo', ...(customAccounts || [])].map(acc => (
+                                {['Efectivo', ...(customAccounts || [])].map(acc => (
                                     <TouchableOpacity 
                                         key={acc}
                                         style={{ 
@@ -1610,7 +1616,7 @@ export default function GoalsScreen() {
                         <View style={{ width: '100%', marginTop: 10 }}>
                             <Text style={[styles.mLabel, { color: colors.sub, marginBottom: 12 }]}>CUENTA DE DESTINO</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                                {['Disponible', 'Efectivo', ...(customAccounts || [])].map(acc => (
+                                {['Efectivo', ...(customAccounts || [])].map(acc => (
                                     <TouchableOpacity 
                                         key={acc}
                                         style={{ 
