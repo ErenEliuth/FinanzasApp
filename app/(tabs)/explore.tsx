@@ -92,6 +92,7 @@ export default function AddTransactionScreen() {
     emergencyFund: { id: number; name: string; current: number; target: number } | null;
     expenseAmount: number;
     suggestedRedirect: number;
+    suggestedPct?: number;
     message: string;
   } | null>(null);
   const [redirectAmount, setRedirectAmount] = useState('');
@@ -418,20 +419,24 @@ export default function AddTransactionScreen() {
           let shouldShowAlert = false;
           let message = '';
           
-          const threshold = categoryThresholds[dbCategory];
-          if (threshold && parsed > threshold) {
+          const limitToUse = categoryThresholds[dbCategory] ?? 0;
+          if (parsed > limitToUse) {
               shouldShowAlert = true;
-              message = `Este gasto de ${fmt(parsed)} supera tu umbral de ${fmt(threshold)} para la categoría "${dbCategory}".`;
+              message = categoryThresholds[dbCategory] === undefined
+                  ? `Aún no has definido un límite para "${dbCategory}". Te recomendamos configurarlo ahora usando el botón superior.`
+                  : `Este gasto de ${fmt(parsed)} supera tu límite de ${fmt(categoryThresholds[dbCategory])} para "${dbCategory}".`;
           }
           
           if (shouldShowAlert) {
+              const basePct = healthPct >= 70 ? 30 : healthPct >= 40 ? 20 : 10;
               setHealthData({
                   healthPct,
                   emergencyFund: efGoal ? {
                       id: efGoal.id, name: efGoal.name, current: efGoal.current_amount, target: efGoal.target_amount
                   } : null,
                   expenseAmount: parsed,
-                  suggestedRedirect: Math.round(parsed * 0.3),
+                  suggestedRedirect: Math.round(parsed * (basePct / 100)),
+                  suggestedPct: basePct,
                   message
               });
               setShowHealthAlert(true);
@@ -536,14 +541,9 @@ export default function AddTransactionScreen() {
 
             <View style={styles.header}>
               <Text style={[styles.title, { color: colorsNav.text }]}>Nueva Transacción</Text>
-              <View style={{ flexDirection: 'row', gap: 16 }}>
-                <TouchableOpacity onPress={() => setShowThresholdsModal(true)} style={styles.closeBtn}>
-                  <Ionicons name="settings-outline" size={24} color={colorsNav.sub} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
-                  <Ionicons name="close" size={24} color={colorsNav.sub} />
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
+                <Ionicons name="close" size={24} color={colorsNav.sub} />
+              </TouchableOpacity>
             </View>
 
             {/* Selector de Tipo (Pills Minimalistas) */}
@@ -856,30 +856,50 @@ export default function AddTransactionScreen() {
 
         <Modal visible={showHealthAlert} transparent animationType="slide">
           <View style={styles.overlay}>
-             <View style={[styles.modalBox, { backgroundColor: colorsNav.card, alignItems: 'center', borderColor: colorsNav.border, borderWidth: 1, elevation: 10, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 20 }]}>
-                <View style={[styles.aiIcon, { backgroundColor: 'transparent', marginBottom: 0 }]}>
-                  <Ionicons name="warning-outline" size={48} color="#F59E0B" />
+             <View style={[styles.modalBox, { backgroundColor: colorsNav.card, borderColor: colorsNav.border, borderWidth: 1, elevation: 10, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 20 }]}>
+                
+                {/* Header del Modal */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <Ionicons name="warning" size={28} color="#F59E0B" />
+                        <Text style={[styles.modalTitle, { color: colorsNav.text, fontSize: 20 }]}>Límite Superado</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => setShowThresholdsModal(true)} style={{ padding: 6, backgroundColor: colorsNav.bg, borderRadius: 8 }}>
+                        <Ionicons name="settings-outline" size={24} color={colorsNav.sub} />
+                    </TouchableOpacity>
                 </View>
-                <Text style={[styles.modalTitle, { color: colorsNav.text, textAlign: 'center', fontSize: 22 }]}>Límite Superado</Text>
-                <Text style={[styles.modalSub, { color: colorsNav.sub, textAlign: 'center', fontSize: 16 }]}>
+                
+                <Text style={[styles.modalSub, { color: colorsNav.sub, fontSize: 15, lineHeight: 22 }]}>
                   {healthData?.message}
                 </Text>
 
                 {healthData?.emergencyFund ? (
-                    <View style={{ width: '100%', marginTop: 15 }}>
-                        <Text style={{ color: colorsNav.text, fontWeight: '700', marginBottom: 12, fontSize: 14, textAlign: 'center' }}>¿Quieres redirigir parte al {healthData.emergencyFund.name}?</Text>
+                    <View style={{ marginTop: 15, backgroundColor: colorsNav.bg, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: colorsNav.border + '50' }}>
+                        <Text style={{ color: colorsNav.text, fontWeight: '800', marginBottom: 12, fontSize: 12, letterSpacing: 0.5, textAlign: 'center' }}>TU FONDO DE EMERGENCIA</Text>
+                        
+                        {/* Barra de Progreso */}
+                        <View style={{ height: 8, backgroundColor: colorsNav.border, borderRadius: 4, overflow: 'hidden', marginBottom: 8 }}>
+                            <View style={{ height: '100%', backgroundColor: '#10B981', width: `${Math.min(100, (healthData.emergencyFund.current / healthData.emergencyFund.target) * 100)}%` }} />
+                        </View>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
+                            <Text style={{ color: colorsNav.sub, fontSize: 12, fontWeight: '600' }}>{fmt(healthData.emergencyFund.current)} ahorrados</Text>
+                            <Text style={{ color: colorsNav.sub, fontSize: 12 }}>Meta: {fmt(healthData.emergencyFund.target)}</Text>
+                        </View>
+
+                        <Text style={{ color: colorsNav.text, fontWeight: '700', marginBottom: 12, fontSize: 14, textAlign: 'center' }}>Sugerimos destinar el <Text style={{ color: colorsNav.accent, fontWeight: '900' }}>{healthData.suggestedPct}%</Text> al fondo:</Text>
+                        
                         <TextInput
-                            style={[styles.modalInput, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border, textAlign: 'center', fontSize: 24, fontWeight: '800' }]}
+                            style={[styles.modalInput, { backgroundColor: colorsNav.card, color: colorsNav.text, borderColor: colorsNav.border, textAlign: 'center', fontSize: 24, fontWeight: '900', paddingVertical: 12 }]}
                             value={redirectAmount}
                             onChangeText={t => setRedirectAmount(formatInputDisplay(t, currency))}
-                            placeholder="$ 0"
+                            placeholder={formatCurrency(healthData.suggestedRedirect, currency, false)}
                             placeholderTextColor={colorsNav.sub + '50'}
                             keyboardType="decimal-pad"
                         />
                     </View>
                 ) : null}
 
-                <View style={{ flexDirection: 'row', gap: 12, width: '100%', marginTop: 20 }}>
+                <View style={{ flexDirection: 'row', gap: 10, width: '100%', marginTop: 10 }}>
                   <TouchableOpacity 
                     style={[styles.mBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: colorsNav.border, flex: 1, paddingVertical: 14 }]} 
                     onPress={handleAcceptExpense} disabled={isSaving}
@@ -890,9 +910,14 @@ export default function AddTransactionScreen() {
                   {healthData?.emergencyFund ? (
                       <TouchableOpacity 
                         style={[styles.mBtn, { backgroundColor: colorsNav.accent, flex: 1, paddingVertical: 14 }]} 
-                        onPress={handleRedirectToFund} disabled={isSaving || !redirectAmount}
+                        onPress={() => {
+                            if (!redirectAmount) {
+                                setRedirectAmount(formatCurrency(healthData.suggestedRedirect, currency, false).replace(/[^0-9.,]/g, ''));
+                            }
+                            handleRedirectToFund();
+                        }} disabled={isSaving}
                       >
-                        <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 14, textAlign: 'center' }}>
+                        <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 14, textAlign: 'center' }}>
                             {isSaving ? '...' : 'Ahorrar'}
                         </Text>
                       </TouchableOpacity>
@@ -904,23 +929,23 @@ export default function AddTransactionScreen() {
 
         <Modal visible={showThresholdsModal} transparent animationType="slide">
           <View style={styles.overlay}>
-             <View style={[styles.modalBox, { backgroundColor: colorsNav.card, maxHeight: '80%' }]}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Límites por Categoría</Text>
-                    <TouchableOpacity onPress={() => setShowThresholdsModal(false)}>
+             <View style={[styles.modalBox, { backgroundColor: colorsNav.bg, maxHeight: '85%', padding: 24 }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <Text style={[styles.modalTitle, { color: colorsNav.text, fontSize: 22 }]}>Tus Límites</Text>
+                    <TouchableOpacity onPress={() => setShowThresholdsModal(false)} style={{ padding: 4 }}>
                         <Ionicons name="close" size={24} color={colorsNav.sub} />
                     </TouchableOpacity>
                 </View>
-                <Text style={{ color: colorsNav.sub, fontSize: 13, marginBottom: 10 }}>Define un monto máximo para tus gastos. Si lo superas, te avisaremos.</Text>
+                <Text style={{ color: colorsNav.sub, fontSize: 14, marginBottom: 20, lineHeight: 20 }}>Define un monto máximo para tus gastos. El primer gasto en una categoría sin límite activará la alerta para recordarte configurarlo.</Text>
                 
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 16 }}>
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
                     {[...DEFAULT_EXPENSE_CATS, ...customCategories].map(cat => (
-                        <View key={cat} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colorsNav.border + '30', paddingBottom: 12 }}>
-                            <Text style={{ color: colorsNav.text, fontWeight: '600', flex: 1 }}>{cat}</Text>
+                        <View key={cat} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colorsNav.card, padding: 14, borderRadius: 16, elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 }}>
+                            <Text style={{ color: colorsNav.text, fontWeight: '700', flex: 1, fontSize: 15 }}>{cat}</Text>
                             <TextInput
-                                style={{ color: colorsNav.text, backgroundColor: colorsNav.bg, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, minWidth: 120, textAlign: 'right', fontWeight: '800', borderColor: colorsNav.border, borderWidth: 1 }}
-                                placeholder="Sin límite"
-                                placeholderTextColor={colorsNav.sub}
+                                style={{ color: colorsNav.accent, backgroundColor: colorsNav.bg, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, minWidth: 110, textAlign: 'right', fontWeight: '900', fontSize: 15 }}
+                                placeholder="$ 0 (Avisar)"
+                                placeholderTextColor={colorsNav.sub + '80'}
                                 keyboardType="decimal-pad"
                                 value={categoryThresholds[cat] ? formatCurrency(categoryThresholds[cat], currency, false).replace(/[^0-9.,]/g, '') : ''}
                                 onChangeText={(val) => {
@@ -941,7 +966,7 @@ export default function AddTransactionScreen() {
                 </ScrollView>
 
                 <TouchableOpacity 
-                    style={[styles.mBtn, { backgroundColor: colorsNav.accent, marginTop: 10 }]} 
+                    style={[styles.mBtn, { backgroundColor: colorsNav.text, marginTop: 16, paddingVertical: 16 }]} 
                     onPress={async () => {
                         if (user?.id) {
                             await AsyncStorage.setItem(SYNC_KEYS.CATEGORY_THRESHOLDS(user.id), JSON.stringify(categoryThresholds));
@@ -950,7 +975,7 @@ export default function AddTransactionScreen() {
                         setShowThresholdsModal(false);
                     }}
                 >
-                    <Text style={{ color: '#FFF', fontWeight: '800', textAlign: 'center' }}>Guardar Límites</Text>
+                    <Text style={{ color: colorsNav.bg, fontWeight: '900', textAlign: 'center', fontSize: 16 }}>Guardar Cambios</Text>
                 </TouchableOpacity>
              </View>
           </View>
