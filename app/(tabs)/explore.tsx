@@ -422,9 +422,16 @@ export default function AddTransactionScreen() {
           const limitToUse = categoryThresholds[dbCategory] ?? 0;
           if (parsed > limitToUse) {
               shouldShowAlert = true;
-              message = categoryThresholds[dbCategory] === undefined
-                  ? `Aún no has definido un límite para "${dbCategory}". Te recomendamos configurarlo ahora usando el botón superior.`
-                  : `Este gasto de ${fmt(parsed)} supera tu límite de ${fmt(categoryThresholds[dbCategory])} para "${dbCategory}".`;
+              if (categoryThresholds[dbCategory] === undefined) {
+                  message = `Aún no has definido un límite para "${dbCategory}". Te recomendamos configurarlo ahora usando el botón de configuración arriba.`;
+              } else {
+                  const fundStatus = efGoal && efGoal.target_amount > 0 ? (efGoal.current_amount / efGoal.target_amount) : 0;
+                  if (healthPct < 40 || fundStatus < 0.5) {
+                      message = `Este monto de ${fmt(parsed)} es muy elevado. Actualmente tienes tu fondo de emergencia bajo y este gasto no aporta a tu libertad financiera futura. ¿De verdad es necesario?`;
+                  } else {
+                      message = `Este gasto de ${fmt(parsed)} supera el límite de ${fmt(categoryThresholds[dbCategory])} que fijaste para "${dbCategory}". Mantener la disciplina en estos detalles es clave para tu libertad financiera.`;
+                  }
+              }
           }
           
           if (shouldShowAlert) {
