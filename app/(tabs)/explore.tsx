@@ -935,22 +935,29 @@ export default function AddTransactionScreen() {
         </Modal>
 
         <Modal visible={showThresholdsModal} transparent animationType="slide">
-          <View style={styles.overlay}>
-             <View style={[styles.modalBox, { backgroundColor: colorsNav.bg, maxHeight: '85%', padding: 24 }]}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                    <Text style={[styles.modalTitle, { color: colorsNav.text, fontSize: 22 }]}>Tus Límites</Text>
-                    <TouchableOpacity onPress={() => setShowThresholdsModal(false)} style={{ padding: 4 }}>
-                        <Ionicons name="close" size={24} color={colorsNav.sub} />
+          <View style={[styles.overlay, { justifyContent: 'flex-end', padding: 0 }]}>
+             <View style={{ backgroundColor: colorsNav.card, maxHeight: '85%', padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, borderTopLeftRadius: 32, borderTopRightRadius: 32, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 20 }}>
+                <View style={{ width: 40, height: 4, backgroundColor: colorsNav.border, borderRadius: 2, alignSelf: 'center', marginBottom: 20 }} />
+                
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <Text style={{ color: colorsNav.text, fontSize: 24, fontWeight: '900' }}>Tus Límites</Text>
+                    <TouchableOpacity onPress={() => setShowThresholdsModal(false)} style={{ backgroundColor: colorsNav.bg, padding: 8, borderRadius: 20 }}>
+                        <Ionicons name="close" size={20} color={colorsNav.sub} />
                     </TouchableOpacity>
                 </View>
-                <Text style={{ color: colorsNav.sub, fontSize: 14, marginBottom: 20, lineHeight: 20 }}>Define un monto máximo para tus gastos. El primer gasto en una categoría sin límite activará la alerta para recordarte configurarlo.</Text>
+                <Text style={{ color: colorsNav.sub, fontSize: 14, marginBottom: 24, lineHeight: 22 }}>Define un monto máximo para tus gastos. Te avisaremos cuando estés por encima para proteger tus ahorros.</Text>
                 
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
-                    {[...DEFAULT_EXPENSE_CATS, ...customCategories].map(cat => (
-                        <View key={cat} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colorsNav.card, padding: 14, borderRadius: 16, elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 }}>
-                            <Text style={{ color: colorsNav.text, fontWeight: '700', flex: 1, fontSize: 15 }}>{cat}</Text>
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 14 }}>
+                    {[...DEFAULT_EXPENSE_CATS, ...customCategories].map((cat) => (
+                        <View key={cat} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colorsNav.bg, padding: 12, borderRadius: 20, borderWidth: 1, borderColor: colorsNav.border + '40' }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 }}>
+                                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colorsNav.accent + '15', justifyContent: 'center', alignItems: 'center' }}>
+                                    <Ionicons name="pricetag" size={18} color={colorsNav.accent} />
+                                </View>
+                                <Text style={{ color: colorsNav.text, fontWeight: '700', fontSize: 16, flex: 1 }}>{cat}</Text>
+                            </View>
                             <TextInput
-                                style={{ color: colorsNav.accent, backgroundColor: colorsNav.bg, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, minWidth: 110, textAlign: 'right', fontWeight: '900', fontSize: 15 }}
+                                style={{ color: colorsNav.text, backgroundColor: colorsNav.card, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14, minWidth: 110, textAlign: 'right', fontWeight: '800', fontSize: 15, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4 }}
                                 placeholder="$ 0 (Avisar)"
                                 placeholderTextColor={colorsNav.sub + '80'}
                                 keyboardType="decimal-pad"
@@ -973,7 +980,7 @@ export default function AddTransactionScreen() {
                 </ScrollView>
 
                 <TouchableOpacity 
-                    style={[styles.mBtn, { backgroundColor: colorsNav.text, marginTop: 16, paddingVertical: 16 }]} 
+                    style={{ backgroundColor: colorsNav.accent, marginTop: 24, paddingVertical: 18, borderRadius: 20, elevation: 4, shadowColor: colorsNav.accent, shadowOpacity: 0.3, shadowRadius: 8 }} 
                     onPress={async () => {
                         if (user?.id) {
                             await AsyncStorage.setItem(SYNC_KEYS.CATEGORY_THRESHOLDS(user.id), JSON.stringify(categoryThresholds));
@@ -982,7 +989,7 @@ export default function AddTransactionScreen() {
                         setShowThresholdsModal(false);
                     }}
                 >
-                    <Text style={{ color: colorsNav.bg, fontWeight: '900', textAlign: 'center', fontSize: 16 }}>Guardar Cambios</Text>
+                    <Text style={{ color: '#FFF', fontWeight: '900', textAlign: 'center', fontSize: 16, letterSpacing: 0.5 }}>Guardar Límites</Text>
                 </TouchableOpacity>
              </View>
           </View>
