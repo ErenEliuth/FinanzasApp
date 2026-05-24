@@ -24,6 +24,7 @@ export const SYNC_KEYS = {
     GOALS_INTEREST: (uid: string) => `@goals_interest_${uid}`,
     INVEST_WATCHLIST: (uid: string) => `@invest_watchlist_${uid}`,
     INVEST_HIDDEN: (uid: string) => `@invest_hidden_${uid}`,
+    CATEGORY_THRESHOLDS: (uid: string) => `@category_thresholds_${uid}`,
 };
 
 const OLD_KEYS = {
@@ -83,7 +84,7 @@ export async function syncUp(userId: string) {
             reminders, tutorialSeen, lock,
             invDivs, invSync, invPerf, invAlloc, notifs,
             remPrompt, onboarding, changelog, goalsInterest,
-            invWatchlist, invHidden
+            invWatchlist, invHidden, categoryThresholds
         ] = await Promise.all([
             AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(userId)),
             AsyncStorage.getItem(SYNC_KEYS.CATEGORIES(userId)),
@@ -107,6 +108,7 @@ export async function syncUp(userId: string) {
             AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(userId)),
             AsyncStorage.getItem(SYNC_KEYS.INVEST_WATCHLIST(userId)),
             AsyncStorage.getItem(SYNC_KEYS.INVEST_HIDDEN(userId)),
+            AsyncStorage.getItem(SYNC_KEYS.CATEGORY_THRESHOLDS(userId)),
         ]);
 
         const data = {
@@ -134,6 +136,7 @@ export async function syncUp(userId: string) {
             onboarding_done: onboarding === 'true',
             changelog_seen: changelog,
             goals_interest: goalsInterest ? JSON.parse(goalsInterest) : null,
+            category_thresholds: categoryThresholds ? JSON.parse(categoryThresholds) : null,
             updated_at: new Date().toISOString(),
         };
 
@@ -193,6 +196,7 @@ export async function syncDown(userId: string) {
         if (config.onboarding_done !== undefined) tasks.push(AsyncStorage.setItem(SYNC_KEYS.ONBOARDING_DONE(userId), String(config.onboarding_done)));
         if (config.changelog_seen) tasks.push(AsyncStorage.setItem(SYNC_KEYS.CHANGELOG_SEEN(userId), config.changelog_seen));
         if (config.goals_interest) tasks.push(AsyncStorage.setItem(SYNC_KEYS.GOALS_INTEREST(userId), JSON.stringify(config.goals_interest)));
+        if (config.category_thresholds) tasks.push(AsyncStorage.setItem(SYNC_KEYS.CATEGORY_THRESHOLDS(userId), JSON.stringify(config.category_thresholds)));
 
         await Promise.all(tasks);
         console.log('Sync down complete');
