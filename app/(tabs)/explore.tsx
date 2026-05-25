@@ -370,9 +370,11 @@ export default function AddTransactionScreen() {
           setSuggestedPct(pct);
           setIncomeJustSaved(parsed);
           
-          // Mostrar siempre la alerta inteligente de ingresos
-          setShowAiModal(true);
-
+          if (smartSavingsPref !== 'disabled') {
+              setShowAiModal(true);
+          } else {
+              if (router.canGoBack()) router.back(); else router.replace('/(tabs)');
+          }
           setIsSaving(false);
           return;
         } catch (e) { console.error('Error calculando sugerencia:', e); }
@@ -867,6 +869,9 @@ export default function AddTransactionScreen() {
                     <Text style={{ color: '#FFF', fontWeight: '800' }}>{isSaving ? 'Guardando...' : 'Ahorrar Ahora'}</Text>
                   </TouchableOpacity>
                 </View>
+                <TouchableOpacity onPress={() => { setShowAiModal(false); handleSmartSavingsPref(false); }} style={{ marginTop: 16 }}>
+                    <Text style={{ fontSize: 13, color: colorsNav.sub, textDecorationLine: 'underline', fontWeight: '600' }}>No volver a mostrar estos consejos</Text>
+                </TouchableOpacity>
              </View>
           </View>
         </Modal>
