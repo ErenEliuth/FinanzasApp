@@ -67,12 +67,34 @@ export default function HistoryScreen() {
 
     const handleDelete = (tx: any) => {
         const desc = tx.description === 'Sin descripción' || !tx.description ? tx.category : tx.description;
+        
+        const executeDelete = async () => {
+            try {
+                if (tx.description?.startsWith('Aporte a fondo: ')) {
+                    const goalName = tx.description.replace('Aporte a fondo: ', '').trim();
+                    const { data: goal } = await supabase.from('goals').select('id, current_amount').eq('user_id', user?.id).eq('name', goalName).single();
+                    if (goal) {
+                        await supabase.from('goals').update({ current_amount: Math.max(0, goal.current_amount - tx.amount) }).eq('id', goal.id);
+                    }
+                }
+
+                const { error } = await supabase.from('transactions').delete().eq('id', tx.id);
+                if (!error) {
+                    setTransactions(prev => prev.filter(t => t.id !== tx.id));
+                } else {
+                    throw error;
+                }
+            } catch (err) {
+                console.error('Error eliminando transacción:', err);
+                if (Platform.OS !== 'web') {
+                    Alert.alert('Error', 'No se pudo eliminar la transacción.');
+                }
+            }
+        };
+
         if (Platform.OS === 'web') {
             if (window.confirm(`¿Quieres eliminar "${desc}"?`)) {
-                (async () => {
-                    const { error } = await supabase.from('transactions').delete().eq('id', tx.id);
-                    if (!error) setTransactions(prev => prev.filter(t => t.id !== tx.id));
-                })();
+                executeDelete();
             }
             return;
         }
@@ -84,10 +106,7 @@ export default function HistoryScreen() {
                 {
                     text: 'Eliminar',
                     style: 'destructive',
-                    onPress: async () => {
-                        const { error } = await supabase.from('transactions').delete().eq('id', tx.id);
-                        if (!error) setTransactions(prev => prev.filter(t => t.id !== tx.id));
-                    },
+                    onPress: executeDelete,
                 },
             ]
         );
