@@ -603,9 +603,28 @@ export default function HomeScreen() {
     const assetsTotal = activeMoney + currentAhorro + currentInvestment;
     const generalMoney = assetsTotal - currentDebt;
     
-    const rawHealthPct = assetsTotal > 0 
-      ? Math.max(0, Math.min(100, Math.round((generalMoney / assetsTotal) * 100))) 
-      : (currentDebt === 0 ? 100 : 0);
+    let rawHealthPct = 0;
+    if (assetsTotal > 0) {
+      // 1. Debt Health (40 pts)
+      const debtRatio = currentDebt / assetsTotal;
+      let debtScore = 0;
+      if (debtRatio === 0) debtScore = 40;
+      else if (debtRatio < 0.5) debtScore = (1 - (debtRatio / 0.5)) * 40;
+      
+      // 2. Savings Health (30 pts) -> Perfect if >= 15% of assets
+      const savRatio = currentAhorro / assetsTotal;
+      const savScore = savRatio >= 0.15 ? 30 : (savRatio / 0.15) * 30;
+
+      // 3. Investment Health (20 pts) -> Perfect if >= 20% of assets
+      const invRatio = currentInvestment / assetsTotal;
+      const invScore = invRatio >= 0.20 ? 20 : (invRatio / 0.20) * 20;
+
+      // 4. Liquidity Health (10 pts) -> Perfect if >= 10% of assets
+      const liqRatio = activeMoney / assetsTotal;
+      const liqScore = liqRatio >= 0.10 ? 10 : (liqRatio / 0.10) * 10;
+
+      rawHealthPct = Math.round(debtScore + savScore + invScore + liqScore);
+    }
     
     const healthPct = isNaN(rawHealthPct) ? 0 : rawHealthPct;
 
@@ -634,29 +653,31 @@ export default function HomeScreen() {
           desc: "Aún no tienes movimientos registrados. ¡Empieza a registrar tus ingresos para construir tu patrimonio!",
           icon: "flag"
         };
-        if (currentDebt === 0) return {
-          title: "Libre de Deudas",
-          desc: "¡Excelente! No tienes deudas. Sigue ahorrando e invirtiendo para hacer crecer tu patrimonio neto.",
-          icon: "verified-user"
-        };
+        
         if (healthPct >= 85) return {
           title: "Patrimonio Blindado",
-          desc: "Tu salud es excelente. Tus activos cubren ampliamente tus deudas. ¡Es un buen momento para diversificar inversiones!",
+          desc: currentDebt === 0 
+            ? "¡Excelente! Libre de deudas, buenos ahorros y tus inversiones crecen. Tu salud financiera es verdaderamente óptima."
+            : "Tu salud es excelente. Tus activos cubren ampliamente tus deudas y tienes un patrimonio muy bien diversificado.",
           icon: "verified-user"
         };
         if (healthPct >= 70) return {
-          title: "Rumbo Correcto",
-          desc: "Tienes una base sólida. Recomendamos seguir fortaleciendo tu ahorro para protegerte de cualquier imprevisto.",
-          icon: "trending-up"
+          title: currentAhorro === 0 ? "Construye tu Fondo" : "Rumbo Correcto",
+          desc: currentAhorro === 0 
+            ? "Vas por buen camino y tus deudas están controladas, pero te hace falta un fondo de emergencia para estar 100% seguro."
+            : "Tienes una base sólida. Recomendamos seguir fortaleciendo tus ahorros o inversiones para alcanzar el nivel óptimo.",
+          icon: currentAhorro === 0 ? "account-balance-wallet" : "trending-up"
         };
         if (healthPct >= 40) return {
-          title: "Atención Necesaria",
-          desc: "Tus deudas están pesando sobre tus finanzas. Intenta liquidar saldos pequeños para mejorar tu flujo mensual.",
+          title: currentDebt > 0 ? "Atención Necesaria" : "Patrimonio Estancado",
+          desc: currentDebt > 0 
+            ? "Tus deudas están pesando sobre tus finanzas. Intenta liquidar saldos pequeños para mejorar tu flujo mensual."
+            : "Aunque no tienes deudas, casi todo tu dinero está líquido. Necesitas ahorrar e invertir para proteger tu futuro.",
           icon: "report-problem"
         };
         return {
           title: "Alerta Financiera",
-          desc: "Tu nivel de deuda es crítico frente a tus activos. Prioriza el pago de deudas y evita gastos no esenciales.",
+          desc: "Tu salud financiera está en riesgo crítico. Prioriza el pago de deudas y recorta gastos no esenciales inmediatamente.",
           icon: "warning"
         };
       })()
