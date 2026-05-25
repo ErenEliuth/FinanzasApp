@@ -370,14 +370,8 @@ export default function AddTransactionScreen() {
           setSuggestedPct(pct);
           setIncomeJustSaved(parsed);
           
-          // Si no hay preferencia, preguntar
-          if (smartSavingsPref === 'unset') {
-            setShowPreferenceModal(true);
-          } else if (smartSavingsPref === 'enabled') {
-            setShowAiModal(true);
-          } else {
-            router.back();
-          }
+          // Mostrar siempre la alerta inteligente de ingresos
+          setShowAiModal(true);
 
           setIsSaving(false);
           return;
