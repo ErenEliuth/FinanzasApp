@@ -604,8 +604,8 @@ export default function HomeScreen() {
     const generalMoney = assetsTotal - currentDebt;
     
     const rawHealthPct = assetsTotal > 0 
-      ? Math.max(0, Math.min(100, Math.round((realMoney / assetsTotal) * 100))) 
-      : 0;
+      ? Math.max(0, Math.min(100, Math.round((generalMoney / assetsTotal) * 100))) 
+      : (currentDebt === 0 ? 100 : 0);
     
     const healthPct = isNaN(rawHealthPct) ? 0 : rawHealthPct;
 
@@ -629,6 +629,16 @@ export default function HomeScreen() {
       saldoDisponible: realMoney,
       derivedAccountTotals: accs,
       healthDiagnostic: (() => {
+        if (assetsTotal === 0 && currentDebt === 0) return {
+          title: "Comienza tu Viaje",
+          desc: "Aún no tienes movimientos registrados. ¡Empieza a registrar tus ingresos para construir tu patrimonio!",
+          icon: "flag"
+        };
+        if (currentDebt === 0) return {
+          title: "Libre de Deudas",
+          desc: "¡Excelente! No tienes deudas. Sigue ahorrando e invirtiendo para hacer crecer tu patrimonio neto.",
+          icon: "verified-user"
+        };
         if (healthPct >= 85) return {
           title: "Patrimonio Blindado",
           desc: "Tu salud es excelente. Tus activos cubren ampliamente tus deudas. ¡Es un buen momento para diversificar inversiones!",
@@ -641,7 +651,7 @@ export default function HomeScreen() {
         };
         if (healthPct >= 40) return {
           title: "Atención Necesaria",
-          desc: "Tus deudas están pesando sobre tus ahorros. Intenta liquidar saldos pequeños para mejorar tu flujo mensual.",
+          desc: "Tus deudas están pesando sobre tus finanzas. Intenta liquidar saldos pequeños para mejorar tu flujo mensual.",
           icon: "report-problem"
         };
         return {
