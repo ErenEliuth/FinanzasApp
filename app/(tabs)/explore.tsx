@@ -83,6 +83,7 @@ export default function AddTransactionScreen() {
   const [showAiModal, setShowAiModal] = useState(false);
   const [suggestedAmount, setSuggestedAmount] = useState(0);
   const [suggestedPct, setSuggestedPct] = useState(0);
+  const [aiIncomeMessage, setAiIncomeMessage] = useState('');
   const [incomeJustSaved, setIncomeJustSaved] = useState(0);
   const [smartSavingsPref, setSmartSavingsPref] = useState<'enabled' | 'disabled' | 'unset'>('unset');
   const [showPreferenceModal, setShowPreferenceModal] = useState(false);
@@ -334,6 +335,10 @@ export default function AddTransactionScreen() {
         try {
           const { data: allTx } = await supabase.from('transactions').select('amount, type, category').eq('user_id', user?.id);
           const { data: allDebts } = await supabase.from('debts').select('value, paid').eq('user_id', user?.id);
+          const { data: goalsData } = await supabase.from('goals').select('id, name, current_amount, target_amount').eq('user_id', user?.id);
+          const storedInterests = await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user.id!));
+          const iMap = storedInterests ? JSON.parse(storedInterests) : {};
+          const efGoal = goalsData?.find(g => iMap[g.id]?.is_emergency_fund);
           
           let totalActive = 0, totalAhorro = 0;
           allTx?.forEach(t => {
@@ -346,10 +351,21 @@ export default function AddTransactionScreen() {
           const debtTotal = allDebts?.reduce((sum, d) => sum + (d.value - d.paid), 0) || 0;
           const realMoney = (totalActive + totalAhorro) - debtTotal;
           const healthPct = (totalActive + totalAhorro) > 0 ? (realMoney / (totalActive + totalAhorro)) * 100 : 0;
+          const fundStatus = efGoal && efGoal.target_amount > 0 ? (efGoal.current_amount / efGoal.target_amount) : 0;
 
           const pct = healthPct >= 70 ? 20 : healthPct >= 40 ? 15 : 10;
           const suggest = Math.round(parsed * (pct / 100));
 
+          let msg = "";
+          if (fundStatus < 0.5) {
+              msg = `¡Buen ingreso! Por cómo va el mes y viendo que tu fondo de emergencia está bajo, te sugerimos destinar el ${pct}% de este ingreso al fondo. Así estarás más protegido ante imprevistos, pero mantendrás liquidez suficiente para tus gastos. ¡No te quedes sin efectivo para sobrevivir!`;
+          } else if (debtTotal > totalActive * 0.5) {
+              msg = `¡Ingreso registrado! Notamos que tienes algunas deudas. Destinar el ${pct}% de este dinero a cubrirlas o a tus ahorros te dará mucha más tranquilidad, conservando el resto para tus gastos necesarios del mes.`;
+          } else {
+              msg = `¡Excelente! Tus finanzas se ven estables. Te recomendamos guardar al menos el ${pct}% de este ingreso para seguir construyendo tu patrimonio, dejándote el resto libre para disfrutar o cubrir tus gastos normales.`;
+          }
+
+          setAiIncomeMessage(msg);
           setSuggestedAmount(suggest);
           setSuggestedPct(pct);
           setIncomeJustSaved(parsed);
@@ -841,7 +857,7 @@ export default function AddTransactionScreen() {
                 </View>
                 <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Sugerencia Sanctuary</Text>
                 <Text style={[styles.modalSub, { color: colorsNav.sub, textAlign: 'center' }]}>
-                  ¡Excelente ingreso! Para mantener tu salud financiera, te recomendamos ahorrar un {suggestedPct}% de este ingreso:
+                  {aiIncomeMessage || `¡Excelente ingreso! Para mantener tu salud financiera, te recomendamos ahorrar un ${suggestedPct}% de este ingreso:`}
                 </Text>
 
                 <View style={[styles.suggestionPill, { backgroundColor: colorsNav.accent }]}>
