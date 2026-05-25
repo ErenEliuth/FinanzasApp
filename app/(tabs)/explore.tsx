@@ -85,6 +85,8 @@ export default function AddTransactionScreen() {
   const [suggestedPct, setSuggestedPct] = useState(0);
   const [aiIncomeMessage, setAiIncomeMessage] = useState('');
   const [incomeJustSaved, setIncomeJustSaved] = useState(0);
+  const [availableGoals, setAvailableGoals] = useState<{id: number; name: string; current_amount: number; target_amount: number}[]>([]);
+  const [selectedGoalId, setSelectedGoalId] = useState<number | null>(null);
   const [smartSavingsPref, setSmartSavingsPref] = useState<'enabled' | 'disabled' | 'unset'>('unset');
   const [showPreferenceModal, setShowPreferenceModal] = useState(false);
   const [showHealthAlert, setShowHealthAlert] = useState(false);
@@ -370,6 +372,12 @@ export default function AddTransactionScreen() {
           setSuggestedPct(pct);
           setIncomeJustSaved(parsed);
           
+          if (goalsData) {
+             setAvailableGoals(goalsData);
+             if (efGoal) setSelectedGoalId(efGoal.id);
+             else if (goalsData.length > 0) setSelectedGoalId(goalsData[0].id);
+          }
+          
           if (smartSavingsPref !== 'disabled') {
               setShowAiModal(true);
           } else {
@@ -518,10 +526,19 @@ export default function AddTransactionScreen() {
   const handleSaveSavingSuggestion = async () => {
     setIsSaving(true);
     try {
+      let desc = 'Ahorro Sugerido Sanctuary';
+      const goal = availableGoals.find(g => g.id === selectedGoalId);
+      if (goal) desc = `Aporte a fondo: ${goal.name}`;
+
       const { error } = await supabase.from('transactions').insert([{
-        user_id: user?.id, type: 'expense', amount: suggestedAmount, description: 'Ahorro Sugerido Sanctuary', category: 'Ahorro', account: account, date: getLocalISOString(),
+        user_id: user?.id, type: 'expense', amount: suggestedAmount, description: desc, category: 'Ahorro', account: account, date: getLocalISOString(),
       }]);
       if (error) throw error;
+      
+      if (goal) {
+          await supabase.from('goals').update({ current_amount: goal.current_amount + suggestedAmount }).eq('id', goal.id);
+      }
+      
       setShowAiModal(false);
       router.replace('/(tabs)');
     } catch (e) {
@@ -856,10 +873,36 @@ export default function AddTransactionScreen() {
                   {aiIncomeMessage || `¡Excelente ingreso! Para mantener tu salud financiera, te recomendamos ahorrar un ${suggestedPct}% de este ingreso:`}
                 </Text>
 
-                <View style={[styles.suggestionPill, { backgroundColor: colorsNav.accent }]}>
+                <View style={[styles.suggestionPill, { backgroundColor: colorsNav.accent, marginBottom: availableGoals.length > 0 ? 10 : 20 }]}>
                   <Text style={[styles.suggestionAmt, { color: '#FFF' }]}>{fmt(suggestedAmount)}</Text>
                   <Text style={[styles.suggestionLab, { color: 'rgba(255,255,255,0.8)' }]}>AHORRO RECOMENDADO</Text>
                 </View>
+
+                {availableGoals.length > 0 && (
+                  <View style={{ width: '100%', marginBottom: 20 }}>
+                    <Text style={{ color: colorsNav.sub, fontSize: 12, marginBottom: 8, textAlign: 'center', fontWeight: '700' }}>DESTINO DEL AHORRO:</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 10 }}>
+                      {availableGoals.map(g => (
+                        <TouchableOpacity
+                          key={g.id}
+                          style={{
+                            paddingHorizontal: 14,
+                            paddingVertical: 8,
+                            borderRadius: 12,
+                            backgroundColor: selectedGoalId === g.id ? colorsNav.accent : colorsNav.bg,
+                            borderWidth: 1,
+                            borderColor: selectedGoalId === g.id ? colorsNav.accent : colorsNav.border,
+                          }}
+                          onPress={() => setSelectedGoalId(g.id)}
+                        >
+                          <Text style={{ color: selectedGoalId === g.id ? '#FFF' : colorsNav.text, fontWeight: '700', fontSize: 13 }}>
+                            {g.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
 
                 <View style={styles.modalBtns}>
                   <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.bg }]} onPress={() => { setShowAiModal(false); router.replace('/(tabs)'); }}>
