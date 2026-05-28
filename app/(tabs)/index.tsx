@@ -95,6 +95,7 @@ export default function HomeScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [investmentTotal, setInvestmentTotal] = useState(0);
+  const [allInvestments, setAllInvestments] = useState<any[]>([]);
 
   const scrollRef = useRef<any>(null);
 
@@ -244,6 +245,7 @@ export default function HomeScreen() {
           .eq('user_id', user.id);
         
         if (invData && invData.length > 0) {
+          setAllInvestments(invData);
           const baseTotal = invData.reduce((sum, pos) => sum + (Number(pos.shares || 0) * (Number(pos.avg_price || 0))), 0);
           setInvestmentTotal(baseTotal); // Set base first for fast rendering
 
@@ -287,6 +289,7 @@ export default function HomeScreen() {
           }
         } else {
           setInvestmentTotal(0);
+          setAllInvestments([]);
         }
       } catch (e) { console.error("Error loading investment live total:", e); }
 
@@ -603,66 +606,121 @@ export default function HomeScreen() {
     const assetsTotal = activeMoney + currentAhorro + currentInvestment;
     const generalMoney = assetsTotal - currentDebt;
     
-    // --- Algoritmo Estricto de Salud Financiera ---
+    // --- Algoritmo Estricto de Salud Financiera v3 (8 Pilares) ---
     
-    // 1. Calcular gastos promedio para el fondo de emergencia
+    // 1. Calcular gastos promedio y consistencia mensual
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
     let totalExpenses90d = 0;
+    const savingMonths = new Set<string>();
     
     allTransactions.forEach(tx => {
        const txD = parseLocalDate(tx.date);
-       if (txD >= ninetyDaysAgo && tx.type === 'expense' && tx.category !== 'Transferencia' && tx.category !== 'Ahorro') {
-           totalExpenses90d += Number(tx.amount) || 0;
+       if (txD >= ninetyDaysAgo) {
+           if (tx.type === 'expense' && tx.category !== 'Transferencia' && tx.category !== 'Ahorro') {
+               totalExpenses90d += Number(tx.amount) || 0;
+           }
+           if (tx.category === 'Ahorro') {
+               savingMonths.add(`${txD.getFullYear()}-${txD.getMonth()}`);
+           }
        }
+    });
+
+    const investingMonths = new Set<string>();
+    allInvestments.forEach(inv => {
+        if (inv.created_at) {
+            const invDate = new Date(inv.created_at);
+            if (invDate >= ninetyDaysAgo) {
+                investingMonths.add(`${invDate.getFullYear()}-${invDate.getMonth()}`);
+            }
+        }
     });
     
     let avgMonthlyExpenses = totalExpenses90d / 3;
     if (avgMonthlyExpenses < expGastos) avgMonthlyExpenses = expGastos;
     if (avgMonthlyExpenses === 0) avgMonthlyExpenses = 1; 
 
+    // Ingreso promedio mensual
+    let avgMonthlyIncome = inc;
+    if (inc === 0) avgMonthlyIncome = 1; // Evitar división por cero
+
     let rawHealthPct = 0;
     
     if (assetsTotal > 0 || inc > 0) {
-      // 1A. Flujo de Caja (Gasto vs Ingreso del mes) - 15 pts
+      // 1. Control de Deuda (15 pts)
+      let debtScore = 0;
+      const debtRatio = currentDebt / avgMonthlyIncome;
+      if (currentDebt === 0) debtScore = 15;
+      else if (debtRatio < 1) debtScore = 12;
+      else if (debtRatio < 3) debtScore = 8;
+      else if (debtRatio < 6) debtScore = 4;
+      else debtScore = 0;
+
+      // 2. Flujo de Caja Mensual (15 pts)
       let cashFlowScore = 0;
       if (inc > 0) {
           const expenseRatio = expGastos / inc;
-          if (expenseRatio <= 0.60) cashFlowScore = 15;
-          else if (expenseRatio < 0.80) cashFlowScore = (1 - ((expenseRatio - 0.60) / 0.20)) * 15;
+          if (expenseRatio <= 0.50) cashFlowScore = 15;
+          else if (expenseRatio <= 0.70) cashFlowScore = 12;
+          else if (expenseRatio <= 0.80) cashFlowScore = 8;
+          else if (expenseRatio <= 0.95) cashFlowScore = 4;
+          else cashFlowScore = 0;
       } else if (expGastos === 0) {
           cashFlowScore = 15; 
       }
 
-      // 1B. Fondo de Emergencia (Meses de supervivencia) - 15 pts
+      // 3. Fondo de Emergencia (15 pts)
       let emergencyScore = 0;
-      const survivalMonths = (activeMoney + currentAhorro) / avgMonthlyExpenses;
-      if (survivalMonths >= 3) emergencyScore = 15;
-      else if (survivalMonths > 1) emergencyScore = ((survivalMonths - 1) / 2) * 15;
+      const survivalMonths = currentAhorro / avgMonthlyExpenses;
+      if (survivalMonths >= 6) emergencyScore = 15;
+      else if (survivalMonths >= 3) emergencyScore = 10;
+      else if (survivalMonths >= 1) emergencyScore = 5;
+      else emergencyScore = 0;
       
-      // 2. Control de Deuda (30 pts)
-      let debtScore = 0;
-      const debtRatio = currentDebt / (assetsTotal || 1);
-      if (debtRatio === 0) debtScore = 30;
-      else if (debtRatio < 0.30) debtScore = (1 - (debtRatio / 0.30)) * 30;
-
-      // 3A. Tasa de Ahorro Mensual (20 pts)
+      // 4. Tasa de Ahorro Real (10 pts)
       let savingScore = 0;
       if (inc > 0) {
           const savingRatio = savMes / inc;
-          if (savingRatio >= 0.20) savingScore = 20;
-          else if (savingRatio > 0) savingScore = (savingRatio / 0.20) * 20;
+          if (savingRatio >= 0.20) savingScore = 10;
+          else if (savingRatio >= 0.10) savingScore = 7;
+          else if (savingRatio >= 0.05) savingScore = 4;
+          else savingScore = 0;
       }
 
-      // 3B. Inversiones vs Patrimonio (20 pts)
+      // 5. Consistencia de Ahorro (10 pts)
+      let savConsistencyScore = 0;
+      if (savingMonths.size >= 3) savConsistencyScore = 10;
+      else if (savingMonths.size === 2) savConsistencyScore = 6;
+      else if (savingMonths.size === 1) savConsistencyScore = 3;
+
+      // 6. Inversiones Significativas (10 pts)
       let invScore = 0;
-      if (assetsTotal > 0) {
-          const invRatio = currentInvestment / assetsTotal;
-          if (invRatio >= 0.20) invScore = 20;
-          else if (invRatio > 0) invScore = (invRatio / 0.20) * 20;
-      }
+      const invRatio = currentInvestment / avgMonthlyIncome;
+      if (invRatio >= 6) invScore = 10;
+      else if (invRatio >= 3) invScore = 7;
+      else if (invRatio >= 1) invScore = 4;
+      else invScore = 0;
 
-      rawHealthPct = Math.round(cashFlowScore + emergencyScore + debtScore + savingScore + invScore);
+      // 7. Consistencia de Inversión (10 pts)
+      let invConsistencyScore = 0;
+      if (investingMonths.size >= 3) invConsistencyScore = 10;
+      else if (investingMonths.size === 2) invConsistencyScore = 6;
+      else if (investingMonths.size === 1) invConsistencyScore = 3;
+
+      // 8. Diversificación del Patrimonio (15 pts)
+      let divScore = 0;
+      let categories = 0;
+      const minCategoryVal = assetsTotal * 0.05; // >5% para contar
+      if (assetsTotal > 0) {
+          if (activeMoney >= minCategoryVal) categories++;
+          if (currentAhorro >= minCategoryVal) categories++;
+          if (currentInvestment >= minCategoryVal) categories++;
+      }
+      if (categories >= 3) divScore = 15;
+      else if (categories === 2) divScore = 9;
+      else if (categories === 1) divScore = 4;
+
+      rawHealthPct = Math.round(cashFlowScore + emergencyScore + debtScore + savingScore + savConsistencyScore + invScore + invConsistencyScore + divScore);
     }
     
     const healthPct = isNaN(rawHealthPct) ? 0 : rawHealthPct;
@@ -693,62 +751,61 @@ export default function HomeScreen() {
           icon: "flag"
         };
 
-        // Identify weakest factor for targeted advice
-        const survivalMonths = avgMonthlyExpenses > 1 ? (activeMoney + currentAhorro) / avgMonthlyExpenses : 0;
+        // Identificar pilar más débil
+        const survivalMonths = currentAhorro / avgMonthlyExpenses;
         const expRatio = inc > 0 ? expGastos / inc : 1;
         const savRatio = inc > 0 ? savMes / inc : 0;
-        const invRatio = assetsTotal > 0 ? currentInvestment / assetsTotal : 0;
-        const dRatio = currentDebt / (assetsTotal || 1);
+        const invRatio = currentInvestment / avgMonthlyIncome;
+        const dRatio = currentDebt / avgMonthlyIncome;
         
         if (healthPct >= 85) return {
           title: "Patrimonio Blindado",
-          desc: `Ahorras más del 20%, inviertes sabiamente y tienes ${survivalMonths.toFixed(1)} meses de colchón. ¡Sigue así, estás en el top financiero!`,
+          desc: `Ahorras más del 20%, inviertes sabiamente y tienes un excelente colchón. ¡Sigue así, estás en el top financiero!`,
           icon: "verified-user"
         };
         if (healthPct >= 70) {
-          // Good but something is missing
-          if (invRatio < 0.20) return {
-            title: "Pon tu Dinero a Trabajar",
-            desc: `Solo el ${(invRatio * 100).toFixed(0)}% de tu patrimonio está invertido. Necesitas al menos el 20% para protegerte de la inflación y generar rendimientos.`,
+          if (invRatio < 1) return {
+            title: "Potencia tus Inversiones",
+            desc: `Tu portafolio es menor a 1 mes de tus ingresos. Para que el interés compuesto trabaje para ti, aumenta tus aportes mensuales.`,
             icon: "trending-up"
           };
-          if (savRatio < 0.20 && inc > 0) return {
-            title: "Aumenta tu Ahorro",
-            desc: `Este mes solo ahorraste el ${(savRatio * 100).toFixed(0)}% de tus ingresos. La regla de oro es destinar mínimo el 20% al ahorro.`,
+          if (savingMonths.size < 3) return {
+            title: "Ahorra Mensualmente",
+            desc: "Tienes buenos números, pero te falta consistencia. Intenta hacer aportes al ahorro todos los meses, por pequeños que sean.",
             icon: "account-balance-wallet"
           };
           return {
             title: "Rumbo Correcto",
-            desc: "Estás cerca del nivel óptimo. Revisa qué pilar te falta fortalecer: ahorro mensual, inversiones o fondo de emergencia.",
+            desc: "Vas muy bien. Sigue diversificando tu patrimonio y manteniendo tus deudas bajo control.",
             icon: "trending-up"
           };
         }
         if (healthPct >= 40) {
-          if (dRatio >= 0.30) return {
+          if (dRatio >= 3) return {
             title: "Deuda Peligrosa",
-            desc: `Tus deudas representan el ${(dRatio * 100).toFixed(0)}% de tus activos. El máximo saludable es 30%. Enfócate en liquidar saldos pequeños primero.`,
+            desc: `Tus deudas superan 3 meses enteros de tus ingresos. Enfócate en liquidar saldos pequeños y recorta gastos urgente.`,
             icon: "report-problem"
           };
-          if (survivalMonths < 3) return {
+          if (survivalMonths < 1) return {
             title: "Sin Colchón de Emergencia",
-            desc: `Solo sobrevivirías ${survivalMonths.toFixed(1)} meses sin ingresos. Necesitas al menos 3 meses de gastos cubiertos en tu fondo de emergencia.`,
+            desc: `No tienes ni 1 mes de gastos cubiertos en tus metas/cajitas de ahorro. Cualquier imprevisto te obligará a endeudarte.`,
             icon: "report-problem"
           };
-          if (expRatio >= 0.80 && inc > 0) return {
-            title: "Gastas Demasiado",
-            desc: `Estás gastando el ${(expRatio * 100).toFixed(0)}% de lo que ganas. Deberías gastar máximo el 80% y destinar el resto al ahorro.`,
-            icon: "report-problem"
+          if (investingMonths.size < 1) return {
+            title: "Comienza a Invertir",
+            desc: "No has invertido recientemente. Proponte invertir una pequeña cantidad cada mes para aprovechar el tiempo.",
+            icon: "trending-up"
           };
           return {
             title: "Patrimonio Estancado",
-            desc: "Tu dinero no está creciendo. Necesitas ahorrar, invertir y construir un fondo de emergencia para mejorar tu puntuación.",
+            desc: "Tu dinero no crece por falta de disciplina mensual. Establece un presupuesto y ahorra el 10% de cada ingreso.",
             icon: "report-problem"
           };
         }
         // Below 40
-        if (dRatio >= 0.30 && survivalMonths < 1) return {
+        if (dRatio >= 1 && survivalMonths < 1) return {
           title: "Alerta Crítica",
-          desc: `Tus deudas son el ${(dRatio * 100).toFixed(0)}% de tus activos y no tienes ni 1 mes de colchón. Recorta gastos y prioriza pagar deudas YA.`,
+          desc: "Deudas que superan tu ingreso mensual y sin fondo de emergencia. Congela tus tarjetas de crédito y busca ingresos extra.",
           icon: "warning"
         };
         return {
@@ -758,7 +815,7 @@ export default function HomeScreen() {
         };
       })()
     };
-  }, [allTransactions, debtTotal, cards, investmentTotal, customAccounts, ahorroBreakdown]);
+  }, [allTransactions, allInvestments, debtTotal, cards, investmentTotal, customAccounts, ahorroBreakdown]);
 
   const handleLogout = async () => {
     if (Platform.OS === 'web') {
