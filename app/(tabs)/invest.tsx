@@ -159,10 +159,11 @@ export default function InvestScreen() {
   const generateRecommendations = (market: SearchResult[], pos: Position[]) => {
     const insights: InvestmentInsight[] = [];
 
-    // 1. Oportunidades en el mercado general (Top Caídas)
-    const candidates = market.filter(a => (a.changePercent || 0) < -0.8);
+    // 1. Oportunidades en el mercado general (Top Caídas y Top Subidas)
+    const losers = market.filter(a => (a.changePercent || 0) < -0.8);
+    const gainers = market.filter(a => (a.changePercent || 0) > 1.5);
     
-    candidates.forEach(asset => {
+    losers.forEach(asset => {
       let priority: 'high' | 'medium' | 'low' = 'medium';
       let reason = 'Retroceso diario detectado.';
       const isIntl = ['NVDA', 'AAPL', 'VOO', 'QQQ', 'BTC'].includes(asset.ticker);
@@ -189,6 +190,18 @@ export default function InvestScreen() {
         reason,
         type: 'buy',
         priority,
+        price: asset.price || 0,
+        change: asset.changePercent || 0
+      });
+    });
+
+    gainers.forEach(asset => {
+      insights.push({
+        ticker: asset.ticker,
+        name: asset.name || asset.ticker,
+        reason: 'Mostrando fuerza alcista hoy. Considera seguir la tendencia o esperar un retroceso.',
+        type: 'buy',
+        priority: 'low',
         price: asset.price || 0,
         change: asset.changePercent || 0
       });
