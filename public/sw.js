@@ -37,6 +37,11 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;
 
+  // Exclude local API endpoints from Service Worker intercept
+  if (url.includes('/api/')) {
+    return;
+  }
+
   // Strategy: Network-First with Cache Fallback for Supabase API requests
   if (SUPABASE_API_PATTERN.test(url)) {
     event.respondWith(
