@@ -758,18 +758,15 @@ export default function GoalsScreen() {
                         [fondo].map(goal => {
                             const pct = Math.min(100, (goal.current_amount / goal.target_amount) * 100);
                             const isDone = pct >= 100;
-                            const efLevel = interestMap[goal.id]?.emergency_level || 1;
-
-                            // ── Premium Emergency Fund Card ──
+                            c                                // ── Premium Emergency Fund Card ──
                                 const gradientsByLevel: [string, string, string][] = [
-                                    ['#1A237E', '#1565C0', '#0D47A1'],
-                                    ['#4A148C', '#7B1FA2', '#6A1B9A'],
-                                    ['#B71C1C', '#C62828', '#BF360C'],
+                                    ['#2D5A3D', '#4A7C59', '#3E6B4B'], // Softer Sage/Green theme instead of dark blue
+                                    ['#4D3C6E', '#7C5DBA', '#614C8F'],
+                                    ['#8B1A2E', '#E05C6E', '#B33C50'],
                                 ];
                                 const [gc1, gc2] = gradientsByLevel[Math.min(efLevel - 1, 2)];
                                 const levelLabels = ['Escudo Inicial', 'Tranquilidad', 'Blindaje Total'];
                                 const levelShields = ['🛡️', '🛡️🛡️', '🛡️🛡️🛡️'];
-                                const nextLevelGrad = gradientsByLevel[Math.min(efLevel, 2)];
 
                                 return (
                                     <TouchableOpacity
@@ -783,56 +780,56 @@ export default function GoalsScreen() {
                                             colors={[gc1, gc2]}
                                             start={{ x: 0, y: 0 }}
                                             end={{ x: 1, y: 1 }}
-                                            style={{ padding: 22 }}
+                                            style={{ padding: 18 }}
                                         >
                                             {/* Header row */}
-                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                                                 <View style={{ flex: 1, marginRight: 12 }}>
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                                                        <View style={{ backgroundColor: 'rgba(255,255,255,0.22)', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 }}>
-                                                            <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '900', letterSpacing: 0.5 }}>NIVEL {efLevel}</Text>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                                        <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 20 }}>
+                                                            <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900', letterSpacing: 0.5 }}>NIVEL {efLevel}</Text>
                                                         </View>
-                                                        <View style={{ backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 }}>
-                                                            <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 9, fontWeight: '800' }}>{interestMap[goal.id]?.rate}% E.A.</Text>
+                                                        <View style={{ backgroundColor: 'rgba(255,255,255,0.12)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 20 }}>
+                                                            <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 8, fontWeight: '800' }}>{interestMap[goal.id]?.rate}% E.A.</Text>
                                                         </View>
                                                     </View>
-                                                    <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '900', lineHeight: 22 }} numberOfLines={1}>
+                                                    <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900', lineHeight: 20 }} numberOfLines={1}>
                                                         {goal.name}
                                                     </Text>
-                                                    <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12, fontWeight: '700', marginTop: 3 }}>
+                                                    <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '700', marginTop: 2 }}>
                                                         {levelLabels[Math.min(efLevel - 1, 2)]} {levelShields[Math.min(efLevel - 1, 2)]}
                                                     </Text>
                                                 </View>
-                                                <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.18)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }}>
-                                                    <Ionicons name="shield-checkmark" size={30} color="#FFF" />
+                                                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' }}>
+                                                    <Ionicons name="shield-checkmark" size={22} color="#FFF" />
                                                 </View>
                                             </View>
 
                                             {/* Amount */}
-                                            <Text style={{ color: '#FFF', fontSize: 32, fontWeight: '900', letterSpacing: -0.5 }}>
+                                            <Text style={{ color: '#FFF', fontSize: 28, fontWeight: '900', letterSpacing: -0.5 }}>
                                                 {fmt(goal.current_amount)}
                                             </Text>
-                                            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '700', marginTop: 2, marginBottom: 14 }}>
+                                            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '700', marginTop: 1, marginBottom: 10 }}>
                                                 de {fmt(goal.target_amount)} objetivo
                                             </Text>
 
                                             {/* Progress bar */}
-                                            <View style={{ height: 7, backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: 4, overflow: 'hidden', marginBottom: 8 }}>
-                                                <View style={{ width: `${Math.min(pct, 100)}%`, height: '100%', backgroundColor: '#FFF', borderRadius: 4 }} />
+                                            <View style={{ height: 5, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 3, overflow: 'hidden', marginBottom: 6 }}>
+                                                <View style={{ width: `${Math.min(pct, 100)}%`, height: '100%', backgroundColor: '#FFF', borderRadius: 3 }} />
                                             </View>
 
                                             {/* Footer row */}
                                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, fontWeight: '800' }}>
+                                                <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 10, fontWeight: '800' }}>
                                                     {Math.round(pct)}% completado
                                                 </Text>
                                                 {isDone ? (
-                                                    <View style={{ backgroundColor: '#10B981', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 }}>
-                                                        <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900' }}>META ALCANZADA ✅</Text>
+                                                    <View style={{ backgroundColor: '#10B981', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+                                                        <Text style={{ color: '#FFF', fontSize: 8, fontWeight: '900' }}>META ALCANZADA ✅</Text>
                                                     </View>
                                                 ) : interestMap[goal.id]?.last_earned > 0 ? (
-                                                    <View style={{ backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 }}>
-                                                        <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 10, fontWeight: '800' }}>+{fmt(interestMap[goal.id].last_earned)} hoy</Text>
+                                                    <View style={{ backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 }}>
+                                                        <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 9, fontWeight: '800' }}>+{fmt(interestMap[goal.id].last_earned)} hoy</Text>
                                                     </View>
                                                 ) : null}
                                             </View>
@@ -840,7 +837,7 @@ export default function GoalsScreen() {
                                             {/* Level Up button */}
                                             {isDone && efLevel < 3 && (
                                                 <TouchableOpacity
-                                                    style={{ marginTop: 16, backgroundColor: 'rgba(255,255,255,0.18)', paddingVertical: 13, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' }}
+                                                    style={{ marginTop: 12, backgroundColor: 'rgba(255,255,255,0.18)', paddingVertical: 10, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }}
                                                     onPress={() => {
                                                         setGoalForLevelUp(goal);
                                                         const nextLvl = efLevel + 1;
@@ -856,12 +853,12 @@ export default function GoalsScreen() {
                                                         setLevelUpModalVisible(true);
                                                     }}
                                                 >
-                                                    <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>Subir al Nivel {efLevel + 1} 🚀</Text>
+                                                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Subir al Nivel {efLevel + 1} 🚀</Text>
                                                 </TouchableOpacity>
                                             )}
                                             {isDone && efLevel >= 3 && (
-                                                <View style={{ marginTop: 16, backgroundColor: 'rgba(255,255,255,0.12)', paddingVertical: 13, borderRadius: 16, alignItems: 'center' }}>
-                                                    <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>¡Blindaje Máximo Alcanzado! 🏆</Text>
+                                                <View style={{ marginTop: 12, backgroundColor: 'rgba(255,255,255,0.12)', paddingVertical: 10, borderRadius: 12, alignItems: 'center' }}>
+                                                    <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900' }}>¡Blindaje Máximo Alcanzado! 🏆</Text>
                                                 </View>
                                             )}
                                         </LinearGradient>
@@ -898,71 +895,47 @@ export default function GoalsScreen() {
                     const todayIndex = new Date().getDate() % motivationalQuotes.length;
 
                     return (
-                        <View style={{ marginTop: 28, gap: 20 }}>
+                        <View style={{ marginTop: 20, gap: 16 }}>
                             {/* Quick Stats */}
-                            <View style={{ flexDirection: 'row', gap: 12 }}>
-                                <View style={{ flex: 1, backgroundColor: colors.card, borderRadius: 20, padding: 16, alignItems: 'center' }}>
-                                    <Ionicons name="calendar" size={22} color={colors.accent} />
-                                    <Text style={{ color: colors.text, fontSize: 22, fontWeight: '900', marginTop: 6 }}>{monthsCovered}</Text>
-                                    <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '700', textAlign: 'center' }}>MESES CUBIERTOS</Text>
+                            <View style={{ flexDirection: 'row', gap: 10 }}>
+                                <View style={{ flex: 1, backgroundColor: colors.card, borderRadius: 16, padding: 12, alignItems: 'center' }}>
+                                    <Ionicons name="calendar" size={18} color={colors.accent} style={{ marginBottom: 4 }} />
+                                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>{monthsCovered}</Text>
+                                    <Text style={{ color: colors.sub, fontSize: 9, fontWeight: '700', textAlign: 'center', marginTop: 2 }}>MESES CUBIERTOS</Text>
                                 </View>
-                                <View style={{ flex: 1, backgroundColor: colors.card, borderRadius: 20, padding: 16, alignItems: 'center' }}>
-                                    <Ionicons name="shield" size={22} color={efLevel >= 3 ? '#F59E0B' : efLevel >= 2 ? '#7B1FA2' : colors.accent} />
-                                    <Text style={{ color: colors.text, fontSize: 22, fontWeight: '900', marginTop: 6 }}>Nv. {efLevel}</Text>
-                                    <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '700', textAlign: 'center' }}>
+                                <View style={{ flex: 1, backgroundColor: colors.card, borderRadius: 16, padding: 12, alignItems: 'center' }}>
+                                    <Ionicons name="shield" size={18} color={efLevel >= 3 ? '#F59E0B' : efLevel >= 2 ? '#7B1FA2' : colors.accent} style={{ marginBottom: 4 }} />
+                                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>Nv. {efLevel}</Text>
+                                    <Text style={{ color: colors.sub, fontSize: 9, fontWeight: '700', textAlign: 'center', marginTop: 2 }}>
                                         {efLevel >= 3 ? 'BLINDAJE' : efLevel >= 2 ? 'TRANQUILIDAD' : 'INICIAL'}
                                     </Text>
                                 </View>
-                                <View style={{ flex: 1, backgroundColor: colors.card, borderRadius: 20, padding: 16, alignItems: 'center' }}>
-                                    <Ionicons name="trending-up" size={22} color="#10B981" />
-                                    <Text style={{ color: '#10B981', fontSize: 16, fontWeight: '900', marginTop: 6 }}>{fmt(interestMap[fondo.id]?.total_earned || 0)}</Text>
-                                    <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '700', textAlign: 'center' }}>RENDIMIENTOS</Text>
+                                <View style={{ flex: 1, backgroundColor: colors.card, borderRadius: 16, padding: 12, alignItems: 'center' }}>
+                                    <Ionicons name="trending-up" size={18} color="#10B981" style={{ marginBottom: 4 }} />
+                                    <Text style={{ color: '#10B981', fontSize: 14, fontWeight: '900' }}>{fmt(interestMap[fondo.id]?.total_earned || 0)}</Text>
+                                    <Text style={{ color: colors.sub, fontSize: 9, fontWeight: '700', textAlign: 'center', marginTop: 2 }}>RENDIMIENTOS</Text>
                                 </View>
                             </View>
 
-                            {/* Quick Actions */}
-                            <View style={{ flexDirection: 'row', gap: 12 }}>
-                                <TouchableOpacity 
-                                    style={{ flex: 1, backgroundColor: colors.accent, paddingVertical: 16, borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                                    onPress={() => {
-                                        setSelectedGoal(fondo);
-                                        setPayModalVisible(true);
-                                    }}
-                                >
-                                    <Ionicons name="add-circle" size={20} color="#FFF" />
-                                    <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 14 }}>Aportar</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity 
-                                    style={{ flex: 1, backgroundColor: colors.card, paddingVertical: 16, borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: colors.border }}
-                                    onPress={() => {
-                                        setSelectedGoal(fondo);
-                                        setWithdrawModalVisible(true);
-                                    }}
-                                >
-                                    <Ionicons name="remove-circle" size={20} color="#EF4444" />
-                                    <Text style={{ color: colors.text, fontWeight: '800', fontSize: 14 }}>Retirar</Text>
-                                </TouchableOpacity>
-                            </View>
-
                             {/* Motivational Quote */}
-                            <View style={{ backgroundColor: colors.accent + '10', borderRadius: 20, padding: 18, borderLeftWidth: 4, borderLeftColor: colors.accent }}>
-                                <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '900', letterSpacing: 1, marginBottom: 6 }}>💡 FRASE DEL DÍA</Text>
-                                <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600', fontStyle: 'italic', lineHeight: 20 }}>
+                            <View style={{ backgroundColor: colors.accent + '0B', borderRadius: 16, padding: 14, borderLeftWidth: 3, borderLeftColor: colors.accent }}>
+                                <Text style={{ color: colors.accent, fontSize: 9, fontWeight: '900', letterSpacing: 1, marginBottom: 4 }}>💡 FRASE DEL DÍA</Text>
+                                <Text style={{ color: colors.text, fontSize: 12, fontWeight: '600', fontStyle: 'italic', lineHeight: 18 }}>
                                     {motivationalQuotes[todayIndex]}
                                 </Text>
                             </View>
 
                             {/* Consejos de Santy */}
                             <View>
-                                <Text style={{ fontSize: 18, fontWeight: '900', color: colors.text, marginBottom: 14 }}>Consejos de Santy 🧠</Text>
+                                <Text style={{ fontSize: 16, fontWeight: '900', color: colors.text, marginBottom: 10 }}>Consejos de Santy 🧠</Text>
                                 {tips.map((tip, idx) => (
-                                    <View key={idx} style={{ flexDirection: 'row', gap: 14, marginBottom: 14, backgroundColor: colors.card, borderRadius: 18, padding: 16 }}>
-                                        <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: colors.accent + '15', justifyContent: 'center', alignItems: 'center' }}>
-                                            <Ionicons name={tip.icon} size={22} color={colors.accent} />
+                                    <View key={idx} style={{ flexDirection: 'row', gap: 12, marginBottom: 10, backgroundColor: colors.card, borderRadius: 16, padding: 12 }}>
+                                        <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: colors.accent + '15', justifyContent: 'center', alignItems: 'center' }}>
+                                            <Ionicons name={tip.icon} size={18} color={colors.accent} />
                                         </View>
                                         <View style={{ flex: 1 }}>
-                                            <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800', marginBottom: 3 }}>{tip.title}</Text>
-                                            <Text style={{ color: colors.sub, fontSize: 12, lineHeight: 18 }}>{tip.desc}</Text>
+                                            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 2 }}>{tip.title}</Text>
+                                            <Text style={{ color: colors.sub, fontSize: 11, lineHeight: 16 }}>{tip.desc}</Text>
                                         </View>
                                     </View>
                                 ))}
