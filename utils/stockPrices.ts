@@ -56,10 +56,14 @@ const POPULAR_ASSETS: SearchResult[] = [
 export async function fetchCryptoPrice(ticker: string): Promise<{ price: number; change24h: number } | null> {
   const id = CRYPTO_IDS[ticker.toUpperCase()];
   if (!id) return null;
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd&include_24hr_change=true`;
   try {
-    const res = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd&include_24hr_change=true`
-    );
+    let res;
+    if (typeof window !== 'undefined' && window.location) {
+       res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`);
+    } else {
+       res = await fetch(url);
+    }
     const data = await res.json();
     if (data[id]) {
       return { price: data[id].usd, change24h: data[id].usd_24h_change || 0 };
@@ -123,8 +127,7 @@ export async function fetchTradingViewPrice(ticker: string): Promise<{ price: nu
 
     let res;
     if (typeof window !== 'undefined' && window.location) {
-      // Use corsproxy.io primarily
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}`;
       try {
         res = await fetchWithTimeout(proxyUrl, {
           method: 'POST',
@@ -133,7 +136,6 @@ export async function fetchTradingViewPrice(ticker: string): Promise<{ price: nu
         });
       } catch (e) {
         console.warn("Proxy failed, trying fallback...");
-        // Fallback or just return null
         return null; 
       }
     } else {
@@ -181,10 +183,8 @@ export async function fetchStockPrice(ticker: string): Promise<{ price: number; 
     
     let res;
     if (typeof window !== 'undefined' && window.location) {
-       // On web we likely need a proxy due to CORS
-       res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+       res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`);
     } else {
-       // On native we can fetch directly
        res = await fetch(url);
     }
     
@@ -311,7 +311,7 @@ export async function fetchBvcMarketOverview(customTickers?: string[]): Promise<
     
     let res;
     if (typeof window !== 'undefined' && window.location) {
-       const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+       const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}`;
        res = await fetch(proxyUrl, {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
