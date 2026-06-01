@@ -344,66 +344,119 @@ export default function ProfileScreen() {
         }
     }, [isFocused]);
 
+    const urlBase64ToUint8Array = (base64String: string) => {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding)
+            .replace(/\-/g, '+')
+            .replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    };
+
     const checkPushSubscription = async () => {
-        if (Platform.OS !== 'web' || !('serviceWorker' in navigator)) return;
+        if (Platform.OS !== 'web' || typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
         try {
             const reg = await navigator.serviceWorker.ready;
             const sub = await reg.pushManager.getSubscription();
-            setPushEnabled(!!sub);
-        } catch (e) { console.warn('Error checking push subscription:', e); }
+            const stored = await AsyncStorage.getItem('push_notifications_enabled');
+            setPushEnabled(!!sub && stored === 'true');
+        } catch (e) {
+            console.error('Error checking push subscription:', e);
+        }
     };
 
     const togglePushNotifications = async () => {
-        if (Platform.OS !== 'web' || !('serviceWorker' in navigator)) {
-            Alert.alert('Solo Web PWA', 'Las notificaciones push nativas están diseñadas para la versión web PWA.');
+        if (Platform.OS !== 'web' || typeof Notification === 'undefined' || !('serviceWorker' in navigator)) {
+            Alert.alert('Solo Web', 'Las notificaciones están disponibles en la versión web.');
             return;
         }
         try {
-            const reg = await navigator.serviceWorker.ready;
-            const sub = await reg.pushManager.getSubscription();
-            if (sub) {
-                await sub.unsubscribe();
+            if (pushEnabled) {
+                const reg = await navigator.serviceWorker.ready;
+                const sub = await reg.pushManager.getSubscription();
+                if (sub) {
+                    await sub.unsubscribe();
+                }
+                await AsyncStorage.setItem('push_notifications_enabled', 'false');
                 setPushEnabled(false);
-                Alert.alert('Notificaciones Desactivadas', 'Ya no recibirás alertas en este dispositivo.');
+                Alert.alert('Desactivadas', 'Ya no recibirás recordatorios de Santy.');
             } else {
                 const permission = await Notification.requestPermission();
                 if (permission === 'granted') {
-                    // Subscribe with simulator/generic key since we are in local/static pages
-                    await reg.pushManager.subscribe({
+                    const reg = await navigator.serviceWorker.ready;
+                    const VAPID_PUBLIC_KEY = 'BDc8JcLSHCdTUZDsNl8hlAzLPfOz4jWar4OGO9odsf8_8vePGp_uM9tPbjsJx0hTz3rUvDE48ygpPlvL5_eyrio';
+                    
+                    const sub = await reg.pushManager.subscribe({
                         userVisibleOnly: true,
-                        applicationServerKey: new Uint8Array([
-                            4, 9, 88, 12, 14, 95, 23, 10, 44, 92, 103, 44, 12, 9, 14, 55, 66, 77, 88, 99, 11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133, 144, 155, 166, 177, 188, 199, 200, 211, 222, 233, 244, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
-                        ])
+                        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
                     });
-                    setPushEnabled(true);
-                    Alert.alert('¡Suscrito con Éxito!', 'Ahora recibirás recordatorios y consejos de Santy.');
+
+                    const response = await fetch('/api/push/subscribe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            subscription: sub,
+                            userId: user?.id
+                        })
+                    });
+
+                    if (response.ok) {
+                        await AsyncStorage.setItem('push_notifications_enabled', 'true');
+                        setPushEnabled(true);
+                        Alert.alert('¡Activadas!', 'Recibirás recordatorios y consejos de Santy diariamente.');
+                    } else {
+                        const errData = await response.json();
+                        throw new Error(errData.error || 'Fallo en la suscripción del servidor');
+                    }
                 } else {
-                    Alert.alert('Permiso Denegado', 'Por favor habilita los permisos de notificación en los ajustes de tu navegador.');
+                    Alert.alert('Permiso Denegado', 'Habilita las notificaciones en los ajustes de tu navegador.');
                 }
             }
-        } catch (e) {
-            console.error('Push toggle failed:', e);
-            Alert.alert('Error', 'Hubo un problema al configurar las notificaciones.');
+        } catch (e: any) {
+            console.error('Push toggle error:', e);
+            Alert.alert('Error', `Hubo un problema al configurar las notificaciones: ${e.message || e}`);
         }
     };
 
     const sendTestPush = async () => {
-        if (Platform.OS !== 'web' || !('serviceWorker' in navigator)) return;
+        if (Platform.OS !== 'web' || typeof Notification === 'undefined') return;
         try {
-            // Native Service Worker doesn't have an easily-invocable backend API without a real VAPID relay.
-            // We simulate it locally by calling registration.showNotification directly or postMessage to SW.
-            const reg = await navigator.serviceWorker.ready;
-            if (Notification.permission === 'granted') {
-                reg.showNotification('Santy te aconseja 🧠', {
-                    body: '¡Excelente! Estás construyendo el hábito del ahorro. Tu fondo de emergencia te lo agradecerá en el futuro.',
-                    icon: '/FinanzasApp/assets/images/icon.png',
-                    badge: '/FinanzasApp/assets/images/favicon.png',
-                    data: { url: '/FinanzasApp/goals' }
-                });
-            } else {
+            if (Notification.permission !== 'granted') {
                 Alert.alert('Permiso Requerido', 'Primero activa las notificaciones.');
+                return;
             }
-        } catch (e) { console.error('Test push error:', e); }
+            const tips = [
+                '¡Recuerda aportar a tu fondo de emergencia hoy! Cada peso cuenta.',
+                'Revisa tus gastos de la semana. ¿Hubo alguno innecesario?',
+                'El interés compuesto trabaja mientras duermes. ¡Sigue ahorrando!',
+                'Tip: Automatiza tus aportes para no olvidarlos nunca.',
+                '¿Sabías que el 10% de tus ingresos puede cambiar tu futuro financiero?'
+            ];
+            const randomTip = tips[Math.floor(Math.random() * tips.length)];
+
+            const response = await fetch('/api/push/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: 'Santy te aconseja 🧠',
+                    body: randomTip,
+                    userId: user?.id,
+                    url: '/goals'
+                })
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || 'Error al enviar notificación de prueba');
+            }
+        } catch (e: any) { 
+            console.error('Test push error:', e);
+            Alert.alert('Error', `No se pudo enviar la notificación de prueba: ${e.message || e}`);
+        }
     };
     useEffect(() => {
         const url = user?.user_metadata?.avatar_url;

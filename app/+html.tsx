@@ -14,16 +14,16 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
         <meta name="google" content="notranslate" />
 
-        <link rel="manifest" href="/FinanzasApp/manifest.json" />
+        <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#ffffff" />
-        <link rel="apple-touch-icon" href="/FinanzasApp/icon.png" />
+        <link rel="apple-touch-icon" href="/icon.png" />
         <meta name="apple-mobile-web-app-title" content="Zenly" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
             if ('serviceWorker' in navigator) {
               window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/FinanzasApp/sw.js').then(function(registration) {
+                navigator.serviceWorker.register('/sw.js').then(function(registration) {
                   console.log('ServiceWorker registration successful with scope: ', registration.scope);
                 }, function(err) {
                   console.log('ServiceWorker registration failed: ', err);
