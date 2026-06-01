@@ -758,7 +758,8 @@ export default function GoalsScreen() {
                         [fondo].map(goal => {
                             const pct = Math.min(100, (goal.current_amount / goal.target_amount) * 100);
                             const isDone = pct >= 100;
-                            c                                // ── Premium Emergency Fund Card ──
+                            const efLevel = interestMap[goal.id]?.emergency_level || 1;
+                                // ── Premium Emergency Fund Card ──
                                 const gradientsByLevel: [string, string, string][] = [
                                     ['#2D5A3D', '#4A7C59', '#3E6B4B'], // Softer Sage/Green theme instead of dark blue
                                     ['#4D3C6E', '#7C5DBA', '#614C8F'],
