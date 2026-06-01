@@ -182,10 +182,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         else if (theme === 'light') nextTheme = 'dark';
         else if (theme === 'dark') nextTheme = 'lavender';
         else if (theme === 'lavender') nextTheme = 'ocean';
-        else if (theme === 'ocean') nextTheme = 'nature';
-        else if (theme === 'nature') nextTheme = 'midnight';
-        else if (theme === 'midnight') nextTheme = 'sunset';
-        else if (theme === 'sunset') nextTheme = 'snow';
+        else if (theme === 'ocean') nextTheme = 'rose';
+        else if (theme === 'rose') nextTheme = 'amber';
+        else if (theme === 'amber') nextTheme = 'slate';
+        else if (theme === 'slate') nextTheme = 'midnight';
+        else if (theme === 'midnight') nextTheme = 'snow';
 
         setTheme(nextTheme);
         await AsyncStorage.setItem(SYNC_KEYS.THEME(user.id), nextTheme);

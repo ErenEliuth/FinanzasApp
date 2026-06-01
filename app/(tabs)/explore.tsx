@@ -338,7 +338,7 @@ export default function AddTransactionScreen() {
           const { data: allTx } = await supabase.from('transactions').select('amount, type, category').eq('user_id', user?.id);
           const { data: allDebts } = await supabase.from('debts').select('value, paid').eq('user_id', user?.id);
           const { data: goalsData } = await supabase.from('goals').select('id, name, current_amount, target_amount').eq('user_id', user?.id);
-          const storedInterests = await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user.id!));
+          const storedInterests = await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user?.id ?? ''));
           const iMap = storedInterests ? JSON.parse(storedInterests) : {};
           const efGoal = goalsData?.find(g => iMap[g.id]?.is_emergency_fund);
           
@@ -432,7 +432,7 @@ export default function AddTransactionScreen() {
           
           // Buscar Fondo
           const { data: goalsData } = await supabase.from('goals').select('id, name, current_amount, target_amount').eq('user_id', user?.id);
-          const storedInterests = await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user.id!));
+          const storedInterests = await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user?.id ?? ''));
           const iMap = storedInterests ? JSON.parse(storedInterests) : {};
           const efGoal = goalsData?.find(g => iMap[g.id]?.is_emergency_fund);
           

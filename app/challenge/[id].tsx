@@ -68,7 +68,7 @@ export default function ChallengeDetailScreen() {
             try {
                 const { data: txs, error: txError } = await supabase
                     .from('transactions')
-                    .select('amount')
+                    .select('amount, description')
                     .eq('user_id', user.id)
                     .ilike('description', `Ahorro Reto: %`);
                 

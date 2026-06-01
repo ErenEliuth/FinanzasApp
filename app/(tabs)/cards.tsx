@@ -181,15 +181,15 @@ export default function CardsScreen() {
         };
 
         const updated = [...cards, newCard];
-        await AsyncStorage.setItem(SYNC_KEYS.CARDS(user.id), JSON.stringify(updated));
+        await AsyncStorage.setItem(SYNC_KEYS.CARDS(user?.id ?? ''), JSON.stringify(updated));
         
-        const storedParams = await AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(user.id));
+        const storedParams = await AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(user?.id ?? ''));
         const currentCustomAccounts = storedParams ? JSON.parse(storedParams) : [];
         if (!currentCustomAccounts.includes(newCard.name)) {
-            await AsyncStorage.setItem(SYNC_KEYS.ACCOUNTS(user.id), JSON.stringify([...currentCustomAccounts, newCard.name]));
+            await AsyncStorage.setItem(SYNC_KEYS.ACCOUNTS(user?.id ?? ''), JSON.stringify([...currentCustomAccounts, newCard.name]));
         }
 
-        await syncUp(user.id);
+        await syncUp(user?.id ?? '');
         await refreshConfig();
 
         if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -222,18 +222,18 @@ export default function CardsScreen() {
                 await supabase.from('transactions').delete().eq('user_id', user?.id).eq('account', card.name);
 
                 // Quitar de cuentas personalizadas
-                const storedAccs = await AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(user.id));
+                const storedAccs = await AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(user?.id ?? ''));
                 if (storedAccs) {
                     const parsedAccs = JSON.parse(storedAccs);
                     const updatedAccs = parsedAccs.filter((a: string) => a !== card.name);
-                    await AsyncStorage.setItem(SYNC_KEYS.ACCOUNTS(user.id), JSON.stringify(updatedAccs));
+                    await AsyncStorage.setItem(SYNC_KEYS.ACCOUNTS(user?.id ?? ''), JSON.stringify(updatedAccs));
                 }
 
                 // Borrar la tarjeta
                 const updated = cards.filter(c => c.id !== card.id);
-                await AsyncStorage.setItem(SYNC_KEYS.CARDS(user.id), JSON.stringify(updated));
+                await AsyncStorage.setItem(SYNC_KEYS.CARDS(user?.id ?? ''), JSON.stringify(updated));
                 
-                await syncUp(user.id);
+                await syncUp(user?.id ?? '');
                 await refreshConfig();
                 loadData();
                 if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

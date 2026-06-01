@@ -50,10 +50,7 @@ export default function GoalsScreen() {
     const [newGoalImage, setNewGoalImage] = useState<string | null>(null);
     const [newGoalPriority, setNewGoalPriority] = useState<'high' | 'medium' | 'low'>('medium');
     const [newGoalInterest, setNewGoalInterest] = useState('');
-    const [activeTab, setActiveTab] = useState<'metas' | 'cajitas' | 'retos'>('cajitas');
-    const [challenges, setChallenges] = useState<any[]>([]);
-    const [newGoalEndDate, setNewGoalEndDate] = useState(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
-    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [activeTab, setActiveTab] = useState<'fondo' | 'cajitas' | 'metas'>('fondo');
     const [interestMap, setInterestMap] = useState<Record<string, any>>({});
     const [isProcessing, setIsProcessing] = useState(false);
     const [breakdownVisible, setBreakdownVisible] = useState(false);
@@ -271,13 +268,7 @@ export default function GoalsScreen() {
             setTotalAhorro(totalAh);
             setAccountBalances(balances);
 
-            // Cargar Retos desde Supabase o Local (Aquí usamos Supabase para consistencia si existe la tabla)
-            try {
-                const { data: challengesData } = await supabase.from('saving_challenges').select('*').eq('user_id', user.id).order('id', { ascending: false });
-                if (challengesData) setChallenges(challengesData);
-            } catch (e) {
-                console.log("Tabla saving_challenges no encontrada en Supabase - omitiendo sync.");
-            }
+            // Challenges removed.
         } catch (e) { console.error(e); }
     };
 
@@ -389,11 +380,14 @@ export default function GoalsScreen() {
     };
 
     const metas = goals.filter(g => !interestMap[g.id]);
-    const cajitas = goals.filter(g => !!interestMap[g.id]);
+    const fondo = goals.find(g => interestMap[g.id]?.is_emergency_fund);
+    const cajitas = goals.filter(g => !!interestMap[g.id] && !interestMap[g.id]?.is_emergency_fund);
 
     const totalMetas = metas.reduce((sum, g) => sum + g.current_amount, 0);
     const totalCajitas = cajitas.reduce((sum, g) => sum + g.current_amount, 0);
     const totalEarnings = cajitas.reduce((sum, g) => sum + (interestMap[g.id]?.total_earned || 0), 0);
+    const fondoAmount = fondo ? fondo.current_amount : 0;
+    const fondoEarnings = fondo ? (interestMap[fondo.id]?.total_earned || 0) : 0;
 
     const assignedAhorro = goals.reduce((sum, g) => sum + g.current_amount, 0);
     const availableAhorro = Math.max(0, totalAhorro - assignedAhorro);
@@ -403,85 +397,25 @@ export default function GoalsScreen() {
         if (!result.canceled) setNewGoalImage(result.assets[0].uri);
     };
 
-    const generateChallengeAmounts = (target: number, days: number) => {
-        // Generar una progresión aritmética que sume al target
-        // Sum = n/2 * (2a + (n-1)d)
-        // Fijamos a = target / (days * 2) (empezar con la mitad del promedio)
-        const n = days;
-        const a = Math.floor(target / (n * 2));
-        // d = (2 * Sum / n - 2a) / (n - 1)
-        const d = Math.floor((2 * target / n - 2 * a) / (n - 1));
-        
-        let amounts = [];
-        let currentSum = 0;
-        for (let i = 0; i < n - 1; i++) {
-            const val = a + i * d;
-            amounts.push(val);
-            currentSum += val;
-        }
-        amounts.push(target - currentSum); // El último ajusta el total
-        return amounts;
-    };
-
     const handleCreateGoal = async () => {
         let val = 1000000000; // Target muy alto para cajitas por defecto
-        if (activeTab === 'metas' || activeTab === 'retos') {
+        if (activeTab === 'metas') {
             const typedVal = parseInputToNumber(newGoalTarget, currency);
             val = convertToBase(typedVal, currency, rates);
             if (isNaN(val) || val <= 0) return;
-        } else if (activeTab === 'cajitas' && isEmergencyFund) {
+        } else if (activeTab === 'fondo') {
             const typedVal = parseInputToNumber(customGoal, currency);
             val = convertToBase(typedVal, currency, rates);
             if (isNaN(val) || val <= 0) return;
         }
         
-        const goalName = activeTab === 'cajitas' && isEmergencyFund 
+        const goalName = activeTab === 'fondo' 
             ? (newGoalName.trim() || 'Fondo de Emergencia') 
             : newGoalName.trim();
 
         if (!goalName && !isProcessing) return;
         setIsProcessing(true);
         try {
-            if (activeTab === 'retos') {
-                const today = new Date();
-                today.setHours(0,0,0,0);
-                const end = new Date(newGoalEndDate);
-                end.setHours(0,0,0,0);
-                
-                const diffTime = end.getTime() - today.getTime();
-                const days = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-                
-                const amounts = generateChallengeAmounts(val, days);
-                const startDate = getLocalDateKey();
-                
-                const { data: newChallenge, error } = await supabase.from('saving_challenges').insert([{
-                    user_id: user?.id,
-                    name: goalName,
-                    target_amount: val,
-                    current_amount: 0,
-                    start_date: startDate,
-                    end_date: end.toISOString().split('T')[0],
-                    daily_amounts: JSON.stringify(amounts),
-                    completed_indices: JSON.stringify([]),
-                    current_streak: 0,
-                    last_payment_date: null,
-                    created_at: getLocalISOString()
-                }]).select();
-
-                if (error) {
-                    console.error("Supabase insert error:", error);
-                    throw new Error(error.message || "Error al guardar en la nube. Revisa tu conexión.");
-                }
-
-                // Agendar notificación diaria para el reto
-                if (Platform.OS !== 'web') {
-                    await scheduleDailyReminder(8, 0, `🎯 Reto: ${goalName}`, `Hoy te toca ahorrar un valor de tu plan. ¡No te rindas!`);
-                }
-
-                setNewGoalName(''); setNewGoalTarget(''); setNewGoalEndDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)); setAddModalVisible(false);
-                loadData();
-                return;
-            }
 
             let finalImageUri = newGoalImage;
             
@@ -509,10 +443,10 @@ export default function GoalsScreen() {
                 const interestRateText = newGoalInterest || '10'; // default to 10% if empty
                 const interestRate = parseFloat(interestRateText.replace(',', '.'));
                 
-                const saved = await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user.id!));
+                const saved = await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user?.id ?? ''));
                 const interestData = saved ? JSON.parse(saved) : {};
                 
-                if (activeTab === 'cajitas' && isEmergencyFund) {
+                if (activeTab === 'fondo') {
                     // Save rich emergency fund metadata
                     interestData[newGoalData[0].id] = { 
                         rate: !isNaN(interestRate) ? interestRate : 10, 
@@ -528,8 +462,8 @@ export default function GoalsScreen() {
                     interestData[newGoalData[0].id] = { rate: !isNaN(interestRate) ? interestRate : 0, last_updated: getLocalDateKey() };
                 }
                 
-                await AsyncStorage.setItem(SYNC_KEYS.GOALS_INTEREST(user.id!), JSON.stringify(interestData));
-                await syncUp(user.id!);
+                await AsyncStorage.setItem(SYNC_KEYS.GOALS_INTEREST(user?.id ?? ''), JSON.stringify(interestData));
+                await syncUp(user?.id ?? '');
             }
             
             setNewGoalName(''); setNewGoalTarget(''); setNewGoalImage(null); setNewGoalInterest(''); setAddModalVisible(false);
@@ -708,13 +642,13 @@ export default function GoalsScreen() {
         setIsProcessing(true);
         try {
             await supabase.from('goals').update({ target_amount: val }).eq('id', goalForLevelUp.id);
-            const saved = await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user.id!));
+            const saved = await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user?.id ?? ''));
             const iData = saved ? JSON.parse(saved) : {};
             if (iData[goalForLevelUp.id]) {
                 iData[goalForLevelUp.id].emergency_level = newLevelNum;
             }
-            await AsyncStorage.setItem(SYNC_KEYS.GOALS_INTEREST(user.id!), JSON.stringify(iData));
-            await syncUp(user.id!);
+            await AsyncStorage.setItem(SYNC_KEYS.GOALS_INTEREST(user?.id ?? ''), JSON.stringify(iData));
+            await syncUp(user?.id ?? '');
             setLevelUpModalVisible(false);
             setGoalForLevelUp(null);
             loadData();
@@ -749,19 +683,28 @@ export default function GoalsScreen() {
                 {/* TAB SELECTOR - NOW AT TOP */}
                 <View style={{ paddingHorizontal: 0, marginBottom: 20 }}>
                     <View style={{ flexDirection: 'row', borderRadius: 20, padding: 6, backgroundColor: colors.card }}>
+                        <TouchableOpacity onPress={() => setActiveTab('fondo')} style={{ flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center', backgroundColor: activeTab === 'fondo' ? colors.accent : 'transparent' }}>
+                            <Text style={{ fontSize: 13, fontWeight: '800', color: activeTab === 'fondo' ? '#FFF' : colors.sub }}>Fondo</Text>
+                        </TouchableOpacity>
                         <TouchableOpacity onPress={() => setActiveTab('cajitas')} style={{ flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center', backgroundColor: activeTab === 'cajitas' ? colors.accent : 'transparent' }}>
                             <Text style={{ fontSize: 13, fontWeight: '800', color: activeTab === 'cajitas' ? '#FFF' : colors.sub }}>Cajitas</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setActiveTab('metas')} style={{ flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center', backgroundColor: activeTab === 'metas' ? colors.accent : 'transparent' }}>
                             <Text style={{ fontSize: 13, fontWeight: '800', color: activeTab === 'metas' ? '#FFF' : colors.sub }}>Metas</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => setActiveTab('retos')} style={{ flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center', backgroundColor: activeTab === 'retos' ? colors.accent : 'transparent' }}>
-                            <Text style={{ fontSize: 13, fontWeight: '800', color: activeTab === 'retos' ? '#FFF' : colors.sub }}>Retos</Text>
-                        </TouchableOpacity>
                     </View>
                 </View>
 
                 {/* ── Headers ── */}
+                {activeTab === 'fondo' && (
+                    <View style={{ marginBottom: 30, paddingHorizontal: 4 }}>
+                        <Text style={{ fontSize: 32, fontWeight: '900', color: colors.text }}>Fondo de Emergencia</Text>
+                        <Text style={{ color: colors.sub, fontSize: 14, fontWeight: '600', marginTop: 4 }}>
+                            Tu escudo protector contra imprevistos.
+                        </Text>
+                    </View>
+                )}
+
                 {activeTab === 'cajitas' && (
                     <View style={{ marginBottom: 30, paddingHorizontal: 4 }}>
                         <Text style={{ fontSize: 32, fontWeight: '900', color: colors.text }}>Mis Cajitas</Text>
@@ -793,34 +736,31 @@ export default function GoalsScreen() {
                     </View>
                 )}
 
-                {activeTab === 'retos' && (
-                    <View style={{ marginBottom: 30, paddingHorizontal: 4 }}>
-                        <Text style={{ fontSize: 32, fontWeight: '900', color: colors.text }}>Mis Retos</Text>
-                        <Text style={{ color: colors.sub, fontSize: 14, fontWeight: '600', marginTop: 4 }}>
-                            Alcanza tus objetivos paso a paso
-                        </Text>
-                    </View>
-                )}
-
-                {/* ── Lista de Metas/Cajitas ── */}
-                {(activeTab === 'metas' || activeTab === 'cajitas') && (
-                    goals.filter(g => activeTab === 'cajitas' ? !!interestMap[g.id] : !interestMap[g.id]).length === 0 ? (
+                {/* ── Fondo de Emergencia ── */}
+                {activeTab === 'fondo' && (
+                    !fondo ? (
                         <View style={styles.empty}>
-                            <Ionicons name="leaf-outline" size={80} color={colors.accent + '40'} />
-                            <Text style={[styles.emptyTitle, { color: colors.text }]}>Siembra tus sueños</Text>
+                            <View style={{ width: 120, height: 120, borderRadius: 60, backgroundColor: colors.accent + '10', justifyContent: 'center', alignItems: 'center', marginBottom: 24 }}>
+                                <Ionicons name="shield-checkmark" size={60} color={colors.accent} />
+                            </View>
+                            <Text style={[styles.emptyTitle, { color: colors.text }]}>Tu escudo protector</Text>
                             <Text style={[styles.emptySub, { color: colors.sub }]}>
-                                {activeTab === 'metas' ? 'Crea una meta y comienza a asignar tus ahorros.' : 'Crea una cajita para ganar intereses diarios.'}
+                                Analiza tu salud financiera y crea un fondo de emergencia para imprevistos.
                             </Text>
+                            <TouchableOpacity 
+                                style={[styles.mPrimaryBtn, { backgroundColor: colors.accent, marginTop: 32, paddingHorizontal: 40 }]}
+                                onPress={() => { setAddModalVisible(true); setCajitaType('emergency'); setIsEmergencyFund(true); setEmergencyStep(1); }}
+                            >
+                                <Text style={styles.mPrimaryBtnTxt}>Configurar Fondo</Text>
+                            </TouchableOpacity>
                         </View>
                     ) : (
-                        goals.filter(g => activeTab === 'cajitas' ? !!interestMap[g.id] : !interestMap[g.id]).map(goal => {
+                        [fondo].map(goal => {
                             const pct = Math.min(100, (goal.current_amount / goal.target_amount) * 100);
                             const isDone = pct >= 100;
-                            const isEF = activeTab === 'cajitas' && interestMap[goal.id]?.is_emergency_fund;
                             const efLevel = interestMap[goal.id]?.emergency_level || 1;
 
                             // ── Premium Emergency Fund Card ──
-                            if (isEF) {
                                 const gradientsByLevel: [string, string, string][] = [
                                     ['#1A237E', '#1565C0', '#0D47A1'],
                                     ['#4A148C', '#7B1FA2', '#6A1B9A'],
@@ -927,9 +867,125 @@ export default function GoalsScreen() {
                                         </LinearGradient>
                                     </TouchableOpacity>
                                 );
-                            }
+                        })
+                    )
+                )}
 
-                            // ── Cajita / Meta Card Estándar ──
+                {/* ── Consejos de Santy — Solo visible cuando el fondo existe ── */}
+                {activeTab === 'fondo' && fondo && (() => {
+                    const efLevel = interestMap[fondo.id]?.emergency_level || 1;
+                    const pctFondo = Math.min(100, (fondo.current_amount / fondo.target_amount) * 100);
+                    const isDoneFondo = pctFondo >= 100;
+                    const baseExpenses = interestMap[fondo.id]?.base_expenses || 0;
+                    const monthsCovered = baseExpenses > 0 ? Math.floor(fondo.current_amount / baseExpenses) : 0;
+
+                    const tips = [
+                        { icon: 'shield-checkmark' as const, title: 'No toques este dinero', desc: 'Solo usa tu fondo de emergencia para imprevistos reales: gastos médicos, reparaciones urgentes o pérdida de ingresos.' },
+                        { icon: 'trending-up' as const, title: 'Los rendimientos trabajan por ti', desc: `Tu fondo genera intereses al ${interestMap[fondo.id]?.rate || 0}% E.A. Mientras más tiempo lo dejes, más crece gracias al interés compuesto.` },
+                        { icon: 'wallet' as const, title: 'Aporta cada mes', desc: 'Incluso aportes pequeños suman. Lo importante es la constancia. Intenta apartar al menos el 10% de tus ingresos.' },
+                        ...(efLevel < 3 ? [{ icon: 'rocket' as const, title: '¿Meta alcanzada? ¡Sube de nivel!', desc: 'Cuando completes tu meta actual, escala al siguiente nivel para cubrir más meses de gastos.' }] : []),
+                        ...(isDoneFondo ? [{ icon: 'trophy' as const, title: '¡Felicidades! Meta alcanzada', desc: `Has logrado tu objetivo de Nivel ${efLevel}. ${efLevel < 3 ? 'Considera subir al siguiente nivel para mayor tranquilidad.' : '¡Tienes blindaje financiero total!'}` }] : []),
+                        { icon: 'bulb' as const, title: 'Evita tentaciones', desc: 'No consideres tu fondo de emergencia como dinero disponible para vacaciones o compras. Es tu seguro personal.' },
+                    ];
+
+                    const motivationalQuotes = [
+                        '"No ahorres lo que te queda después de gastar; gasta lo que te queda después de ahorrar." — Warren Buffett',
+                        '"La regla #1 es nunca perder dinero. La regla #2 es nunca olvidar la regla #1." — Warren Buffett',
+                        '"No es cuánto dinero ganas, sino cuánto conservas." — Robert Kiyosaki',
+                        '"El interés compuesto es la octava maravilla del mundo." — Albert Einstein',
+                        '"La libertad financiera está disponible para quienes aprenden sobre ella." — Robert Kiyosaki',
+                    ];
+                    const todayIndex = new Date().getDate() % motivationalQuotes.length;
+
+                    return (
+                        <View style={{ marginTop: 28, gap: 20 }}>
+                            {/* Quick Stats */}
+                            <View style={{ flexDirection: 'row', gap: 12 }}>
+                                <View style={{ flex: 1, backgroundColor: colors.card, borderRadius: 20, padding: 16, alignItems: 'center' }}>
+                                    <Ionicons name="calendar" size={22} color={colors.accent} />
+                                    <Text style={{ color: colors.text, fontSize: 22, fontWeight: '900', marginTop: 6 }}>{monthsCovered}</Text>
+                                    <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '700', textAlign: 'center' }}>MESES CUBIERTOS</Text>
+                                </View>
+                                <View style={{ flex: 1, backgroundColor: colors.card, borderRadius: 20, padding: 16, alignItems: 'center' }}>
+                                    <Ionicons name="shield" size={22} color={efLevel >= 3 ? '#F59E0B' : efLevel >= 2 ? '#7B1FA2' : colors.accent} />
+                                    <Text style={{ color: colors.text, fontSize: 22, fontWeight: '900', marginTop: 6 }}>Nv. {efLevel}</Text>
+                                    <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '700', textAlign: 'center' }}>
+                                        {efLevel >= 3 ? 'BLINDAJE' : efLevel >= 2 ? 'TRANQUILIDAD' : 'INICIAL'}
+                                    </Text>
+                                </View>
+                                <View style={{ flex: 1, backgroundColor: colors.card, borderRadius: 20, padding: 16, alignItems: 'center' }}>
+                                    <Ionicons name="trending-up" size={22} color="#10B981" />
+                                    <Text style={{ color: '#10B981', fontSize: 16, fontWeight: '900', marginTop: 6 }}>{fmt(interestMap[fondo.id]?.total_earned || 0)}</Text>
+                                    <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '700', textAlign: 'center' }}>RENDIMIENTOS</Text>
+                                </View>
+                            </View>
+
+                            {/* Quick Actions */}
+                            <View style={{ flexDirection: 'row', gap: 12 }}>
+                                <TouchableOpacity 
+                                    style={{ flex: 1, backgroundColor: colors.accent, paddingVertical: 16, borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                                    onPress={() => {
+                                        setSelectedGoal(fondo);
+                                        setPayModalVisible(true);
+                                    }}
+                                >
+                                    <Ionicons name="add-circle" size={20} color="#FFF" />
+                                    <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 14 }}>Aportar</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity 
+                                    style={{ flex: 1, backgroundColor: colors.card, paddingVertical: 16, borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: colors.border }}
+                                    onPress={() => {
+                                        setSelectedGoal(fondo);
+                                        setWithdrawModalVisible(true);
+                                    }}
+                                >
+                                    <Ionicons name="remove-circle" size={20} color="#EF4444" />
+                                    <Text style={{ color: colors.text, fontWeight: '800', fontSize: 14 }}>Retirar</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Motivational Quote */}
+                            <View style={{ backgroundColor: colors.accent + '10', borderRadius: 20, padding: 18, borderLeftWidth: 4, borderLeftColor: colors.accent }}>
+                                <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '900', letterSpacing: 1, marginBottom: 6 }}>💡 FRASE DEL DÍA</Text>
+                                <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600', fontStyle: 'italic', lineHeight: 20 }}>
+                                    {motivationalQuotes[todayIndex]}
+                                </Text>
+                            </View>
+
+                            {/* Consejos de Santy */}
+                            <View>
+                                <Text style={{ fontSize: 18, fontWeight: '900', color: colors.text, marginBottom: 14 }}>Consejos de Santy 🧠</Text>
+                                {tips.map((tip, idx) => (
+                                    <View key={idx} style={{ flexDirection: 'row', gap: 14, marginBottom: 14, backgroundColor: colors.card, borderRadius: 18, padding: 16 }}>
+                                        <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: colors.accent + '15', justifyContent: 'center', alignItems: 'center' }}>
+                                            <Ionicons name={tip.icon} size={22} color={colors.accent} />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800', marginBottom: 3 }}>{tip.title}</Text>
+                                            <Text style={{ color: colors.sub, fontSize: 12, lineHeight: 18 }}>{tip.desc}</Text>
+                                        </View>
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+                    );
+                })()}
+
+                {/* ── Lista de Cajitas ── */}
+                {activeTab === 'cajitas' && (
+                    cajitas.length === 0 ? (
+                        <View style={styles.empty}>
+                            <Ionicons name="leaf-outline" size={80} color={colors.accent + '40'} />
+                            <Text style={[styles.emptyTitle, { color: colors.text }]}>Siembra tus sueños</Text>
+                            <Text style={[styles.emptySub, { color: colors.sub }]}>
+                                Crea una cajita para ganar intereses diarios.
+                            </Text>
+                        </View>
+                    ) : (
+                        cajitas.map(goal => {
+                            const pct = Math.min(100, (goal.current_amount / goal.target_amount) * 100);
+
+                            // ── Cajita Estándar ──
                             return (
                                 <TouchableOpacity 
                                     key={goal.id} 
@@ -938,85 +994,42 @@ export default function GoalsScreen() {
                                     onLongPress={() => handleDelete(goal)}
                                     activeOpacity={0.9}
                                 >
-                                    {activeTab === 'metas' && (
-                                        <View style={styles.goalImgCont}>
-                                            {goal.image_uri ? (
-                                                <Image source={{ uri: goal.image_uri }} style={styles.goalImg} />
-                                            ) : (
-                                                <View style={[styles.goalImgPlaceholder, { backgroundColor: colors.bg }]}>
-                                                    <Ionicons name="golf-outline" size={32} color={colors.accent + '60'} />
-                                                </View>
-                                            )}
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 20, paddingBottom: 0 }}>
+                                        <View style={[styles.iconBox, { backgroundColor: colors.accent + '15', width: 44, height: 44 }]}>
+                                            <MaterialIcons name="account-balance" size={24} color={colors.accent} />
                                         </View>
-                                    )}
-
-                                    {activeTab === 'cajitas' && (
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 20, paddingBottom: 0 }}>
-                                            <View style={[styles.iconBox, { backgroundColor: colors.accent + '15', width: 44, height: 44 }]}>
-                                                <MaterialIcons name="account-balance" size={24} color={colors.accent} />
-                                            </View>
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={[styles.goalName, { color: colors.text, marginBottom: 0 }]} numberOfLines={1}>
-                                                    {goal.name}
-                                                </Text>
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                                    <MaterialIcons name="trending-up" size={12} color="#10B981" />
-                                                    <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '800' }}>{interestMap[goal.id]?.rate}% E.A.</Text>
-                                                </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={[styles.goalName, { color: colors.text, marginBottom: 0 }]} numberOfLines={1}>
+                                                {goal.name}
+                                            </Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                                <MaterialIcons name="trending-up" size={12} color="#10B981" />
+                                                <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '800' }}>{interestMap[goal.id]?.rate}% E.A.</Text>
                                             </View>
                                         </View>
-                                    )}
+                                    </View>
 
-                                    <View style={[styles.goalBody, { paddingRight: 20, paddingTop: activeTab === 'cajitas' ? 12 : 16, paddingBottom: 20 }]}>
-                                        {activeTab === 'metas' && (
-                                            <>
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 }}>
-                                                    <Text style={[styles.goalName, { color: colors.text, marginBottom: 0, flex: 1 }]} numberOfLines={1}>
-                                                        {goal.name}
-                                                    </Text>
-                                                    <View style={[styles.prioBadge, { backgroundColor: goal.priority === 'high' ? '#EF444420' : goal.priority === 'medium' ? '#F59E0B20' : '#10B98120' }]}>
-                                                        <Text style={[styles.prioBadgeText, { color: goal.priority === 'high' ? '#EF4444' : goal.priority === 'medium' ? '#F59E0B' : '#10B981' }]}>
-                                                            {goal.priority === 'high' ? 'ALTA' : goal.priority === 'medium' ? 'MEDIA' : 'BAJA'}
-                                                        </Text>
-                                                    </View>
-                                                </View>
-                                                <View style={styles.goalStats}>
-                                                    <View style={styles.goalProgressBg}>
-                                                        <View style={[styles.goalProgressFill, { width: `${pct}%`, backgroundColor: colors.accent }]} />
-                                                    </View>
-                                                    <Text style={[styles.goalPct, { color: colors.accent }]}>{Math.round(pct)}%</Text>
-                                                </View>
-                                            </>
-                                        )}
-
+                                    <View style={[styles.goalBody, { paddingRight: 20, paddingTop: 12, paddingBottom: 20 }]}>
                                         <View style={styles.goalAmounts}>
                                             <View style={{ flex: 1 }}>
-                                                <Text style={[styles.amtLabel, { color: colors.sub }]}>
-                                                    {activeTab === 'cajitas' ? 'SALDO TOTAL' : 'VALOR ASIGNADO'}
-                                                </Text>
+                                                <Text style={[styles.amtLabel, { color: colors.sub }]}>SALDO TOTAL</Text>
                                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                                    <Text style={[styles.amtVal, { color: colors.text, fontSize: activeTab === 'cajitas' ? 26 : 20, fontWeight: '900' }]}>
+                                                    <Text style={[styles.amtVal, { color: colors.text, fontSize: 26, fontWeight: '900' }]}>
                                                         {fmt(goal.current_amount)}
                                                     </Text>
-                                                    {activeTab === 'cajitas' && (interestMap[goal.id]?.last_earned > 0) && (
+                                                    {(interestMap[goal.id]?.last_earned > 0) && (
                                                         <View style={{ backgroundColor: '#10B98115', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
                                                             <Text style={{ color: '#10B981', fontSize: 10, fontWeight: '900' }}>+{fmt(interestMap[goal.id].last_earned)}</Text>
                                                         </View>
                                                     )}
                                                 </View>
-                                                {activeTab === 'cajitas' && (interestMap[goal.id]?.total_earned > 0) && (
+                                                {(interestMap[goal.id]?.total_earned > 0) && (
                                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
                                                         <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>Rendimientos totales:</Text>
                                                         <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '900' }}>+{fmt(interestMap[goal.id].total_earned)}</Text>
                                                     </View>
                                                 )}
                                             </View>
-                                            {activeTab === 'metas' && (
-                                                <View style={{ alignItems: 'flex-end' }}>
-                                                    <Text style={[styles.amtLabel, { color: colors.sub }]}>OBJETIVO</Text>
-                                                    <Text style={[styles.amtVal, { color: colors.text }]}>{fmt(goal.target_amount)}</Text>
-                                                </View>
-                                            )}
                                         </View>
                                     </View>
                                 </TouchableOpacity>
@@ -1025,79 +1038,76 @@ export default function GoalsScreen() {
                     )
                 )}
 
-                {/* ── Retos de Ahorro ── */}
-                {activeTab === 'retos' && (
-                    <View style={{ gap: 16 }}>
-                        {challenges.length === 0 ? (
-                            <View style={styles.empty}>
-                                <View style={{ width: 120, height: 120, borderRadius: 60, backgroundColor: colors.accent + '10', justifyContent: 'center', alignItems: 'center', marginBottom: 24 }}>
-                                    <Ionicons name="trophy" size={60} color={colors.accent} />
-                                </View>
-                                <Text style={[styles.emptyTitle, { color: colors.text }]}>¿Listo para un desafío?</Text>
-                                <Text style={[styles.emptySub, { color: colors.sub }]}>
-                                    Crea un plan de ahorro con fecha límite y te diremos cuánto guardar cada día para lograrlo.
-                                </Text>
+                {/* ── Lista de Metas ── */}
+                {activeTab === 'metas' && (
+                    metas.length === 0 ? (
+                        <View style={styles.empty}>
+                            <Ionicons name="leaf-outline" size={80} color={colors.accent + '40'} />
+                            <Text style={[styles.emptyTitle, { color: colors.text }]}>Siembra tus sueños</Text>
+                            <Text style={[styles.emptySub, { color: colors.sub }]}>
+                                Crea una meta y comienza a asignar tus ahorros.
+                            </Text>
+                        </View>
+                    ) : (
+                        metas.map(goal => {
+                            const pct = Math.min(100, (goal.current_amount / goal.target_amount) * 100);
+
+                            // ── Meta Estándar ──
+                            return (
                                 <TouchableOpacity 
-                                    style={[styles.mPrimaryBtn, { backgroundColor: colors.accent, marginTop: 32, paddingHorizontal: 40 }]}
-                                    onPress={() => setAddModalVisible(true)}
+                                    key={goal.id} 
+                                    style={[styles.goalCard, { backgroundColor: colors.card }]}
+                                    onPress={() => openOptions(goal)}
+                                    onLongPress={() => handleDelete(goal)}
+                                    activeOpacity={0.9}
                                 >
-                                    <Text style={styles.mPrimaryBtnTxt}>Empezar Nuevo Reto</Text>
-                                </TouchableOpacity>
-                            </View>
-                        ) : (
-                            challenges.map(challenge => {
-                                const parseData = (val: any) => {
-                                    if (!val) return [];
-                                    if (typeof val === 'string') {
-                                        try { return JSON.parse(val); } catch(e) { return []; }
-                                    }
-                                    return val;
-                                };
-                                const dailyAmounts = parseData(challenge.daily_amounts);
-                                const completedIndices = parseData(challenge.completed_indices);
-                                const totalDays = dailyAmounts.length || 1;
-                                const pct = Math.min(100, (completedIndices.length / totalDays) * 100);
-                                
-                                return (
-                                    <TouchableOpacity 
-                                        key={challenge.id} 
-                                        style={[styles.goalCard, { backgroundColor: colors.card, overflow: 'hidden' }]}
-                                        onPress={() => router.push({ pathname: '/challenge/[id]', params: { id: challenge.id } } as any)}
-                                        activeOpacity={0.9}
-                                    >
-                                        <LinearGradient colors={[colors.accent, colors.accent + 'CC']} start={{x:0, y:0}} end={{x:1, y:0}} style={{ height: 4, width: '100%' }} />
-                                        <View style={{ padding: 20 }}>
-                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                                <View>
-                                                    <Text style={[styles.goalName, { color: colors.text, marginBottom: 2 }]}>{challenge.name}</Text>
-                                                    <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '700' }}>{dailyAmounts.length} días de reto</Text>
-                                                </View>
-                                                <View style={{ alignItems: 'flex-end' }}>
-                                                    <Text style={{ color: colors.accent, fontSize: 18, fontWeight: '900' }}>{Math.round(pct)}%</Text>
-                                                    <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '800' }}>COMPLETADO</Text>
-                                                </View>
+                                    <View style={styles.goalImgCont}>
+                                        {goal.image_uri ? (
+                                            <Image source={{ uri: goal.image_uri }} style={styles.goalImg} />
+                                        ) : (
+                                            <View style={[styles.goalImgPlaceholder, { backgroundColor: colors.bg }]}>
+                                                <Ionicons name="golf-outline" size={32} color={colors.accent + '60'} />
                                             </View>
-                                            
-                                            <View style={[styles.goalProgressBg, { height: 8, marginBottom: 16 }]}>
-                                                <View style={[styles.goalProgressFill, { width: `${pct}%`, backgroundColor: colors.accent }]} />
-                                            </View>
-                                            
-                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                                <View>
-                                                    <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '800' }}>RECAUDADO</Text>
-                                                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>{fmt(challenge.current_amount)}</Text>
-                                                </View>
-                                                <View style={{ alignItems: 'flex-end' }}>
-                                                    <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '800' }}>OBJETIVO</Text>
-                                                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>{fmt(challenge.target_amount)}</Text>
-                                                </View>
+                                        )}
+                                    </View>
+
+                                    <View style={[styles.goalBody, { paddingRight: 20, paddingTop: 16, paddingBottom: 20 }]}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+                                            <Text style={[styles.goalName, { color: colors.text, marginBottom: 0, flex: 1 }]} numberOfLines={1}>
+                                                {goal.name}
+                                            </Text>
+                                            <View style={[styles.prioBadge, { backgroundColor: goal.priority === 'high' ? '#EF444420' : goal.priority === 'medium' ? '#F59E0B20' : '#10B98120' }]}>
+                                                <Text style={[styles.prioBadgeText, { color: goal.priority === 'high' ? '#EF4444' : goal.priority === 'medium' ? '#F59E0B' : '#10B981' }]}>
+                                                    {goal.priority === 'high' ? 'ALTA' : goal.priority === 'medium' ? 'MEDIA' : 'BAJA'}
+                                                </Text>
                                             </View>
                                         </View>
-                                    </TouchableOpacity>
-                                );
-                            })
-                        )}
-                    </View>
+                                        <View style={styles.goalStats}>
+                                            <View style={styles.goalProgressBg}>
+                                                <View style={[styles.goalProgressFill, { width: `${pct}%`, backgroundColor: colors.accent }]} />
+                                            </View>
+                                            <Text style={[styles.goalPct, { color: colors.accent }]}>{Math.round(pct)}%</Text>
+                                        </View>
+
+                                        <View style={styles.goalAmounts}>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={[styles.amtLabel, { color: colors.sub }]}>VALOR ASIGNADO</Text>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                    <Text style={[styles.amtVal, { color: colors.text, fontSize: 20, fontWeight: '900' }]}>
+                                                        {fmt(goal.current_amount)}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                            <View style={{ alignItems: 'flex-end' }}>
+                                                <Text style={[styles.amtLabel, { color: colors.sub }]}>OBJETIVO</Text>
+                                                <Text style={[styles.amtVal, { color: colors.text }]}>{fmt(goal.target_amount)}</Text>
+                                            </View>
+                                        </View>
+                                    </View>
+                                </TouchableOpacity>
+                            );
+                        })
+                    )
                 )}
                 <View style={{ height: 100 }} />
             </ScrollView>
@@ -1111,7 +1121,7 @@ export default function GoalsScreen() {
                         <View style={[styles.modalBox, { backgroundColor: colors.card }]}>
                             <View style={styles.modalHeaderInner}>
                                 <Text style={[styles.modalTitle, { color: colors.text }]}>
-                                    {activeTab === 'metas' ? 'Nueva Meta' : activeTab === 'cajitas' ? 'Nueva Cajita' : 'Nuevo Reto'}
+                                    {activeTab === 'metas' ? 'Nueva Meta' : activeTab === 'cajitas' ? 'Nueva Cajita' : 'Nuevo Fondo'}
                                 </Text>
                                 <TouchableOpacity onPress={() => setAddModalVisible(false)}>
                                     <Ionicons name="close" size={24} color={colors.sub} />
@@ -1173,141 +1183,217 @@ export default function GoalsScreen() {
                                 </View>
                             )}
 
-                            {activeTab === 'retos' && (
-                                <View>
-                                    <View style={styles.mInputCont}>
-                                        <Text style={[styles.mLabel, { color: colors.sub }]}>NOMBRE</Text>
-                                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
-                                            placeholder="Ej. Reto 30 días" placeholderTextColor={colors.sub + '80'}
-                                            value={newGoalName} onChangeText={setNewGoalName} />
-                                    </View>
-
-                                    <View style={styles.mInputCont}>
-                                        <Text style={[styles.mLabel, { color: colors.sub }]}>MONTO OBJETIVO</Text>
-                                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
-                                            placeholder="$ 0" placeholderTextColor={colors.sub + '80'} keyboardType="decimal-pad"
-                                            value={newGoalTarget} onChangeText={t => setNewGoalTarget(formatInput(t))} />
-                                    </View>
-
-                                    <View style={styles.mInputCont}>
-                                        <Text style={[styles.mLabel, { color: colors.sub }]}>FECHA LÍMITE</Text>
-                                        {Platform.OS === 'web' ? (
-                                            <input 
-                                                type="date"
-                                                value={newGoalEndDate.toISOString().split('T')[0]}
-                                                onChange={(e) => {
-                                                    const d = new Date(e.target.value);
-                                                    if (!isNaN(d.getTime())) setNewGoalEndDate(d);
-                                                }}
-                                                style={{
-                                                    backgroundColor: 'transparent',
-                                                    color: colors.text,
-                                                    border: 'none',
-                                                    borderBottom: `1px solid ${colors.border}`,
-                                                    fontSize: '18px',
-                                                    fontWeight: '700',
-                                                    padding: '10px 0',
-                                                    width: '100%',
-                                                    outline: 'none',
-                                                    fontFamily: 'inherit'
-                                                }}
-                                            />
-                                        ) : (
-                                            <>
-                                                <TouchableOpacity 
-                                                    style={[styles.mInput, { borderBottomColor: colors.border, justifyContent: 'center' }]} 
-                                                    onPress={() => setShowDatePicker(true)}
-                                                >
-                                                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>
-                                                        {newGoalEndDate.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                                {showDatePicker && (
-                                                    <DateTimePicker
-                                                        value={newGoalEndDate}
-                                                        mode="date"
-                                                        display="calendar"
-                                                        minimumDate={new Date(Date.now() + 24 * 60 * 60 * 1000)}
-                                                        onChange={(event, date) => {
-                                                            setShowDatePicker(false);
-                                                            if (date) setNewGoalEndDate(date);
-                                                        }}
-                                                    />
-                                                )}
-                                            </>
-                                        )}
-                                    </View>
-
-                                    <TouchableOpacity 
-                                        style={[styles.mPrimaryBtn, { backgroundColor: colors.accent }, isProcessing && { opacity: 0.6 }]} 
-                                        onPress={handleCreateGoal}
-                                        disabled={isProcessing}
-                                    >
-                                        <Text style={styles.mPrimaryBtnTxt}>
-                                            {isProcessing ? 'Comenzando...' : 'Comenzar Reto'}
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
-                            )}
-                            
                             {activeTab === 'cajitas' && (
                                 <View>
-                                    {cajitaType === null ? (
-                                        <View style={{ gap: 16, marginVertical: 10 }}>
-                                            <Text style={{ color: colors.sub, fontSize: 13, fontWeight: '700', textAlign: 'center', marginBottom: 10 }}>
-                                                Selecciona el tipo de Cajita que deseas crear:
+                                    <View style={styles.mInputCont}>
+                                        <Text style={[styles.mLabel, { color: colors.sub }]}>NOMBRE DE LA CAJITA</Text>
+                                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
+                                            placeholder="Ej. Ahorro Viaje" placeholderTextColor={colors.sub + '80'}
+                                            value={newGoalName} onChangeText={setNewGoalName} />
+                                    </View>
+                                    <View style={styles.mInputCont}>
+                                        <Text style={[styles.mLabel, { color: colors.sub }]}>INTERÉS ANUAL ESPERADO (%) E.A.</Text>
+                                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
+                                            placeholder="0" placeholderTextColor={colors.sub + '80'} keyboardType="decimal-pad"
+                                            value={newGoalInterest} onChangeText={setNewGoalInterest} />
+                                    </View>
+                                    
+                                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                                        <TouchableOpacity 
+                                            style={[styles.mPrimaryBtn, { flex: 1, backgroundColor: colors.accent }, isProcessing && { opacity: 0.6 }]} 
+                                            onPress={handleCreateGoal}
+                                            disabled={isProcessing}
+                                        >
+                                            <Text style={styles.mPrimaryBtnTxt}>
+                                                {isProcessing ? 'Guardando...' : 'Comenzar a ahorrar'}
                                             </Text>
-                                            
-                                            <TouchableOpacity 
-                                                style={{ backgroundColor: colors.bg, padding: 18, borderRadius: 20, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 14 }}
-                                                onPress={() => {
-                                                    setCajitaType('standard');
-                                                    setIsEmergencyFund(false);
-                                                }}
-                                            >
-                                                <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.accent + '15', justifyContent: 'center', alignItems: 'center' }}>
-                                                    <MaterialIcons name="account-balance" size={24} color={colors.accent} />
-                                                </View>
-                                                <View style={{ flex: 1 }}>
-                                                    <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800', marginBottom: 2 }}>Cajita de Ahorro Común</Text>
-                                                    <Text style={{ color: colors.sub, fontSize: 11, lineHeight: 16 }}>Ahorra libremente para cualquier fin y gana rendimientos diarios sin plazos.</Text>
-                                                </View>
-                                            </TouchableOpacity>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            )}
 
-                                            <TouchableOpacity 
-                                                style={{ backgroundColor: colors.accent + '08', padding: 18, borderRadius: 20, borderWidth: 2, borderColor: colors.accent, flexDirection: 'row', alignItems: 'center', gap: 14 }}
-                                                onPress={() => {
-                                                    setCajitaType('emergency');
-                                                    setIsEmergencyFund(true);
-                                                    setEmergencyStep(1);
-                                                }}
-                                            >
-                                                <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.accent + '20', justifyContent: 'center', alignItems: 'center' }}>
-                                                    <MaterialIcons name="security" size={24} color={colors.accent} />
-                                                </View>
-                                                <View style={{ flex: 1 }}>
-                                                    <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800', marginBottom: 2 }}>Fondo de Emergencia ✨</Text>
-                                                    <Text style={{ color: colors.sub, fontSize: 11, lineHeight: 16 }}>Analiza tu salud financiera y crea un escudo protector con recomendaciones dinámicas.</Text>
-                                                </View>
-                                            </TouchableOpacity>
+                            {activeTab === 'fondo' && (
+                                <View>
+                                    {emergencyStep === 1 && (
+                                        <View style={{ alignItems: 'center', paddingVertical: 10 }}>
+                                            <View style={{ width: 70, height: 70, borderRadius: 35, backgroundColor: colors.accent + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                                                <Ionicons name="shield-checkmark" size={40} color={colors.accent} />
+                                            </View>
+                                            <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900', textAlign: 'center', marginBottom: 10 }}>Tu Escudo Contra Imprevistos</Text>
+                                            <Text style={{ color: colors.sub, fontSize: 13, textAlign: 'center', lineHeight: 20, marginBottom: 24, paddingHorizontal: 10 }}>
+                                                Un fondo de emergencia te protege ante gastos médicos, reparaciones del hogar o pérdida temporal de ingresos. Te permite afrontar imprevistos con absoluta tranquilidad, sin necesidad de endeudarte.
+                                            </Text>
+                                            <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
+                                                <TouchableOpacity 
+                                                    style={[styles.mPrimaryBtn, { flex: 2, backgroundColor: colors.accent }]} 
+                                                    onPress={() => {
+                                                        setEmergencyStep(2);
+                                                        analyzeFinancialHealth();
+                                                    }}
+                                                >
+                                                    <Text style={styles.mPrimaryBtnTxt}>Analizar Salud 📈</Text>
+                                                </TouchableOpacity>
+                                            </View>
                                         </View>
-                                    ) : cajitaType === 'standard' ? (
+                                    )}
+
+                                    {emergencyStep === 2 && (
                                         <View>
+                                            <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginBottom: 4 }}>Paso 2: Salud Financiera</Text>
+                                            <Text style={{ color: colors.sub, fontSize: 12, marginBottom: 20 }}>Revisa y ajusta tus montos representativos en tu moneda ({currency}):</Text>
+                                            
+                                            {isAnalyzingHealth ? (
+                                                <View style={{ paddingVertical: 40, alignItems: 'center', gap: 12 }}>
+                                                    <ActivityIndicator size="large" color={colors.accent} />
+                                                    <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>Calculando salud financiera...</Text>
+                                                </View>
+                                            ) : (
+                                                <View style={{ gap: 14 }}>
+                                                    <View style={styles.mInputCont}>
+                                                        <Text style={[styles.mLabel, { color: colors.sub, fontSize: 10 }]}>INGRESOS MENSUALES ESTIMADOS</Text>
+                                                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
+                                                            keyboardType="decimal-pad" value={wizardIncome} onChangeText={t => setWizardIncome(formatInput(t))} />
+                                                    </View>
+                                                    <View style={styles.mInputCont}>
+                                                        <Text style={[styles.mLabel, { color: colors.sub, fontSize: 10 }]}>GASTOS MENSUALES ESTIMADOS</Text>
+                                                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
+                                                            keyboardType="decimal-pad" value={wizardExpense} 
+                                                            onChangeText={t => {
+                                                                const clean = formatInput(t);
+                                                                setWizardExpense(clean);
+                                                                const parsed = parseInputToNumber(clean, currency);
+                                                                const rec = getEmergencyFundRecommendation(parsed);
+                                                                setCustomGoal(formatInput(rec.toString()));
+                                                            }} 
+                                                        />
+                                                    </View>
+                                                    <View style={styles.mInputCont}>
+                                                        <Text style={[styles.mLabel, { color: colors.sub, fontSize: 10 }]}>DEUDAS ACTIVAS TOTALES</Text>
+                                                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
+                                                            keyboardType="decimal-pad" value={wizardDebt} onChangeText={t => setWizardDebt(formatInput(t))} />
+                                                    </View>
+
+                                                    <View style={{ backgroundColor: colors.accent + '10', padding: 14, borderRadius: 16, marginTop: 4, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                                        <Ionicons name="information-circle" size={20} color={colors.accent} />
+                                                        <View style={{ flex: 1 }}>
+                                                            <Text style={{ color: colors.text, fontSize: 12, fontWeight: '800' }}>Recomendación Estimada</Text>
+                                                            <Text style={{ color: colors.sub, fontSize: 11, marginTop: 2 }}>
+                                                                Basado en tus gastos de {fmt(parseInputToNumber(wizardExpense, currency))}, sugerimos un Escudo Inicial de {fmt(getEmergencyFundRecommendation(parseInputToNumber(wizardExpense, currency)))}.
+                                                            </Text>
+                                                        </View>
+                                                    </View>
+
+                                                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                                                        <TouchableOpacity style={[styles.mPrimaryBtn, { flex: 1, backgroundColor: colors.bg }]} onPress={() => setEmergencyStep(1)}>
+                                                            <Text style={[styles.mPrimaryBtnTxt, { color: colors.text }]}>Atrás</Text>
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity style={[styles.mPrimaryBtn, { flex: 2, backgroundColor: colors.accent }]} onPress={() => setEmergencyStep(3)}>
+                                                            <Text style={styles.mPrimaryBtnTxt}>Siguiente 🛡️</Text>
+                                                        </TouchableOpacity>
+                                                    </View>
+                                                </View>
+                                            )}
+                                        </View>
+                                    )}
+
+                                    {emergencyStep === 3 && (() => {
+                                        const parsedExpense = parseInputToNumber(wizardExpense, currency);
+                                        const parsedDebt = parseInputToNumber(wizardDebt, currency);
+                                        const recL1 = getEmergencyFundRecommendation(parsedExpense);
+                                        const recL2 = roundToCurrency(3 * parsedExpense + parsedDebt);
+                                        const recL3 = roundToCurrency(6 * parsedExpense + parsedDebt);
+                                        
+                                        return (
+                                            <View>
+                                                <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginBottom: 4 }}>Paso 3: Metas Progresivas</Text>
+                                                <Text style={{ color: colors.sub, fontSize: 12, marginBottom: 16 }}>Tu escudo puede escalar a medida que ahorras. Elige el objetivo inicial:</Text>
+                                                
+                                                <View style={{ gap: 10, marginBottom: 20 }}>
+                                                    <TouchableOpacity 
+                                                        style={{ backgroundColor: colors.bg, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                                                        onPress={() => setCustomGoal(formatInput(recL1.toString()))}
+                                                    >
+                                                        <View>
+                                                            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>Nivel 1: Escudo Inicial 🛡️</Text>
+                                                            <Text style={{ color: colors.sub, fontSize: 10 }}>Para emergencias menores inmediatas.</Text>
+                                                        </View>
+                                                        <Text style={{ color: colors.accent, fontSize: 14, fontWeight: '900' }}>{fmt(recL1)}</Text>
+                                                    </TouchableOpacity>
+
+                                                    <TouchableOpacity 
+                                                        style={{ backgroundColor: colors.bg, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                                                        onPress={() => setCustomGoal(formatInput(recL2.toString()))}
+                                                    >
+                                                        <View>
+                                                            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>Nivel 2: Tranquilidad 🛡️🛡️</Text>
+                                                            <Text style={{ color: colors.sub, fontSize: 10 }}>3 meses de gastos + deudas activas.</Text>
+                                                        </View>
+                                                        <Text style={{ color: colors.accent, fontSize: 14, fontWeight: '900' }}>{fmt(recL2)}</Text>
+                                                    </TouchableOpacity>
+
+                                                    <TouchableOpacity 
+                                                        style={{ backgroundColor: colors.bg, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                                                        onPress={() => setCustomGoal(formatInput(recL3.toString()))}
+                                                    >
+                                                        <View>
+                                                            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>Nivel 3: Blindaje Total 🛡️🛡️🛡️</Text>
+                                                            <Text style={{ color: colors.sub, fontSize: 10 }}>6 meses de gastos + deudas activas.</Text>
+                                                        </View>
+                                                        <Text style={{ color: colors.accent, fontSize: 14, fontWeight: '900' }}>{fmt(recL3)}</Text>
+                                                    </TouchableOpacity>
+                                                </View>
+
+                                                <View style={styles.mInputCont}>
+                                                    <Text style={[styles.mLabel, { color: colors.sub }]}>TU META INICIAL SELECCIONADA ({currency})</Text>
+                                                    <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border, fontSize: 24, fontWeight: '900', textAlign: 'center' }]} 
+                                                        keyboardType="decimal-pad" value={customGoal} onChangeText={t => setCustomGoal(formatInput(t))} />
+                                                </View>
+
+                                                <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                                                    <TouchableOpacity style={[styles.mPrimaryBtn, { flex: 1, backgroundColor: colors.bg }]} onPress={() => setEmergencyStep(2)}>
+                                                        <Text style={[styles.mPrimaryBtnTxt, { color: colors.text }]}>Atrás</Text>
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity style={[styles.mPrimaryBtn, { flex: 2, backgroundColor: colors.accent }]} onPress={() => setEmergencyStep(4)}>
+                                                            <Text style={styles.mPrimaryBtnTxt}>Configurar ⚙️</Text>
+                                                    </TouchableOpacity>
+                                                </View>
+                                            </View>
+                                        );
+                                    })()}
+
+                                    {emergencyStep === 4 && (
+                                        <View>
+                                            <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginBottom: 4 }}>Paso 4: Detalles del Fondo</Text>
+                                            <Text style={{ color: colors.sub, fontSize: 12, marginBottom: 16 }}>Configura los rendimientos anuales y confirma tu fondo:</Text>
+
                                             <View style={styles.mInputCont}>
-                                                <Text style={[styles.mLabel, { color: colors.sub }]}>NOMBRE DE LA CAJITA</Text>
+                                                <Text style={[styles.mLabel, { color: colors.sub }]}>NOMBRE DEL FONDO</Text>
                                                 <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
-                                                    placeholder="Ej. Ahorro Emergencia" placeholderTextColor={colors.sub + '80'}
+                                                    placeholder="Ej. Mi Fondo de Emergencia" placeholderTextColor={colors.sub + '80'}
                                                     value={newGoalName} onChangeText={setNewGoalName} />
                                             </View>
+
                                             <View style={styles.mInputCont}>
-                                                <Text style={[styles.mLabel, { color: colors.sub }]}>INTERÉS ANUAL ESPERADO (%) E.A. (Ej. Nubank 9)</Text>
+                                                <Text style={[styles.mLabel, { color: colors.sub }]}>INTERÉS ANUAL ESPERADO (%) E.A. (Ej. Nubank 13)</Text>
                                                 <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
-                                                    placeholder="0" placeholderTextColor={colors.sub + '80'} keyboardType="decimal-pad"
+                                                    placeholder="13" placeholderTextColor={colors.sub + '80'} keyboardType="decimal-pad"
                                                     value={newGoalInterest} onChangeText={setNewGoalInterest} />
                                             </View>
-                                            
+
+                                            <View style={{ backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 14, marginBottom: 16 }}>
+                                                <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '800', marginBottom: 6 }}>RESUMEN DE TU ESCUDO 🛡</Text>
+                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                                                    <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>Meta Inicial:</Text>
+                                                    <Text style={{ color: colors.text, fontSize: 12, fontWeight: '800' }}>{fmt(parseInputToNumber(customGoal, currency))}</Text>
+                                                </View>
+                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                    <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>Interés Esperado:</Text>
+                                                    <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '800' }}>{newGoalInterest || '10'}% E.A.</Text>
+                                                </View>
+                                            </View>
+
                                             <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-                                                <TouchableOpacity style={[styles.mPrimaryBtn, { flex: 1, backgroundColor: colors.bg }]} onPress={() => setCajitaType(null)}>
+                                                <TouchableOpacity style={[styles.mPrimaryBtn, { flex: 1, backgroundColor: colors.bg }]} onPress={() => setEmergencyStep(3)}>
                                                     <Text style={[styles.mPrimaryBtnTxt, { color: colors.text }]}>Atrás</Text>
                                                 </TouchableOpacity>
                                                 <TouchableOpacity 
@@ -1316,210 +1402,10 @@ export default function GoalsScreen() {
                                                     disabled={isProcessing}
                                                 >
                                                     <Text style={styles.mPrimaryBtnTxt}>
-                                                        {isProcessing ? 'Guardando...' : 'Comenzar a ahorrar'}
+                                                        {isProcessing ? 'Creando...' : 'Crear Fondo 🛡️'}
                                                     </Text>
                                                 </TouchableOpacity>
                                             </View>
-                                        </View>
-                                    ) : (
-                                        <View>
-                                            {emergencyStep === 1 && (
-                                                <View style={{ alignItems: 'center', paddingVertical: 10 }}>
-                                                    <View style={{ width: 70, height: 70, borderRadius: 35, backgroundColor: colors.accent + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
-                                                        <Ionicons name="shield-checkmark" size={40} color={colors.accent} />
-                                                    </View>
-                                                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900', textAlign: 'center', marginBottom: 10 }}>Tu Escudo Contra Imprevistos</Text>
-                                                    <Text style={{ color: colors.sub, fontSize: 13, textAlign: 'center', lineHeight: 20, marginBottom: 24, paddingHorizontal: 10 }}>
-                                                        Un fondo de emergencia te protege ante gastos médicos, reparaciones del hogar o pérdida temporal de ingresos. Te permite afrontar imprevistos con absoluta tranquilidad, sin necesidad de endeudarte.
-                                                    </Text>
-                                                    <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
-                                                        <TouchableOpacity style={[styles.mPrimaryBtn, { flex: 1, backgroundColor: colors.bg }]} onPress={() => setCajitaType(null)}>
-                                                            <Text style={[styles.mPrimaryBtnTxt, { color: colors.text }]}>Atrás</Text>
-                                                        </TouchableOpacity>
-                                                        <TouchableOpacity 
-                                                            style={[styles.mPrimaryBtn, { flex: 2, backgroundColor: colors.accent }]} 
-                                                            onPress={() => {
-                                                                setEmergencyStep(2);
-                                                                analyzeFinancialHealth();
-                                                            }}
-                                                        >
-                                                            <Text style={styles.mPrimaryBtnTxt}>Analizar Salud 📈</Text>
-                                                        </TouchableOpacity>
-                                                    </View>
-                                                </View>
-                                            )}
-
-                                            {emergencyStep === 2 && (
-                                                <View>
-                                                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginBottom: 4 }}>Paso 2: Salud Financiera</Text>
-                                                    <Text style={{ color: colors.sub, fontSize: 12, marginBottom: 20 }}>Revisa y ajusta tus montos representativos en tu moneda ({currency}):</Text>
-                                                    
-                                                    {isAnalyzingHealth ? (
-                                                        <View style={{ paddingVertical: 40, alignItems: 'center', gap: 12 }}>
-                                                            <ActivityIndicator size="large" color={colors.accent} />
-                                                            <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>Calculando salud financiera...</Text>
-                                                        </View>
-                                                    ) : (
-                                                        <View style={{ gap: 14 }}>
-                                                            <View style={styles.mInputCont}>
-                                                                <Text style={[styles.mLabel, { color: colors.sub, fontSize: 10 }]}>INGRESOS MENSUALES ESTIMADOS</Text>
-                                                                <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
-                                                                    keyboardType="decimal-pad" value={wizardIncome} onChangeText={t => setWizardIncome(formatInput(t))} />
-                                                            </View>
-                                                            <View style={styles.mInputCont}>
-                                                                <Text style={[styles.mLabel, { color: colors.sub, fontSize: 10 }]}>GASTOS MENSUALES ESTIMADOS</Text>
-                                                                <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
-                                                                    keyboardType="decimal-pad" value={wizardExpense} 
-                                                                    onChangeText={t => {
-                                                                        const clean = formatInput(t);
-                                                                        setWizardExpense(clean);
-                                                                        const parsed = parseInputToNumber(clean, currency);
-                                                                        const rec = getEmergencyFundRecommendation(parsed);
-                                                                        setCustomGoal(formatInput(rec.toString()));
-                                                                    }} 
-                                                                />
-                                                            </View>
-                                                            <View style={styles.mInputCont}>
-                                                                <Text style={[styles.mLabel, { color: colors.sub, fontSize: 10 }]}>DEUDAS ACTIVAS TOTALES</Text>
-                                                                <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
-                                                                    keyboardType="decimal-pad" value={wizardDebt} onChangeText={t => setWizardDebt(formatInput(t))} />
-                                                            </View>
-
-                                                            <View style={{ backgroundColor: colors.accent + '10', padding: 14, borderRadius: 16, marginTop: 4, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                                                                <Ionicons name="information-circle" size={20} color={colors.accent} />
-                                                                <View style={{ flex: 1 }}>
-                                                                    <Text style={{ color: colors.text, fontSize: 12, fontWeight: '800' }}>Recomendación Estimada</Text>
-                                                                    <Text style={{ color: colors.sub, fontSize: 11, marginTop: 2 }}>
-                                                                        Basado en tus gastos de {fmt(parseInputToNumber(wizardExpense, currency))}, sugerimos un Escudo Inicial de {fmt(getEmergencyFundRecommendation(parseInputToNumber(wizardExpense, currency)))}.
-                                                                    </Text>
-                                                                </View>
-                                                            </View>
-
-                                                            <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-                                                                <TouchableOpacity style={[styles.mPrimaryBtn, { flex: 1, backgroundColor: colors.bg }]} onPress={() => setEmergencyStep(1)}>
-                                                                    <Text style={[styles.mPrimaryBtnTxt, { color: colors.text }]}>Atrás</Text>
-                                                                </TouchableOpacity>
-                                                                <TouchableOpacity style={[styles.mPrimaryBtn, { flex: 2, backgroundColor: colors.accent }]} onPress={() => setEmergencyStep(3)}>
-                                                                    <Text style={styles.mPrimaryBtnTxt}>Siguiente 🛡️</Text>
-                                                                </TouchableOpacity>
-                                                            </View>
-                                                        </View>
-                                                    )}
-                                                </View>
-                                            )}
-
-                                            {emergencyStep === 3 && (() => {
-                                                const parsedExpense = parseInputToNumber(wizardExpense, currency);
-                                                const parsedDebt = parseInputToNumber(wizardDebt, currency);
-                                                const recL1 = getEmergencyFundRecommendation(parsedExpense);
-                                                const recL2 = roundToCurrency(3 * parsedExpense + parsedDebt);
-                                                const recL3 = roundToCurrency(6 * parsedExpense + parsedDebt);
-                                                
-                                                return (
-                                                    <View>
-                                                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginBottom: 4 }}>Paso 3: Metas Progresivas</Text>
-                                                        <Text style={{ color: colors.sub, fontSize: 12, marginBottom: 16 }}>Tu escudo puede escalar a medida que ahorras. Elige el objetivo inicial:</Text>
-                                                        
-                                                        <View style={{ gap: 10, marginBottom: 20 }}>
-                                                            <TouchableOpacity 
-                                                                style={{ backgroundColor: colors.bg, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-                                                                onPress={() => setCustomGoal(formatInput(recL1.toString()))}
-                                                            >
-                                                                <View>
-                                                                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>Nivel 1: Escudo Inicial 🛡️</Text>
-                                                                    <Text style={{ color: colors.sub, fontSize: 10 }}>Para emergencias menores inmediatas.</Text>
-                                                                </View>
-                                                                <Text style={{ color: colors.accent, fontSize: 14, fontWeight: '900' }}>{fmt(recL1)}</Text>
-                                                            </TouchableOpacity>
-
-                                                            <TouchableOpacity 
-                                                                style={{ backgroundColor: colors.bg, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-                                                                onPress={() => setCustomGoal(formatInput(recL2.toString()))}
-                                                            >
-                                                                <View>
-                                                                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>Nivel 2: Tranquilidad 🛡️🛡️</Text>
-                                                                    <Text style={{ color: colors.sub, fontSize: 10 }}>3 meses de gastos + deudas activas.</Text>
-                                                                </View>
-                                                                <Text style={{ color: colors.accent, fontSize: 14, fontWeight: '900' }}>{fmt(recL2)}</Text>
-                                                            </TouchableOpacity>
-
-                                                            <TouchableOpacity 
-                                                                style={{ backgroundColor: colors.bg, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-                                                                onPress={() => setCustomGoal(formatInput(recL3.toString()))}
-                                                            >
-                                                                <View>
-                                                                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>Nivel 3: Blindaje Total 🛡️🛡️🛡️</Text>
-                                                                    <Text style={{ color: colors.sub, fontSize: 10 }}>6 meses de gastos + deudas activas.</Text>
-                                                                </View>
-                                                                <Text style={{ color: colors.accent, fontSize: 14, fontWeight: '900' }}>{fmt(recL3)}</Text>
-                                                            </TouchableOpacity>
-                                                        </View>
-
-                                                        <View style={styles.mInputCont}>
-                                                            <Text style={[styles.mLabel, { color: colors.sub }]}>TU META INICIAL SELECCIONADA ({currency})</Text>
-                                                            <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border, fontSize: 24, fontWeight: '900', textAlign: 'center' }]} 
-                                                                keyboardType="decimal-pad" value={customGoal} onChangeText={t => setCustomGoal(formatInput(t))} />
-                                                        </View>
-
-                                                        <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-                                                            <TouchableOpacity style={[styles.mPrimaryBtn, { flex: 1, backgroundColor: colors.bg }]} onPress={() => setEmergencyStep(2)}>
-                                                                <Text style={[styles.mPrimaryBtnTxt, { color: colors.text }]}>Atrás</Text>
-                                                            </TouchableOpacity>
-                                                            <TouchableOpacity style={[styles.mPrimaryBtn, { flex: 2, backgroundColor: colors.accent }]} onPress={() => setEmergencyStep(4)}>
-                                                                    <Text style={styles.mPrimaryBtnTxt}>Configurar ⚙️</Text>
-                                                            </TouchableOpacity>
-                                                        </View>
-                                                    </View>
-                                                );
-                                            })()}
-
-                                            {emergencyStep === 4 && (
-                                                <View>
-                                                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginBottom: 4 }}>Paso 4: Detalles del Fondo</Text>
-                                                    <Text style={{ color: colors.sub, fontSize: 12, marginBottom: 16 }}>Configura los rendimientos anuales y confirma tu fondo:</Text>
-
-                                                    <View style={styles.mInputCont}>
-                                                        <Text style={[styles.mLabel, { color: colors.sub }]}>NOMBRE DEL FONDO</Text>
-                                                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
-                                                            placeholder="Ej. Mi Fondo de Emergencia" placeholderTextColor={colors.sub + '80'}
-                                                            value={newGoalName} onChangeText={setNewGoalName} />
-                                                    </View>
-
-                                                    <View style={styles.mInputCont}>
-                                                        <Text style={[styles.mLabel, { color: colors.sub }]}>INTERÉS ANUAL ESPERADO (%) E.A. (Ej. Nubank 13)</Text>
-                                                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
-                                                            placeholder="13" placeholderTextColor={colors.sub + '80'} keyboardType="decimal-pad"
-                                                            value={newGoalInterest} onChangeText={setNewGoalInterest} />
-                                                    </View>
-
-                                                    <View style={{ backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 14, marginBottom: 16 }}>
-                                                        <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '800', marginBottom: 6 }}>RESUMEN DE TU ESCUDO 🛡</Text>
-                                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                                                            <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>Meta Inicial:</Text>
-                                                            <Text style={{ color: colors.text, fontSize: 12, fontWeight: '800' }}>{fmt(parseInputToNumber(customGoal, currency))}</Text>
-                                                        </View>
-                                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                                            <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>Interés Esperado:</Text>
-                                                            <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '800' }}>{newGoalInterest || '10'}% E.A.</Text>
-                                                        </View>
-                                                    </View>
-
-                                                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-                                                        <TouchableOpacity style={[styles.mPrimaryBtn, { flex: 1, backgroundColor: colors.bg }]} onPress={() => setEmergencyStep(3)}>
-                                                            <Text style={[styles.mPrimaryBtnTxt, { color: colors.text }]}>Atrás</Text>
-                                                        </TouchableOpacity>
-                                                        <TouchableOpacity 
-                                                            style={[styles.mPrimaryBtn, { flex: 2, backgroundColor: colors.accent }, isProcessing && { opacity: 0.6 }]} 
-                                                            onPress={handleCreateGoal}
-                                                            disabled={isProcessing}
-                                                        >
-                                                            <Text style={styles.mPrimaryBtnTxt}>
-                                                                {isProcessing ? 'Creando...' : 'Crear Fondo 🛡️'}
-                                                            </Text>
-                                                        </TouchableOpacity>
-                                                    </View>
-                                                </View>
-                                            )}
                                         </View>
                                     )}
                                 </View>
