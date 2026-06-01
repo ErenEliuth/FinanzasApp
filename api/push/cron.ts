@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import webpush from 'web-push';
+import * as webpush from 'web-push';
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://nhbnltdlzxaigztukbfy.supabase.co';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
