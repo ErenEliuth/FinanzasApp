@@ -332,15 +332,79 @@ export default function ProfileScreen() {
     const [weeklySpending, setWeeklySpending] = useState(0);
     const [weeklyIncome, setWeeklyIncome] = useState(0);
     const [weeklySummaryData, setWeeklySummaryData] = useState<[string, number][]>([]);
+    const [pushEnabled, setPushEnabled] = useState(false);
 
     const scrollRef = useRef<any>(null);
 
     useEffect(() => { 
         if (isFocused) {
             loadData(); 
+            checkPushSubscription();
             scrollRef.current?.scrollTo({ y: 0, animated: false });
         }
     }, [isFocused]);
+
+    const checkPushSubscription = async () => {
+        if (Platform.OS !== 'web' || !('serviceWorker' in navigator)) return;
+        try {
+            const reg = await navigator.serviceWorker.ready;
+            const sub = await reg.pushManager.getSubscription();
+            setPushEnabled(!!sub);
+        } catch (e) { console.warn('Error checking push subscription:', e); }
+    };
+
+    const togglePushNotifications = async () => {
+        if (Platform.OS !== 'web' || !('serviceWorker' in navigator)) {
+            Alert.alert('Solo Web PWA', 'Las notificaciones push nativas están diseñadas para la versión web PWA.');
+            return;
+        }
+        try {
+            const reg = await navigator.serviceWorker.ready;
+            const sub = await reg.pushManager.getSubscription();
+            if (sub) {
+                await sub.unsubscribe();
+                setPushEnabled(false);
+                Alert.alert('Notificaciones Desactivadas', 'Ya no recibirás alertas en este dispositivo.');
+            } else {
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    // Subscribe with simulator/generic key since we are in local/static pages
+                    await reg.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: new Uint8Array([
+                            4, 9, 88, 12, 14, 95, 23, 10, 44, 92, 103, 44, 12, 9, 14, 55, 66, 77, 88, 99, 11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 122, 133, 144, 155, 166, 177, 188, 199, 200, 211, 222, 233, 244, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
+                        ])
+                    });
+                    setPushEnabled(true);
+                    Alert.alert('¡Suscrito con Éxito!', 'Ahora recibirás recordatorios y consejos de Santy.');
+                } else {
+                    Alert.alert('Permiso Denegado', 'Por favor habilita los permisos de notificación en los ajustes de tu navegador.');
+                }
+            }
+        } catch (e) {
+            console.error('Push toggle failed:', e);
+            Alert.alert('Error', 'Hubo un problema al configurar las notificaciones.');
+        }
+    };
+
+    const sendTestPush = async () => {
+        if (Platform.OS !== 'web' || !('serviceWorker' in navigator)) return;
+        try {
+            // Native Service Worker doesn't have an easily-invocable backend API without a real VAPID relay.
+            // We simulate it locally by calling registration.showNotification directly or postMessage to SW.
+            const reg = await navigator.serviceWorker.ready;
+            if (Notification.permission === 'granted') {
+                reg.showNotification('Santy te aconseja 🧠', {
+                    body: '¡Excelente! Estás construyendo el hábito del ahorro. Tu fondo de emergencia te lo agradecerá en el futuro.',
+                    icon: '/FinanzasApp/assets/images/icon.png',
+                    badge: '/FinanzasApp/assets/images/favicon.png',
+                    data: { url: '/FinanzasApp/goals' }
+                });
+            } else {
+                Alert.alert('Permiso Requerido', 'Primero activa las notificaciones.');
+            }
+        } catch (e) { console.error('Test push error:', e); }
+    };
     useEffect(() => {
         const url = user?.user_metadata?.avatar_url;
         if (url) setAvatarUri(url);
@@ -665,6 +729,58 @@ export default function ProfileScreen() {
                             }} />
                         </TouchableOpacity>
                     </View>
+
+                    {/* ── Web Push Notification Controls ── */}
+                    {Platform.OS === 'web' && (
+                        <>
+                            <View style={[styles.listItem, { borderTopWidth: 1, borderTopColor: colorsNav.bg }]}>
+                                <View style={[styles.listIcon, { backgroundColor: '#10B98115' }]}><MaterialIcons name="notifications-active" size={20} color="#10B981" /></View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.listTitle, { color: colorsNav.text }]}>Notificaciones Push</Text>
+                                    <Text style={[styles.listSub, { color: colorsNav.sub }]}>Alertas de Santy en navegador</Text>
+                                </View>
+                                <TouchableOpacity 
+                                    onPress={togglePushNotifications}
+                                    style={{ 
+                                        width: 44, 
+                                        height: 24, 
+                                        borderRadius: 12, 
+                                        backgroundColor: pushEnabled ? '#10B981' : colorsNav.bg,
+                                        justifyContent: 'center',
+                                        paddingHorizontal: 3,
+                                        borderWidth: 1,
+                                        borderColor: pushEnabled ? '#10B981' : colorsNav.border
+                                    }}
+                                >
+                                    <View style={{ 
+                                        width: 18, 
+                                        height: 18, 
+                                        borderRadius: 9, 
+                                        backgroundColor: '#FFF',
+                                        alignSelf: pushEnabled ? 'flex-end' : 'flex-start',
+                                        elevation: 2,
+                                        shadowColor: '#000',
+                                        shadowOpacity: 0.2,
+                                        shadowRadius: 2
+                                    }} />
+                                </TouchableOpacity>
+                            </View>
+
+                            {pushEnabled && (
+                                <TouchableOpacity 
+                                    style={[styles.listItem, { borderTopWidth: 1, borderTopColor: colorsNav.bg }]} 
+                                    onPress={sendTestPush}
+                                >
+                                    <View style={[styles.listIcon, { backgroundColor: '#3B82F615' }]}><MaterialIcons name="send" size={20} color="#3B82F6" /></View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.listTitle, { color: colorsNav.text }]}>Enviar Notificación de Prueba</Text>
+                                        <Text style={[styles.listSub, { color: colorsNav.sub }]}>Probar alertas de Santy al instante</Text>
+                                    </View>
+                                    <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
+                                </TouchableOpacity>
+                            )}
+                        </>
+                    )}
                 </View>
                 <View style={{ height: 100 }} />
             </ScrollView>
