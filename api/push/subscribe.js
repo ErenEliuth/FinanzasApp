@@ -1,11 +1,11 @@
-import { createClient } from '@supabase/supabase-js';
+const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://nhbnltdlzxaigztukbfy.supabase.co';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey || 'sb_publishable_toQlACMIWfpUG4vH-o24WA_gxdlIEkT');
 
-export default async function handler(req: any, res: any) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405)
       .setHeader('Allow', 'POST')
@@ -37,8 +37,8 @@ export default async function handler(req: any, res: any) {
     }
 
     return res.status(200).json({ success: true, data });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Subscribe handler error:', err);
     return res.status(500).json({ error: err.message });
   }
-}
+};

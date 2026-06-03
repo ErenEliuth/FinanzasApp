@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
-import * as webpush from 'web-push';
+const { createClient } = require('@supabase/supabase-js');
+const webpush = require('web-push');
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://nhbnltdlzxaigztukbfy.supabase.co';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -22,7 +22,7 @@ const tips = [
   'Establece metas de ahorro a corto plazo para mantener la motivación alta.'
 ];
 
-export default async function handler(req: any, res: any) {
+module.exports = async function handler(req, res) {
   try {
     const { data: subscriptions, error } = await supabase.from('push_subscriptions').select('*');
     if (error) {
@@ -41,7 +41,7 @@ export default async function handler(req: any, res: any) {
     });
 
     const results = await Promise.all(
-      subscriptions.map(async (sub: any) => {
+      subscriptions.map(async (sub) => {
         const pushSubscription = {
           endpoint: sub.endpoint,
           keys: {
@@ -53,7 +53,7 @@ export default async function handler(req: any, res: any) {
         try {
           await webpush.sendNotification(pushSubscription, payload);
           return { endpoint: sub.endpoint, success: true };
-        } catch (err: any) {
+        } catch (err) {
           if (err.statusCode === 410 || err.statusCode === 404) {
             await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
           }
@@ -64,8 +64,8 @@ export default async function handler(req: any, res: any) {
 
     const successCount = results.filter(r => r.success).length;
     return res.status(200).json({ success: true, sent: successCount });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Cron handler error:', err);
     return res.status(500).json({ error: err.message });
   }
-}
+};

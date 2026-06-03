@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
-import * as webpush from 'web-push';
+const { createClient } = require('@supabase/supabase-js');
+const webpush = require('web-push');
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://nhbnltdlzxaigztukbfy.supabase.co';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -12,7 +12,7 @@ const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:admin@zenly.app';
 
 webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
-export default async function handler(req: any, res: any) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -41,7 +41,7 @@ export default async function handler(req: any, res: any) {
     });
 
     const results = await Promise.all(
-      subscriptions.map(async (sub: any) => {
+      subscriptions.map(async (sub) => {
         const pushSubscription = {
           endpoint: sub.endpoint,
           keys: {
@@ -53,7 +53,7 @@ export default async function handler(req: any, res: any) {
         try {
           await webpush.sendNotification(pushSubscription, payload);
           return { endpoint: sub.endpoint, success: true };
-        } catch (err: any) {
+        } catch (err) {
           console.error(`Error sending push to ${sub.endpoint}:`, err);
           if (err.statusCode === 410 || err.statusCode === 404) {
             await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
@@ -65,8 +65,8 @@ export default async function handler(req: any, res: any) {
 
     const successCount = results.filter(r => r.success).length;
     return res.status(200).json({ success: true, sent: successCount, total: subscriptions.length });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Send handler error:', err);
     return res.status(500).json({ error: err.message });
   }
-}
+};
