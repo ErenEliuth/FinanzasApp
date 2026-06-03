@@ -1,17 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const webpush = require('web-push');
 
-const supabaseUrl = process.env.SUPABASE_URL || 'https://nhbnltdlzxaigztukbfy.supabase.co';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey || 'sb_publishable_toQlACMIWfpUG4vH-o24WA_gxdlIEkT');
-
-const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || 'BDc8JcLSHCdTUZDsNl8hlAzLPfOz4jWar4OGO9odsf8_8vePGp_uM9tPbjsJx0hTz3rUvDE48ygpPlvL5_eyrio';
-const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || 'xyXeRYqlzjNd2i4tzpUi1nuIV_OW8NXX9ndUAiSAzlQ';
-const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:admin@zenly.app';
-
-webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
-
 const tips = [
   '¡Recuerda aportar a tu fondo de emergencia hoy! Cada peso cuenta.',
   'Revisa tus gastos de la semana. ¿Hubo alguno innecesario?',
@@ -24,6 +13,20 @@ const tips = [
 
 module.exports = async function handler(req, res) {
   try {
+    const supabaseUrl = process.env.SUPABASE_URL || 'https://nhbnltdlzxaigztukbfy.supabase.co';
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    const supabase = createClient(supabaseUrl, supabaseServiceKey || 'sb_publishable_toQlACMIWfpUG4vH-o24WA_gxdlIEkT');
+
+    const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || 'BDc8JcLSHCdTUZDsNl8hlAzLPfOz4jWar4OGO9odsf8_8vePGp_uM9tPbjsJx0hTz3rUvDE48ygpPlvL5_eyrio';
+    const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || 'xyXeRYqlzjNd2i4tzpUi1nuIV_OW8NXX9ndUAiSAzlQ';
+    const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:admin@zenly.app';
+
+    webpush.setVapidDetails(
+      vapidSubject.trim(),
+      vapidPublicKey.trim(),
+      vapidPrivateKey.trim()
+    );
+
     const { data: subscriptions, error } = await supabase.from('push_subscriptions').select('*');
     if (error) {
       return res.status(500).json({ error: error.message });
@@ -66,6 +69,6 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ success: true, sent: successCount });
   } catch (err) {
     console.error('Cron handler error:', err);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message || err });
   }
 };
