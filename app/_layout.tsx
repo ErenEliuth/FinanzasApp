@@ -46,6 +46,10 @@ function RootStack() {
         document.head.appendChild(meta);
       }
       meta.setAttribute('content', colors.bg);
+
+      // Sincronizar el fondo del HTML/Body para navegadores móviles
+      document.body.style.backgroundColor = colors.bg;
+      document.documentElement.style.backgroundColor = colors.bg;
     }
   }, [theme, colors.bg]);
 
