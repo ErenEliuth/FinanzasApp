@@ -40,6 +40,20 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-06-04 — Sanctuary: Notificaciones Inteligentes y Desbranding (v30)
+
+**Archivos modificados:**
+- `app/(tabs)/profile.tsx` — Reemplazo de las referencias de "Santy" en la UI de notificaciones push y alertas por descripciones genéricas.
+- `utils/notifications.ts` — Lógica para programar notificaciones matutinas, de inversión, de ahorro y de registro nocturno con frases motivacionales de inversores y filósofos financieros.
+- `CHANGELOG_DEV.md` — Registro de la v30.
+
+**Cambios realizados:**
+- ✅ **Cron de Notificaciones Personalizado**: Integración de notificaciones basadas en el nombre del usuario para mayor personalización.
+- ✅ **Notificación de Inspiración Matutina (7:00 AM)**: Envío diario automático de citas célebres de grandes pensadores financieros (Warren Buffett, Epicteto, Einstein, etc.) para fomentar hábitos saludables.
+- ✅ **Desbranding de Santy**: Limpieza de las etiquetas y mensajes emergentes (Alert) de push notifications en el Perfil para remover referencias a "Santy" y mantener un enfoque neutro y profesional.
+
+---
+
 ### 2026-04-08 — Sanctuary: Dashboard de Inversiones de Alto Impacto (v29)
 
 **Archivos modificados:**
