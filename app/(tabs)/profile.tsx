@@ -384,7 +384,7 @@ export default function ProfileScreen() {
                 }
                 await AsyncStorage.setItem('push_notifications_enabled', 'false');
                 setPushEnabled(false);
-                Alert.alert('Desactivadas', 'Ya no recibirás recordatorios de Santy.');
+                Alert.alert('Desactivadas', 'Ya no recibirás recordatorios.');
             } else {
                 const permission = await Notification.requestPermission();
                 if (permission === 'granted') {
@@ -408,7 +408,7 @@ export default function ProfileScreen() {
                     if (response.ok) {
                         await AsyncStorage.setItem('push_notifications_enabled', 'true');
                         setPushEnabled(true);
-                        Alert.alert('¡Activadas!', 'Recibirás recordatorios y consejos de Santy diariamente.');
+                        Alert.alert('¡Activadas!', 'Recibirás recordatorios y consejos diariamente.');
                     } else {
                         const errData = await response.json();
                         throw new Error(errData.error || 'Fallo en la suscripción del servidor');
@@ -802,7 +802,7 @@ export default function ProfileScreen() {
                                 <View style={[styles.listIcon, { backgroundColor: '#10B98115' }]}><MaterialIcons name="notifications-active" size={20} color="#10B981" /></View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={[styles.listTitle, { color: colorsNav.text }]}>Notificaciones Push</Text>
-                                    <Text style={[styles.listSub, { color: colorsNav.sub }]}>Alertas de Santy en navegador</Text>
+                                    <Text style={[styles.listSub, { color: colorsNav.sub }]}>Recordatorios diarios en navegador</Text>
                                 </View>
                                 <TouchableOpacity 
                                     onPress={togglePushNotifications}
@@ -839,7 +839,7 @@ export default function ProfileScreen() {
                                     <View style={[styles.listIcon, { backgroundColor: '#3B82F615' }]}><MaterialIcons name="send" size={20} color="#3B82F6" /></View>
                                     <View style={{ flex: 1 }}>
                                         <Text style={[styles.listTitle, { color: colorsNav.text }]}>Enviar Notificación de Prueba</Text>
-                                        <Text style={[styles.listSub, { color: colorsNav.sub }]}>Probar alertas de Santy al instante</Text>
+                                        <Text style={[styles.listSub, { color: colorsNav.sub }]}>Probar alertas al instante</Text>
                                     </View>
                                     <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
                                 </TouchableOpacity>
