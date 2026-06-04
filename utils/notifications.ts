@@ -56,6 +56,18 @@ export async function scheduleDailyReminder(hour: number, minute: number, title?
     });
 }
 
+const MOTIVATIONAL_QUOTES = [
+    { quote: "El interés compuesto es la octava maravilla del mundo. Quien lo entiende, lo gana; quien no, lo paga.", author: "Albert Einstein" },
+    { quote: "La mejor inversión que puedes hacer es en ti mismo.", author: "Warren Buffett" },
+    { quote: "No ahorres lo que queda después de gastar; gasta lo que queda después de ahorrar.", author: "Warren Buffett" },
+    { quote: "La riqueza no consiste en tener muchas posesiones, sino en tener pocas necesidades.", author: "Epicteto" },
+    { quote: "El camino hacia la riqueza depende fundamentalmente de dos palabras: trabajo y ahorro.", author: "Benjamin Franklin" },
+    { quote: "El dinero es un buen sirviente, pero un mal amo.", author: "Francis Bacon" },
+    { quote: "No compres cosas que no necesitas con dinero que no tienes para impresionar a gente que no te agrada.", author: "Dave Ramsey" },
+    { quote: "Comprar un activo es comprar un flujo de ingresos que trabaja para ti.", author: "Robert Kiyosaki" },
+    { quote: "La paciencia y el tiempo hacen más que la fuerza y la pasión.", author: "Jean de La Fontaine" }
+];
+
 export async function scheduleCoherentReminders(name: string) {
     // Cancelar previos para no duplicar
     await Notifications.cancelAllScheduledNotificationsAsync();
@@ -66,6 +78,21 @@ export async function scheduleCoherentReminders(name: string) {
     }
 
     const userName = name || 'Usuario';
+    const randomQuote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
+
+    // 0. Motivación de la mañana (7:00 AM)
+    await Notifications.scheduleNotificationAsync({
+        content: {
+            title: `💡 Inspiración matutina, ${userName}`,
+            body: `"${randomQuote.quote}" — ${randomQuote.author}`,
+            data: { screen: 'explore' },
+        },
+        trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DAILY,
+            hour: 7,
+            minute: 0,
+        },
+    });
 
     // 1. Mañana (8:30 AM) - Portafolio
     await Notifications.scheduleNotificationAsync({
@@ -113,4 +140,5 @@ export async function scheduleCoherentReminders(name: string) {
 export async function cancelReminders() {
     await Notifications.cancelAllScheduledNotificationsAsync();
 }
+
 

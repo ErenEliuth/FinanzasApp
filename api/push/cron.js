@@ -22,6 +22,17 @@ const MESSAGES = {
     { title: '🏆 Tu semana financiera, {name}', body: 'Mira cuánto gastaste esta semana versus tu presupuesto. ¿Estás en camino a tu meta?' },
     { title: '🗓️ Planifica tu semana, {name}', body: 'Antes de que empiece la semana: define un límite de gastos y comprométete con él.' },
   ],
+  motivation: [
+    { title: '💡 Inspiración matutina, {name}', body: '"El interés compuesto es la octava maravilla del mundo. Quien lo entiende, lo gana; quien no, lo paga." — Albert Einstein' },
+    { title: '💡 Inspiración matutina, {name}', body: '"La mejor inversión que puedes hacer es en ti mismo." — Warren Buffett' },
+    { title: '💡 Inspiración matutina, {name}', body: '"No ahorres lo que queda después de gastar; gasta lo que queda después de ahorrar." — Warren Buffett' },
+    { title: '💡 Inspiración matutina, {name}', body: '"La riqueza no consiste en tener muchas posesiones, sino en tener pocas necesidades." — Epicteto' },
+    { title: '💡 Inspiración matutina, {name}', body: '"El camino hacia la riqueza depende fundamentalmente de dos palabras: trabajo y ahorro." — Benjamin Franklin' },
+    { title: '💡 Inspiración matutina, {name}', body: '"El dinero es un buen sirviente, pero un mal amo." — Francis Bacon' },
+    { title: '💡 Inspiración matutina, {name}', body: '"No compres cosas que no necesitas con dinero que no tienes para impresionar a gente que no te agrada." — Dave Ramsey' },
+    { title: '💡 Inspiración matutina, {name}', body: '"Comprar un activo es comprar un flujo de ingresos que trabaja para ti." — Robert Kiyosaki' },
+    { title: '💡 Inspiración matutina, {name}', body: '"La paciencia y el tiempo hacen más que la fuerza y la pasión." — Jean de La Fontaine' }
+  ],
 };
 
 // ── Fetch reminders from Supabase and build personalized messages ──────────────
@@ -143,7 +154,7 @@ async function getPersonalizedMessages(supabase, userId, type) {
   } catch (e) { /* ignore */ }
 
   // If we have personalized messages, replace placeholders and return them
-  if (msgs.length > 0) {
+  if (msgs.length > 0 && type !== 'motivation') {
     return msgs;
   }
 
