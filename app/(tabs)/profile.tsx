@@ -439,11 +439,12 @@ export default function ProfileScreen() {
             ];
             const randomTip = tips[Math.floor(Math.random() * tips.length)];
 
+            const name = user?.user_metadata?.name || 'Usuario';
             const response = await fetch('/api/push/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    title: 'Santy te aconseja 🧠',
+                    title: `💡 Consejo para ${name}`,
                     body: randomTip,
                     userId: user?.id,
                     url: '/goals'
