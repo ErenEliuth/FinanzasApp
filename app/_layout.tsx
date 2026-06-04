@@ -7,6 +7,7 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
+import { THEMES, ThemeName } from '@/constants/Themes';
 
 import { useFonts } from 'expo-font';
 import { Feather, Ionicons, MaterialIcons, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
@@ -32,6 +33,21 @@ function RootStack() {
   const { user, loading, theme } = useAuth();
   const router = useRouter();
   const segments = useSegments();
+
+  const colors = THEMES[theme as ThemeName] || THEMES.light;
+
+  // Sincronizar el color de la barra de estado / tema de interfaz con el tema activo
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      let meta = document.querySelector('meta[name="theme-color"]');
+      if (!meta) {
+        meta = document.createElement('meta');
+        meta.setAttribute('name', 'theme-color');
+        document.head.appendChild(meta);
+      }
+      meta.setAttribute('content', colors.bg);
+    }
+  }, [theme, colors.bg]);
 
   const [fontsLoaded, fontError] = useFonts({
     ...Ionicons.font,
@@ -159,7 +175,11 @@ function RootStack() {
         </Stack>
       </SanctuaryLock>
       {/* <InteractiveTutorial /> */}
-      <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+      <StatusBar 
+        style={colors.isDark ? 'light' : 'dark'} 
+        backgroundColor={colors.bg} 
+        translucent={Platform.OS === 'android'}
+      />
     </ThemeProvider>
   );
 }
