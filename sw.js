@@ -1,16 +1,15 @@
-const CACHE_NAME = 'finanzas-app-v5';
+const CACHE_NAME = 'finanzas-app-v6';
 const ASSETS_TO_CACHE = [
   '/',
-  '/FinanzasApp/',
-  '/FinanzasApp/index.html',
-  '/FinanzasApp/manifest.json',
-  '/FinanzasApp/assets/images/favicon.png',
-  '/FinanzasApp/assets/images/icon.png'
+  '/index.html',
+  '/manifest.json',
+  '/icon.png'
 ];
 
 // Supabase API base URL detection
 const SUPABASE_API_PATTERN = /supabase\.co\/rest\/v1/;
 
+// ── Install ──
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -19,6 +18,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
+// ── Activate ──
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -33,15 +33,20 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// ── Fetch: Network-First for Supabase, Cache-First for assets ──
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;
+
+  // Exclude local API endpoints from Service Worker intercept
+  if (url.includes('/api/')) {
+    return;
+  }
 
   // Strategy: Network-First with Cache Fallback for Supabase API requests
   if (SUPABASE_API_PATTERN.test(url)) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          // If successful response, save clone to cache
           if (response.status === 200 || response.status === 201) {
             const responseClone = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
@@ -51,13 +56,11 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => {
-          // Offline/Network error fallback: Retrieve from cache
           return caches.match(event.request).then((cachedResponse) => {
             if (cachedResponse) {
               return cachedResponse;
             }
-            // Return standard offline error if not in cache
-            return new Response(JSON.stringify({ error: "No internet connection. Data unavailable offline." }), {
+            return new Response(JSON.stringify({ error: "Sin conexión. Datos no disponibles offline." }), {
               status: 503,
               headers: { 'Content-Type': 'application/json' }
             });
@@ -67,11 +70,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Standard Strategy: Cache First for assets/static files
+  // Standard Strategy: Cache First for static assets
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request).then((fetchResponse) => {
-        // Cache dynamically fetched local assets (excluding external APIs or POSTs)
         if (
           fetchResponse.status === 200 &&
           event.request.method === 'GET' &&
@@ -89,7 +91,29 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// ── Web Push Event Listener ──
+// ── Message Handler: Local Notification Scheduler ──
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
+    const { title, body, url } = event.data;
+    self.registration.showNotification(title || 'Zenly', {
+      body: body || 'Tienes un recordatorio financiero.',
+      icon: '/icon.png',
+      badge: '/icon.png',
+      vibrate: [100, 50, 100],
+      tag: 'zenly-reminder',
+      renotify: true,
+      data: { url: url || '/' }
+    });
+  }
+
+  if (event.data && event.data.type === 'SCHEDULE_DAILY') {
+    // Store schedule config for the periodic check
+    const { hour, minute } = event.data;
+    self._dailySchedule = { hour: hour || 9, minute: minute || 0 };
+  }
+});
+
+// ── Push Event (for future server-side push) ──
 self.addEventListener('push', (event) => {
   let data = { title: 'Zenly', body: 'Tienes una nueva actualización financiera.' };
   
@@ -101,35 +125,31 @@ self.addEventListener('push', (event) => {
     }
   }
 
-  const options = {
-    body: data.body,
-    icon: '/FinanzasApp/assets/images/icon.png',
-    badge: '/FinanzasApp/assets/images/favicon.png',
-    vibrate: [100, 50, 100],
-    data: {
-      url: data.url || '/FinanzasApp/goals'
-    }
-  };
-
   event.waitUntil(
-    self.registration.showNotification(data.title, options)
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/icon.png',
+      badge: '/icon.png',
+      vibrate: [100, 50, 100],
+      data: { url: data.url || '/goals' }
+    })
   );
 });
 
-// Handle Notification Click
+// ── Notification Click Handler ──
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data.url;
+  const targetUrl = event.notification.data && event.notification.data.url 
+    ? event.notification.data.url 
+    : '/';
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window' }).then((clientList) => {
-      // Focus existing tab if open
       for (const client of clientList) {
-        if (client.url.includes(targetUrl) && 'focus' in client) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
           return client.focus();
         }
       }
-      // Otherwise open a new window/tab
       if (self.clients.openWindow) {
         return self.clients.openWindow(targetUrl);
       }
