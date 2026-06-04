@@ -1,117 +1,160 @@
 const { createClient } = require('@supabase/supabase-js');
 const webpush = require('web-push');
 
-// ── Messages by type ──────────────────────────────────────────────────────────
+// ── Messages by type (using {name} placeholder) ────────────────────────────────
 const MESSAGES = {
   morning: [
-    { title: '🌅 Buenos días, Santy aquí', body: 'Empieza el día revisando tu saldo. Un minuto de finanzas puede cambiarlo todo.' },
-    { title: '☕ Recordatorio matutino', body: '¿Aportaste a tu meta de ahorro esta semana? Hoy es un buen día para hacerlo.' },
-    { title: '🌟 Nueva oportunidad financiera', body: 'Los mercados abrieron. Revisa el precio de tus activos antes de que pase el día.' },
-    { title: '💡 Consejo de Santy', body: 'Registra cada gasto hoy, por pequeño que sea. Los detalles hacen la diferencia.' },
-    { title: '🎯 Hacia tu meta', body: '¿Cuánto te falta para tu próxima meta de ahorro? Ábrela y verifica tu progreso.' },
+    { title: '🌅 Buenos días, {name}', body: 'Empieza el día revisando tu saldo. Un minuto de finanzas puede cambiarlo todo.' },
+    { title: '☕ Recordatorio para {name}', body: '¿Aportaste a tu meta de ahorro esta semana? Hoy es un buen día para hacerlo.' },
+    { title: '🌟 Oportunidad para {name}', body: 'Los mercados abrieron. Revisa el precio de tus activos en tu portafolio antes de que pase el día.' },
+    { title: '💡 Consejo para {name}', body: 'Registra cada gasto hoy, por pequeño que sea. Los detalles hacen la diferencia.' },
+    { title: '🎯 Hacia tu meta, {name}', body: '¿Cuánto te falta para tu próxima meta de ahorro? Ábrela y verifica tu progreso.' },
   ],
   evening: [
-    { title: '🌙 Resumen nocturno', body: '¿Registraste todos tus gastos de hoy? Tómate 2 minutos antes de dormir.' },
-    { title: '💰 ¿Cómo estuvo tu día financiero?', body: 'Un buen hábito: revisar tus transacciones cada noche. Abre Zenly.' },
-    { title: '📊 Santy te recuerda', body: 'Llevar el control diario de tus finanzas puede salvarte de sorpresas a fin de mes.' },
-    { title: '🔔 Recordatorio de ahorro', body: '¿Pusiste algo en tu fondo de emergencia hoy? Cada peso acumulado cuenta.' },
-    { title: '😴 Antes de dormir...', body: 'Revisa si tienes deudas o compromisos próximos. Mejor prevenidos.' },
+    { title: '🌙 Resumen nocturno para {name}', body: '¿Registraste todos tus gastos de hoy? Tómate 2 minutos antes de dormir.' },
+    { title: '💰 ¿Cómo estuvo tu día, {name}?', body: 'Un buen hábito: revisar tus transacciones cada noche. Mantén tu control financiero.' },
+    { title: '📊 Recordatorio para {name}', body: 'Llevar el control diario de tus finanzas te salvará de sorpresas a fin de mes.' },
+    { title: '🔔 Recordatorio de ahorro, {name}', body: '¿Pusiste algo en tu fondo de emergencia hoy? Cada peso acumulado cuenta.' },
+    { title: '😴 {name}, antes de dormir...', body: 'Revisa si tienes deudas o compromisos próximos. Mejor prevenidos.' },
   ],
   weekly: [
-    { title: '📅 Resumen semanal de Santy', body: 'Es domingo, momento perfecto para revisar tus gastos de la semana y planear la siguiente.' },
-    { title: '🏆 Tu semana financiera', body: 'Mira cuánto gastaste esta semana versus tu presupuesto. ¿Estás en camino a tu meta?' },
-    { title: '🗓️ Planifica tu semana', body: 'Antes de que empiece la semana: define un límite de gastos y comprométete con él.' },
+    { title: '📅 Resumen semanal para {name}', body: 'Es domingo, momento perfecto para revisar tus gastos de la semana y planear la siguiente.' },
+    { title: '🏆 Tu semana financiera, {name}', body: 'Mira cuánto gastaste esta semana versus tu presupuesto. ¿Estás en camino a tu meta?' },
+    { title: '🗓️ Planifica tu semana, {name}', body: 'Antes de que empiece la semana: define un límite de gastos y comprométete con él.' },
   ],
 };
 
 // ── Fetch reminders from Supabase and build personalized messages ──────────────
 async function getPersonalizedMessages(supabase, userId, type) {
   const msgs = [];
+  let name = 'Usuario';
 
-  // Check upcoming debt due dates (within 3 days)
+  if (userId) {
+    try {
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
+      if (!userError && userData && userData.user) {
+        name = userData.user.user_metadata?.name || userData.user.email?.split('@')[0] || 'Usuario';
+      }
+    } catch (e) {
+      console.error('Error fetching user info for notifications:', e);
+    }
+  }
+
+  // 1. Check upcoming debt due dates (within 3 days)
   try {
-    const { data: debts } = await supabase
-      .from('debts')
-      .select('client, due_date, value, paid, debt_type')
-      .eq('user_id', userId)
-      .eq('debt_type', 'fixed');
+    if (userId) {
+      const { data: debts } = await supabase
+        .from('debts')
+        .select('client, due_date, value, paid, debt_type')
+        .eq('user_id', userId)
+        .eq('debt_type', 'fixed');
 
-    if (debts && debts.length > 0) {
-      const today = new Date();
-      const in3Days = new Date(today);
-      in3Days.setDate(today.getDate() + 3);
+      if (debts && debts.length > 0) {
+        const today = new Date();
+        const in3Days = new Date(today);
+        in3Days.setDate(today.getDate() + 3);
 
-      const upcoming = debts.filter(d => {
-        if (!d.due_date) return false;
-        const due = new Date(d.due_date);
-        return due >= today && due <= in3Days && d.paid < d.value;
-      });
-
-      upcoming.forEach(d => {
-        const dueDate = new Date(d.due_date);
-        const daysLeft = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
-        msgs.push({
-          title: `⚠️ Vencimiento próximo: ${d.client}`,
-          body: `${d.client} vence ${daysLeft === 0 ? 'hoy' : `en ${daysLeft} día${daysLeft > 1 ? 's' : ''}`}. Prepara el pago.`,
-          url: '/debts'
+        const upcoming = debts.filter(d => {
+          if (!d.due_date) return false;
+          const due = new Date(d.due_date);
+          return due >= today && due <= in3Days && d.paid < d.value;
         });
-      });
-    }
-  } catch (e) { /* ignore */ }
 
-  // Check goals close to target
-  try {
-    const { data: goals } = await supabase
-      .from('goals')
-      .select('name, target_amount, current_amount')
-      .eq('user_id', userId);
-
-    if (goals && goals.length > 0) {
-      goals.forEach(g => {
-        if (!g.target_amount || g.target_amount <= 0) return;
-        const progress = (g.current_amount / g.target_amount) * 100;
-        if (progress >= 80 && progress < 100) {
+        upcoming.forEach(d => {
+          const dueDate = new Date(d.due_date);
+          const daysLeft = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
           msgs.push({
-            title: `🎯 ¡Casi llegas a "${g.name}"!`,
-            body: `Tu meta está al ${Math.round(progress)}%. Un último empujón y la alcanzas.`,
-            url: '/goals'
+            title: `⚠️ ${name}, vencimiento próximo: ${d.client}`,
+            body: `${d.client} vence ${daysLeft === 0 ? 'hoy' : `en ${daysLeft} día${daysLeft > 1 ? 's' : ''}`}. Prepara tu pago.`,
+            url: '/debts'
           });
-        }
-      });
+        });
+      }
     }
   } catch (e) { /* ignore */ }
 
-  // Check reminders table
+  // 2. Check goals close to target (Savings progress)
   try {
-    const { data: reminders } = await supabase
-      .from('reminders')
-      .select('title, amount, date')
-      .eq('user_id', userId);
+    if (userId) {
+      const { data: goals } = await supabase
+        .from('goals')
+        .select('name, target_amount, current_amount')
+        .eq('user_id', userId);
 
-    if (reminders && reminders.length > 0) {
-      const today = new Date();
-      const todayStr = today.toISOString().split('T')[0];
-      const tomorrowStr = new Date(today.getTime() + 86400000).toISOString().split('T')[0];
-
-      reminders.forEach(r => {
-        if (r.date === todayStr || r.date === tomorrowStr) {
-          msgs.push({
-            title: `📌 Recordatorio: ${r.title}`,
-            body: r.amount
-              ? `Tienes programado un recordatorio de $${Number(r.amount).toLocaleString('es-CO')} hoy.`
-              : `Tienes un recordatorio agendado: ${r.title}`,
-            url: '/profile'
-          });
-        }
-      });
+      if (goals && goals.length > 0) {
+        goals.forEach(g => {
+          if (!g.target_amount || g.target_amount <= 0) return;
+          const progress = (g.current_amount / g.target_amount) * 100;
+          if (progress >= 80 && progress < 100) {
+            msgs.push({
+              title: `🎯 ¡Casi llegas, ${name}!`,
+              body: `Tu meta "${g.name}" está al ${Math.round(progress)}%. Un último empujón y la alcanzas.`,
+              url: '/goals'
+            });
+          }
+        });
+      }
     }
   } catch (e) { /* ignore */ }
 
-  // If we have personalized messages, return them; otherwise use generic
-  if (msgs.length > 0) return msgs;
+  // 3. Check reminders table
+  try {
+    if (userId) {
+      const { data: reminders } = await supabase
+        .from('reminders')
+        .select('title, amount, due_day')
+        .eq('user_id', userId);
 
+      if (reminders && reminders.length > 0) {
+        const today = new Date();
+        const currentDay = today.getDate();
+
+        reminders.forEach(r => {
+          if (r.due_day === currentDay) {
+            msgs.push({
+              title: `📌 ${name}, recordatorio: ${r.title}`,
+              body: r.amount
+                ? `Tienes programado un recordatorio de $${Number(r.amount).toLocaleString('es-CO')} hoy.`
+                : `Tienes un recordatorio agendado para hoy: ${r.title}`,
+              url: '/profile'
+            });
+          }
+        });
+      }
+    }
+  } catch (e) { /* ignore */ }
+
+  // 4. Check investments/portfolio updates
+  try {
+    if (userId) {
+      const { data: investments } = await supabase
+        .from('investments')
+        .select('ticker, shares')
+        .eq('user_id', userId);
+
+      if (investments && investments.length > 0) {
+        msgs.push({
+          title: `📊 ${name}, revisa tu portafolio`,
+          body: `Tienes ${investments.length} activo${investments.length > 1 ? 's' : ''} en seguimiento. Revisa cómo se cotizan hoy.`,
+          url: '/invest'
+        });
+      }
+    }
+  } catch (e) { /* ignore */ }
+
+  // If we have personalized messages, replace placeholders and return them
+  if (msgs.length > 0) {
+    return msgs;
+  }
+
+  // Fallback to random generic message from pool
   const pool = MESSAGES[type] || MESSAGES.morning;
-  return [pool[Math.floor(Math.random() * pool.length)]];
+  const rawMsg = pool[Math.floor(Math.random() * pool.length)];
+  return [{
+    title: rawMsg.title.replace(/{name}/g, name),
+    body: rawMsg.body.replace(/{name}/g, name),
+    url: '/'
+  }];
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────

@@ -13,6 +13,7 @@ import { formatCurrency, convertCurrency, CURRENCIES } from '@/utils/currency';
 import { uploadImage } from '@/utils/storage';
 import { syncUp, SYNC_KEYS } from '@/utils/sync';
 import { parseLocalDate } from '@/utils/dateUtils';
+import * as Notifications from '@/utils/notifications';
 import {
     Alert,
     Dimensions,
@@ -582,6 +583,16 @@ export default function ProfileScreen() {
     const handleUpdateName = async () => {
         if (!newName.trim()) return;
         await supabase.auth.updateUser({ data: { name: newName.trim() } });
+        try {
+            if (user?.id) {
+                const isEnabled = await AsyncStorage.getItem(SYNC_KEYS.REMINDERS(user.id));
+                if (isEnabled) {
+                    await Notifications.scheduleCoherentReminders(newName.trim());
+                }
+            }
+        } catch (e) {
+            console.error('Error updating reminders after name change:', e);
+        }
         setEditModalVisible(false);
     };
 

@@ -7,8 +7,16 @@
   ],
   "crons": [
     {
-      "path": "/api/push/cron",
+      "path": "/api/push/cron?type=morning",
       "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/push/cron?type=evening",
+      "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/push/cron?type=weekly",
+      "schedule": "0 15 * * 0"
     }
   ]
 }

@@ -132,11 +132,12 @@ export default function HomeScreen() {
     if (!user?.id) return;
     const granted = await Notifications.registerForPushNotificationsAsync();
     if (granted) {
-      await Notifications.scheduleDailyReminder(20, 30);
+      const displayName = user?.user_metadata?.name || 'Usuario';
+      await Notifications.scheduleCoherentReminders(displayName);
       const config = { enabled: true, h: 20, m: 30 };
       await AsyncStorage.setItem(SYNC_KEYS.REMINDERS(user.id), JSON.stringify(config));
       await syncUp(user.id);
-      Alert.alert("✅ ¡Activado!", "Te avisaremos a las 8:30 PM.");
+      Alert.alert("✅ ¡Activado!", "Te avisaremos con tus recordatorios diarios en la mañana, tarde y noche.");
     } else {
       Alert.alert("⚠️ Permiso denegado", "Activa las notificaciones en ajustes.");
     }
