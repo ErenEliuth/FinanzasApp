@@ -40,6 +40,18 @@
 
 ## 📅 Historial de Cambios
 
+### 2026-06-04 — Sanctuary: Sincronización de Color del Menú/Barra de Estado (v31)
+
+**Archivos modificados:**
+- `app/_layout.tsx` — Importación de variables de tema y sincronización dinámica del StatusBar nativo y del meta tag `theme-color` en la web.
+- `CHANGELOG_DEV.md` — Registro de la v31.
+
+**Cambios realizados:**
+- ✅ **Sincronización Dinámica de Barra de Estado**: Configuración del `StatusBar` de Expo para cambiar dinámicamente de color de fondo y de estilo de texto (claro/oscuro) según el tema seleccionado en la app.
+- ✅ **PWA / Barra del Navegador (Web)**: Creación de un efecto reactivo (`useEffect`) que actualiza dinámicamente la etiqueta `<meta name="theme-color">` del navegador para que la cabecera/barra de direcciones del dispositivo móvil (Chrome, Safari, etc.) combine perfectamente con el color de fondo del tema activo.
+
+---
+
 ### 2026-06-04 — Sanctuary: Notificaciones Inteligentes y Desbranding (v30)
 
 **Archivos modificados:**
