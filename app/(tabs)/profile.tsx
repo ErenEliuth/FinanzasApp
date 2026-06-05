@@ -44,6 +44,104 @@ const toKey = (d: Date) => {
 const fmt = (n: number, currency: string, rates: Record<string, number>, isHidden: boolean) => 
     formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
 
+const FIXED_EXPENSE_CATEGORIES = ['Gasto Fijo', 'Tarjetas', 'Deudas'];
+
+type ExpenseSplit = {
+    fixed: number;
+    variable: number;
+    total: number;
+};
+
+const isIgnoredCategory = (category?: string) => category === 'Ahorro' || category === 'Transferencia';
+
+const isExpenseTx = (tx: any) => tx.type === 'expense' && !isIgnoredCategory(tx.category);
+
+const isIncomeTx = (tx: any) => tx.type === 'income' && tx.category !== 'Transferencia';
+
+const isFixedExpense = (tx: any) => FIXED_EXPENSE_CATEGORIES.includes(tx.category || '');
+
+const sumAmounts = (items: any[]) => items.reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0);
+
+const splitExpenses = (items: any[]): ExpenseSplit => {
+    const expenses = items.filter(isExpenseTx);
+    const fixed = expenses.filter(isFixedExpense).reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0);
+    const total = sumAmounts(expenses);
+    return { fixed, variable: Math.max(0, total - fixed), total };
+};
+
+type ExpenseSplitDetailed = {
+    fixed: number;
+    variable: number;
+    savings: number;
+    total: number;
+};
+
+const splitExpensesDetailed = (items: any[]): ExpenseSplitDetailed => {
+    const expenses = items.filter(t => t.type === 'expense');
+    const savings = expenses.filter(t => t.category === 'Ahorro' || t.category === 'Inversión').reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0);
+    const actualExpenses = expenses.filter(t => t.category !== 'Ahorro' && t.category !== 'Inversión' && t.category !== 'Transferencia');
+    const fixed = actualExpenses.filter(isFixedExpense).reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0);
+    const total = sumAmounts(actualExpenses);
+    return {
+        fixed,
+        variable: Math.max(0, total - fixed),
+        savings,
+        total: total + savings
+    };
+};
+
+const getMonthTxs = (transactions: any[], month: number, year: number) => transactions.filter(t => {
+    const d = parseLocalDate(t.date);
+    return d.getMonth() === month && d.getFullYear() === year;
+});
+
+const getWeekWindow = (offsetDays = 0) => {
+    const end = new Date();
+    end.setDate(end.getDate() - offsetDays);
+    end.setHours(23, 59, 59, 999);
+    const start = new Date(end);
+    start.setDate(start.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+    return { start, end };
+};
+
+const getRangeTxs = (transactions: any[], start: Date, end: Date) => transactions.filter(t => {
+    const d = parseLocalDate(t.date);
+    return d >= start && d <= end;
+});
+
+const getPercentChange = (current: number, previous: number) => {
+    if (previous <= 0) return current > 0 ? 100 : 0;
+    return ((current - previous) / previous) * 100;
+};
+
+const getTopExpenseCategory = (items: any[]) => {
+    const totals: Record<string, number> = {};
+    items.filter(isExpenseTx).forEach(t => {
+        const cat = t.category || 'Otros';
+        totals[cat] = (totals[cat] || 0) + Math.abs(Number(t.amount) || 0);
+    });
+    return Object.entries(totals).sort((a, b) => b[1] - a[1])[0] || null;
+};
+
+const getMonthProjection = (monthExpenseTotal: number, today = new Date()) => {
+    const day = today.getDate();
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    if (day <= 0) return monthExpenseTotal;
+    return (monthExpenseTotal / day) * daysInMonth;
+};
+
+function InsightCard({ text, colorsNav, tone = 'info' }: { text: string; colorsNav: any; tone?: 'info' | 'warn' | 'good' }) {
+    const color = tone === 'warn' ? '#EF4444' : tone === 'good' ? '#10B981' : colorsNav.accent;
+    const icon = tone === 'warn' ? 'warning' : tone === 'good' ? 'check-circle' : 'lightbulb-outline';
+    return (
+        <View style={[statStyle.insightCard, { backgroundColor: color + '12', borderColor: color + '25' }]}>
+            <MaterialIcons name={icon as any} size={18} color={color} />
+            <Text style={[statStyle.insightText, { color: colorsNav.text }]}>{text}</Text>
+        </View>
+    );
+}
+
 function MonthHeatmap({ activeDays, colorsNav, onDayPress, reminders }: {
     activeDays: Map<string, number>;
     colorsNav: any;
@@ -98,10 +196,24 @@ function MonthHeatmap({ activeDays, colorsNav, onDayPress, reminders }: {
                         const count = activeDays.get(k) ?? 0;
                         const isToday = k === todayKey;
                         const isFuture = dateObj > today;
-                        const hasReminder = reminders.some(r => r.due_day === day);
+                        const dayReminders = reminders.filter(r => {
+                            if (r.due_day === day) return true;
+                            if (r.due_date) {
+                                const normalized = r.due_date.includes('T') ? r.due_date : `${r.due_date}T12:00:00`;
+                                return toKey(new Date(normalized)) === k;
+                            }
+                            return false;
+                        });
+                        const hasReminder = dayReminders.length > 0;
+                        const hasUnpaidReminder = dayReminders.some(r => !r.is_paid);
+                        const hasPaidReminder = hasReminder && !hasUnpaidReminder;
+                        const isOverdue = hasUnpaidReminder && dateObj < new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
                         let bgColor = colorsNav.bg;
                         if (isFuture) bgColor = 'transparent';
+                        else if (isOverdue) bgColor = '#EF4444';
+                        else if (hasUnpaidReminder) bgColor = '#F59E0B';
+                        else if (hasPaidReminder) bgColor = '#10B981';
                         else if (count > 0) bgColor = colorsNav.accent;
 
                         return (
@@ -114,18 +226,18 @@ function MonthHeatmap({ activeDays, colorsNav, onDayPress, reminders }: {
                                     mSt.dayCircle,
                                     { backgroundColor: bgColor },
                                     isToday && { borderWidth: 2, borderColor: colorsNav.accent },
-                                    hasReminder && { borderBottomWidth: 3, borderBottomColor: colorsNav.accent }
+                                    hasReminder && { borderBottomWidth: 3, borderBottomColor: isOverdue ? '#B91C1C' : hasPaidReminder ? '#059669' : '#D97706' }
                                 ]}>
                                     <Text style={[
                                         mSt.dayNum,
-                                        { color: count > 0 ? '#FFF' : colorsNav.text },
+                                        { color: (count > 0 || hasReminder) && !isFuture ? '#FFF' : colorsNav.text },
                                         isFuture && { color: colorsNav.sub + (count > 0 ? '' : '50') },
                                         isToday && { fontWeight: '900' }
                                     ]}>
                                         {day}
                                     </Text>
                                     {hasReminder && (
-                                        <View style={[mSt.reminderDot, { backgroundColor: count > 0 ? '#FFF' : colorsNav.accent }]} />
+                                        <View style={[mSt.reminderDot, { backgroundColor: (!isFuture && (count > 0 || hasReminder)) ? '#FFF' : colorsNav.accent }]} />
                                     )}
                                 </View>
                             </TouchableOpacity>
@@ -191,6 +303,27 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
 
     const thisMonthExpTotal = thisMonthExpenses.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
     const thisMonthIncTotal = thisMonthIncome.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+    const prevMonthDate = new Date(currYear, currMonth - 1, 1);
+    const prevMonthTxs = getMonthTxs(transactions, prevMonthDate.getMonth(), prevMonthDate.getFullYear());
+    const prevMonthExpTotal = sumAmounts(prevMonthTxs.filter(isExpenseTx));
+    const monthChangePct = getPercentChange(thisMonthExpTotal, prevMonthExpTotal);
+    
+    const thisMonthAllTxs = getMonthTxs(transactions, currMonth, currYear);
+    const monthlySplitDetailed = splitExpensesDetailed(thisMonthAllTxs);
+    const monthlyDetailedTotal = monthlySplitDetailed.fixed + monthlySplitDetailed.variable + monthlySplitDetailed.savings;
+    const mFixedPct = monthlyDetailedTotal > 0 ? (monthlySplitDetailed.fixed / monthlyDetailedTotal) * 100 : 0;
+    const mVariablePct = monthlyDetailedTotal > 0 ? (monthlySplitDetailed.variable / monthlyDetailedTotal) * 100 : 0;
+    const mSavingsPct = monthlyDetailedTotal > 0 ? (monthlySplitDetailed.savings / monthlyDetailedTotal) * 100 : 0;
+
+    const topCategory = getTopExpenseCategory(thisMonthExpenses);
+    const projectedClose = getMonthProjection(thisMonthExpTotal, today);
+    const balance = thisMonthIncTotal - thisMonthExpTotal;
+    
+    const insights = [
+        topCategory ? `${topCategory[0] === 'Gasto Fijo' || topCategory[0] === 'Deudas' || topCategory[0] === 'Tarjetas' ? 'Gasto Fijo' : topCategory[0]} fue tu mayor gasto este mes con ${fmt(topCategory[1], currency, rates, isHidden)}.` : 'Aún no hay gastos suficientes para detectar una categoría dominante.',
+        monthChangePct > 0 ? `Vas ${monthChangePct.toFixed(0)}% por encima del mes anterior.` : monthChangePct < 0 ? `Vas ${Math.abs(monthChangePct).toFixed(0)}% por debajo del mes anterior.` : 'Vas al mismo ritmo del mes anterior.',
+        projectedClose > 0 ? `Si sigues así, cerrarás el mes con gastos cercanos a ${fmt(projectedClose, currency, rates, isHidden)}.` : 'Registra gastos para predecir tu cierre de mes.',
+    ];
 
     const categoryTotals: Record<string, number> = {};
     thisMonthExpenses.forEach(t => {
@@ -223,6 +356,17 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
 
     return (
         <View style={{ gap: 24 }}>
+            <View style={{ gap: 10 }}>
+                {insights.map((text, idx) => (
+                    <InsightCard
+                        key={idx}
+                        text={text}
+                        colorsNav={colorsNav}
+                        tone={idx === 2 && balance < 0 ? 'warn' : idx === 2 ? 'good' : 'info'}
+                    />
+                ))}
+            </View>
+
             <View style={[statStyle.card, { backgroundColor: colorsNav.card }]}>
                 <Text style={[statStyle.title, { color: colorsNav.text, marginBottom: 15 }]}>Comparativa Ingresos vs Gastos</Text>
                 <LineChart
@@ -259,6 +403,32 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
                 <View style={[statStyle.card, { backgroundColor: colorsNav.card, flex: 1 }]}>
                     <Text style={[statStyle.title, { color: colorsNav.text, fontSize: 14 }]}>Gastos Mes</Text>
                     <Text style={[statStyle.compVal, { color: '#EF4444', fontSize: 20 }]}>{fmt(thisMonthExpTotal, currency, rates, isHidden)}</Text>
+                    <Text style={{ color: monthChangePct > 0 ? '#EF4444' : '#10B981', fontSize: 11, fontWeight: '800', marginTop: 6 }}>
+                        {monthChangePct >= 0 ? '+' : ''}{monthChangePct.toFixed(0)}% vs mes anterior
+                    </Text>
+                </View>
+            </View>
+
+            <View style={[statStyle.card, { backgroundColor: colorsNav.card }]}>
+                <Text style={[statStyle.title, { color: colorsNav.text, marginBottom: 16 }]}>Estructura del gasto mensual</Text>
+                <View style={statStyle.splitTrack}>
+                    <View style={[statStyle.splitFixed, { width: `${Math.max(0, mFixedPct)}%` }]} />
+                    <View style={[statStyle.splitVariable, { width: `${Math.max(0, mVariablePct)}%` }]} />
+                    <View style={[statStyle.splitSavings, { width: `${Math.max(0, mSavingsPct)}%`, backgroundColor: '#10B981' }]} />
+                </View>
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: 16 }}>
+                    <View style={[statStyle.splitBox, { backgroundColor: '#EF444410', padding: 10 }]}>
+                        <Text style={[statStyle.splitLabel, { color: '#EF4444', fontSize: 9 }]}>FIJOS</Text>
+                        <Text style={[statStyle.splitValue, { color: colorsNav.text, fontSize: 13 }]}>{fmt(monthlySplitDetailed.fixed, currency, rates, isHidden)}</Text>
+                    </View>
+                    <View style={[statStyle.splitBox, { backgroundColor: '#3B82F610', padding: 10 }]}>
+                        <Text style={[statStyle.splitLabel, { color: '#3B82F6', fontSize: 9 }]}>VARIABLES</Text>
+                        <Text style={[statStyle.splitValue, { color: colorsNav.text, fontSize: 13 }]}>{fmt(monthlySplitDetailed.variable, currency, rates, isHidden)}</Text>
+                    </View>
+                    <View style={[statStyle.splitBox, { backgroundColor: '#10B98110', padding: 10 }]}>
+                        <Text style={[statStyle.splitLabel, { color: '#10B981', fontSize: 9 }]}>AHORRO/INV</Text>
+                        <Text style={[statStyle.splitValue, { color: colorsNav.text, fontSize: 13 }]}>{fmt(monthlySplitDetailed.savings, currency, rates, isHidden)}</Text>
+                    </View>
                 </View>
             </View>
 
@@ -292,6 +462,15 @@ const statStyle = StyleSheet.create({
     card: { borderRadius: 24, padding: 24 },
     title: { fontSize: 18, fontWeight: '800', marginBottom: 12 },
     compVal: { fontSize: 24, fontWeight: '900' },
+    insightCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 14, borderRadius: 18, borderWidth: 1 },
+    insightText: { flex: 1, fontSize: 13, lineHeight: 18, fontWeight: '700' },
+    splitTrack: { height: 10, borderRadius: 5, overflow: 'hidden', flexDirection: 'row', backgroundColor: '#EEF2F7' },
+    splitFixed: { height: '100%', backgroundColor: '#EF4444' },
+    splitVariable: { height: '100%', backgroundColor: '#3B82F6' },
+    splitSavings: { height: '100%', backgroundColor: '#10B981' },
+    splitBox: { flex: 1, padding: 14, borderRadius: 16 },
+    splitLabel: { fontSize: 10, fontWeight: '900', marginBottom: 4, letterSpacing: 0.5 },
+    splitValue: { fontSize: 16, fontWeight: '900' },
     barRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20 },
     barIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
     barHeaders: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
@@ -476,14 +655,8 @@ export default function ProfileScreen() {
             map.set(k, (map.get(k) ?? 0) + 1);
         });
         setActiveDays(map);
-        const weekAgo = new Date(); 
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        weekAgo.setHours(0,0,0,0);
-
-        const weekTxs = txs.filter(t => {
-            const d = parseLocalDate(t.date);
-            return d >= weekAgo;
-        });
+        const weekWindow = getWeekWindow(0);
+        const weekTxs = getRangeTxs(txs, weekWindow.start, weekWindow.end);
 
         const wExpenses = weekTxs.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia');
         const wIncome = weekTxs.filter(t => t.type === 'income' && t.category !== 'Transferencia');
@@ -637,6 +810,59 @@ export default function ProfileScreen() {
 
     const displayName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuario';
     const initials = displayName.slice(0, 2).toUpperCase();
+    const currentWeekWindow = getWeekWindow(0);
+    const previousWeekWindow = getWeekWindow(7);
+    const currentWeekTxs = getRangeTxs(transactions, currentWeekWindow.start, currentWeekWindow.end);
+    const previousWeekTxs = getRangeTxs(transactions, previousWeekWindow.start, previousWeekWindow.end);
+    const currentWeekExpenses = currentWeekTxs.filter(isExpenseTx);
+    const previousWeekExpenses = previousWeekTxs.filter(isExpenseTx);
+    
+    const weeklySplit = splitExpenses(currentWeekExpenses);
+    const weeklySplitDetailed = splitExpensesDetailed(currentWeekTxs);
+    const previousWeekSpending = sumAmounts(previousWeekExpenses);
+    const weeklyChangePct = getPercentChange(weeklySplit.total, previousWeekSpending);
+
+    const weeklyDetailedTotal = weeklySplitDetailed.fixed + weeklySplitDetailed.variable + weeklySplitDetailed.savings;
+    const weeklyFixedPct = weeklyDetailedTotal > 0 ? (weeklySplitDetailed.fixed / weeklyDetailedTotal) * 100 : 0;
+    const weeklyVariablePct = weeklyDetailedTotal > 0 ? (weeklySplitDetailed.variable / weeklyDetailedTotal) * 100 : 0;
+    const weeklySavingsPct = weeklyDetailedTotal > 0 ? (weeklySplitDetailed.savings / weeklyDetailedTotal) * 100 : 0;
+
+    const weeklyTopCategory = getTopExpenseCategory(currentWeekExpenses);
+    
+    // Generar frases de insights dinámicas para el periodo semanal
+    const weeklyDiff = weeklySplit.total - previousWeekSpending;
+    const weeklyCompareText = weeklyDiff > 0 
+        ? `Gastaste ${fmt(weeklyDiff, currency, rates, isHidden)} más que la semana pasada.` 
+        : weeklyDiff < 0 
+            ? `Gastaste ${fmt(Math.abs(weeklyDiff), currency, rates, isHidden)} menos que la semana pasada.` 
+            : 'Gastaste lo mismo que la semana pasada.';
+    
+    const weeklyTopCategoryText = weeklyTopCategory 
+        ? `${weeklyTopCategory[0] === 'Gasto Fijo' || weeklyTopCategory[0] === 'Deudas' || weeklyTopCategory[0] === 'Tarjetas' ? 'Gasto Fijo' : weeklyTopCategory[0]} fue tu mayor gasto esta semana.`
+        : '';
+        
+    const weeklyInsight = `${weeklyCompareText} ${weeklyTopCategoryText}`.trim();
+    const currentMonthTxs = getMonthTxs(transactions, new Date().getMonth(), new Date().getFullYear());
+    const currentMonthExpenses = currentMonthTxs.filter(isExpenseTx);
+    const currentMonthExpenseTotal = sumAmounts(currentMonthExpenses);
+    const monthCommitments = reminders.filter(r => {
+        if (r.due_date) {
+            const d = new Date(r.due_date.includes('T') ? r.due_date : `${r.due_date}T12:00:00`);
+            const now = new Date();
+            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        }
+        return !!r.due_day;
+    });
+    const pendingCommitments = monthCommitments.filter(r => !r.is_paid);
+    const paidCommitments = monthCommitments.filter(r => r.is_paid);
+    const pendingCommitmentTotal = pendingCommitments.reduce((sum, r) => sum + Math.abs(Number(r.amount) || 0), 0);
+    const paidCommitmentTotal = paidCommitments.reduce((sum, r) => sum + Math.abs(Number(r.amount) || 0), 0);
+    const selectedDayTxs = getDayTransactions(selectedDate);
+    const selectedDayExpenses = selectedDayTxs.filter(isExpenseTx);
+    const selectedDayExpenseTotal = sumAmounts(selectedDayExpenses);
+    const selectedDayWeekShare = weeklySplit.total > 0 ? (selectedDayExpenseTotal / weeklySplit.total) * 100 : 0;
+    const selectedDayMonthShare = currentMonthExpenseTotal > 0 ? (selectedDayExpenseTotal / currentMonthExpenseTotal) * 100 : 0;
+    const selectedDayTopCategory = getTopExpenseCategory(selectedDayExpenses);
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colorsNav.bg }]}>
@@ -683,7 +909,26 @@ export default function ProfileScreen() {
                 </View>
 
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <Text style={[styles.sectionTitle, { color: colorsNav.sub, marginTop: 0, marginBottom: 0 }]}>TU ACTIVIDAD</Text>
+                    <Text style={[styles.sectionTitle, { color: colorsNav.sub, marginTop: 0, marginBottom: 0 }]}>AGENDA FINANCIERA</Text>
+                </View>
+                <View style={styles.agendaSummaryRow}>
+                    <View style={[styles.agendaSummaryCard, { backgroundColor: '#F59E0B12' }]}>
+                        <Text style={[styles.agendaSummaryLabel, { color: '#D97706' }]}>PENDIENTE</Text>
+                        <Text style={[styles.agendaSummaryValue, { color: colorsNav.text }]}>{fmt(pendingCommitmentTotal, currency, rates, isHidden)}</Text>
+                    </View>
+                    <View style={[styles.agendaSummaryCard, { backgroundColor: '#10B98112' }]}>
+                        <Text style={[styles.agendaSummaryLabel, { color: '#10B981' }]}>PAGADO</Text>
+                        <Text style={[styles.agendaSummaryValue, { color: colorsNav.text }]}>{fmt(paidCommitmentTotal, currency, rates, isHidden)}</Text>
+                    </View>
+                    <View style={[styles.agendaSummaryCard, { backgroundColor: colorsNav.accent + '12' }]}>
+                        <Text style={[styles.agendaSummaryLabel, { color: colorsNav.accent }]}>DIAS</Text>
+                        <Text style={[styles.agendaSummaryValue, { color: colorsNav.text }]}>{monthCommitments.length}</Text>
+                    </View>
+                </View>
+                <View style={styles.agendaLegend}>
+                    <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} /><Text style={[styles.legendText, { color: colorsNav.sub }]}>Pendiente</Text></View>
+                    <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#10B981' }]} /><Text style={[styles.legendText, { color: colorsNav.sub }]}>Pagado</Text></View>
+                    <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} /><Text style={[styles.legendText, { color: colorsNav.sub }]}>Vencido</Text></View>
                 </View>
                 <MonthHeatmap activeDays={activeDays} colorsNav={colorsNav} reminders={reminders} onDayPress={handleDayPress} />
 
@@ -933,10 +1178,40 @@ export default function ProfileScreen() {
                             <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#EF444410', padding: 16, borderRadius: 20 }}>
                                 <Text style={{ fontSize: 10, color: '#EF4444', fontWeight: '800' }}>GASTOS 7 DÍAS</Text>
                                 <Text style={{ fontSize: 24, fontWeight: '900', color: '#EF4444' }}>{fmt(weeklySpending, currency, rates, isHidden)}</Text>
+                                <Text style={{ color: weeklyChangePct > 0 ? '#EF4444' : '#10B981', fontSize: 10, fontWeight: '800', marginTop: 4 }}>
+                                    {weeklyChangePct >= 0 ? '+' : ''}{weeklyChangePct.toFixed(0)}% vs semana anterior
+                                </Text>
                             </View>
                             <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#10B98110', padding: 16, borderRadius: 20 }}>
                                 <Text style={{ fontSize: 10, color: '#10B981', fontWeight: '800' }}>INGRESOS 7 DÍAS</Text>
                                 <Text style={{ fontSize: 24, fontWeight: '900', color: '#10B981' }}>{fmt(weeklyIncome, currency, rates, isHidden)}</Text>
+                            </View>
+                        </View>
+                        <InsightCard
+                            text={weeklyInsight}
+                            colorsNav={colorsNav}
+                            tone={weeklyChangePct > 20 ? 'warn' : 'info'}
+                        />
+                        <View style={[statStyle.card, { backgroundColor: colorsNav.bg, padding: 16, marginTop: 14, marginBottom: 16 }]}>
+                            <Text style={[statStyle.title, { color: colorsNav.text, fontSize: 14, marginBottom: 12 }]}>Distribución del flujo semanal</Text>
+                            <View style={statStyle.splitTrack}>
+                                <View style={[statStyle.splitFixed, { width: `${Math.max(0, weeklyFixedPct)}%` }]} />
+                                <View style={[statStyle.splitVariable, { width: `${Math.max(0, weeklyVariablePct)}%` }]} />
+                                <View style={[statStyle.splitSavings, { width: `${Math.max(0, weeklySavingsPct)}%`, backgroundColor: '#10B981' }]} />
+                            </View>
+                            <View style={{ flexDirection: 'row', gap: 6, marginTop: 12 }}>
+                                <View style={[statStyle.splitBox, { backgroundColor: '#EF444410', padding: 10 }]}>
+                                    <Text style={[statStyle.splitLabel, { color: '#EF4444', fontSize: 9 }]}>FIJOS</Text>
+                                    <Text style={[statStyle.splitValue, { color: colorsNav.text, fontSize: 13 }]}>{fmt(weeklySplitDetailed.fixed, currency, rates, isHidden)}</Text>
+                                </View>
+                                <View style={[statStyle.splitBox, { backgroundColor: '#3B82F610', padding: 10 }]}>
+                                    <Text style={[statStyle.splitLabel, { color: '#3B82F6', fontSize: 9 }]}>VARIABLES</Text>
+                                    <Text style={[statStyle.splitValue, { color: colorsNav.text, fontSize: 13 }]}>{fmt(weeklySplitDetailed.variable, currency, rates, isHidden)}</Text>
+                                </View>
+                                <View style={[statStyle.splitBox, { backgroundColor: '#10B98110', padding: 10 }]}>
+                                    <Text style={[statStyle.splitLabel, { color: '#10B981', fontSize: 9 }]}>AHORRO/INV</Text>
+                                    <Text style={[statStyle.splitValue, { color: colorsNav.text, fontSize: 13 }]}>{fmt(weeklySplitDetailed.savings, currency, rates, isHidden)}</Text>
+                                </View>
                             </View>
                         </View>
                         <ScrollView style={{ maxHeight: 300 }}>
@@ -1099,6 +1374,14 @@ export default function ProfileScreen() {
                                 </Text>
                             </View>
                         </View>
+                        {selectedDayExpenseTotal > 0 && (
+                            <View style={[statStyle.insightCard, { backgroundColor: colorsNav.accent + '10', borderColor: colorsNav.accent + '20', marginBottom: 18 }]}>
+                                <MaterialIcons name="insights" size={18} color={colorsNav.accent} />
+                                <Text style={[statStyle.insightText, { color: colorsNav.text }]}>
+                                    Este día representa {selectedDayWeekShare.toFixed(0)}% de tus gastos semanales y {selectedDayMonthShare.toFixed(0)}% del mes.{selectedDayTxs.some(isFixedExpense) ? ' Este pago afectó tu categoría Gasto Fijo.' : ''}
+                                </Text>
+                            </View>
+                        )}
 
                         <Text style={{ fontSize: 11, fontWeight: '800', color: colorsNav.sub, marginBottom: 10 }}>MOVIMIENTOS</Text>
                         <ScrollView style={{ maxHeight: 200 }}>
@@ -1223,6 +1506,14 @@ const styles = StyleSheet.create({
     optIcon: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 2 },
     optTitle: { fontSize: 14, fontWeight: '800' },
     budgetFullBtn: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 20, elevation: 1 },
+    agendaSummaryRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+    agendaSummaryCard: { flex: 1, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 10 },
+    agendaSummaryLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 0.6, marginBottom: 4 },
+    agendaSummaryValue: { fontSize: 12, fontWeight: '900' },
+    agendaLegend: { flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 6, marginBottom: 10 },
+    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    legendDot: { width: 8, height: 8, borderRadius: 4 },
+    legendText: { fontSize: 10, fontWeight: '700' },
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
     modalBox: { borderRadius: 32, padding: 24 },
     modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: 20 },
