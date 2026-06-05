@@ -111,6 +111,11 @@ self.addEventListener('message', (event) => {
     const { hour, minute } = event.data;
     self._dailySchedule = { hour: hour || 9, minute: minute || 0 };
   }
+
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    // Auto-update: activar el nuevo SW de inmediato
+    self.skipWaiting();
+  }
 });
 
 // ── Push Event (for future server-side push) ──

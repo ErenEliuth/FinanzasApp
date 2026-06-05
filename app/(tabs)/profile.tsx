@@ -319,11 +319,9 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
     const projectedClose = getMonthProjection(thisMonthExpTotal, today);
     const balance = thisMonthIncTotal - thisMonthExpTotal;
     
-    const insights = [
-        topCategory ? `${topCategory[0] === 'Gasto Fijo' || topCategory[0] === 'Deudas' || topCategory[0] === 'Tarjetas' ? 'Gasto Fijo' : topCategory[0]} fue tu mayor gasto este mes con ${fmt(topCategory[1], currency, rates, isHidden)}.` : 'Aún no hay gastos suficientes para detectar una categoría dominante.',
-        monthChangePct > 0 ? `Vas ${monthChangePct.toFixed(0)}% por encima del mes anterior.` : monthChangePct < 0 ? `Vas ${Math.abs(monthChangePct).toFixed(0)}% por debajo del mes anterior.` : 'Vas al mismo ritmo del mes anterior.',
-        projectedClose > 0 ? `Si sigues así, cerrarás el mes con gastos cercanos a ${fmt(projectedClose, currency, rates, isHidden)}.` : 'Registra gastos para predecir tu cierre de mes.',
-    ];
+    const projectionInsight = projectedClose > 0
+        ? `Si sigues así, cerrarás el mes con gastos cercanos a ${fmt(projectedClose, currency, rates, isHidden)}.`
+        : 'Registra gastos para predecir tu cierre de mes.';
 
     const categoryTotals: Record<string, number> = {};
     thisMonthExpenses.forEach(t => {
@@ -356,16 +354,6 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
 
     return (
         <View style={{ gap: 24 }}>
-            <View style={{ gap: 10 }}>
-                {insights.map((text, idx) => (
-                    <InsightCard
-                        key={idx}
-                        text={text}
-                        colorsNav={colorsNav}
-                        tone={idx === 2 && balance < 0 ? 'warn' : idx === 2 ? 'good' : 'info'}
-                    />
-                ))}
-            </View>
 
             <View style={[statStyle.card, { backgroundColor: colorsNav.card }]}>
                 <Text style={[statStyle.title, { color: colorsNav.text, marginBottom: 15 }]}>Comparativa Ingresos vs Gastos</Text>
@@ -454,6 +442,11 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
                     );
                 })}
             </View>
+            <InsightCard
+                text={projectionInsight}
+                colorsNav={colorsNav}
+                tone={balance < 0 ? 'warn' : 'good'}
+            />
         </View>
     );
 }
@@ -1187,11 +1180,7 @@ export default function ProfileScreen() {
                                 <Text style={{ fontSize: 24, fontWeight: '900', color: '#10B981' }}>{fmt(weeklyIncome, currency, rates, isHidden)}</Text>
                             </View>
                         </View>
-                        <InsightCard
-                            text={weeklyInsight}
-                            colorsNav={colorsNav}
-                            tone={weeklyChangePct > 20 ? 'warn' : 'info'}
-                        />
+
                         <View style={[statStyle.card, { backgroundColor: colorsNav.bg, padding: 16, marginTop: 14, marginBottom: 16 }]}>
                             <Text style={[statStyle.title, { color: colorsNav.text, fontSize: 14, marginBottom: 12 }]}>Distribución del flujo semanal</Text>
                             <View style={statStyle.splitTrack}>
@@ -1226,7 +1215,12 @@ export default function ProfileScreen() {
                                 );
                             })}
                         </ScrollView>
-                        <TouchableOpacity style={{ padding: 18, backgroundColor: colorsNav.accent, borderRadius: 18, alignItems: 'center', marginTop: 20 }} onPress={() => setWeeklyModalVisible(false)}>
+                        <InsightCard
+                            text={weeklyInsight}
+                            colorsNav={colorsNav}
+                            tone={weeklyChangePct > 20 ? 'warn' : 'info'}
+                        />
+                        <TouchableOpacity style={{ padding: 18, backgroundColor: colorsNav.accent, borderRadius: 18, alignItems: 'center', marginTop: 16 }} onPress={() => setWeeklyModalVisible(false)}>
                             <Text style={{ color: '#FFF', fontWeight: '800' }}>Cerrar</Text>
                         </TouchableOpacity>
                     </View>

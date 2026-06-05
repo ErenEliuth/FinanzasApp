@@ -31,7 +31,21 @@ const FONT_FAMILIES = [
 
 console.log('🔧 Fixing web fonts for GitHub Pages...');
 
-// 1. Crear directorio fonts/
+// ── Auto-bump SW cache version ───────────────────────────────────────────────
+// Cada vez que se hace deploy, cambiamos el CACHE_NAME del Service Worker
+// para que los navegadores detecten la nueva versión y la descarguen.
+const swDistPath = path.join(DIST_DIR, 'sw.js');
+if (fs.existsSync(swDistPath)) {
+  let swContent = fs.readFileSync(swDistPath, 'utf-8');
+  const buildTimestamp = Date.now();
+  swContent = swContent.replace(
+    /const CACHE_NAME = ['"]finanzas-app-v[\w.-]+['"]/,
+    `const CACHE_NAME = 'finanzas-app-v${buildTimestamp}'`
+  );
+  fs.writeFileSync(swDistPath, swContent, 'utf-8');
+  console.log(`📦 SW cache version bumped → finanzas-app-v${buildTimestamp}`);
+}
+
 if (!fs.existsSync(FONTS_DIR)) {
   fs.mkdirSync(FONTS_DIR, { recursive: true });
 }
@@ -113,4 +127,49 @@ for (const htmlPath of htmlFiles) {
 }
 
 console.log('\n🎉 Web fonts fix complete!\n');
+
+// ── PWA Auto-Update Script ───────────────────────────────────────────────────
+// Inyectamos un pequeño script en todos los HTML que:
+// 1. Registra el SW de Expo (si no está ya registrado).
+// 2. Escucha cuando llega una actualización (nuevo SW en estado "waiting").
+// 3. Le manda "SKIP_WAITING" para que tome control inmediatamente.
+// 4. Recarga la página → el usuario ve la versión nueva sin hacer nada.
+const pwaUpdateScript = `
+  <script id="pwa-auto-update">
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (reg) {
+            reg.addEventListener('updatefound', function () {
+              var newSW = reg.installing;
+              if (!newSW) return;
+              newSW.addEventListener('statechange', function () {
+                if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+                  // Nueva versión lista → activar y recargar
+                  newSW.postMessage({ type: 'SKIP_WAITING' });
+                }
+              });
+            });
+            // Chequear actualizaciones cada 60 s mientras la app está abierta
+            setInterval(function () { reg.update(); }, 60000);
+          });
+        });
+        // Cuando el SW nuevo toma control, recargar para aplicar cambios
+        var refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          if (!refreshing) { refreshing = true; window.location.reload(); }
+        });
+      });
+    }
+  </script>`;
+
+for (const htmlPath of htmlFiles) {
+  let html = fs.readFileSync(htmlPath, 'utf-8');
+  if (html.includes('</body>') && !html.includes('pwa-auto-update')) {
+    html = html.replace('</body>', `${pwaUpdateScript}\n</body>`);
+    fs.writeFileSync(htmlPath, html, 'utf-8');
+  }
+}
+
+console.log('🔄 PWA auto-update script injected!\n');
 
