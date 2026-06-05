@@ -1,4 +1,4 @@
-const CACHE_NAME = 'finanzas-app-v6';
+const CACHE_NAME = 'finanzas-app-v1780679407304';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -110,6 +110,11 @@ self.addEventListener('message', (event) => {
     // Store schedule config for the periodic check
     const { hour, minute } = event.data;
     self._dailySchedule = { hour: hour || 9, minute: minute || 0 };
+  }
+
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    // Auto-update: activar el nuevo SW de inmediato
+    self.skipWaiting();
   }
 });
 

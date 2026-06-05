@@ -745,5 +745,33 @@ input::-webkit-search-cancel-button,input::-webkit-search-decoration,input::-web
     @font-face { font-family: "FontAwesome6_Solid"; src: url('/FinanzasApp/fonts/FontAwesome6_Solid.ttf') format('truetype'); font-display: swap; }
     @font-face { font-family: "FontAwesome6_Brands"; src: url('/FinanzasApp/fonts/FontAwesome6_Brands.ttf') format('truetype'); font-display: swap; }
   </style>
-</head><body><div id="root"><div class="css-g5y9jx r-13awgt0"></div></div><script src="/_expo/static/js/web/entry-8f7df928bdea0e366af40e82e11ff87e.js" defer></script>
+</head><body><div id="root"><div class="css-g5y9jx r-13awgt0"></div></div><script src="/_expo/static/js/web/entry-260224f0646c9e9e3cf799ce62157723.js" defer></script>
+
+  <script id="pwa-auto-update">
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (reg) {
+            reg.addEventListener('updatefound', function () {
+              var newSW = reg.installing;
+              if (!newSW) return;
+              newSW.addEventListener('statechange', function () {
+                if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+                  // Nueva versión lista → activar y recargar
+                  newSW.postMessage({ type: 'SKIP_WAITING' });
+                }
+              });
+            });
+            // Chequear actualizaciones cada 60 s mientras la app está abierta
+            setInterval(function () { reg.update(); }, 60000);
+          });
+        });
+        // Cuando el SW nuevo toma control, recargar para aplicar cambios
+        var refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          if (!refreshing) { refreshing = true; window.location.reload(); }
+        });
+      });
+    }
+  </script>
 </body></html>
