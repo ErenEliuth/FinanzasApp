@@ -631,3 +631,14 @@
 | Texto | Crema claro | `#F5F0E8` |
 | Subtexto | Oliva | `#A09B8C` |
 | Bordes | Gris azulado | `#3A3A52` |
+
+### 2026-06-05 — Sanctuary: Estadísticas Avanzadas (v32)
+
+**Archivos modificados:**
+- `app/(tabs)/profile.tsx` — Implementación de desglose de gastos en tres vías (Fijos, Variables, Ahorro/Inversión) y UI actualizada.
+
+**Cambios realizados:**
+- ✅ **Lógica de desglose**: Añadida función `splitExpensesDetailed` y cálculo de porcentajes de gasto fijo, variable y ahorro.
+- ✅ **UI Premium**: Gráficos de barras con colores temáticos, tarjetas informativas, micro‑animaciones y tipografía moderna.
+- ✅ **Insights**: Mensajes dinámicos como “Gasto Fijo fue tu mayor gasto esta semana.” y comparativas semanales/mensuales.
+- ✅ **Predicción de cierre**: Indicador de proyección de gasto mensual basado en ritmo actual.
