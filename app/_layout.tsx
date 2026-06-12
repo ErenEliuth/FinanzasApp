@@ -74,24 +74,15 @@ function RootStack() {
     }
   }, []);
 
-  // Detectar el evento PASSWORD_RECOVERY de Supabase.
-  // Usamos useState (no useRef) para que el cambio cause re-render y el
-  // useEffect de routing lo vea SIEMPRE de forma reactiva.
+  // Detectar flujo de recuperación de contraseña.
   //
-  // La bandera se persiste en sessionStorage para sobrevivir recargas de página:
-  // al recargar, Supabase dispara SIGNED_IN (no PASSWORD_RECOVERY) porque lee la
-  // sesión desde localStorage, por lo que sin sessionStorage la bandera se perdería
-  // y el routing redirigiría al dashboard.
+  // EL HASH DE LA URL ya fue borrado por Supabase antes de que React monte,
+  // así que NO podemos leerlo aquí. En cambio, el script inline en +html.tsx
+  // capturó el hash ANTES de que Supabase cargara y lo guardó en sessionStorage.
+  // Nosotros solo leemos sessionStorage.
   const RECOVERY_KEY = 'sanctuary_password_recovery';
   const [isRecovering, setIsRecovering] = useState(() => {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      const hash = window.location.hash || '';
-      // Detectar desde el hash de la URL (primera visita al link)
-      if (hash.includes('type=recovery')) {
-        sessionStorage.setItem(RECOVERY_KEY, '1');
-        return true;
-      }
-      // Detectar desde sessionStorage (recarga de página en /reset-password)
       return sessionStorage.getItem(RECOVERY_KEY) === '1';
     }
     return false;
@@ -101,8 +92,10 @@ function RootStack() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
-        // Marcar modo recovery como activo y persistirlo
-        sessionStorage.setItem(RECOVERY_KEY, '1');
+        // Backup: si el evento llega antes de que el script HTML lo capturara
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          sessionStorage.setItem(RECOVERY_KEY, '1');
+        }
         setIsRecovering(true);
         if (!recoveryHandled.current) {
           recoveryHandled.current = true;
@@ -112,8 +105,10 @@ function RootStack() {
         }
       }
       if (event === 'SIGNED_OUT') {
-        // Limpiar la bandera de recovery cuando el usuario cierra sesión
-        sessionStorage.removeItem(RECOVERY_KEY);
+        // Limpiar todo cuando el usuario cierra sesión
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          sessionStorage.removeItem(RECOVERY_KEY);
+        }
         setIsRecovering(false);
         recoveryHandled.current = false;
       }

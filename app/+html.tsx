@@ -19,6 +19,25 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <link rel="apple-touch-icon" href="/icon.png" />
         <meta name="apple-mobile-web-app-title" content="Zenly" />
+        {/* 
+          CRÍTICO: Este script corre ANTES de que cualquier módulo JS (incluyendo Supabase)
+          se cargue. Captura #type=recovery del hash de la URL y lo guarda en sessionStorage
+          para que React pueda leerlo después, aunque Supabase ya haya borrado el hash.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+            (function() {
+              try {
+                var hash = window.location.hash || '';
+                if (hash.indexOf('type=recovery') !== -1) {
+                  sessionStorage.setItem('sanctuary_password_recovery', '1');
+                }
+              } catch(e) {}
+            })();
+            `
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `
