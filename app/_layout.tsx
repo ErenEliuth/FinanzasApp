@@ -78,13 +78,21 @@ function RootStack() {
   // Usamos useState (no useRef) para que el cambio cause re-render y el
   // useEffect de routing lo vea SIEMPRE de forma reactiva.
   //
-  // IMPORTANTE: También leemos el hash de la URL al montar (en web) para detectar
-  // type=recovery ANTES de que Supabase dispare el evento, evitando el race condition
-  // donde SIGNED_IN llega primero y el routing redirige al dashboard.
+  // La bandera se persiste en sessionStorage para sobrevivir recargas de página:
+  // al recargar, Supabase dispara SIGNED_IN (no PASSWORD_RECOVERY) porque lee la
+  // sesión desde localStorage, por lo que sin sessionStorage la bandera se perdería
+  // y el routing redirigiría al dashboard.
+  const RECOVERY_KEY = 'sanctuary_password_recovery';
   const [isRecovering, setIsRecovering] = useState(() => {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       const hash = window.location.hash || '';
-      return hash.includes('type=recovery');
+      // Detectar desde el hash de la URL (primera visita al link)
+      if (hash.includes('type=recovery')) {
+        sessionStorage.setItem(RECOVERY_KEY, '1');
+        return true;
+      }
+      // Detectar desde sessionStorage (recarga de página en /reset-password)
+      return sessionStorage.getItem(RECOVERY_KEY) === '1';
     }
     return false;
   });
@@ -93,7 +101,8 @@ function RootStack() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
-        // Marcar modo recovery como activo
+        // Marcar modo recovery como activo y persistirlo
+        sessionStorage.setItem(RECOVERY_KEY, '1');
         setIsRecovering(true);
         if (!recoveryHandled.current) {
           recoveryHandled.current = true;
@@ -104,6 +113,7 @@ function RootStack() {
       }
       if (event === 'SIGNED_OUT') {
         // Limpiar la bandera de recovery cuando el usuario cierra sesión
+        sessionStorage.removeItem(RECOVERY_KEY);
         setIsRecovering(false);
         recoveryHandled.current = false;
       }
