@@ -163,6 +163,15 @@ export default function ResetPasswordScreen() {
                                         <Text style={styles.submitBtnText}>Actualizar Contraseña</Text>
                                     )}
                                 </TouchableOpacity>
+
+                                <TouchableOpacity 
+                                    onPress={() => router.replace('/login')} 
+                                    style={{ alignSelf: 'center', marginTop: 8 }}
+                                >
+                                    <Text style={{ color: isDark ? '#93C5FD' : '#2563EB', fontSize: 14, fontWeight: '700' }}>
+                                        Volver al Iniciar Sesión (Login)
+                                    </Text>
+                                </TouchableOpacity>
                             </View>
                         </View>
                     </ScrollView>
