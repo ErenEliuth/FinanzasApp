@@ -391,10 +391,10 @@ export default function GoalsScreen() {
                         if (cleanLastUpdated !== today) {
                             const daysDiff = Math.floor((new Date(today + 'T12:00:00').getTime() - new Date(cleanLastUpdated + 'T12:00:00').getTime()) / (1000 * 60 * 60 * 24));
                             if (daysDiff > 0 && goal.current_amount > 0) {
-                                // Tasa Efectiva Anual convertida a Tasa Diaria exacta: (1 + tasaEA)^(1/365) - 1
-                                const dailyRate = Math.pow(1 + (info.rate / 100), 1 / 365) - 1;
-                                const newAmount = goal.current_amount * Math.pow(1 + dailyRate, daysDiff);
-                                const interest = newAmount - goal.current_amount;
+                                // Tasa Diaria = EA/365 (método que usan bancos como Nubank en Colombia)
+                                // Equivale a capitalización diaria con tasa nominal: saldo × (EA/365) × días
+                                const dailyRate = (info.rate / 100) / 365;
+                                const interest = goal.current_amount * dailyRate * daysDiff;
                                 if (interest > 0) {
                                     await supabase.from('goals').update({ current_amount: goal.current_amount + interest }).eq('id', goal.id);
                                     await supabase.from('transactions').insert([{
@@ -1041,9 +1041,9 @@ export default function GoalsScreen() {
                                 >
                                     <Ionicons name="trending-up" size={18} color="#10B981" style={{ marginBottom: 4 }} />
                                     <Text style={{ color: '#10B981', fontSize: 13, fontWeight: '900' }}>
-                                        {isHidden ? '****' : new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(interestMap[fondo.id]?.total_earned || 0)}
+                                        {fmt(interestMap[fondo.id]?.total_earned || 0)}
                                     </Text>
-                                    <Text style={{ color: colors.sub, fontSize: 9, fontWeight: '700', textAlign: 'center', marginTop: 2 }}>RENDIMIENTOS</Text>
+                                    <Text style={{ color: colors.sub, fontSize: 9, fontWeight: '700', textAlign: 'center', marginTop: 2 }}>TOTAL GANADO 📈</Text>
                                 </TouchableOpacity>
                             </View>
 
@@ -1993,39 +1993,41 @@ export default function GoalsScreen() {
                                 </Text>
                             </View>
                         ) : (
-                            <FlatList
-                                data={interestTransactions}
-                                keyExtractor={(item, index) => index.toString()}
-                                showsVerticalScrollIndicator={false}
-                                contentContainerStyle={{ gap: 12, paddingBottom: 20 }}
-                                renderItem={({ item }) => {
-                                    const dateStr = item.date ? new Date(item.date).toLocaleDateString('es-CO', {
-                                        day: '2-digit',
-                                        month: 'short',
-                                        year: 'numeric'
-                                    }) : 'Fecha desconocida';
+                            <>
+                                <View style={{ padding: 16, borderRadius: 16, backgroundColor: colors.bg, marginBottom: 16, alignItems: 'center' }}>
+                                    <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '800' }}>TOTAL ACUMULADO</Text>
+                                    <Text style={{ color: '#10B981', fontSize: 24, fontWeight: '900', marginTop: 4 }}>
+                                        {isHidden ? '****' : fmt(interestTransactions.reduce((acc, t) => acc + Number(t.amount || 0), 0))}
+                                    </Text>
+                                </View>
+                                <FlatList
+                                    data={interestTransactions}
+                                    keyExtractor={(item, index) => index.toString()}
+                                    showsVerticalScrollIndicator={false}
+                                    contentContainerStyle={{ gap: 12, paddingBottom: 20 }}
+                                    renderItem={({ item }) => {
+                                        const dateStr = item.date ? new Date(item.date).toLocaleDateString('es-CO', {
+                                            day: '2-digit',
+                                            month: 'short',
+                                            year: 'numeric'
+                                        }) : 'Fecha desconocida';
 
-                                    // Para ganancias diarias queremos precisión de decimales siempre
-                                    const amountFormatted = isHidden ? '****' : new Intl.NumberFormat('es-CO', {
-                                        style: 'currency',
-                                        currency: 'COP',
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2
-                                    }).format(Number(item.amount) || 0);
+                                        const amountFormatted = isHidden ? '****' : fmt(Number(item.amount) || 0);
 
-                                    return (
-                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.bg, padding: 16, borderRadius: 16 }}>
-                                            <View>
-                                                <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>Ganancia diaria</Text>
-                                                <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '600', marginTop: 2 }}>{dateStr}</Text>
+                                        return (
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.bg, padding: 16, borderRadius: 16 }}>
+                                                <View>
+                                                    <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>Ganancia diaria</Text>
+                                                    <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '600', marginTop: 2 }}>{dateStr}</Text>
+                                                </View>
+                                                <Text style={{ color: '#10B981', fontSize: 16, fontWeight: '900' }}>
+                                                    +{amountFormatted}
+                                                </Text>
                                             </View>
-                                            <Text style={{ color: '#10B981', fontSize: 16, fontWeight: '900' }}>
-                                                +{amountFormatted}
-                                            </Text>
-                                        </View>
-                                    );
-                                }}
-                            />
+                                        );
+                                    }}
+                                />
+                            </>
                         )}
                     </View>
                 </View>
