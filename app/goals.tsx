@@ -1040,7 +1040,9 @@ export default function GoalsScreen() {
                                     style={{ flex: 1, backgroundColor: colors.card, borderRadius: 16, padding: 12, alignItems: 'center' }}
                                 >
                                     <Ionicons name="trending-up" size={18} color="#10B981" style={{ marginBottom: 4 }} />
-                                    <Text style={{ color: '#10B981', fontSize: 14, fontWeight: '900' }}>{fmt(interestMap[fondo.id]?.total_earned || 0)}</Text>
+                                    <Text style={{ color: '#10B981', fontSize: 13, fontWeight: '900' }}>
+                                        {isHidden ? '****' : new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(interestMap[fondo.id]?.total_earned || 0)}
+                                    </Text>
                                     <Text style={{ color: colors.sub, fontSize: 9, fontWeight: '700', textAlign: 'center', marginTop: 2 }}>RENDIMIENTOS</Text>
                                 </TouchableOpacity>
                             </View>
@@ -2003,6 +2005,14 @@ export default function GoalsScreen() {
                                         year: 'numeric'
                                     }) : 'Fecha desconocida';
 
+                                    // Para ganancias diarias queremos precisión de decimales siempre
+                                    const amountFormatted = isHidden ? '****' : new Intl.NumberFormat('es-CO', {
+                                        style: 'currency',
+                                        currency: 'COP',
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2
+                                    }).format(Number(item.amount) || 0);
+
                                     return (
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.bg, padding: 16, borderRadius: 16 }}>
                                             <View>
@@ -2010,7 +2020,7 @@ export default function GoalsScreen() {
                                                 <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '600', marginTop: 2 }}>{dateStr}</Text>
                                             </View>
                                             <Text style={{ color: '#10B981', fontSize: 16, fontWeight: '900' }}>
-                                                +{fmt(item.amount)}
+                                                +{amountFormatted}
                                             </Text>
                                         </View>
                                     );
