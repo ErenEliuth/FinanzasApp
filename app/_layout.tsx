@@ -5,9 +5,10 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import 'react-native-reanimated';
 import { THEMES, ThemeName } from '@/constants/Themes';
+import { supabase } from '@/utils/supabase';
 
 import { useFonts } from 'expo-font';
 import { Feather, Ionicons, MaterialIcons, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
@@ -73,12 +74,33 @@ function RootStack() {
     }
   }, []);
 
+  // Detectar el evento PASSWORD_RECOVERY de Supabase (cuando el usuario llega desde el
+  // link de recuperación de contraseña). Este evento se dispara ANTES de que la lógica
+  // normal de routing corra, por lo que redirigimos directamente a reset-password.
+  const recoveryHandled = useRef(false);
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY' && !recoveryHandled.current) {
+        recoveryHandled.current = true;
+        // Pequeño timeout para asegurar que el router ya está montado
+        setTimeout(() => {
+          router.replace('/reset-password');
+        }, 100);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [router]);
+
   useEffect(() => {
     if (loading) return;
 
     const inAuthGroup  = segments[0] === '(tabs)';
     const onLoginPage  = segments[0] === 'login';
     const onSetup      = segments[0] === 'currency-setup';
+    const onResetPass  = segments[0] === 'reset-password';
+
+    // No redirigir si el usuario ya está en la pantalla de reset de contraseña
+    if (onResetPass) return;
 
     if (!user && inAuthGroup) {
       router.replace('/login');

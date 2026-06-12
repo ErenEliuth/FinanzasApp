@@ -57,9 +57,17 @@ export default function LoginScreen() {
 
         if (mode === 'forgot') {
             try {
+                // En web usamos el origen actual para que Supabase redirija al dominio correcto.
+                // En nativo usamos el deep link de la app.
+                const redirectTo = Platform.OS === 'web'
+                    ? (typeof window !== 'undefined'
+                        ? `${window.location.origin}/reset-password`
+                        : 'appmobile://reset-password')
+                    : 'appmobile://reset-password';
+
                 const { error: resetError } = await supabase.auth.resetPasswordForEmail(
                     email.trim().toLowerCase(),
-                    { redirectTo: 'appmobile://reset-password' }
+                    { redirectTo }
                 );
                 setLoading(false);
                 if (resetError) {
