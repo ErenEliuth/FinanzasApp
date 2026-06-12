@@ -391,7 +391,8 @@ export default function GoalsScreen() {
                         if (cleanLastUpdated !== today) {
                             const daysDiff = Math.floor((new Date(today + 'T12:00:00').getTime() - new Date(cleanLastUpdated + 'T12:00:00').getTime()) / (1000 * 60 * 60 * 24));
                             if (daysDiff > 0 && goal.current_amount > 0) {
-                                const dailyRate = (info.rate / 100) / 365;
+                                // Tasa Efectiva Anual convertida a Tasa Diaria exacta: (1 + tasaEA)^(1/365) - 1
+                                const dailyRate = Math.pow(1 + (info.rate / 100), 1 / 365) - 1;
                                 const newAmount = goal.current_amount * Math.pow(1 + dailyRate, daysDiff);
                                 const interest = newAmount - goal.current_amount;
                                 if (interest > 0) {
