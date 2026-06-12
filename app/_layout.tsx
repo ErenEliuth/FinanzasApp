@@ -78,14 +78,19 @@ function RootStack() {
   // link de recuperación de contraseña). Este evento se dispara ANTES de que la lógica
   // normal de routing corra, por lo que redirigimos directamente a reset-password.
   const recoveryHandled = useRef(false);
+  const isRecovering = useRef(false);
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY' && !recoveryHandled.current) {
-        recoveryHandled.current = true;
-        // Pequeño timeout para asegurar que el router ya está montado
-        setTimeout(() => {
-          router.replace('/reset-password');
-        }, 100);
+      if (event === 'PASSWORD_RECOVERY') {
+        isRecovering.current = true;
+        if (!recoveryHandled.current) {
+          recoveryHandled.current = true;
+          // Pequeño timeout para asegurar que el router ya está montado
+          setTimeout(() => {
+            router.replace('/reset-password');
+          }, 100);
+        }
       }
     });
     return () => subscription.unsubscribe();
@@ -99,8 +104,13 @@ function RootStack() {
     const onSetup      = segments[0] === 'currency-setup';
     const onResetPass  = segments[0] === 'reset-password';
 
-    // No redirigir si el usuario ya está en la pantalla de reset de contraseña
-    if (onResetPass) return;
+    // Si está intentando recuperar contraseña o está en esa pantalla, no redirigir a otro lado
+    if (onResetPass || isRecovering.current) {
+      if (!onResetPass) {
+        router.replace('/reset-password');
+      }
+      return;
+    }
 
     if (!user && inAuthGroup) {
       router.replace('/login');
