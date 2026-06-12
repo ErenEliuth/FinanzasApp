@@ -87,10 +87,37 @@ export default function Root({ children }: PropsWithChildren) {
             if ('serviceWorker' in navigator) {
               window.addEventListener('load', function() {
                 navigator.serviceWorker.register('/sw.js').then(function(registration) {
-                  console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                }, function(err) {
-                  console.log('ServiceWorker registration failed: ', err);
+                  console.log('ServiceWorker registrado con éxito: ', registration.scope);
+                  
+                  // Verificar si ya hay un service worker esperando (waiting)
+                  if (registration.waiting) {
+                    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                  }
+
+                  // Detectar cuando se encuentra un nuevo service worker en instalación
+                  registration.addEventListener('updatefound', function() {
+                    var newWorker = registration.installing;
+                    if (newWorker) {
+                      newWorker.addEventListener('statechange', function() {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                          // Hay una actualización lista, forzamos skipWaiting enviando el mensaje
+                          newWorker.postMessage({ type: 'SKIP_WAITING' });
+                        }
+                      });
+                    }
+                  });
+                }).catch(function(err) {
+                  console.log('Fallo el registro del ServiceWorker: ', err);
                 });
+              });
+
+              // Recargar la página una vez que el nuevo Service Worker toma el control
+              var refreshing = false;
+              navigator.serviceWorker.addEventListener('controllerchange', function() {
+                if (!refreshing) {
+                  refreshing = true;
+                  window.location.reload();
+                }
               });
             }
           `,
