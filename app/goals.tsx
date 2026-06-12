@@ -13,6 +13,7 @@ import { syncUp, SYNC_KEYS } from '@/utils/sync';
 import {
     ActivityIndicator,
     Alert,
+    FlatList,
     Image,
     Keyboard,
     KeyboardAvoidingView,
@@ -91,6 +92,11 @@ export default function GoalsScreen() {
     const [selectedDestAccount, setSelectedDestAccount] = useState('Efectivo');
     const [selectedSourceAccount, setSelectedSourceAccount] = useState('Efectivo');
     const [accountBalances, setAccountBalances] = useState<Record<string, number>>({});
+
+    const [changeRateModalVisible, setChangeRateModalVisible] = useState(false);
+    const [newInterestRateValue, setNewInterestRateValue] = useState('');
+    const [interestTransactions, setInterestTransactions] = useState<any[]>([]);
+    const [breakdownModalVisible, setBreakdownModalVisible] = useState(false);
 
     const openSelector = (action: 'pay' | 'withdraw') => {
         setSelectorAction(action);
@@ -243,6 +249,38 @@ export default function GoalsScreen() {
             
             const goalsData = await applyDailyInterests(rawGoalsData || [], iMap);
             setGoals(goalsData);
+
+            const { data: txInterests } = await supabase
+                .from('transactions')
+                .select('amount, description')
+                .eq('user_id', user.id)
+                .eq('category', 'Ahorro')
+                .like('description', 'Rendimientos cajita:%');
+
+            if (txInterests) {
+                const totalsByName: Record<string, number> = {};
+                txInterests.forEach(tx => {
+                    const name = tx.description.replace('Rendimientos cajita: ', '');
+                    totalsByName[name] = (totalsByName[name] || 0) + (Number(tx.amount) || 0);
+                });
+
+                let updatedMap = false;
+                goalsData.forEach(g => {
+                    const info = iMap[g.id];
+                    if (info) {
+                        const dbTotal = totalsByName[g.name] || 0;
+                        if (info.total_earned !== dbTotal) {
+                            info.total_earned = dbTotal;
+                            updatedMap = true;
+                        }
+                    }
+                });
+
+                if (updatedMap) {
+                    setInterestMap({ ...iMap });
+                    await AsyncStorage.setItem(SYNC_KEYS.GOALS_INTEREST(user.id), JSON.stringify(iMap));
+                }
+            }
             
             const { data: txData } = await supabase.from('transactions').select('amount, type, account, category').eq('user_id', user.id);
             let totalAh = 0;
@@ -304,59 +342,80 @@ export default function GoalsScreen() {
                 .limit(1);
 
             if (existingInterest && existingInterest.length > 0) {
-                // Ya se aplicaron intereses hoy, solo actualizar last_updated
-                for (const goal of goalsData) {
-                    const info = interestData[goal.id];
-                    if (info && info.rate > 0) {
-                        const lastUpdated = info.last_updated || '';
-                        if (lastUpdated !== today) {
-                            info.last_updated = today;
-                            updatedAny = true;
-                        }
-                    }
-                }
-                if (updatedAny) {
-                    setInterestMap(interestData);
-                    await AsyncStorage.setItem(SYNC_KEYS.GOALS_INTEREST(user.id), JSON.stringify(interestData));
-                }
-                isApplyingInterestRef.current = false;
-                return goalsData;
+                 // Ya se aplicaron intereses hoy, solo actualizar last_updated y promover tasas si aplica
+                 for (const goal of goalsData) {
+                     const info = interestData[goal.id];
+                     if (info) {
+                         if (info.next_rate !== undefined && info.next_rate_date) {
+                             if (today >= info.next_rate_date) {
+                                 info.rate = info.next_rate;
+                                 delete info.next_rate;
+                                 delete info.next_rate_date;
+                                 updatedAny = true;
+                             }
+                         }
+                         if (info.rate > 0) {
+                             const lastUpdated = info.last_updated || '';
+                             if (lastUpdated !== today) {
+                                 info.last_updated = today;
+                                 updatedAny = true;
+                             }
+                         }
+                     }
+                 }
+                 if (updatedAny) {
+                     setInterestMap(interestData);
+                     await AsyncStorage.setItem(SYNC_KEYS.GOALS_INTEREST(user.id), JSON.stringify(interestData));
+                 }
+                 isApplyingInterestRef.current = false;
+                 return goalsData;
             }
 
             for (const goal of goalsData) {
                 const info = interestData[goal.id];
-                if (info && info.rate > 0) {
-                    const lastUpdated = info.last_updated || today;
-                    // Normalizar la fecha de last_updated (quitar Z si existe)
-                    const cleanLastUpdated = lastUpdated.split('T')[0];
-                    
-                    if (cleanLastUpdated !== today) {
-                        const daysDiff = Math.floor((new Date(today + 'T12:00:00').getTime() - new Date(cleanLastUpdated + 'T12:00:00').getTime()) / (1000 * 60 * 60 * 24));
-                        if (daysDiff > 0 && goal.current_amount > 0) {
-                            const dailyRate = (info.rate / 100) / 365;
-                            const newAmount = goal.current_amount * Math.pow(1 + dailyRate, daysDiff);
-                            const interest = newAmount - goal.current_amount;
-                            if (interest > 0) {
-                                await supabase.from('goals').update({ current_amount: goal.current_amount + interest }).eq('id', goal.id);
-                                await supabase.from('transactions').insert([{
-                                    user_id: user.id,
-                                    amount: interest,
-                                    type: 'income',
-                                    category: 'Ahorro',
-                                    description: `Rendimientos cajita: ${goal.name}`,
-                                    account: 'Ahorro',
-                                    date: getLocalISOString()
-                                }]);
-                                goal.current_amount += interest;
-                                info.last_updated = today;
-                                info.last_earned = interest;
-                                info.total_earned = (info.total_earned || 0) + interest;
-                                updatedAny = true;
-                                newTotalInterest += interest;
-                            }
-                        } else if (daysDiff > 0) {
-                            info.last_updated = today;
+                if (info) {
+                    if (info.next_rate !== undefined && info.next_rate_date) {
+                        if (today >= info.next_rate_date) {
+                            info.rate = info.next_rate;
+                            delete info.next_rate;
+                            delete info.next_rate_date;
                             updatedAny = true;
+                        }
+                    }
+
+                    if (info.rate > 0) {
+                        const lastUpdated = info.last_updated || today;
+                        // Normalizar la fecha de last_updated (quitar Z si existe)
+                        const cleanLastUpdated = lastUpdated.split('T')[0];
+                        
+                        if (cleanLastUpdated !== today) {
+                            const daysDiff = Math.floor((new Date(today + 'T12:00:00').getTime() - new Date(cleanLastUpdated + 'T12:00:00').getTime()) / (1000 * 60 * 60 * 24));
+                            if (daysDiff > 0 && goal.current_amount > 0) {
+                                const dailyRate = (info.rate / 100) / 365;
+                                const newAmount = goal.current_amount * Math.pow(1 + dailyRate, daysDiff);
+                                const interest = newAmount - goal.current_amount;
+                                if (interest > 0) {
+                                    await supabase.from('goals').update({ current_amount: goal.current_amount + interest }).eq('id', goal.id);
+                                    await supabase.from('transactions').insert([{
+                                        user_id: user.id,
+                                        amount: interest,
+                                        type: 'income',
+                                        category: 'Ahorro',
+                                        description: `Rendimientos cajita: ${goal.name}`,
+                                        account: 'Ahorro',
+                                        date: getLocalISOString()
+                                    }]);
+                                    goal.current_amount += interest;
+                                    info.last_updated = today;
+                                    info.last_earned = interest;
+                                    info.total_earned = (info.total_earned || 0) + interest;
+                                    updatedAny = true;
+                                    newTotalInterest += interest;
+                                }
+                            } else if (daysDiff > 0) {
+                                info.last_updated = today;
+                                updatedAny = true;
+                            }
                         }
                     }
                 }
@@ -663,6 +722,70 @@ export default function GoalsScreen() {
         }
     };
 
+    const loadBreakdown = async (goal: any) => {
+        if (!user || !goal) return;
+        try {
+            setIsProcessing(true);
+            const { data, error } = await supabase
+                .from('transactions')
+                .select('amount, date, description')
+                .eq('user_id', user.id)
+                .eq('category', 'Ahorro')
+                .eq('description', `Rendimientos cajita: ${goal.name}`)
+                .order('date', { ascending: false });
+            if (error) throw error;
+            setInterestTransactions(data || []);
+            setBreakdownModalVisible(true);
+        } catch (e) {
+            console.error(e);
+            Alert.alert('Error', 'No se pudieron cargar los rendimientos diarios.');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleChangeRate = async () => {
+        if (!user || !goalForOptions) return;
+        const newRate = parseFloat(newInterestRateValue.replace(',', '.'));
+        if (isNaN(newRate) || newRate < 0) {
+            Alert.alert('Error', 'Por favor ingresa una tasa de interés válida.');
+            return;
+        }
+
+        try {
+            setIsProcessing(true);
+            const saved = await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user.id));
+            const interestData = saved ? JSON.parse(saved) : {};
+            
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const year = tomorrow.getFullYear();
+            const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+            const day = String(tomorrow.getDate()).padStart(2, '0');
+            const tomorrowKey = `${year}-${month}-${day}`;
+
+            interestData[goalForOptions.id] = {
+                ...interestData[goalForOptions.id],
+                next_rate: newRate,
+                next_rate_date: tomorrowKey
+            };
+
+            await AsyncStorage.setItem(SYNC_KEYS.GOALS_INTEREST(user.id), JSON.stringify(interestData));
+            await syncUp(user.id);
+            setInterestMap(interestData);
+            setChangeRateModalVisible(false);
+            Alert.alert(
+                'Tasa Programada 📅',
+                `La nueva tasa de interés del ${newRate}% E.A. se aplicará automáticamente a partir de mañana (${tomorrowKey}).`
+            );
+        } catch (e: any) {
+            console.error(e);
+            Alert.alert('Error', e.message || 'No se pudo actualizar la tasa de interés.');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
     // const fmt = (n: number) => isHidden ? '****' : new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
 
     return (
@@ -911,11 +1034,14 @@ export default function GoalsScreen() {
                                         {efLevel >= 3 ? 'BLINDAJE' : efLevel >= 2 ? 'TRANQUILIDAD' : 'INICIAL'}
                                     </Text>
                                 </View>
-                                <View style={{ flex: 1, backgroundColor: colors.card, borderRadius: 16, padding: 12, alignItems: 'center' }}>
+                                <TouchableOpacity 
+                                    onPress={() => loadBreakdown(fondo)}
+                                    style={{ flex: 1, backgroundColor: colors.card, borderRadius: 16, padding: 12, alignItems: 'center' }}
+                                >
                                     <Ionicons name="trending-up" size={18} color="#10B981" style={{ marginBottom: 4 }} />
                                     <Text style={{ color: '#10B981', fontSize: 14, fontWeight: '900' }}>{fmt(interestMap[fondo.id]?.total_earned || 0)}</Text>
                                     <Text style={{ color: colors.sub, fontSize: 9, fontWeight: '700', textAlign: 'center', marginTop: 2 }}>RENDIMIENTOS</Text>
-                                </View>
+                                </TouchableOpacity>
                             </View>
 
                             {/* Motivational Quote */}
@@ -1694,6 +1820,29 @@ export default function GoalsScreen() {
                                 </TouchableOpacity>
                             )}
 
+                            {interestMap[goalForOptions?.id] && (
+                                <TouchableOpacity
+                                    style={[styles.optionItem, { backgroundColor: colors.bg }]}
+                                    onPress={() => {
+                                        setOptionsModalVisible(false);
+                                        setNewInterestRateValue(interestMap[goalForOptions.id].rate.toString());
+                                        setChangeRateModalVisible(true);
+                                    }}
+                                >
+                                    <View style={[styles.optionIcon, { backgroundColor: '#10B98120' }]}>
+                                        <Ionicons name="trending-up" size={20} color="#10B981" />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.optionTitle, { color: colors.text }]}>Ajustar Tasa de Interés</Text>
+                                        <Text style={[styles.optionSub, { color: colors.sub }]}>
+                                            Tasa actual: {interestMap[goalForOptions.id].rate}% E.A.
+                                            {interestMap[goalForOptions.id].next_rate !== undefined && 
+                                                ` (Programada: ${interestMap[goalForOptions.id].next_rate}% a partir del ${interestMap[goalForOptions.id].next_rate_date})`}
+                                        </Text>
+                                    </View>
+                                </TouchableOpacity>
+                            )}
+
                             <TouchableOpacity 
                                 style={[styles.optionItem, { backgroundColor: colors.bg }]} 
                                 onPress={() => {
@@ -1772,6 +1921,117 @@ export default function GoalsScreen() {
                                 </Text>
                             </TouchableOpacity>
                         </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* ── Modal Ajustar Tasa de Interés ── */}
+            <Modal visible={changeRateModalVisible} animationType="fade" transparent>
+                <View style={styles.overlayCenter}>
+                    <View style={[styles.miniModal, { backgroundColor: colors.card, width: '92%', paddingTop: 28 }]}>
+                        <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.accent + '20', justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
+                            <Ionicons name="trending-up" size={32} color={colors.accent} />
+                        </View>
+
+                        <Text style={[styles.miniTitle, { color: colors.text, textAlign: 'center', fontSize: 20 }]}>
+                            Ajustar Interés
+                        </Text>
+                        <Text style={{ color: colors.sub, fontSize: 13, textAlign: 'center', lineHeight: 20, paddingHorizontal: 12 }}>
+                            Ingresa la nueva tasa de interés anual (% E.A.) que deseas aplicar.
+                        </Text>
+
+                        <View style={{ width: '100%', marginTop: 8, marginBottom: 4 }}>
+                            <Text style={[styles.mLabel, { color: colors.sub, textAlign: 'center', marginBottom: 8 }]}>
+                                NUEVA TASA (%)
+                            </Text>
+                            <TextInput
+                                style={[styles.mInput, { color: colors.text, borderBottomColor: colors.accent, fontSize: 26, textAlign: 'center', width: '100%', fontWeight: '900' }]}
+                                keyboardType="decimal-pad"
+                                value={newInterestRateValue}
+                                placeholder="0.0"
+                                placeholderTextColor={colors.sub + '50'}
+                                onChangeText={setNewInterestRateValue}
+                            />
+                        </View>
+
+                        <View style={{ backgroundColor: colors.accent + '10', padding: 12, borderRadius: 12, width: '100%', marginBottom: 4 }}>
+                            <Text style={{ color: colors.sub, fontSize: 11, textAlign: 'center', lineHeight: 17 }}>
+                                📅 La nueva tasa entrará en vigencia de manera automática a partir del día de mañana.
+                            </Text>
+                        </View>
+
+                        <View style={[styles.miniBtns, { marginTop: 6 }]}>
+                            <TouchableOpacity
+                                style={[styles.miniBtn, { backgroundColor: colors.bg }]}
+                                onPress={() => setChangeRateModalVisible(false)}
+                            >
+                                <Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.miniBtn, { backgroundColor: colors.accent }, isProcessing && { opacity: 0.6 }]}
+                                onPress={handleChangeRate}
+                                disabled={isProcessing}
+                            >
+                                <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 14 }}>
+                                    {isProcessing ? 'Guardando...' : 'Programar Tasa'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* ── Modal Desglose de Rendimientos Diarios ── */}
+            <Modal visible={breakdownModalVisible} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <TouchableWithoutFeedback onPress={() => setBreakdownModalVisible(false)}>
+                        <View style={StyleSheet.absoluteFill} />
+                    </TouchableWithoutFeedback>
+                    <View style={[styles.modalBox, { backgroundColor: colors.card, maxHeight: '80%' }]}>
+                        <View style={styles.modalHeaderInner}>
+                            <View>
+                                <Text style={[styles.modalTitle, { color: colors.text }]}>Rendimientos Diarios</Text>
+                                <Text style={[styles.miniSub, { color: colors.sub }]}>Historial de ganancias generadas</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setBreakdownModalVisible(false)}>
+                                <Ionicons name="close" size={24} color={colors.sub} />
+                            </TouchableOpacity>
+                        </View>
+
+                        {interestTransactions.length === 0 ? (
+                            <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                                <Ionicons name="trending-up" size={48} color={colors.sub + '40'} />
+                                <Text style={{ color: colors.sub, fontSize: 14, marginTop: 12, fontWeight: '600' }}>
+                                    Aún no tienes rendimientos registrados.
+                                </Text>
+                            </View>
+                        ) : (
+                            <FlatList
+                                data={interestTransactions}
+                                keyExtractor={(item, index) => index.toString()}
+                                showsVerticalScrollIndicator={false}
+                                contentContainerStyle={{ gap: 12, paddingBottom: 20 }}
+                                renderItem={({ item }) => {
+                                    const dateStr = item.date ? new Date(item.date).toLocaleDateString('es-CO', {
+                                        day: '2-digit',
+                                        month: 'short',
+                                        year: 'numeric'
+                                    }) : 'Fecha desconocida';
+
+                                    return (
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.bg, padding: 16, borderRadius: 16 }}>
+                                            <View>
+                                                <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>Ganancia diaria</Text>
+                                                <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '600', marginTop: 2 }}>{dateStr}</Text>
+                                            </View>
+                                            <Text style={{ color: '#10B981', fontSize: 16, fontWeight: '900' }}>
+                                                +{fmt(item.amount)}
+                                            </Text>
+                                        </View>
+                                    );
+                                }}
+                            />
+                        )}
                     </View>
                 </View>
             </Modal>

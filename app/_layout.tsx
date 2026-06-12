@@ -173,6 +173,7 @@ function RootStack() {
           <Stack.Screen name="index" />
           <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
           <Stack.Screen name="login" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="reset-password" options={{ gestureEnabled: false }} />
           <Stack.Screen name="currency-setup" options={{ gestureEnabled: false }} />
           <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
           <Stack.Screen name="goals" options={{ presentation: 'modal' }} />

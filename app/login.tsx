@@ -1,4 +1,5 @@
 import { useAuth } from '@/utils/auth';
+import { supabase } from '@/utils/supabase';
 import { Feather } from '@expo/vector-icons';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,7 +24,7 @@ import {
 
 const { width, height } = Dimensions.get('window');
 
-type Mode = 'login' | 'register';
+type Mode = 'login' | 'register' | 'forgot';
 
 export default function LoginScreen() {
     const { login, register } = useAuth();
@@ -54,6 +55,25 @@ export default function LoginScreen() {
         setLoading(true);
         Keyboard.dismiss();
 
+        if (mode === 'forgot') {
+            try {
+                const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+                    email.trim().toLowerCase(),
+                    { redirectTo: 'appmobile://reset-password' }
+                );
+                setLoading(false);
+                if (resetError) {
+                    setError(resetError.message);
+                } else {
+                    setSuccessMsg('¡Enlace enviado! Revisa tu correo electrónico para restablecer tu contraseña.');
+                }
+            } catch (e: any) {
+                setLoading(false);
+                setError(e.message || 'Error al enviar el correo de recuperación.');
+            }
+            return;
+        }
+
         const result = mode === 'login'
             ? await login(email, password)
             : await register(name, email, password);
@@ -63,18 +83,16 @@ export default function LoginScreen() {
         if (!result.success) {
             setError(result.message);
         } else if (mode === 'register') {
-            // Supabase may auto-login (email confirmation disabled) which
-            // triggers _layout.tsx to redirect to /currency-setup automatically.
-            // Show a friendly message as fallback in case confirmation is required.
             setSuccessMsg('¡Cuenta creada! Revisa tu correo si es necesario confirmarla.');
         }
-        // Login success: _layout.tsx handles the redirect to /(tabs)
     };
 
     const isValid =
         mode === 'login'
             ? email.trim().length > 0 && password.length >= 6
-            : name.trim().length > 0 && email.trim().length > 0 && password.length >= 6;
+            : mode === 'register'
+            ? name.trim().length > 0 && email.trim().length > 0 && password.length >= 6
+            : email.trim().length > 0;
 
     const content = (
         <View style={styles.container}>
@@ -98,35 +116,43 @@ export default function LoginScreen() {
                             </View>
                             <Text style={[styles.headerTitle, { color: isDark ? '#FFF' : '#0F172A' }]}>Zenly</Text>
                             <Text style={[styles.headerSubtitle, { color: isDark ? '#94A3B8' : '#64748B' }]}>
-                                {mode === 'login' ? 'Bienvenido de nuevo' : 'Crea tu futuro financiero'}
+                                {mode === 'login' ? 'Bienvenido de nuevo' : mode === 'register' ? 'Crea tu futuro financiero' : 'Recupera el acceso a tu cuenta'}
                             </Text>
                         </View>
 
                         {/* ── Form Card ── */}
                         <View style={[styles.formCard, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
                             {/* ── Tabs ── */}
-                            <View style={[styles.tabContainer, { backgroundColor: isDark ? '#0F172A50' : '#F1F5F9' }]}>
-                                <TouchableOpacity
-                                    style={[styles.tab, mode === 'login' && [styles.tabActive, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]]}
-                                    onPress={() => switchMode('login')}
-                                    activeOpacity={0.8}
-                                >
-                                    <Text style={[styles.tabText, mode === 'login' && styles.tabTextActive, { color: isDark ? (mode === 'login' ? '#FFF' : '#94A3B8') : (mode === 'login' ? '#0F172A' : '#64748B') }]}>
-                                        Entrar
-                                    </Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[styles.tab, mode === 'register' && [styles.tabActive, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]]}
-                                    onPress={() => switchMode('register')}
-                                    activeOpacity={0.8}
-                                >
-                                    <Text style={[styles.tabText, mode === 'register' && styles.tabTextActive, { color: isDark ? (mode === 'register' ? '#FFF' : '#94A3B8') : (mode === 'register' ? '#0F172A' : '#64748B') }]}>
-                                        Registro
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
+                            {mode !== 'forgot' && (
+                                <View style={[styles.tabContainer, { backgroundColor: isDark ? '#0F172A50' : '#F1F5F9' }]}>
+                                    <TouchableOpacity
+                                        style={[styles.tab, mode === 'login' && [styles.tabActive, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]]}
+                                        onPress={() => switchMode('login')}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={[styles.tabText, mode === 'login' && styles.tabTextActive, { color: isDark ? (mode === 'login' ? '#FFF' : '#94A3B8') : (mode === 'login' ? '#0F172A' : '#64748B') }]}>
+                                            Entrar
+                                        </Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.tab, mode === 'register' && [styles.tabActive, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]]}
+                                        onPress={() => switchMode('register')}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={[styles.tabText, mode === 'register' && styles.tabTextActive, { color: isDark ? (mode === 'register' ? '#FFF' : '#94A3B8') : (mode === 'register' ? '#0F172A' : '#64748B') }]}>
+                                            Registro
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
 
                             <View style={styles.formFields}>
+                                {mode === 'forgot' && (
+                                    <Text style={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: 14, fontWeight: '500', marginBottom: 8, textAlign: 'center', lineHeight: 20 }}>
+                                        Ingresa tu correo electrónico y te enviaremos un enlace seguro para restablecer tu contraseña.
+                                    </Text>
+                                )}
+
                                 {mode === 'register' && (
                                     <View style={[styles.inputField, { borderColor: isDark ? '#334155' : '#E2E8F0' }]}>
                                         <Feather name="user" size={18} color="#94A3B8" />
@@ -154,20 +180,33 @@ export default function LoginScreen() {
                                     />
                                 </View>
 
-                                <View style={[styles.inputField, { borderColor: isDark ? '#334155' : '#E2E8F0' }]}>
-                                    <Feather name="lock" size={18} color="#94A3B8" />
-                                    <TextInput
-                                        style={[styles.input, { color: isDark ? '#FFF' : '#0F172A' }]}
-                                        placeholder="Contraseña"
-                                        placeholderTextColor="#94A3B8"
-                                        value={password}
-                                        onChangeText={setPassword}
-                                        secureTextEntry={!showPass}
-                                    />
-                                    <TouchableOpacity onPress={() => setShowPass(!showPass)}>
-                                        <Feather name={showPass ? 'eye-off' : 'eye'} size={18} color="#94A3B8" />
+                                {mode !== 'forgot' && (
+                                    <View style={[styles.inputField, { borderColor: isDark ? '#334155' : '#E2E8F0' }]}>
+                                        <Feather name="lock" size={18} color="#94A3B8" />
+                                        <TextInput
+                                            style={[styles.input, { color: isDark ? '#FFF' : '#0F172A' }]}
+                                            placeholder="Contraseña"
+                                            placeholderTextColor="#94A3B8"
+                                            value={password}
+                                            onChangeText={setPassword}
+                                            secureTextEntry={!showPass}
+                                        />
+                                        <TouchableOpacity onPress={() => setShowPass(!showPass)}>
+                                            <Feather name={showPass ? 'eye-off' : 'eye'} size={18} color="#94A3B8" />
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+
+                                {mode === 'login' && (
+                                    <TouchableOpacity 
+                                        onPress={() => switchMode('forgot')} 
+                                        style={{ alignSelf: 'flex-end', marginTop: -4 }}
+                                    >
+                                        <Text style={{ color: isDark ? '#93C5FD' : '#2563EB', fontSize: 13, fontWeight: '600' }}>
+                                            ¿Olvidaste tu contraseña?
+                                        </Text>
                                     </TouchableOpacity>
-                                </View>
+                                )}
 
                                 {error.length > 0 && (
                                     <View style={styles.errorContainer}>
@@ -192,10 +231,21 @@ export default function LoginScreen() {
                                         <ActivityIndicator color="#FFF" />
                                     ) : (
                                         <Text style={styles.submitBtnText}>
-                                            {mode === 'login' ? 'Entrar ahora' : 'Crear mi cuenta'}
+                                            {mode === 'login' ? 'Entrar ahora' : mode === 'register' ? 'Crear mi cuenta' : 'Enviar enlace'}
                                         </Text>
                                     )}
                                 </TouchableOpacity>
+
+                                {mode === 'forgot' && (
+                                    <TouchableOpacity 
+                                        onPress={() => switchMode('login')} 
+                                        style={{ alignSelf: 'center', marginTop: 8 }}
+                                    >
+                                        <Text style={{ color: isDark ? '#93C5FD' : '#2563EB', fontSize: 14, fontWeight: '700' }}>
+                                            Volver a Iniciar Sesión
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
                             </View>
                         </View>
 
@@ -354,6 +404,9 @@ const styles = StyleSheet.create({
         fontSize: 17,
         fontWeight: '800',
         letterSpacing: 0.5,
+    },
+    footer: {
+        marginTop: 24,
     },
     footerStatus: {
         flexDirection: 'row',
