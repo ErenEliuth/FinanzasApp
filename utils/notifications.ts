@@ -80,7 +80,7 @@ export async function scheduleCoherentReminders(name: string) {
     const userName = name || 'Usuario';
     const randomQuote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
 
-    // 0. Motivación de la mañana (7:00 AM)
+    // 1. Motivación de la mañana (7:00 AM)
     await Notifications.scheduleNotificationAsync({
         content: {
             title: `💡 Inspiración matutina, ${userName}`,
@@ -94,45 +94,17 @@ export async function scheduleCoherentReminders(name: string) {
         },
     });
 
-    // 1. Mañana (8:30 AM) - Portafolio
+    // 2. Registro de Gastos/Ingresos de la noche (7:00 PM / 19:00)
     await Notifications.scheduleNotificationAsync({
         content: {
-            title: `📈 ¡Hola ${userName}! Tu portafolio al día`,
-            body: "Revisa las variaciones del mercado y el estado de tus inversiones hoy.",
-            data: { screen: 'invest' },
-        },
-        trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.DAILY,
-            hour: 8,
-            minute: 30,
-        },
-    });
-
-    // 2. Tarde (2:30 PM) - Ahorro
-    await Notifications.scheduleNotificationAsync({
-        content: {
-            title: `🎯 Reto de Ahorro para ${userName}`,
-            body: "¿Ya hiciste tu aporte del día? Pequeños montos construyen grandes futuros.",
-            data: { screen: 'goals' },
-        },
-        trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.DAILY,
-            hour: 14,
-            minute: 30,
-        },
-    });
-
-    // 3. Noche (8:30 PM) - Registro de Gastos/Ingresos
-    await Notifications.scheduleNotificationAsync({
-        content: {
-            title: `🌙 Cierre del día, ${userName}`,
+            title: `🌙 Cierre de jornada, ${userName}`,
             body: "¿Ya anotaste tus ingresos y gastos de hoy? Mantén tu control financiero.",
             data: { screen: 'explore' },
         },
         trigger: {
             type: Notifications.SchedulableTriggerInputTypes.DAILY,
-            hour: 20,
-            minute: 30,
+            hour: 19,
+            minute: 0,
         },
     });
 }
