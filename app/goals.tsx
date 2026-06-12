@@ -1051,22 +1051,6 @@ export default function GoalsScreen() {
                                     {motivationalQuotes[todayIndex]}
                                 </Text>
                             </View>
-
-                            {/* Consejos de Santy */}
-                            <View>
-                                <Text style={{ fontSize: 16, fontWeight: '900', color: colors.text, marginBottom: 10 }}>Consejos de Santy 🧠</Text>
-                                {tips.map((tip, idx) => (
-                                    <View key={idx} style={{ flexDirection: 'row', gap: 12, marginBottom: 10, backgroundColor: colors.card, borderRadius: 16, padding: 12 }}>
-                                        <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: colors.accent + '15', justifyContent: 'center', alignItems: 'center' }}>
-                                            <Ionicons name={tip.icon} size={18} color={colors.accent} />
-                                        </View>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 2 }}>{tip.title}</Text>
-                                            <Text style={{ color: colors.sub, fontSize: 11, lineHeight: 16 }}>{tip.desc}</Text>
-                                        </View>
-                                    </View>
-                                ))}
-                            </View>
                         </View>
                     );
                 })()}
