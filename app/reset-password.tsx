@@ -165,7 +165,10 @@ export default function ResetPasswordScreen() {
                                 </TouchableOpacity>
 
                                 <TouchableOpacity 
-                                    onPress={() => router.replace('/login')} 
+                                    onPress={async () => {
+                                        await supabase.auth.signOut();
+                                        router.replace('/login');
+                                    }} 
                                     style={{ alignSelf: 'center', marginTop: 8 }}
                                 >
                                     <Text style={{ color: isDark ? '#93C5FD' : '#2563EB', fontSize: 14, fontWeight: '700' }}>

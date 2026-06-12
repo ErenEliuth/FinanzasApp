@@ -105,7 +105,8 @@ function RootStack() {
     const onResetPass  = segments[0] === 'reset-password';
 
     // Si está intentando recuperar contraseña o está en esa pantalla, no redirigir a otro lado
-    if (onResetPass || isRecovering.current) {
+    // A MENOS que se esté intentando ir a la pantalla de login explícitamente.
+    if ((onResetPass || isRecovering.current) && !onLoginPage) {
       if (!onResetPass) {
         router.replace('/reset-password');
       }
