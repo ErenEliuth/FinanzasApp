@@ -58,12 +58,16 @@ export default function ResetPasswordScreen() {
                 setError(updateError.message);
                 setLoading(false);
             } else {
-                setSuccessMsg('¡Contraseña actualizada con éxito! Redirigiéndote...');
+                setSuccessMsg('¡Contraseña actualizada con éxito! Cerrando sesión para que ingreses de nuevo...');
+                
+                // Cerramos sesión explícitamente para limpiar tokens temporales
+                await supabase.auth.signOut();
+                
                 setTimeout(() => {
                     setLoading(false);
-                    // Redirigir directamente al panel principal
-                    router.replace('/(tabs)');
-                }, 2000);
+                    // Redirigir al inicio de sesión (login)
+                    router.replace('/login');
+                }, 2500);
             }
         } catch (e: any) {
             setLoading(false);
