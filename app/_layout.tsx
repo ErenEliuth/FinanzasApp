@@ -5,7 +5,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import 'react-native-reanimated';
 import { THEMES, ThemeName } from '@/constants/Themes';
 import { supabase } from '@/utils/supabase';
@@ -74,23 +74,38 @@ function RootStack() {
     }
   }, []);
 
-  // Detectar el evento PASSWORD_RECOVERY de Supabase (cuando el usuario llega desde el
-  // link de recuperación de contraseña). Este evento se dispara ANTES de que la lógica
-  // normal de routing corra, por lo que redirigimos directamente a reset-password.
+  // Detectar el evento PASSWORD_RECOVERY de Supabase.
+  // Usamos useState (no useRef) para que el cambio cause re-render y el
+  // useEffect de routing lo vea SIEMPRE de forma reactiva.
+  //
+  // IMPORTANTE: También leemos el hash de la URL al montar (en web) para detectar
+  // type=recovery ANTES de que Supabase dispare el evento, evitando el race condition
+  // donde SIGNED_IN llega primero y el routing redirige al dashboard.
+  const [isRecovering, setIsRecovering] = useState(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const hash = window.location.hash || '';
+      return hash.includes('type=recovery');
+    }
+    return false;
+  });
   const recoveryHandled = useRef(false);
-  const isRecovering = useRef(false);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
-        isRecovering.current = true;
+        // Marcar modo recovery como activo
+        setIsRecovering(true);
         if (!recoveryHandled.current) {
           recoveryHandled.current = true;
-          // Pequeño timeout para asegurar que el router ya está montado
           setTimeout(() => {
             router.replace('/reset-password');
           }, 100);
         }
+      }
+      if (event === 'SIGNED_OUT') {
+        // Limpiar la bandera de recovery cuando el usuario cierra sesión
+        setIsRecovering(false);
+        recoveryHandled.current = false;
       }
     });
     return () => subscription.unsubscribe();
@@ -99,14 +114,14 @@ function RootStack() {
   useEffect(() => {
     if (loading) return;
 
-    const inAuthGroup  = segments[0] === '(tabs)';
-    const onLoginPage  = segments[0] === 'login';
-    const onSetup      = segments[0] === 'currency-setup';
-    const onResetPass  = segments[0] === 'reset-password';
+    const inAuthGroup = segments[0] === '(tabs)';
+    const onLoginPage = segments[0] === 'login';
+    const onSetup     = segments[0] === 'currency-setup';
+    const onResetPass = segments[0] === 'reset-password';
 
-    // Si está intentando recuperar contraseña o está en esa pantalla, no redirigir a otro lado
-    // A MENOS que se esté intentando ir a la pantalla de login explícitamente.
-    if ((onResetPass || isRecovering.current) && !onLoginPage) {
+    // Durante el flujo de recuperación de contraseña: bloquear CUALQUIER
+    // redirección automática. El usuario debe quedarse en reset-password.
+    if (isRecovering) {
       if (!onResetPass) {
         router.replace('/reset-password');
       }
@@ -134,7 +149,7 @@ function RootStack() {
         router.replace('/currency-setup');
       }
     }
-  }, [user, loading, segments, router]);
+  }, [user, loading, segments, router, isRecovering]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
