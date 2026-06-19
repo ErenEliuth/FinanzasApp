@@ -1728,60 +1728,73 @@ export default function GoalsScreen() {
                     <TouchableWithoutFeedback onPress={() => setOptionsModalVisible(false)}>
                         <View style={StyleSheet.absoluteFill} />
                     </TouchableWithoutFeedback>
-                    <View style={[styles.modalBox, { backgroundColor: colors.card }]}>
-                        <View style={styles.modalHeaderInner}>
-                            <View>
-                                <Text style={[styles.modalTitle, { color: colors.text }]}>{goalForOptions?.name}</Text>
-                                <Text style={[styles.miniSub, { color: colors.sub }]}>{fmt(goalForOptions?.current_amount || 0)} ahorrados</Text>
+                    <View style={[styles.modalBox, { backgroundColor: colors.card, borderTopLeftRadius: 36, borderTopRightRadius: 36, paddingHorizontal: 24, paddingBottom: 48 }]}>
+                        {/* Indicador superior drag visual */}
+                        <View style={{ width: 48, height: 5, borderRadius: 3, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 18, opacity: 0.5 }} />
+
+                        <View style={[styles.modalHeaderInner, { marginBottom: 20 }]}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.modalTitle, { color: colors.text, fontSize: 24, fontWeight: '900', letterSpacing: -0.5 }]}>
+                                    {goalForOptions?.name}
+                                </Text>
+                                <Text style={{ color: colors.accent, fontSize: 15, fontWeight: '800', marginTop: 2 }}>
+                                    {fmt(goalForOptions?.current_amount || 0)} ahorrados
+                                </Text>
                             </View>
-                            <TouchableOpacity onPress={() => setOptionsModalVisible(false)}>
-                                <Ionicons name="close" size={24} color={colors.sub} />
+                            <TouchableOpacity 
+                                style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }} 
+                                onPress={() => setOptionsModalVisible(false)}
+                            >
+                                <Ionicons name="close" size={20} color={colors.text} />
                             </TouchableOpacity>
                         </View>
                         
                         <View style={{ gap: 12 }}>
                             <TouchableOpacity 
-                                style={[styles.optionItem, { backgroundColor: colors.bg }]} 
+                                style={[styles.optionItem, { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border }]} 
                                 onPress={() => {
                                     setOptionsModalVisible(false);
                                     setSelectedGoal(goalForOptions);
                                     setPayModalVisible(true);
                                 }}
                             >
-                                <View style={[styles.optionIcon, { backgroundColor: colors.accent + '20' }]}>
+                                <View style={[styles.optionIcon, { backgroundColor: colors.accent + '15' }]}>
                                     <Ionicons name="add" size={22} color={colors.accent} />
                                 </View>
-                                <View>
+                                <View style={{ flex: 1 }}>
                                     <Text style={[styles.optionTitle, { color: colors.text }]}>Asignar dinero</Text>
                                     <Text style={[styles.optionSub, { color: colors.sub }]}>Mover saldo disponible a esta meta</Text>
                                 </View>
+                                <Ionicons name="chevron-forward" size={18} color={colors.sub + '60'} />
                             </TouchableOpacity>
 
                             <TouchableOpacity 
-                                style={[styles.optionItem, { backgroundColor: colors.bg }]} 
+                                style={[styles.optionItem, { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border }]} 
                                 onPress={() => {
                                     setOptionsModalVisible(false);
                                     setSelectedGoal(goalForOptions);
                                     setWithdrawModalVisible(true);
                                 }}
                             >
-                                <View style={[styles.optionIcon, { backgroundColor: '#EF444420' }]}>
+                                <View style={[styles.optionIcon, { backgroundColor: '#EF444415' }]}>
                                     <Ionicons name="remove" size={22} color="#EF4444" />
                                 </View>
-                                <View>
+                                <View style={{ flex: 1 }}>
                                     <Text style={[styles.optionTitle, { color: colors.text }]}>Retirar dinero</Text>
                                     <Text style={[styles.optionSub, { color: colors.sub }]}>Mover de esta meta a saldo disponible</Text>
                                 </View>
+                                <Ionicons name="chevron-forward" size={18} color={colors.sub + '60'} />
                             </TouchableOpacity>
 
-                            <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 8 }} />
+                            {/* Separador sutil */}
+                            <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 4, opacity: 0.6 }} />
 
                             {/* Level Up option — solo Fondos de Emergencia que alcanzaron la meta */}
                             {interestMap[goalForOptions?.id]?.is_emergency_fund &&
                              (goalForOptions?.current_amount >= goalForOptions?.target_amount) &&
                              (interestMap[goalForOptions?.id]?.emergency_level || 1) < 3 && (
                                 <TouchableOpacity
-                                    style={[styles.optionItem, { backgroundColor: colors.bg }]}
+                                    style={[styles.optionItem, { backgroundColor: colors.bg, borderWidth: 1, borderColor: '#7B1FA230' }]}
                                     onPress={() => {
                                         setOptionsModalVisible(false);
                                         const lvl = interestMap[goalForOptions.id]?.emergency_level || 1;
@@ -1799,26 +1812,27 @@ export default function GoalsScreen() {
                                         setLevelUpModalVisible(true);
                                     }}
                                 >
-                                    <View style={[styles.optionIcon, { backgroundColor: '#7B1FA220' }]}>
+                                    <View style={[styles.optionIcon, { backgroundColor: '#7B1FA215' }]}>
                                         <Ionicons name="rocket" size={20} color="#7B1FA2" />
                                     </View>
-                                    <View>
+                                    <View style={{ flex: 1 }}>
                                         <Text style={[styles.optionTitle, { color: '#7B1FA2' }]}>Subir de Nivel 🚀</Text>
                                         <Text style={[styles.optionSub, { color: colors.sub }]}>Escalar tu fondo al siguiente nivel</Text>
                                     </View>
+                                    <Ionicons name="chevron-forward" size={18} color="#7B1FA260" />
                                 </TouchableOpacity>
                             )}
 
                             {interestMap[goalForOptions?.id] && (
                                 <TouchableOpacity
-                                    style={[styles.optionItem, { backgroundColor: colors.bg }]}
+                                    style={[styles.optionItem, { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border }]}
                                     onPress={() => {
                                         setOptionsModalVisible(false);
                                         setNewInterestRateValue(interestMap[goalForOptions.id].rate.toString());
                                         setChangeRateModalVisible(true);
                                     }}
                                 >
-                                    <View style={[styles.optionIcon, { backgroundColor: '#10B98120' }]}>
+                                    <View style={[styles.optionIcon, { backgroundColor: '#10B98115' }]}>
                                         <Ionicons name="trending-up" size={20} color="#10B981" />
                                     </View>
                                     <View style={{ flex: 1 }}>
@@ -1829,23 +1843,25 @@ export default function GoalsScreen() {
                                                 ` (Programada: ${interestMap[goalForOptions.id].next_rate}% a partir del ${interestMap[goalForOptions.id].next_rate_date})`}
                                         </Text>
                                     </View>
+                                    <Ionicons name="chevron-forward" size={18} color={colors.sub + '60'} />
                                 </TouchableOpacity>
                             )}
 
                             <TouchableOpacity 
-                                style={[styles.optionItem, { backgroundColor: colors.bg }]} 
+                                style={[styles.optionItem, { backgroundColor: colors.bg, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.15)' }]} 
                                 onPress={() => {
                                     setOptionsModalVisible(false);
                                     handleDelete(goalForOptions);
                                 }}
                             >
-                                <View style={[styles.optionIcon, { backgroundColor: colors.sub + '15' }]}>
-                                    <Ionicons name="trash-outline" size={20} color={colors.sub} />
+                                <View style={[styles.optionIcon, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
+                                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
                                 </View>
-                                <View>
-                                    <Text style={[styles.optionTitle, { color: colors.sub }]}>Eliminar</Text>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.optionTitle, { color: '#EF4444' }]}>Eliminar</Text>
                                     <Text style={[styles.optionSub, { color: colors.sub, opacity: 0.7 }]}>Borrar permanentemente</Text>
                                 </View>
+                                <Ionicons name="chevron-forward" size={18} color="rgba(239, 68, 68, 0.4)" />
                             </TouchableOpacity>
                         </View>
                     </View>
