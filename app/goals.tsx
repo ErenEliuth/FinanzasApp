@@ -1977,7 +1977,16 @@ export default function GoalsScreen() {
                                 onPress={handleChangeRate}
                                 disabled={isProcessing}
                             >
-                                <Text            {/* ── Modal Desglose de Rendimientos Diarios ── */}
+                                <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 14 }}>
+                                    {isProcessing ? 'Guardando...' : 'Confirmar'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* ── Modal Desglose de Rendimientos Diarios ── */}
             <Modal visible={breakdownModalVisible} animationType="slide" transparent>
                 <View style={styles.modalOverlay}>
                     <TouchableWithoutFeedback onPress={() => setBreakdownModalVisible(false)}>
