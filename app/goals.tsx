@@ -391,12 +391,14 @@ export default function GoalsScreen() {
                         if (cleanLastUpdated !== today) {
                             const daysDiff = Math.floor((new Date(today + 'T12:00:00').getTime() - new Date(cleanLastUpdated + 'T12:00:00').getTime()) / (1000 * 60 * 60 * 24));
                             if (daysDiff > 0 && goal.current_amount > 0) {
-                                // Tasa Diaria = EA/365 (método que usan bancos como Nubank en Colombia)
-                                // Equivale a capitalización diaria con tasa nominal: saldo × (EA/365) × días
-                                const dailyRate = (info.rate / 100) / 365;
-                                const interest = goal.current_amount * dailyRate * daysDiff;
-                                if (interest > 0) {
-                                    await supabase.from('goals').update({ current_amount: goal.current_amount + interest }).eq('id', goal.id);
+                                 // Tasa Diaria = EA/365 (método de Nubank en Colombia)
+                                 // Nubank aplica una retención en la fuente (ReteFuente) de 7% sobre los rendimientos diarios.
+                                 // Por lo tanto, el rendimiento neto que recibe el usuario es el 93% del rendimiento bruto.
+                                 const grossDailyRate = (info.rate / 100) / 365;
+                                 const netDailyRate = grossDailyRate * 0.93;
+                                 const interest = goal.current_amount * netDailyRate * daysDiff;
+                                 if (interest > 0) {
+                                     await supabase.from('goals').update({ current_amount: goal.current_amount + interest }).eq('id', goal.id);
                                     await supabase.from('transactions').insert([{
                                         user_id: user.id,
                                         amount: interest,
