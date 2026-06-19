@@ -2120,16 +2120,6 @@ export default function GoalsScreen() {
                     </View>
                 </View>
             </Modal>
-       </Text>
-                                            </View>
-                                        );
-                                    }}
-                                />
-                            </>
-                        )}
-                    </View>
-                </View>
-            </Modal>
         </SafeAreaView>
     );
 }
