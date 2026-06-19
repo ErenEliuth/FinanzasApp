@@ -21,7 +21,7 @@ export default function TabLayout() {
   const colors = {
     bg: colorsNav.card,
     text: colorsNav.text,
-    inactive: isDark ? '#64748B' : '#B0A89C',
+    inactive: colorsNav.isDark ? '#8080AB' : '#B0A89C',
     active: colorsNav.accent,
     border: colorsNav.border,
   };
@@ -39,7 +39,7 @@ export default function TabLayout() {
           left: 16,
           right: 16,
           height: 72,
-          backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+          backgroundColor: colorsNav.isDark ? `${colorsNav.card}F2` : 'rgba(255, 255, 255, 0.98)',
           borderRadius: 36,
           borderTopWidth: 0,
           elevation: 10,
@@ -52,7 +52,7 @@ export default function TabLayout() {
           paddingBottom: 12,
           paddingTop: 12,
           borderWidth: 1,
-          borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+          borderColor: colorsNav.isDark ? `${colorsNav.border}50` : 'rgba(0,0,0,0.03)',
         },
         tabBarLabelStyle: {
           fontSize: 10,

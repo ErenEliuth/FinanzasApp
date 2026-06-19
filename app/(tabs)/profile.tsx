@@ -481,6 +481,7 @@ export default function ProfileScreen() {
     const isDark = colorsNav.isDark;
 
     const [themeModalVisible, setThemeModalVisible] = useState(false);
+    const [isModalDark, setIsModalDark] = useState(isDark);
     const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
     const [statsModalVisible, setStatsModalVisible] = useState(false);
     const [weeklyModalVisible, setWeeklyModalVisible] = useState(false);
@@ -861,7 +862,7 @@ export default function ProfileScreen() {
             <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
                 <View style={styles.header}>
                     <Text style={[styles.headerTitle, { color: colorsNav.text }]}>Perfil</Text>
-                    <TouchableOpacity style={[styles.themeBtn, { backgroundColor: colorsNav.card }]} onPress={() => setThemeModalVisible(true)}>
+                    <TouchableOpacity style={[styles.themeBtn, { backgroundColor: colorsNav.card }]} onPress={() => { setIsModalDark(isDark); setThemeModalVisible(true); }}>
                         <Ionicons name="color-palette" size={22} color={colorsNav.accent} />
                     </TouchableOpacity>
                 </View>
@@ -1050,52 +1051,73 @@ export default function ProfileScreen() {
                                 <Ionicons name="close" size={20} color={colorsNav.text} />
                             </TouchableOpacity>
                         </View>
+                        <View style={{ flexDirection: 'row', backgroundColor: colorsNav.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', padding: 4, borderRadius: 16, marginBottom: 20 }}>
+                            <TouchableOpacity
+                                style={{ flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center', backgroundColor: !isModalDark ? colorsNav.accent : 'transparent' }}
+                                onPress={() => setIsModalDark(false)}
+                            >
+                                <Text style={{ color: !isModalDark ? '#FFF' : colorsNav.text, fontWeight: '800', fontSize: 13 }}>☀️ Claro</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={{ flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center', backgroundColor: isModalDark ? colorsNav.accent : 'transparent' }}
+                                onPress={() => setIsModalDark(true)}
+                            >
+                                <Text style={{ color: isModalDark ? '#FFF' : colorsNav.text, fontWeight: '800', fontSize: 13 }}>🌙 Oscuro</Text>
+                            </TouchableOpacity>
+                        </View>
+                        
                         <ScrollView showsVerticalScrollIndicator={false}>
-                            {[
-                                { label: 'Sanctuary', light: 'light' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#4A7C59', darkColor: '#4A7C59', lightBg: '#FFF8F0', darkBg: '#1A1A2E', lightSub: '#8B8680', darkSub: '#A09B8C', lightText: '#2D2D2D', darkText: '#F5F0E8' },
-                                { label: 'Lavanda', light: 'lavender' as ThemeName, dark: 'lavender_dark' as ThemeName, lightColor: '#7C5DBA', darkColor: '#9D7FE0', lightBg: '#F8F7FF', darkBg: '#1A1625', lightSub: '#786C94', darkSub: '#9F94BC', lightText: '#2E2542', darkText: '#E2D9F3' },
-                                { label: 'Océano', light: 'ocean' as ThemeName, dark: 'ocean_dark' as ThemeName, lightColor: '#008080', darkColor: '#26A69A', lightBg: '#F0F9FA', darkBg: '#0A1A1A', lightSub: '#648E8E', darkSub: '#789F9F', lightText: '#1A3A3A', darkText: '#E0F2F2' },
-                                { label: 'Rosa', light: 'rose' as ThemeName, dark: 'rose_dark' as ThemeName, lightColor: '#E05C6E', darkColor: '#E07080', lightBg: '#FFF5F5', darkBg: '#1A0E0E', lightSub: '#9B7070', darkSub: '#B08080', lightText: '#2D1A1A', darkText: '#F5E0E0' },
-                                { label: 'Ámbar', light: 'amber' as ThemeName, dark: 'amber_dark' as ThemeName, lightColor: '#D97706', darkColor: '#F59E0B', lightBg: '#FFFBF0', darkBg: '#1A1400', lightSub: '#9B8040', darkSub: '#A09050', lightText: '#2D2000', darkText: '#F5E8C0' },
-                                { label: 'Índigo', light: 'slate' as ThemeName, dark: 'midnight' as ThemeName, lightColor: '#3B5BDB', darkColor: '#818CF8', lightBg: '#F5F7FA', darkBg: '#0D0D1A', lightSub: '#5A6A84', darkSub: '#8080AB', lightText: '#1E2840', darkText: '#E8E0FF' },
-                                { label: 'Nieve', light: 'snow' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#4A7C59', darkColor: '#4A7C59', lightBg: '#FFFFFF', darkBg: '#1A1A2E', lightSub: '#64748B', darkSub: '#A09B8C', lightText: '#1E293B', darkText: '#F5F0E8' },
-                            ].map((group) => {
-                                const isLightActive = theme === group.light;
-                                const isDarkActive = theme === group.dark;
-                                return (
-                                    <View key={group.label} style={styles.themeRow}>
-                                        <View style={styles.themeRowLabel}>
-                                            <Text style={[styles.themeGroupName, { color: colorsNav.text }]}>{group.label}</Text>
-                                        </View>
-                                        <View style={styles.themeSwatchRow}>
-                                            <TouchableOpacity
-                                                style={[styles.swatch, { backgroundColor: group.lightBg }, isLightActive && [styles.swatchActive, { borderColor: group.lightColor }]]}
-                                                onPress={() => { setThemeConfig(group.light); setThemeModalVisible(false); }}
-                                            >
-                                                <View style={{ flexDirection: 'row', gap: 5, alignItems: 'center' }}>
-                                                    <View style={[styles.swatchDot, { backgroundColor: group.lightColor }]} />
-                                                    <View style={[styles.swatchDotSm, { backgroundColor: group.lightSub }]} />
-                                                    <View style={[styles.swatchDotSm, { backgroundColor: group.lightText, opacity: 0.4 }]} />
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 }}>
+                                {[
+                                    { label: 'Sanctuary', light: 'light' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#4A7C59', darkColor: '#4A7C59', lightBg: '#FFF8F0', darkBg: '#1A1A2E', lightSub: '#8B8680', darkSub: '#A09B8C' },
+                                    { label: 'Lavanda', light: 'lavender' as ThemeName, dark: 'lavender_dark' as ThemeName, lightColor: '#7C5DBA', darkColor: '#9D7FE0', lightBg: '#F8F7FF', darkBg: '#1A1625', lightSub: '#786C94', darkSub: '#9F94BC' },
+                                    { label: 'Océano', light: 'ocean' as ThemeName, dark: 'ocean_dark' as ThemeName, lightColor: '#008080', darkColor: '#26A69A', lightBg: '#F0F9FA', darkBg: '#0A1A1A', lightSub: '#648E8E', darkSub: '#789F9F' },
+                                    { label: 'Rosa', light: 'rose' as ThemeName, dark: 'rose_dark' as ThemeName, lightColor: '#E05C6E', darkColor: '#E07080', lightBg: '#FFF5F5', darkBg: '#1A0E0E', lightSub: '#9B7070', darkSub: '#B08080' },
+                                    { label: 'Ámbar', light: 'amber' as ThemeName, dark: 'amber_dark' as ThemeName, lightColor: '#D97706', darkColor: '#F59E0B', lightBg: '#FFFBF0', darkBg: '#1A1400', lightSub: '#9B8040', darkSub: '#A09050' },
+                                    { label: 'Índigo', light: 'slate' as ThemeName, dark: 'midnight' as ThemeName, lightColor: '#3B5BDB', darkColor: '#818CF8', lightBg: '#F5F7FA', darkBg: '#0D0D1A', lightSub: '#5A6A84', darkSub: '#8080AB' },
+                                    { label: 'Nieve', light: 'snow' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#4A7C59', darkColor: '#4A7C59', lightBg: '#FFFFFF', darkBg: '#1A1A2E', lightSub: '#64748B', darkSub: '#A09B8C' },
+                                ].map((group) => {
+                                    const targetTheme = isModalDark ? group.dark : group.light;
+                                    const isActive = theme === targetTheme;
+                                    const accColor = isModalDark ? group.darkColor : group.lightColor;
+                                    const subColor = isModalDark ? group.darkSub : group.lightSub;
+                                    const bgColor = isModalDark ? group.darkBg : group.lightBg;
+
+                                    return (
+                                        <TouchableOpacity
+                                            key={group.label}
+                                            style={[
+                                                styles.newSwatchCard, 
+                                                { 
+                                                    backgroundColor: colorsNav.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', 
+                                                    borderColor: isActive ? accColor : colorsNav.border,
+                                                    borderWidth: isActive ? 2 : 1
+                                                }
+                                            ]}
+                                            onPress={() => { setThemeConfig(targetTheme); setThemeModalVisible(false); }}
+                                        >
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                                                {/* Círculo de paleta que agrupa 3 colores */}
+                                                <View style={[styles.paletteCircle, { backgroundColor: bgColor, borderColor: colorsNav.border }]}>
+                                                    <View style={[styles.paletteDot, { backgroundColor: accColor }]} />
+                                                    <View style={[styles.paletteDotSm, { backgroundColor: subColor }]} />
                                                 </View>
-                                                <Text style={[styles.swatchLabel, { color: group.lightColor }]}>Claro</Text>
-                                                {isLightActive && <View style={[styles.swatchCheck, { backgroundColor: group.lightColor }]}><Ionicons name="checkmark" size={8} color="#FFF" /></View>}
-                                            </TouchableOpacity>
-                                            <TouchableOpacity
-                                                style={[styles.swatch, { backgroundColor: group.darkBg }, isDarkActive && [styles.swatchActive, { borderColor: group.darkColor }]]}
-                                                onPress={() => { setThemeConfig(group.dark); setThemeModalVisible(false); }}
-                                            >
-                                                <View style={{ flexDirection: 'row', gap: 5, alignItems: 'center' }}>
-                                                    <View style={[styles.swatchDot, { backgroundColor: group.darkColor }]} />
-                                                    <View style={[styles.swatchDotSm, { backgroundColor: group.darkSub }]} />
-                                                    <View style={[styles.swatchDotSm, { backgroundColor: group.darkText, opacity: 0.35 }]} />
+                                                <View style={{ flex: 1 }}>
+                                                    <Text style={[styles.newSwatchLabel, { color: colorsNav.text }]} numberOfLines={1}>{group.label}</Text>
+                                                    <Text style={{ fontSize: 9, color: colorsNav.sub, fontWeight: '700' }}>
+                                                        {isModalDark ? 'Oscuro' : 'Claro'}
+                                                    </Text>
                                                 </View>
-                                                <Text style={[styles.swatchLabel, { color: group.darkColor }]}>Oscuro</Text>
-                                                {isDarkActive && <View style={[styles.swatchCheck, { backgroundColor: group.darkColor }]}><Ionicons name="checkmark" size={8} color="#FFF" /></View>}
-                                            </TouchableOpacity>
-                                        </View>
-                                    </View>
-                                );
-                            })}
+                                            </View>
+                                            {isActive && (
+                                                <View style={[styles.newSwatchCheck, { backgroundColor: accColor }]}>
+                                                    <Ionicons name="checkmark" size={10} color="#FFF" />
+                                                </View>
+                                            )}
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
                             <View style={{ height: 30 }} />
                         </ScrollView>
                     </View>
@@ -1451,4 +1473,10 @@ const styles = StyleSheet.create({
     swatchCheck: { position: 'absolute', top: 6, right: 6, width: 15, height: 15, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
     modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20 },
     modalHeaderTitle: { fontSize: 18, fontWeight: '800' },
+    newSwatchCard: { width: '48%', padding: 10, borderRadius: 20, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, position: 'relative' },
+    paletteCircle: { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 3, borderWidth: 1 },
+    paletteDot: { width: 10, height: 10, borderRadius: 5 },
+    paletteDotSm: { width: 7, height: 7, borderRadius: 3.5 },
+    newSwatchLabel: { fontSize: 13, fontWeight: '800' },
+    newSwatchCheck: { width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
 });

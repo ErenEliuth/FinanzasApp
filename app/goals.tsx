@@ -1977,70 +1977,141 @@ export default function GoalsScreen() {
                                 onPress={handleChangeRate}
                                 disabled={isProcessing}
                             >
-                                <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 14 }}>
-                                    {isProcessing ? 'Guardando...' : 'Programar Tasa'}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
-
-            {/* ── Modal Desglose de Rendimientos Diarios ── */}
+                                <Text            {/* ── Modal Desglose de Rendimientos Diarios ── */}
             <Modal visible={breakdownModalVisible} animationType="slide" transparent>
                 <View style={styles.modalOverlay}>
                     <TouchableWithoutFeedback onPress={() => setBreakdownModalVisible(false)}>
                         <View style={StyleSheet.absoluteFill} />
                     </TouchableWithoutFeedback>
-                    <View style={[styles.modalBox, { backgroundColor: colors.card, maxHeight: '80%' }]}>
-                        <View style={styles.modalHeaderInner}>
-                            <View>
-                                <Text style={[styles.modalTitle, { color: colors.text }]}>Rendimientos Diarios</Text>
-                                <Text style={[styles.miniSub, { color: colors.sub }]}>Historial de ganancias generadas</Text>
+                    <View style={[styles.modalBox, { backgroundColor: colors.card, maxHeight: '88%' }]}>
+
+                        {/* Handle */}
+                        <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.sub + '40', alignSelf: 'center', marginBottom: 20 }} />
+
+                        {/* Header */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+                            <View style={{ flex: 1 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                                    <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: '#10B98120', justifyContent: 'center', alignItems: 'center' }}>
+                                        <Ionicons name="trending-up" size={20} color="#10B981" />
+                                    </View>
+                                    <Text style={[styles.modalTitle, { color: colors.text }]}>Rendimientos</Text>
+                                </View>
+                                <Text style={{ color: colors.sub, fontSize: 13, fontWeight: '600', marginLeft: 46 }}>Historial de ganancias diarias</Text>
                             </View>
-                            <TouchableOpacity onPress={() => setBreakdownModalVisible(false)}>
-                                <Ionicons name="close" size={24} color={colors.sub} />
+                            <TouchableOpacity
+                                onPress={() => setBreakdownModalVisible(false)}
+                                style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }}
+                            >
+                                <Ionicons name="close" size={18} color={colors.sub} />
                             </TouchableOpacity>
                         </View>
 
                         {interestTransactions.length === 0 ? (
-                            <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-                                <Ionicons name="trending-up" size={48} color={colors.sub + '40'} />
-                                <Text style={{ color: colors.sub, fontSize: 14, marginTop: 12, fontWeight: '600' }}>
-                                    Aún no tienes rendimientos registrados.
+                            <View style={{ paddingVertical: 50, alignItems: 'center', gap: 12 }}>
+                                <View style={{ width: 72, height: 72, borderRadius: 24, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }}>
+                                    <Ionicons name="trending-up" size={36} color={colors.sub + '50'} />
+                                </View>
+                                <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>Sin rendimientos aún</Text>
+                                <Text style={{ color: colors.sub, fontSize: 13, fontWeight: '600', textAlign: 'center', lineHeight: 20 }}>
+                                    Tus ganancias diarias aparecerán{'\n'}aquí una vez que generen intereses.
                                 </Text>
                             </View>
-                        ) : (
-                            <>
-                                <View style={{ padding: 16, borderRadius: 16, backgroundColor: colors.bg, marginBottom: 16, alignItems: 'center' }}>
-                                    <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '800' }}>TOTAL ACUMULADO</Text>
-                                    <Text style={{ color: '#10B981', fontSize: 24, fontWeight: '900', marginTop: 4 }}>
-                                        {isHidden ? '****' : fmt(interestTransactions.reduce((acc, t) => acc + Number(t.amount || 0), 0))}
-                                    </Text>
-                                </View>
-                                <FlatList
-                                    data={interestTransactions}
-                                    keyExtractor={(item, index) => index.toString()}
-                                    showsVerticalScrollIndicator={false}
-                                    contentContainerStyle={{ gap: 12, paddingBottom: 20 }}
-                                    renderItem={({ item }) => {
-                                        const dateStr = item.date ? new Date(item.date).toLocaleDateString('es-CO', {
-                                            day: '2-digit',
-                                            month: 'short',
-                                            year: 'numeric'
-                                        }) : 'Fecha desconocida';
+                        ) : (() => {
+                            const totalAcumulado = interestTransactions.reduce((acc, t) => acc + Number(t.amount || 0), 0);
+                            const maxAmount = Math.max(...interestTransactions.map(t => Number(t.amount || 0)));
+                            return (
+                                <>
+                                    {/* Card de Total */}
+                                    <View style={{
+                                        borderRadius: 24,
+                                        padding: 20,
+                                        marginBottom: 20,
+                                        backgroundColor: '#10B98112',
+                                        borderWidth: 1,
+                                        borderColor: '#10B98130',
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        gap: 16,
+                                    }}>
+                                        <View style={{ width: 52, height: 52, borderRadius: 18, backgroundColor: '#10B98120', justifyContent: 'center', alignItems: 'center' }}>
+                                            <MaterialIcons name="account-balance" size={26} color="#10B981" />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '900', letterSpacing: 1.2, marginBottom: 4 }}>TOTAL ACUMULADO</Text>
+                                            <Text style={{ color: '#10B981', fontSize: 30, fontWeight: '900', letterSpacing: -1 }}>
+                                                {isHidden ? '••••••' : fmt(totalAcumulado)}
+                                            </Text>
+                                            <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '700', opacity: 0.7, marginTop: 2 }}>
+                                                {interestTransactions.length} días con rendimientos
+                                            </Text>
+                                        </View>
+                                        <View style={{ alignItems: 'center', gap: 4 }}>
+                                            <Ionicons name="trending-up" size={28} color="#10B981" />
+                                        </View>
+                                    </View>
 
-                                        const amountFormatted = isHidden ? '****' : fmt(Number(item.amount) || 0);
+                                    {/* Lista de rendimientos */}
+                                    <FlatList
+                                        data={interestTransactions}
+                                        keyExtractor={(item, index) => index.toString()}
+                                        showsVerticalScrollIndicator={false}
+                                        contentContainerStyle={{ gap: 10, paddingBottom: 20 }}
+                                        renderItem={({ item, index }) => {
+                                            const dateStr = item.date ? new Date(item.date).toLocaleDateString('es-CO', {
+                                                day: '2-digit',
+                                                month: 'short',
+                                                year: 'numeric'
+                                            }) : 'Fecha desconocida';
+                                            const amount = Number(item.amount) || 0;
+                                            const amountFormatted = isHidden ? '••••' : fmt(amount);
+                                            const ratio = maxAmount > 0 ? amount / maxAmount : 0;
+                                            const isTopDay = index === 0;
 
-                                        return (
-                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.bg, padding: 16, borderRadius: 16 }}>
-                                                <View>
-                                                    <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>Ganancia diaria</Text>
-                                                    <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '600', marginTop: 2 }}>{dateStr}</Text>
+                                            return (
+                                                <View style={{
+                                                    backgroundColor: isTopDay ? '#10B98108' : colors.bg,
+                                                    borderRadius: 20,
+                                                    padding: 16,
+                                                    borderWidth: isTopDay ? 1 : 0,
+                                                    borderColor: '#10B98125',
+                                                    gap: 10,
+                                                }}>
+                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                                            <View style={{
+                                                                width: 38, height: 38, borderRadius: 13,
+                                                                backgroundColor: isTopDay ? '#10B98120' : colors.card,
+                                                                justifyContent: 'center', alignItems: 'center'
+                                                            }}>
+                                                                <MaterialIcons name={isTopDay ? "star" : "trending-up"} size={18} color={isTopDay ? '#F59E0B' : '#10B981'} />
+                                                            </View>
+                                                            <View>
+                                                                <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>
+                                                                    {isTopDay ? 'Mejor día 🏆' : 'Ganancia diaria'}
+                                                                </Text>
+                                                                <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '600', marginTop: 1 }}>{dateStr}</Text>
+                                                            </View>
+                                                        </View>
+                                                        <Text style={{ color: '#10B981', fontSize: 17, fontWeight: '900' }}>
+                                                            +{amountFormatted}
+                                                        </Text>
+                                                    </View>
+                                                    {/* Barra de proporción */}
+                                                    <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.card, overflow: 'hidden' }}>
+                                                        <View style={{ width: `${ratio * 100}%`, height: '100%', borderRadius: 2, backgroundColor: '#10B981', opacity: 0.5 + ratio * 0.5 }} />
+                                                    </View>
                                                 </View>
-                                                <Text style={{ color: '#10B981', fontSize: 16, fontWeight: '900' }}>
-                                                    +{amountFormatted}
-                                                </Text>
+                                            );
+                                        }}
+                                    />
+                                </>
+                            );
+                        })()}
+                    </View>
+                </View>
+            </Modal>
+       </Text>
                                             </View>
                                         );
                                     }}

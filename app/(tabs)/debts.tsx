@@ -321,32 +321,32 @@ export default function DebtsScreen() {
                                     </View>
                                     <View style={{ alignItems: 'flex-end' }}>
                                         <Text style={[styles.totalVal, { color: colors.text }]}>{fmt(item.value)}</Text>
-                                        <View style={[styles.statusBadge, { backgroundColor: isPaid ? '#E8F5E9' : '#FFF3E0' }]}>
-                                            <Text style={[styles.statusTxt, { color: isPaid ? colors.accent : '#E67E22' }]}>{isPaid ? 'PAGO' : 'PEND.'}</Text>
+                                        <View style={[styles.statusBadge, { backgroundColor: isPaid ? (colors.isDark ? 'rgba(16,185,129,0.18)' : '#E8F5E9') : (colors.isDark ? 'rgba(245,158,11,0.18)' : '#FFF3E0') }]}>
+                                            <Text style={[styles.statusTxt, { color: isPaid ? (colors.isDark ? '#34D399' : colors.accent) : (colors.isDark ? '#FBBF24' : '#E67E22') }]}>{isPaid ? 'PAGO' : 'PEND.'}</Text>
                                         </View>
                                     </View>
                                 </View>
                                 
                                 <View style={styles.progressArea}>
                                     <View style={[styles.pBarBg, { backgroundColor: colors.bg }]}>
-                                        <View style={[styles.pBarFill, { width: `${pct}%`, backgroundColor: isPaid ? colors.accent : colors.accent }]} />
+                                        <View style={[styles.pBarFill, { width: `${pct}%`, backgroundColor: colors.accent }]} />
                                     </View>
                                 </View>
 
                                 <View style={styles.cardActions}>
                                     {!isPaid && viewMode === 'fixed' && (
                                         <TouchableOpacity 
-                                            style={styles.skipBtn} 
+                                            style={[styles.skipBtn, { backgroundColor: colors.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.03)' }]} 
                                             onPress={() => handleSkipFixed(item)}
                                         >
                                             <Ionicons name="play-forward" size={14} color={colors.sub} />
                                             <Text style={styles.skipTxt}>OMITIR</Text>
                                         </TouchableOpacity>
                                     )}
-                                    <TouchableOpacity style={styles.miniBtn} onPress={() => handleEditStart(item)}>
+                                    <TouchableOpacity style={[styles.miniBtn, { backgroundColor: colors.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.03)' }]} onPress={() => handleEditStart(item)}>
                                         <Ionicons name="pencil" size={16} color={colors.sub} />
                                     </TouchableOpacity>
-                                    <TouchableOpacity style={styles.miniBtn} onPress={() => handleDelete(item.id)}>
+                                    <TouchableOpacity style={[styles.miniBtn, { backgroundColor: colors.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.03)' }]} onPress={() => handleDelete(item.id)}>
                                         <Ionicons name="trash" size={16} color="#EF4444" />
                                     </TouchableOpacity>
                                 </View>

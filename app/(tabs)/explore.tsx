@@ -645,7 +645,7 @@ export default function AddTransactionScreen() {
                       <Text style={[styles.chipText, { color: account === acc ? '#FFF' : colorsNav.text }]}>{acc}</Text>
                     </TouchableOpacity>
                   ))}
-                  <TouchableOpacity style={styles.addChip} onPress={() => setAccountModalVisible(true)}>
+                  <TouchableOpacity style={[styles.addChip, { borderColor: colorsNav.border }]} onPress={() => setAccountModalVisible(true)}>
                     <MaterialIcons name="add" size={20} color={colorsNav.sub} />
                   </TouchableOpacity>
                 </ScrollView>
@@ -688,7 +688,7 @@ export default function AddTransactionScreen() {
                         <Text style={[styles.chipText, { color: category === cat ? '#FFF' : colorsNav.text }]}>{cat}</Text>
                       </TouchableOpacity>
                     ))}
-                    <TouchableOpacity style={styles.addChip} onPress={() => setModalVisible(true)}>
+                    <TouchableOpacity style={[styles.addChip, { borderColor: colorsNav.border }]} onPress={() => setModalVisible(true)}>
                       <MaterialIcons name="add" size={20} color={colorsNav.sub} />
                     </TouchableOpacity>
                   </ScrollView>

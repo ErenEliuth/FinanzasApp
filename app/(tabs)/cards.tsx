@@ -362,7 +362,7 @@ export default function CardsScreen() {
                             <View style={styles.dashboardRow}>
                                 <View style={{ flex: 1 }}>
                                     <Text style={[styles.dashboardLabel, { color: colorsNav.sub }]}>USO DE CRÉDITO</Text>
-                                    <View style={styles.utilBarBG}>
+                                    <View style={[styles.utilBarBG, { backgroundColor: (colorsNav as any).isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]}>
                                         <LinearGradient
                                             colors={getUtilization(currentCard.limit, cardBalances[currentCard.name] || 0) > 80 ? ['#EF4444', '#DC2626'] : [colorsNav.accent, shadeColor(colorsNav.accent, -20)]}
                                             style={[styles.utilBarFill, { width: `${Math.min(getUtilization(currentCard.limit, cardBalances[currentCard.name] || 0), 100)}%` }]}
@@ -525,7 +525,7 @@ export default function CardsScreen() {
                         <Text style={{ fontSize: 12, fontWeight: '800', color: colorsNav.sub, marginVertical: 10 }}>¿DESDE QUÉ CUENTA?</Text>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
                             {['Efectivo', ...customAccounts].filter(acc => !cards.some(c => c.name === acc)).map(acc => (
-                                <TouchableOpacity key={acc} style={[styles.accPill, selectedAccount === acc && { backgroundColor: colorsNav.accent, borderColor: colorsNav.accent }]} onPress={() => setSelectedAccount(acc)}>
+                                <TouchableOpacity key={acc} style={[styles.accPill, { borderColor: colorsNav.border }, selectedAccount === acc && { backgroundColor: colorsNav.accent, borderColor: colorsNav.accent }]} onPress={() => setSelectedAccount(acc)}>
                                     <Text style={{ color: selectedAccount === acc ? '#FFF' : colorsNav.sub, fontWeight: '700' }}>{acc}</Text>
                                 </TouchableOpacity>
                             ))}
