@@ -219,10 +219,18 @@ function RootStack() {
 
   if (!fontsLoaded && !fontError) return null;
 
+  const customTheme = {
+    ...(colors.isDark ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(colors.isDark ? DarkTheme.colors : DefaultTheme.colors),
+      background: colors.bg,
+    },
+  };
+
   return (
-    <ThemeProvider value={theme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={customTheme}>
       <SanctuaryLock userName={user?.user_metadata?.name?.split(' ')[0] || 'Usuario'}>
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
           <Stack.Screen name="login" options={{ gestureEnabled: false }} />
