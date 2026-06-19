@@ -30,6 +30,8 @@ Notifications.setNotificationHandler({
 
 SplashScreen.preventAutoHideAsync();
 
+import * as SystemUI from 'expo-system-ui';
+
 function RootStack() {
   const { user, loading, theme } = useAuth();
   const router = useRouter();
@@ -39,6 +41,9 @@ function RootStack() {
 
   // Sincronizar el color de la barra de estado / tema de interfaz con el tema activo
   useEffect(() => {
+    // Sincronizar fondo raíz nativo para evitar barra de estado de otro color
+    SystemUI.setBackgroundColorAsync(colors.bg);
+
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       let meta = document.querySelector('meta[name="theme-color"]');
       if (!meta) {
