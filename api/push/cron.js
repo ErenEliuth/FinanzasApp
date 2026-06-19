@@ -1,15 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const webpush = require('web-push');
 
-// ── Messages by type (using {name} placeholder) ────────────────────────────────
 const MESSAGES = {
-  morning: [
-    { title: '🌅 Buenos días, {name}', body: 'Empieza el día revisando tu saldo. Un minuto de finanzas puede cambiarlo todo.' },
-    { title: '☕ Recordatorio para {name}', body: '¿Aportaste a tu meta de ahorro esta semana? Hoy es un buen día para hacerlo.' },
-    { title: '🌟 Oportunidad para {name}', body: 'Los mercados abrieron. Revisa el precio de tus activos en tu portafolio antes de que pase el día.' },
-    { title: '💡 Consejo para {name}', body: 'Registra cada gasto hoy, por pequeño que sea. Los detalles hacen la diferencia.' },
-    { title: '🎯 Hacia tu meta, {name}', body: '¿Cuánto te falta para tu próxima meta de ahorro? Ábrela y verifica tu progreso.' },
-  ],
   evening: [
     { title: '🌙 Resumen nocturno para {name}', body: '¿Registraste todos tus gastos de hoy? Tómate 2 minutos antes de dormir.' },
     { title: '💰 ¿Cómo estuvo tu día, {name}?', body: 'Un buen hábito: revisar tus transacciones cada noche. Mantén tu control financiero.' },
@@ -23,6 +15,7 @@ const MESSAGES = {
     { title: '🗓️ Planifica tu semana, {name}', body: 'Antes de que empiece la semana: define un límite de gastos y comprométete con él.' },
   ],
   motivation: [
+    // Mensajes motivacionales
     { title: '💡 Inspiración matutina, {name}', body: '"El interés compuesto es la octava maravilla del mundo. Quien lo entiende, lo gana; quien no, lo paga." — Albert Einstein' },
     { title: '💡 Inspiración matutina, {name}', body: '"La mejor inversión que puedes hacer es en ti mismo." — Warren Buffett' },
     { title: '💡 Inspiración matutina, {name}', body: '"No ahorres lo que queda después de gastar; gasta lo que queda después de ahorrar." — Warren Buffett' },
@@ -31,7 +24,13 @@ const MESSAGES = {
     { title: '💡 Inspiración matutina, {name}', body: '"El dinero es un buen sirviente, pero un mal amo." — Francis Bacon' },
     { title: '💡 Inspiración matutina, {name}', body: '"No compres cosas que no necesitas con dinero que no tienes para impresionar a gente que no te agrada." — Dave Ramsey' },
     { title: '💡 Inspiración matutina, {name}', body: '"Comprar un activo es comprar un flujo de ingresos que trabaja para ti." — Robert Kiyosaki' },
-    { title: '💡 Inspiración matutina, {name}', body: '"La paciencia y el tiempo hacen más que la fuerza y la pasión." — Jean de La Fontaine' }
+    { title: '💡 Inspiración matutina, {name}', body: '"La paciencia y el tiempo hacen más que la fuerza y la pasión." — Jean de La Fontaine' },
+    // Consejos e inicios de día prácticos
+    { title: '🌅 Buenos días, {name}', body: 'Empieza el día revisando tu saldo. Un minuto de finanzas puede cambiarlo todo.' },
+    { title: '☕ Recordatorio para {name}', body: '¿Aportaste a tu meta de ahorro esta semana? Hoy es un buen día para hacerlo.' },
+    { title: '🌟 Oportunidad para {name}', body: 'Los mercados abrieron. Revisa el precio de tus activos en tu portafolio antes de que pase el día.' },
+    { title: '💡 Consejo para {name}', body: 'Registra cada gasto hoy, por pequeño que sea. Los detalles hacen la diferencia.' },
+    { title: '🎯 Hacia tu meta, {name}', body: '¿Cuánto te falta para tu próxima meta de ahorro? Ábrela y verifica tu progreso.' }
   ],
 };
 
@@ -159,7 +158,7 @@ async function getPersonalizedMessages(supabase, userId, type) {
   }
 
   // Fallback to random generic message from pool
-  const pool = MESSAGES[type] || MESSAGES.morning;
+  const pool = MESSAGES[type] || MESSAGES.motivation;
   const rawMsg = pool[Math.floor(Math.random() * pool.length)];
   return [{
     title: rawMsg.title.replace(/{name}/g, name),
