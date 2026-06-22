@@ -65,6 +65,8 @@ export default function AddTransactionScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [installments, setInstallments] = useState('1');
   const [interestRate, setInterestRate] = useState('0');
+  const [selectedCardAvailable, setSelectedCardAvailable] = useState<number | null>(null);
+  const [selectedCardLimit, setSelectedCardLimit] = useState<number | null>(null);
   
   const scrollRef = useRef<any>(null);
 
@@ -128,6 +130,43 @@ export default function AddTransactionScreen() {
     };
     loadData();
   }, [user]);
+
+  useEffect(() => {
+    if (!user?.id || !isFocused) return;
+    const cardNames = cards.map(c => c.name);
+    if (!cardNames.includes(account)) {
+      setSelectedCardAvailable(null);
+      setSelectedCardLimit(null);
+      return;
+    }
+    
+    const fetchCardBalance = async () => {
+      try {
+        const { data: txs } = await supabase
+          .from('transactions')
+          .select('amount, type')
+          .eq('user_id', user.id)
+          .eq('account', account);
+          
+        const matchingCard = cards.find(c => c.name === account);
+        if (matchingCard) {
+          let debt = 0;
+          txs?.forEach(tx => {
+            const amt = Number(tx.amount || 0);
+            if (tx.type === 'expense') debt += amt;
+            else if (tx.type === 'income' || tx.type === 'transfer') debt -= amt;
+          });
+          if (debt < 0) debt = 0;
+          setSelectedCardAvailable(matchingCard.limit - debt);
+          setSelectedCardLimit(matchingCard.limit);
+        }
+      } catch (e) {
+        console.error('Error fetching card balance for chip:', e);
+      }
+    };
+    
+    fetchCardBalance();
+  }, [account, isFocused, cards, user]);
 
   const persistCustomCategories = async (cats: string[]) => {
     if (!user?.id) return;
@@ -285,6 +324,43 @@ export default function AddTransactionScreen() {
     }
 
     const cardNames = cards.map(c => c.name);
+
+    // Validación de saldo de tarjeta de crédito
+    if (type === 'expense' && cardNames.includes(account)) {
+      try {
+        const { data: txs, error: txErr } = await supabase
+          .from('transactions')
+          .select('amount, type')
+          .eq('user_id', user?.id)
+          .eq('account', account);
+        
+        if (!txErr && txs) {
+          let currentDebt = 0;
+          txs.forEach(tx => {
+            const amt = Number(tx.amount || 0);
+            if (tx.type === 'expense') currentDebt += amt;
+            else if (tx.type === 'income' || tx.type === 'transfer') currentDebt -= amt;
+          });
+          if (currentDebt < 0) currentDebt = 0;
+
+          const selectedCard = cards.find(c => c.name === account);
+          if (selectedCard) {
+            const totalRequiredDebt = currentDebt + parsed;
+            if (totalRequiredDebt > selectedCard.limit) {
+              const available = selectedCard.limit - currentDebt;
+              Alert.alert(
+                'Límite de Crédito Superado',
+                `⚠️ Límite de crédito insuficiente en "${account}".\n\nDisponible: ${fmt(available)}\nIntentas usar: ${fmt(parsed)}`
+              );
+              setIsSaving(false);
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error validando límite de tarjeta de crédito:', e);
+      }
+    }
 
     // Validación de saldo solo para gastos normales (no transferencias)
     if (type !== 'income' && !cardNames.includes(account)) {
@@ -671,6 +747,27 @@ export default function AddTransactionScreen() {
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
+                </View>
+              )}
+
+              {selectedCardAvailable !== null && selectedCardLimit !== null && (
+                <View style={{ 
+                  flexDirection: 'row', 
+                  alignItems: 'center', 
+                  gap: 6, 
+                  backgroundColor: colorsNav.card, 
+                  alignSelf: 'flex-start',
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 12,
+                  marginTop: -5,
+                  marginBottom: 10,
+                  marginLeft: 15
+                }}>
+                  <Ionicons name="card-outline" size={14} color={colorsNav.accent} />
+                  <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '700' }}>
+                    Disponible: <Text style={{ color: colorsNav.accent }}>{fmt(selectedCardAvailable)}</Text> de {fmt(selectedCardLimit)}
+                  </Text>
                 </View>
               )}
 

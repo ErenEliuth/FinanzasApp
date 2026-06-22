@@ -16,7 +16,7 @@ export default function Root({ children }: PropsWithChildren) {
 
         <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta id="apple-status-bar" name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta id="apple-status-bar" name="apple-mobile-web-app-status-bar-style" content="default" />
         <link rel="apple-touch-icon" href="/icon.png" />
         <meta name="apple-mobile-web-app-title" content="Zenly" />
         {/* 
@@ -77,11 +77,10 @@ export default function Root({ children }: PropsWithChildren) {
               themeMeta.content = bg;
               document.head.appendChild(themeMeta);
 
-              // Apple status bar: black-translucent lets app extend under bar,
-              // combined with matching background it looks seamless
+              // Apple status bar: default style
               var appleMeta = document.getElementById('apple-status-bar');
               if (appleMeta) {
-                appleMeta.content = 'black-translucent';
+                appleMeta.content = 'default';
               }
               
               var style = document.createElement('style');
