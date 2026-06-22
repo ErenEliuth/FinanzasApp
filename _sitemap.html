@@ -1,4 +1,4 @@
-<!DOCTYPE html><html  lang="es" translate="no"><head><title data-rh="true"></title><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><meta name="google" content="notranslate"/><link rel="manifest" href="/manifest.json"/><meta name="apple-mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-status-bar-style" content="default"/><link rel="apple-touch-icon" href="/icon.png"/><meta name="apple-mobile-web-app-title" content="Zenly"/><script>
+<!DOCTYPE html><html  lang="es" translate="no"><head><title data-rh="true"></title><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><meta name="google" content="notranslate"/><link rel="manifest" href="/manifest.json"/><meta name="apple-mobile-web-app-capable" content="yes"/><meta id="apple-status-bar" name="apple-mobile-web-app-status-bar-style" content="black-translucent"/><link rel="apple-touch-icon" href="/icon.png"/><meta name="apple-mobile-web-app-title" content="Zenly"/><script>
             (function() {
               try {
                 var hash = window.location.hash || '';
@@ -24,6 +24,7 @@
                 slate: '#F5F7FA',
                 midnight: '#0D0D1A'
               };
+              var darkThemes = ['dark', 'lavender_dark', 'ocean_dark', 'rose_dark', 'amber_dark', 'midnight'];
               var savedTheme = 'light';
               try {
                 for (var i = 0; i < localStorage.length; i++) {
@@ -35,15 +36,32 @@
                 }
               } catch (e) {}
               var bg = themeColors[savedTheme] || '#FFF8F0';
+              var isDark = darkThemes.indexOf(savedTheme) !== -1;
               
-              var meta = document.createElement('meta');
-              meta.name = 'theme-color';
-              meta.content = bg;
-              document.head.appendChild(meta);
+              // theme-color meta (controls Chrome/Android status bar)
+              var themeMeta = document.createElement('meta');
+              themeMeta.name = 'theme-color';
+              themeMeta.content = bg;
+              document.head.appendChild(themeMeta);
+
+              // Apple status bar: black-translucent lets app extend under bar,
+              // combined with matching background it looks seamless
+              var appleMeta = document.getElementById('apple-status-bar');
+              if (appleMeta) {
+                appleMeta.content = 'black-translucent';
+              }
               
               var style = document.createElement('style');
-              style.innerHTML = 'html, body { background-color: ' + bg + ' !important; }';
+              style.innerHTML = 'html, body { background-color: ' + bg + ' !important; margin: 0; padding: 0; }';
               document.head.appendChild(style);
+
+              // Expose helper for React to call when theme changes
+              window.__applyThemeColor = function(color) {
+                var tc = document.querySelector('meta[name="theme-color"]');
+                if (tc) tc.content = color;
+                document.body.style.backgroundColor = color;
+                document.documentElement.style.backgroundColor = color;
+              };
             })();
             </script><script>
             if ('serviceWorker' in navigator) {
@@ -792,7 +810,7 @@ input::-webkit-search-cancel-button,input::-webkit-search-decoration,input::-web
     @font-face { font-family: "FontAwesome6_Solid"; src: url('/FinanzasApp/fonts/FontAwesome6_Solid.ttf') format('truetype'); font-display: swap; }
     @font-face { font-family: "FontAwesome6_Brands"; src: url('/FinanzasApp/fonts/FontAwesome6_Brands.ttf') format('truetype'); font-display: swap; }
   </style>
-</head><body><div id="root"><div class="css-g5y9jx r-13awgt0"></div></div><script src="/_expo/static/js/web/entry-dcdae1b6c6be68a5d8395430c1b3ebf1.js" defer></script>
+</head><body><div id="root"><div class="css-g5y9jx r-13awgt0"></div></div><script src="/_expo/static/js/web/entry-2dbee8cdb3963a9d4db719009e5c3a10.js" defer></script>
 
   <script id="pwa-auto-update">
     if ('serviceWorker' in navigator) {
