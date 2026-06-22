@@ -3,7 +3,7 @@ import { TutorialProvider } from '@/components/TutorialContext';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Platform } from 'react-native';
+import { Platform, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState } from 'react';
 import 'react-native-reanimated';
@@ -233,25 +233,27 @@ function RootStack() {
   };
 
   return (
-    <ThemeProvider value={customTheme}>
-      <SanctuaryLock userName={user?.user_metadata?.name?.split(' ')[0] || 'Usuario'}>
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="login" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="reset-password" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="currency-setup" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="goals" options={{ presentation: 'modal' }} />
-        </Stack>
-      </SanctuaryLock>
-      {/* <InteractiveTutorial /> */}
-      <StatusBar 
-        style={colors.isDark ? 'light' : 'dark'} 
-        backgroundColor={colors.bg} 
-        translucent={Platform.OS === 'android'}
-      />
-    </ThemeProvider>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ThemeProvider value={customTheme}>
+        <SanctuaryLock userName={user?.user_metadata?.name?.split(' ')[0] || 'Usuario'}>
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="login" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="reset-password" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="currency-setup" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="goals" options={{ presentation: 'modal' }} />
+          </Stack>
+        </SanctuaryLock>
+        {/* <InteractiveTutorial /> */}
+        <StatusBar 
+          style={colors.isDark ? 'light' : 'dark'} 
+          backgroundColor={colors.bg} 
+          translucent={Platform.OS === 'android'}
+        />
+      </ThemeProvider>
+    </View>
   );
 }
 

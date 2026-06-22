@@ -386,11 +386,11 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
             <View style={{ flexDirection: 'row', gap: 12 }}>
                 <View style={[statStyle.card, { backgroundColor: colorsNav.card, flex: 1 }]}>
                     <Text style={[statStyle.title, { color: colorsNav.text, fontSize: 14 }]}>Ingresos Mes</Text>
-                    <Text style={[statStyle.compVal, { color: '#10B981', fontSize: 20 }]}>{fmt(thisMonthIncTotal, currency, rates, isHidden)}</Text>
+                    <Text style={[statStyle.compVal, { color: '#10B981', fontSize: 18 }]} adjustsFontSizeToFit={true} numberOfLines={1}>{fmt(thisMonthIncTotal, currency, rates, isHidden)}</Text>
                 </View>
                 <View style={[statStyle.card, { backgroundColor: colorsNav.card, flex: 1 }]}>
                     <Text style={[statStyle.title, { color: colorsNav.text, fontSize: 14 }]}>Gastos Mes</Text>
-                    <Text style={[statStyle.compVal, { color: '#EF4444', fontSize: 20 }]}>{fmt(thisMonthExpTotal, currency, rates, isHidden)}</Text>
+                    <Text style={[statStyle.compVal, { color: '#EF4444', fontSize: 18 }]} adjustsFontSizeToFit={true} numberOfLines={1}>{fmt(thisMonthExpTotal, currency, rates, isHidden)}</Text>
                     <Text style={{ color: monthChangePct > 0 ? '#EF4444' : '#10B981', fontSize: 11, fontWeight: '800', marginTop: 6 }}>
                         {monthChangePct >= 0 ? '+' : ''}{monthChangePct.toFixed(0)}% vs mes anterior
                     </Text>
@@ -1067,53 +1067,56 @@ export default function ProfileScreen() {
                         </View>
                         
                         <ScrollView showsVerticalScrollIndicator={false}>
-                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 }}>
+                            <View style={{ flexDirection: 'column', gap: 12 }}>
                                 {[
-                                    { label: 'Sanctuary', light: 'light' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#4A7C59', darkColor: '#4A7C59', lightBg: '#FFF8F0', darkBg: '#1A1A2E', lightSub: '#8B8680', darkSub: '#A09B8C' },
-                                    { label: 'Lavanda', light: 'lavender' as ThemeName, dark: 'lavender_dark' as ThemeName, lightColor: '#7C5DBA', darkColor: '#9D7FE0', lightBg: '#F8F7FF', darkBg: '#1A1625', lightSub: '#786C94', darkSub: '#9F94BC' },
-                                    { label: 'Océano', light: 'ocean' as ThemeName, dark: 'ocean_dark' as ThemeName, lightColor: '#008080', darkColor: '#26A69A', lightBg: '#F0F9FA', darkBg: '#0A1A1A', lightSub: '#648E8E', darkSub: '#789F9F' },
-                                    { label: 'Rosa', light: 'rose' as ThemeName, dark: 'rose_dark' as ThemeName, lightColor: '#E05C6E', darkColor: '#E07080', lightBg: '#FFF5F5', darkBg: '#1A0E0E', lightSub: '#9B7070', darkSub: '#B08080' },
-                                    { label: 'Ámbar', light: 'amber' as ThemeName, dark: 'amber_dark' as ThemeName, lightColor: '#D97706', darkColor: '#F59E0B', lightBg: '#FFFBF0', darkBg: '#1A1400', lightSub: '#9B8040', darkSub: '#A09050' },
-                                    { label: 'Índigo', light: 'slate' as ThemeName, dark: 'midnight' as ThemeName, lightColor: '#3B5BDB', darkColor: '#818CF8', lightBg: '#F5F7FA', darkBg: '#0D0D1A', lightSub: '#5A6A84', darkSub: '#8080AB' },
-                                    { label: 'Nieve', light: 'snow' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#4A7C59', darkColor: '#4A7C59', lightBg: '#FFFFFF', darkBg: '#1A1A2E', lightSub: '#64748B', darkSub: '#A09B8C' },
+                                    { label: 'Sanctuary', light: 'light' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#4A7C59', darkColor: '#4A7C59', lightText: '#FFF8F0', darkText: '#FFF8F0' },
+                                    { label: 'Lavanda', light: 'lavender' as ThemeName, dark: 'lavender_dark' as ThemeName, lightColor: '#7C5DBA', darkColor: '#9D7FE0', lightText: '#F8F7FF', darkText: '#1A1625' },
+                                    { label: 'Océano', light: 'ocean' as ThemeName, dark: 'ocean_dark' as ThemeName, lightColor: '#008080', darkColor: '#26A69A', lightText: '#F0F9FA', darkText: '#0A1A1A' },
+                                    { label: 'Rosa', light: 'rose' as ThemeName, dark: 'rose_dark' as ThemeName, lightColor: '#E05C6E', darkColor: '#E07080', lightText: '#FFF5F5', darkText: '#1A0E0E' },
+                                    { label: 'Ámbar', light: 'amber' as ThemeName, dark: 'amber_dark' as ThemeName, lightColor: '#D97706', darkColor: '#F59E0B', lightText: '#FFFBF0', darkText: '#1A1400' },
+                                    { label: 'Índigo', light: 'slate' as ThemeName, dark: 'midnight' as ThemeName, lightColor: '#3B5BDB', darkColor: '#818CF8', lightText: '#F5F7FA', darkText: '#0D0D1A' },
+                                    { label: 'Nieve', light: 'snow' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#1F2937', darkColor: '#4A7C59', lightText: '#FFFFFF', darkText: '#FFF8F0' },
                                 ].map((group) => {
                                     const targetTheme = isModalDark ? group.dark : group.light;
                                     const isActive = theme === targetTheme;
                                     const accColor = isModalDark ? group.darkColor : group.lightColor;
-                                    const subColor = isModalDark ? group.darkSub : group.lightSub;
-                                    const bgColor = isModalDark ? group.darkBg : group.lightBg;
+                                    const textColor = isModalDark ? group.darkText : group.lightText;
 
                                     return (
                                         <TouchableOpacity
                                             key={group.label}
                                             style={[
-                                                styles.newSwatchCard, 
                                                 { 
-                                                    backgroundColor: colorsNav.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', 
-                                                    borderColor: isActive ? accColor : colorsNav.border,
-                                                    borderWidth: isActive ? 2 : 1
+                                                    backgroundColor: accColor, 
+                                                    padding: 24,
+                                                    borderRadius: 4,
+                                                    borderWidth: isActive ? 4 : 0,
+                                                    borderColor: colorsNav.text
                                                 }
                                             ]}
                                             onPress={() => { setThemeConfig(targetTheme); setThemeModalVisible(false); }}
                                         >
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                                                {/* Círculo de paleta que agrupa 3 colores */}
-                                                <View style={[styles.paletteCircle, { backgroundColor: bgColor, borderColor: colorsNav.border }]}>
-                                                    <View style={[styles.paletteDot, { backgroundColor: accColor }]} />
-                                                    <View style={[styles.paletteDotSm, { backgroundColor: subColor }]} />
+                                            {isActive && (
+                                                <View style={{ position: 'absolute', top: 12, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: textColor }} />
+                                            )}
+                                            <Text style={{ fontSize: 28, fontWeight: '900', color: textColor, letterSpacing: -1, textTransform: 'uppercase' }}>
+                                                {group.label}
+                                            </Text>
+                                            
+                                            <View style={{ flexDirection: 'row', marginTop: 24, justifyContent: 'space-between' }}>
+                                                <View>
+                                                    <Text style={{ fontSize: 10, color: textColor, opacity: 0.8, fontWeight: '700', marginBottom: 4, letterSpacing: 1 }}>HEX</Text>
+                                                    <Text style={{ fontSize: 13, color: textColor, fontWeight: '800' }}>{accColor.toUpperCase()}</Text>
                                                 </View>
-                                                <View style={{ flex: 1 }}>
-                                                    <Text style={[styles.newSwatchLabel, { color: colorsNav.text }]} numberOfLines={1}>{group.label}</Text>
-                                                    <Text style={{ fontSize: 9, color: colorsNav.sub, fontWeight: '700' }}>
-                                                        {isModalDark ? 'Oscuro' : 'Claro'}
-                                                    </Text>
+                                                <View>
+                                                    <Text style={{ fontSize: 10, color: textColor, opacity: 0.8, fontWeight: '700', marginBottom: 4, letterSpacing: 1 }}>MODO</Text>
+                                                    <Text style={{ fontSize: 13, color: textColor, fontWeight: '800' }}>{isModalDark ? 'OSCURO' : 'CLARO'}</Text>
+                                                </View>
+                                                <View>
+                                                    <Text style={{ fontSize: 10, color: textColor, opacity: 0.8, fontWeight: '700', marginBottom: 4, letterSpacing: 1 }}>ESTADO</Text>
+                                                    <Text style={{ fontSize: 13, color: textColor, fontWeight: '800' }}>{isActive ? 'ACTIVO' : 'INACTIVO'}</Text>
                                                 </View>
                                             </View>
-                                            {isActive && (
-                                                <View style={[styles.newSwatchCheck, { backgroundColor: accColor }]}>
-                                                    <Ionicons name="checkmark" size={10} color="#FFF" />
-                                                </View>
-                                            )}
                                         </TouchableOpacity>
                                     );
                                 })}
