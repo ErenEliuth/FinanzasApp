@@ -1051,18 +1051,20 @@ export default function ProfileScreen() {
                                 <Ionicons name="close" size={20} color={colorsNav.text} />
                             </TouchableOpacity>
                         </View>
-                        <View style={{ flexDirection: 'row', backgroundColor: colorsNav.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', padding: 4, borderRadius: 16, marginBottom: 20 }}>
+                        <View style={{ flexDirection: 'row', backgroundColor: colorsNav.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', padding: 4, borderRadius: 12, marginBottom: 20 }}>
                             <TouchableOpacity
-                                style={{ flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center', backgroundColor: !isModalDark ? colorsNav.accent : 'transparent' }}
+                                style={{ flex: 1, paddingVertical: 9, borderRadius: 9, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6, backgroundColor: !isModalDark ? colorsNav.accent : 'transparent' }}
                                 onPress={() => setIsModalDark(false)}
                             >
-                                <Text style={{ color: !isModalDark ? '#FFF' : colorsNav.text, fontWeight: '800', fontSize: 13 }}>☀️ Claro</Text>
+                                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: !isModalDark ? '#FFF' : colorsNav.sub }} />
+                                <Text style={{ color: !isModalDark ? '#FFF' : colorsNav.text, fontWeight: '800', fontSize: 13, letterSpacing: 0.5 }}>CLARO</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={{ flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center', backgroundColor: isModalDark ? colorsNav.accent : 'transparent' }}
+                                style={{ flex: 1, paddingVertical: 9, borderRadius: 9, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6, backgroundColor: isModalDark ? colorsNav.accent : 'transparent' }}
                                 onPress={() => setIsModalDark(true)}
                             >
-                                <Text style={{ color: isModalDark ? '#FFF' : colorsNav.text, fontWeight: '800', fontSize: 13 }}>🌙 Oscuro</Text>
+                                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isModalDark ? '#FFF' : colorsNav.sub }} />
+                                <Text style={{ color: isModalDark ? '#FFF' : colorsNav.text, fontWeight: '800', fontSize: 13, letterSpacing: 0.5 }}>OSCURO</Text>
                             </TouchableOpacity>
                         </View>
                         
@@ -1088,33 +1090,34 @@ export default function ProfileScreen() {
                                             style={[
                                                 { 
                                                     backgroundColor: accColor, 
-                                                    padding: 24,
+                                                    padding: 16,
                                                     borderRadius: 4,
-                                                    borderWidth: isActive ? 4 : 0,
-                                                    borderColor: colorsNav.text
+                                                    borderWidth: isActive ? 3 : 0,
+                                                    borderColor: 'rgba(255,255,255,0.9)',
+                                                    marginBottom: 0
                                                 }
                                             ]}
                                             onPress={() => { setThemeConfig(targetTheme); setThemeModalVisible(false); }}
                                         >
                                             {isActive && (
-                                                <View style={{ position: 'absolute', top: 12, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: textColor }} />
+                                                <View style={{ position: 'absolute', top: 10, right: 10, width: 7, height: 7, borderRadius: 3.5, backgroundColor: 'rgba(255,255,255,0.9)' }} />
                                             )}
-                                            <Text style={{ fontSize: 28, fontWeight: '900', color: textColor, letterSpacing: -1, textTransform: 'uppercase' }}>
+                                            <Text style={{ fontSize: 22, fontWeight: '900', color: textColor, letterSpacing: -0.5, textTransform: 'uppercase' }}>
                                                 {group.label}
                                             </Text>
                                             
-                                            <View style={{ flexDirection: 'row', marginTop: 24, justifyContent: 'space-between' }}>
+                                            <View style={{ flexDirection: 'row', marginTop: 12, justifyContent: 'space-between' }}>
                                                 <View>
-                                                    <Text style={{ fontSize: 10, color: textColor, opacity: 0.8, fontWeight: '700', marginBottom: 4, letterSpacing: 1 }}>HEX</Text>
-                                                    <Text style={{ fontSize: 13, color: textColor, fontWeight: '800' }}>{accColor.toUpperCase()}</Text>
+                                                    <Text style={{ fontSize: 9, color: textColor, opacity: 0.75, fontWeight: '700', marginBottom: 2, letterSpacing: 1 }}>HEX</Text>
+                                                    <Text style={{ fontSize: 12, color: textColor, fontWeight: '800' }}>{accColor.toUpperCase()}</Text>
                                                 </View>
                                                 <View>
-                                                    <Text style={{ fontSize: 10, color: textColor, opacity: 0.8, fontWeight: '700', marginBottom: 4, letterSpacing: 1 }}>MODO</Text>
-                                                    <Text style={{ fontSize: 13, color: textColor, fontWeight: '800' }}>{isModalDark ? 'OSCURO' : 'CLARO'}</Text>
+                                                    <Text style={{ fontSize: 9, color: textColor, opacity: 0.75, fontWeight: '700', marginBottom: 2, letterSpacing: 1 }}>MODO</Text>
+                                                    <Text style={{ fontSize: 12, color: textColor, fontWeight: '800' }}>{isModalDark ? 'OSCURO' : 'CLARO'}</Text>
                                                 </View>
                                                 <View>
-                                                    <Text style={{ fontSize: 10, color: textColor, opacity: 0.8, fontWeight: '700', marginBottom: 4, letterSpacing: 1 }}>ESTADO</Text>
-                                                    <Text style={{ fontSize: 13, color: textColor, fontWeight: '800' }}>{isActive ? 'ACTIVO' : 'INACTIVO'}</Text>
+                                                    <Text style={{ fontSize: 9, color: textColor, opacity: 0.75, fontWeight: '700', marginBottom: 2, letterSpacing: 1 }}>ESTADO</Text>
+                                                    <Text style={{ fontSize: 12, color: textColor, fontWeight: '800' }}>{isActive ? 'ACTIVO ✓' : 'INACTIVO'}</Text>
                                                 </View>
                                             </View>
                                         </TouchableOpacity>

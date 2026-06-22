@@ -16,7 +16,7 @@ export default function Root({ children }: PropsWithChildren) {
 
         <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta id="apple-status-bar" name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <link rel="apple-touch-icon" href="/icon.png" />
         <meta name="apple-mobile-web-app-title" content="Zenly" />
         {/* 
@@ -57,6 +57,7 @@ export default function Root({ children }: PropsWithChildren) {
                 slate: '#F5F7FA',
                 midnight: '#0D0D1A'
               };
+              var darkThemes = ['dark', 'lavender_dark', 'ocean_dark', 'rose_dark', 'amber_dark', 'midnight'];
               var savedTheme = 'light';
               try {
                 for (var i = 0; i < localStorage.length; i++) {
@@ -68,15 +69,32 @@ export default function Root({ children }: PropsWithChildren) {
                 }
               } catch (e) {}
               var bg = themeColors[savedTheme] || '#FFF8F0';
+              var isDark = darkThemes.indexOf(savedTheme) !== -1;
               
-              var meta = document.createElement('meta');
-              meta.name = 'theme-color';
-              meta.content = bg;
-              document.head.appendChild(meta);
+              // theme-color meta (controls Chrome/Android status bar)
+              var themeMeta = document.createElement('meta');
+              themeMeta.name = 'theme-color';
+              themeMeta.content = bg;
+              document.head.appendChild(themeMeta);
+
+              // Apple status bar: black-translucent lets app extend under bar,
+              // combined with matching background it looks seamless
+              var appleMeta = document.getElementById('apple-status-bar');
+              if (appleMeta) {
+                appleMeta.content = 'black-translucent';
+              }
               
               var style = document.createElement('style');
-              style.innerHTML = 'html, body { background-color: ' + bg + ' !important; }';
+              style.innerHTML = 'html, body { background-color: ' + bg + ' !important; margin: 0; padding: 0; }';
               document.head.appendChild(style);
+
+              // Expose helper for React to call when theme changes
+              window.__applyThemeColor = function(color) {
+                var tc = document.querySelector('meta[name="theme-color"]');
+                if (tc) tc.content = color;
+                document.body.style.backgroundColor = color;
+                document.documentElement.style.backgroundColor = color;
+              };
             })();
             `
           }}
