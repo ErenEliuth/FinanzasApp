@@ -670,7 +670,14 @@ export default function AddTransactionScreen() {
                   <TouchableOpacity
                     key={t.id}
                     style={[styles.typeItem, type === t.id && { backgroundColor: colorsNav.card, elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4 }]}
-                    onPress={() => { setType(t.id as TxType); setDescription(t.id === 'ahorro' ? 'Ahorro' : ''); }}
+                    onPress={() => {
+                      const newType = t.id as TxType;
+                      setType(newType);
+                      setDescription(newType === 'ahorro' ? 'Ahorro' : '');
+                      if (newType !== 'expense' && cards.some(c => c.name === account)) {
+                        setAccount('Efectivo');
+                      }
+                    }}
                   >
                     <Text style={[styles.typeItemText, { color: type === t.id ? t.c : colorsNav.sub }]}>{t.label}</Text>
                   </TouchableOpacity>
@@ -727,9 +734,9 @@ export default function AddTransactionScreen() {
                 </ScrollView>
               </View>
 
-              {cards.length > 0 && type !== 'transfer' && (
+              {cards.length > 0 && type === 'expense' && (
                 <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>Tarjetas y Cuentas Nu</Text>
+                  <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>Tarjeta de Crédito</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
                     {cards.map(c => (
                         <TouchableOpacity
