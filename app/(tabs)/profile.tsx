@@ -404,18 +404,18 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
                     <View style={[statStyle.splitVariable, { width: `${Math.max(0, mVariablePct)}%` }]} />
                     <View style={[statStyle.splitSavings, { width: `${Math.max(0, mSavingsPct)}%`, backgroundColor: '#10B981' }]} />
                 </View>
-                <View style={{ flexDirection: 'row', gap: 6, marginTop: 16 }}>
-                    <View style={[statStyle.splitBox, { backgroundColor: '#EF444410', padding: 10 }]}>
+                <View style={{ flexDirection: 'row', gap: 4, marginTop: 16 }}>
+                    <View style={[statStyle.splitBox, { backgroundColor: '#EF444410', paddingVertical: 8, paddingHorizontal: 4 }]}>
                         <Text style={[statStyle.splitLabel, { color: '#EF4444', fontSize: 9 }]}>FIJOS</Text>
-                        <Text style={[statStyle.splitValue, { color: colorsNav.text, fontSize: 13 }]} adjustsFontSizeToFit={true} numberOfLines={1}>{fmt(monthlySplitDetailed.fixed, currency, rates, isHidden)}</Text>
+                        <Text style={[statStyle.splitValue, { color: colorsNav.text, fontSize: 11 }]} adjustsFontSizeToFit={true} numberOfLines={1}>{fmt(monthlySplitDetailed.fixed, currency, rates, isHidden)}</Text>
                     </View>
-                    <View style={[statStyle.splitBox, { backgroundColor: '#3B82F610', padding: 10 }]}>
+                    <View style={[statStyle.splitBox, { backgroundColor: '#3B82F610', paddingVertical: 8, paddingHorizontal: 4 }]}>
                         <Text style={[statStyle.splitLabel, { color: '#3B82F6', fontSize: 9 }]}>VARIABLES</Text>
-                        <Text style={[statStyle.splitValue, { color: colorsNav.text, fontSize: 13 }]} adjustsFontSizeToFit={true} numberOfLines={1}>{fmt(monthlySplitDetailed.variable, currency, rates, isHidden)}</Text>
+                        <Text style={[statStyle.splitValue, { color: colorsNav.text, fontSize: 11 }]} adjustsFontSizeToFit={true} numberOfLines={1}>{fmt(monthlySplitDetailed.variable, currency, rates, isHidden)}</Text>
                     </View>
-                    <View style={[statStyle.splitBox, { backgroundColor: '#10B98110', padding: 10 }]}>
+                    <View style={[statStyle.splitBox, { backgroundColor: '#10B98110', paddingVertical: 8, paddingHorizontal: 4 }]}>
                         <Text style={[statStyle.splitLabel, { color: '#10B981', fontSize: 9 }]}>AHORRO/INV</Text>
-                        <Text style={[statStyle.splitValue, { color: colorsNav.text, fontSize: 13 }]} adjustsFontSizeToFit={true} numberOfLines={1}>{fmt(monthlySplitDetailed.savings, currency, rates, isHidden)}</Text>
+                        <Text style={[statStyle.splitValue, { color: colorsNav.text, fontSize: 11 }]} adjustsFontSizeToFit={true} numberOfLines={1}>{fmt(monthlySplitDetailed.savings, currency, rates, isHidden)}</Text>
                     </View>
                 </View>
             </View>
