@@ -425,7 +425,7 @@ export default function CardsScreen() {
                                 </TouchableOpacity>
                                 <View style={{ flex: 1, marginLeft: 15 }}>
                                     <Text style={[styles.headerTitle, { color: colorsNav.text }]}>{currentCard.name}</Text>
-                                    <Text style={[styles.headerSub, { color: colorsNav.sub }]}>Card Details</Text>
+                                    <Text style={[styles.headerSub, { color: colorsNav.sub }]}>Detalles de Tarjeta</Text>
                                 </View>
                             </View>
 
@@ -465,18 +465,18 @@ export default function CardsScreen() {
                                         <View style={[styles.quickActionIcon, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
                                             <MaterialIcons name="payment" size={24} color={colorsNav.text} />
                                         </View>
-                                        <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '700' }}>Pay Card</Text>
+                                        <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '700' }}>Pagar</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity style={{ alignItems: 'center', gap: 8 }} onPress={() => handleDeleteCard(currentCard)}>
                                         <View style={[styles.quickActionIcon, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
                                             <MaterialIcons name="more-horiz" size={24} color={colorsNav.text} />
                                         </View>
-                                        <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '700' }}>More</Text>
+                                        <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '700' }}>Eliminar</Text>
                                     </TouchableOpacity>
                                 </View>
 
                                 {/* Payment Next */}
-                                <Text style={{ fontSize: 18, fontWeight: '900', color: colorsNav.text, marginBottom: 15 }}>Payment Next</Text>
+                                <Text style={{ fontSize: 18, fontWeight: '900', color: colorsNav.text, marginBottom: 15 }}>Próximos Pagos</Text>
                                 {activeTxs.slice(0, 5).map(tx => {
                                     const isExpense = tx.type === 'expense';
                                     const cleanDesc = getCleanDescription(tx.description);
@@ -501,7 +501,7 @@ export default function CardsScreen() {
                                             <View style={{ alignItems: 'flex-end' }}>
                                                 <Text style={{ color: colorsNav.text, fontWeight: '900', fontSize: 14 }}>{fmt(displayAmt)}</Text>
                                                 <TouchableOpacity onPress={() => { setSelectedCard(currentCard); setPayAmount(displayAmt.toString()); setPayModalVisible(true); }}>
-                                                    <Text style={{ color: '#3B82F6', fontWeight: '800', fontSize: 12, marginTop: 4 }}>Pay Now</Text>
+                                                    <Text style={{ color: '#3B82F6', fontWeight: '800', fontSize: 12, marginTop: 4 }}>Pagar ahora</Text>
                                                 </TouchableOpacity>
                                             </View>
                                         </View>
@@ -522,41 +522,41 @@ export default function CardsScreen() {
                                 </TouchableOpacity>
                                 <View style={{ flex: 1, marginLeft: 15 }}>
                                     <Text style={[styles.headerTitle, { color: colorsNav.text }]}>{currentCard.name}</Text>
-                                    <Text style={[styles.headerSub, { color: colorsNav.sub }]}>Wallet & Limits</Text>
+                                    <Text style={[styles.headerSub, { color: colorsNav.sub }]}>Billetera y Límites</Text>
                                 </View>
                             </View>
 
                             <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 100 }]} showsVerticalScrollIndicator={false}>
                                 <View style={[styles.walletCard, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
-                                    <Text style={{ color: colorsNav.sub, fontSize: 13, fontWeight: '700' }}>Total Balance</Text>
+                                    <Text style={{ color: colorsNav.sub, fontSize: 13, fontWeight: '700' }}>Saldo Total</Text>
                                     <Text style={{ color: colorsNav.text, fontSize: 32, fontWeight: '900', marginVertical: 8 }}>{fmt(debt)}</Text>
                                     
                                     <View style={{ flexDirection: 'row', gap: 12, marginTop: 15 }}>
                                         <View style={[styles.walletSubCard, { borderColor: colorsNav.border, flex: 1 }]}>
-                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>Payment Next</Text>
+                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>Próximo Pago</Text>
                                             <Text style={{ color: colorsNav.text, fontSize: 16, fontWeight: '800', marginTop: 4 }}>{fmt(nextPaymentAmt)}</Text>
                                         </View>
                                         <View style={[styles.walletSubCard, { borderColor: colorsNav.border, flex: 1 }]}>
-                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>Payment Completed</Text>
+                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>Cupo Disponible</Text>
                                             <Text style={{ color: colorsNav.text, fontSize: 16, fontWeight: '800', marginTop: 4 }}>{fmt(currentCard.limit - debt)}</Text>
                                         </View>
                                     </View>
                                 </View>
 
                                 <View style={[styles.walletCard, { backgroundColor: colorsNav.card, borderColor: colorsNav.border, marginTop: 15 }]}>
-                                    <Text style={{ color: colorsNav.text, fontSize: 16, fontWeight: '900', marginBottom: 15 }}>Card Limits</Text>
+                                    <Text style={{ color: colorsNav.text, fontSize: 16, fontWeight: '900', marginBottom: 15 }}>Límite de Tarjeta</Text>
                                     
                                     <View style={[styles.utilBarBG, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', height: 12, borderRadius: 6 }]}>
                                         <View style={[styles.utilBarFill, { width: `${Math.min(utilization, 100)}%`, backgroundColor: '#3B82F6', borderRadius: 6 }]} />
                                     </View>
                                     
                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, alignItems: 'center' }}>
-                                        <Text style={{ color: colorsNav.sub, fontSize: 12, fontWeight: '600' }}>Today Limits</Text>
+                                        <Text style={{ color: colorsNav.sub, fontSize: 12, fontWeight: '600' }}>Uso actual</Text>
                                         <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '800' }}>{fmt(debt)} / {fmt(currentCard.limit)}</Text>
                                     </View>
                                 </View>
 
-                                <Text style={{ fontSize: 18, fontWeight: '900', color: colorsNav.text, marginTop: 25, marginBottom: 10 }}>Transaction</Text>
+                                <Text style={{ fontSize: 18, fontWeight: '900', color: colorsNav.text, marginTop: 25, marginBottom: 10 }}>Movimientos</Text>
                                 {hasTransactions ? (
                                     Object.entries(groupedTxs).map(([groupName, txs]) => {
                                         if (txs.length === 0) return null;
@@ -585,7 +585,7 @@ export default function CardsScreen() {
                                         );
                                     })
                                 ) : (
-                                    <Text style={{ color: colorsNav.sub }}>No transactions found.</Text>
+                                    <Text style={{ color: colorsNav.sub }}>Sin movimientos registrados.</Text>
                                 )}
                             </ScrollView>
                         </View>
@@ -602,7 +602,7 @@ export default function CardsScreen() {
                                         <Ionicons name="chevron-back" size={24} color={colorsNav.text} />
                                     </TouchableOpacity>
                                     <View style={{ flex: 1, marginLeft: 15 }}>
-                                        <Text style={[styles.headerTitle, { color: colorsNav.text }]}>Analytics</Text>
+                                        <Text style={[styles.headerTitle, { color: colorsNav.text }]}>Analíticas</Text>
                                     </View>
                                     <TouchableOpacity style={[styles.addBtn, { backgroundColor: colorsNav.card, borderWidth: 1, borderColor: colorsNav.border }]}>
                                         <MaterialIcons name="more-horiz" size={24} color={colorsNav.text} />
@@ -610,7 +610,7 @@ export default function CardsScreen() {
                                 </View>
 
                                 <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 100 }]} showsVerticalScrollIndicator={false}>
-                                    <Text style={{ color: colorsNav.sub, fontSize: 13, fontWeight: '600' }}>Total Spending</Text>
+                                    <Text style={{ color: colorsNav.sub, fontSize: 13, fontWeight: '600' }}>Gasto Total</Text>
                                     <Text style={{ color: colorsNav.text, fontSize: 32, fontWeight: '900', marginBottom: 20 }}>{fmt(debt)}</Text>
                                     
                                     <View style={{ alignItems: 'center', marginVertical: 20 }}>
@@ -638,11 +638,11 @@ export default function CardsScreen() {
                                     
                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, marginBottom: 20 }}>
                                         <View style={{ flex: 1, alignItems: 'center' }}>
-                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>On Progress</Text>
+                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>En Curso</Text>
                                             <Text style={{ color: colorsNav.text, fontSize: 14, fontWeight: '800', marginTop: 4 }}>{fmt(debt * 0.7)}</Text>
                                         </View>
                                         <View style={{ flex: 1, alignItems: 'center' }}>
-                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>Overdue</Text>
+                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>Vencido</Text>
                                             <Text style={{ color: colorsNav.text, fontSize: 14, fontWeight: '800', marginTop: 4 }}>{fmt(0)}</Text>
                                         </View>
                                         <View style={{ flex: 1, alignItems: 'center' }}>
@@ -665,15 +665,15 @@ export default function CardsScreen() {
                             <View style={[styles.floatingNav, { backgroundColor: isDark ? '#1C1C1E' : '#18181B' }]}>
                                 <TouchableOpacity style={[styles.floatingNavItem, detailTab === 'home' && styles.floatingNavItemActive]} onPress={() => setDetailTab('home')}>
                                     <MaterialIcons name="credit-card" size={20} color={detailTab === 'home' ? '#FFF' : 'rgba(255,255,255,0.4)'} />
-                                    {detailTab === 'home' && <Text style={styles.floatingNavText}>Home</Text>}
+                                    {detailTab === 'home' && <Text style={styles.floatingNavText}>Inicio</Text>}
                                 </TouchableOpacity>
                                 <TouchableOpacity style={[styles.floatingNavItem, detailTab === 'wallet' && styles.floatingNavItemActive]} onPress={() => setDetailTab('wallet')}>
                                     <MaterialIcons name="account-balance-wallet" size={20} color={detailTab === 'wallet' ? '#FFF' : 'rgba(255,255,255,0.4)'} />
-                                    {detailTab === 'wallet' && <Text style={styles.floatingNavText}>Wallet</Text>}
+                                    {detailTab === 'wallet' && <Text style={styles.floatingNavText}>Billetera</Text>}
                                 </TouchableOpacity>
                                 <TouchableOpacity style={[styles.floatingNavItem, detailTab === 'progress' && styles.floatingNavItemActive]} onPress={() => setDetailTab('progress')}>
                                     <MaterialIcons name="bar-chart" size={20} color={detailTab === 'progress' ? '#FFF' : 'rgba(255,255,255,0.4)'} />
-                                    {detailTab === 'progress' && <Text style={styles.floatingNavText}>Progress</Text>}
+                                    {detailTab === 'progress' && <Text style={styles.floatingNavText}>Progreso</Text>}
                                 </TouchableOpacity>
                             </View>
                         </View>
