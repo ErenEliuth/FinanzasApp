@@ -1166,12 +1166,12 @@ export default function HomeScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, { backgroundColor: isDark ? colorsNav.card : '#FFF', maxHeight: '70%' }]}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Notificaciones</Text>
+              <Text style={[styles.modalTitle, { color: colorsNav.text, fontSize: 18 }]}>Notificaciones</Text>
 
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
                 {pendingItems.length > 0 && (
                   <TouchableOpacity
-                    style={{ backgroundColor: colorsNav.accent + '15', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 }}
+                    style={{ backgroundColor: colorsNav.accent + '15', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}
                     onPress={async () => {
                       const keys = pendingItems.map(i => i.notifKey);
                       const prev = await AsyncStorage.getItem(SYNC_KEYS.NOTIFS_DISMISSED(user?.id!));
@@ -1182,7 +1182,7 @@ export default function HomeScreen() {
                       setPendingItems([]);
                       setNotificationsVisible(false);
                     }}>
-                    <Text style={{ color: colorsNav.accent, fontWeight: '800', fontSize: 13 }}>Marcar Leídas</Text>
+                    <Text style={{ color: colorsNav.accent, fontWeight: '700', fontSize: 12 }}>Marcar Leídas</Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity onPress={() => setNotificationsVisible(false)}>

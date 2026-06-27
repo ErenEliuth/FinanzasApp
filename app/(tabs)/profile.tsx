@@ -407,15 +407,15 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
                 <View style={{ flexDirection: 'row', gap: 6, marginTop: 16 }}>
                     <View style={[statStyle.splitBox, { backgroundColor: '#EF444410', padding: 10 }]}>
                         <Text style={[statStyle.splitLabel, { color: '#EF4444', fontSize: 9 }]}>FIJOS</Text>
-                        <Text style={[statStyle.splitValue, { color: colorsNav.text, fontSize: 13 }]}>{fmt(monthlySplitDetailed.fixed, currency, rates, isHidden)}</Text>
+                        <Text style={[statStyle.splitValue, { color: colorsNav.text, fontSize: 13 }]} adjustsFontSizeToFit={true} numberOfLines={1}>{fmt(monthlySplitDetailed.fixed, currency, rates, isHidden)}</Text>
                     </View>
                     <View style={[statStyle.splitBox, { backgroundColor: '#3B82F610', padding: 10 }]}>
                         <Text style={[statStyle.splitLabel, { color: '#3B82F6', fontSize: 9 }]}>VARIABLES</Text>
-                        <Text style={[statStyle.splitValue, { color: colorsNav.text, fontSize: 13 }]}>{fmt(monthlySplitDetailed.variable, currency, rates, isHidden)}</Text>
+                        <Text style={[statStyle.splitValue, { color: colorsNav.text, fontSize: 13 }]} adjustsFontSizeToFit={true} numberOfLines={1}>{fmt(monthlySplitDetailed.variable, currency, rates, isHidden)}</Text>
                     </View>
                     <View style={[statStyle.splitBox, { backgroundColor: '#10B98110', padding: 10 }]}>
                         <Text style={[statStyle.splitLabel, { color: '#10B981', fontSize: 9 }]}>AHORRO/INV</Text>
-                        <Text style={[statStyle.splitValue, { color: colorsNav.text, fontSize: 13 }]}>{fmt(monthlySplitDetailed.savings, currency, rates, isHidden)}</Text>
+                        <Text style={[statStyle.splitValue, { color: colorsNav.text, fontSize: 13 }]} adjustsFontSizeToFit={true} numberOfLines={1}>{fmt(monthlySplitDetailed.savings, currency, rates, isHidden)}</Text>
                     </View>
                 </View>
             </View>
@@ -661,27 +661,31 @@ export default function ProfileScreen() {
         wExpenses.forEach(t => { catMap[t.category || 'Otros'] = (catMap[t.category || 'Otros'] || 0) + Math.abs(t.amount || 0); });
         setWeeklySummaryData(Object.entries(catMap).sort((a, b) => b[1] - a[1]));
 
-        // Fetch reminders and fixed expenses
-        const [remRes, fixedRes] = await Promise.all([
+        // Fetch reminders and all debts
+        const [remRes, debtsRes] = await Promise.all([
             supabase.from('reminders').select('*').eq('user_id', user.id),
-            supabase.from('debts').select('*').eq('user_id', user.id).eq('debt_type', 'fixed')
+            supabase.from('debts').select('*').eq('user_id', user.id)
         ]);
 
         const remData = remRes.data || [];
-        const fixedData = (fixedRes.data || []).map(f => ({
-            ...f,
-            is_fixed_expense: true,
-            title: f.client,
-            amount: f.value,
-            due_day: new Date(f.due_date + 'T12:00:00').getDate(),
-            is_paid: f.paid >= f.value
-        }));
+        const debtsData = (debtsRes.data || []).map(f => {
+            const isFixed = f.debt_type === 'fixed';
+            return {
+                ...f,
+                is_fixed_expense: isFixed,
+                title: f.client,
+                amount: f.value,
+                due_day: isFixed ? new Date(f.due_date + 'T12:00:00').getDate() : undefined,
+                due_date: isFixed ? undefined : f.due_date,
+                is_paid: f.paid >= f.value
+            };
+        });
 
         // Fetch smart savings state
         const rawPref = await AsyncStorage.getItem(SYNC_KEYS.SMART_SAVINGS(user.id));
         setSmartSavingsEnabled(rawPref === 'enabled');
 
-        setReminders([...remData, ...fixedData]);
+        setReminders([...remData, ...debtsData]);
     };
 
     const handleAddReminder = async () => {
