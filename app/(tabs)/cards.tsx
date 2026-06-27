@@ -356,11 +356,8 @@ export default function CardsScreen() {
                                         >
                                             <View style={[styles.cardFacePremium, { backgroundColor: c.color, borderWidth: isLight ? 1 : 0, borderColor: 'rgba(0,0,0,0.08)' }]}>
                                                 <View style={styles.cardTop}>
-                                                    <View>
-                                                        <Text style={[styles.cardHolderName, { color: textColor }]}>
-                                                            {user?.email ? user.email.split('@')[0].toUpperCase() : 'TITULAR'}
-                                                        </Text>
-                                                        <Text style={[styles.cardNameText, { color: subTextColor, fontSize: 13, fontWeight: '700' }]}>{c.name}</Text>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                        <MaterialIcons name="contactless" size={22} color={textColor} style={{ opacity: 0.8 }} />
                                                     </View>
                                                     <Text style={[styles.cardBrandText, { color: textColor, fontWeight: '900', fontStyle: 'italic', letterSpacing: 0.5 }]}>
                                                         {c.brand.toUpperCase()}
@@ -436,14 +433,11 @@ export default function CardsScreen() {
                                 <View style={[styles.cardWrapperDetail, { shadowColor: '#000', shadowOpacity: isDark ? 0.5 : 0.1, shadowRadius: 15, shadowOffset: { width: 0, height: 6 } }]}>
                                     <View style={[styles.cardFacePremiumDetail, { backgroundColor: currentCard.color }]}>
                                         <View style={styles.cardTop}>
-                                            <View>
-                                                <Text style={[styles.cardHolderName, { color: textColor, fontSize: 14 }]}>
-                                                    {user?.email ? user.email.split('@')[0].toUpperCase() : 'TITULAR'}
-                                                </Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                <MaterialIcons name="contactless" size={28} color={textColor} style={{ opacity: 0.8 }} />
                                             </View>
                                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                                <MaterialIcons name="contactless" size={22} color={textColor} style={{ opacity: 0.8 }} />
-                                                <Text style={[styles.cardBrandText, { color: textColor, fontSize: 16, fontWeight: '900', fontStyle: 'italic' }]}>
+                                                <Text style={[styles.cardBrandText, { color: textColor, fontSize: 18, fontWeight: '900', fontStyle: 'italic' }]}>
                                                     {currentCard.brand.toUpperCase()}
                                                 </Text>
                                             </View>
@@ -472,12 +466,6 @@ export default function CardsScreen() {
                                             <MaterialIcons name="payment" size={24} color={colorsNav.text} />
                                         </View>
                                         <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '700' }}>Pay Card</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity style={{ alignItems: 'center', gap: 8 }} onPress={() => { Alert.alert("Congelar", "Lógica para congelar la tarjeta."); }}>
-                                        <View style={[styles.quickActionIcon, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
-                                            <Ionicons name="snow" size={24} color={colorsNav.text} />
-                                        </View>
-                                        <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '700' }}>Freeze Card</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity style={{ alignItems: 'center', gap: 8 }} onPress={() => handleDeleteCard(currentCard)}>
                                         <View style={[styles.quickActionIcon, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
