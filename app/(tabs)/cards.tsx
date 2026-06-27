@@ -11,6 +11,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatCurrency, getCurrencyInfo, convertCurrency, convertToBase, formatInputDisplay, parseInputToNumber } from '@/utils/currency';
 import { calculateFirstPaymentMonth, getAmountDueForMonth, getCleanDescription, getCurrentInstallmentNumber } from '@/utils/billing';
 import { LinearGradient } from 'expo-linear-gradient';
+import { LineChart } from 'react-native-chart-kit';
 import * as Haptics from 'expo-haptics';
 import {
     Alert,
@@ -81,6 +82,7 @@ export default function CardsScreen() {
     const [selectedAccount, setSelectedAccount] = useState('Efectivo');
 
     const [activeTab, setActiveTab] = useState<string | null>(null);
+    const [detailTab, setDetailTab] = useState<'home' | 'wallet' | 'progress'>('home');
     const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
     const [txFilter, setTxFilter] = useState<'all' | 'expense' | 'income'>('all');
 
@@ -403,50 +405,20 @@ export default function CardsScreen() {
                     const textColor = isLight ? '#18181B' : '#FFFFFF';
                     const subTextColor = isLight ? 'rgba(24, 24, 27, 0.6)' : 'rgba(255, 255, 255, 0.6)';
                     
-                    const advice = getShoppingAdvice(currentCard);
                     const activeTxs = cardTransactions[currentCard.name] || [];
-                    
-                    // Asesor de Salud Crediticia
-                    let healthLabel = 'Saludable';
-                    let healthColor = '#10B981';
-                    let healthBg = '#10B98115';
-                    let healthAdviceText = '';
-                    
-                    if (utilization === 0) {
-                        healthLabel = 'Pasiva / Sin Uso';
-                        healthColor = colorsNav.sub;
-                        healthBg = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
-                        healthAdviceText = 'Tu uso es del 0%. Para construir un historial crediticio activo, realiza consumos pequeños con regularidad y págalos en su totalidad.';
-                    } else if (utilization <= 30) {
-                        healthLabel = 'Excelente';
-                        healthColor = '#10B981';
-                        healthBg = '#10B98115';
-                        healthAdviceText = `¡Excelente uso del crédito! Estás utilizando el ${utilization.toFixed(0)}% de tu cupo (manteniéndote bajo el 30% recomendado). Esto protege tu historial crediticio.`;
-                    } else if (utilization <= 50) {
-                        healthLabel = 'Moderado';
-                        healthColor = '#F59E0B';
-                        healthBg = '#F59E0B15';
-                        healthAdviceText = `Tu uso es del ${utilization.toFixed(0)}%. Te aconsejamos moderar tus compras con esta tarjeta y mantener la utilización bajo el 30% para optimizar tu score.`;
-                    } else {
-                        healthLabel = 'Riesgo Alto';
-                        healthColor = '#EF4444';
-                        healthBg = '#EF444415';
-                        healthAdviceText = `¡Alerta! Estás usando el ${utilization.toFixed(0)}% del cupo total. Superar el 50% genera sospechas de sobreendeudamiento. Considera abonar saldo pronto para liberar cupo.`;
-                    }
-                    
-                    // Filtrar movimientos
                     const filteredTxs = activeTxs.filter(tx => {
                         if (txFilter === 'expense') return tx.type === 'expense';
                         if (txFilter === 'income') return tx.type === 'income' || tx.type === 'transfer';
                         return true;
                     });
-                    
                     const groupedTxs = groupTransactions(filteredTxs);
                     const hasTransactions = filteredTxs.length > 0;
-                    
-                    return (
+
+                    // Calculate upcoming payments
+                    const nextPaymentAmt = calculateNextPayment(currentCard);
+
+                    const renderHomeTab = () => (
                         <View style={{ flex: 1 }}>
-                            {/* Header de Detalle */}
                             <View style={styles.header}>
                                 <TouchableOpacity 
                                     style={[styles.backBtn, { backgroundColor: isDark ? colorsNav.card : '#F8F5F0', borderColor: colorsNav.border }]} 
@@ -456,15 +428,11 @@ export default function CardsScreen() {
                                 </TouchableOpacity>
                                 <View style={{ flex: 1, marginLeft: 15 }}>
                                     <Text style={[styles.headerTitle, { color: colorsNav.text }]}>{currentCard.name}</Text>
-                                    <Text style={[styles.headerSub, { color: colorsNav.sub }]}>Detalles e historial</Text>
+                                    <Text style={[styles.headerSub, { color: colorsNav.sub }]}>Card Details</Text>
                                 </View>
-                                <TouchableOpacity style={[styles.addBtn, { backgroundColor: '#EF444415', borderWidth: 1, borderColor: '#EF444450' }]} onPress={() => handleDeleteCard(currentCard)}>
-                                    <MaterialIcons name="delete" size={22} color="#EF4444" />
-                                </TouchableOpacity>
                             </View>
 
                             <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 100 }]} showsVerticalScrollIndicator={false}>
-                                {/* Tarjeta Grande Premium */}
                                 <View style={[styles.cardWrapperDetail, { shadowColor: '#000', shadowOpacity: isDark ? 0.5 : 0.1, shadowRadius: 15, shadowOffset: { width: 0, height: 6 } }]}>
                                     <View style={[styles.cardFacePremiumDetail, { backgroundColor: currentCard.color }]}>
                                         <View style={styles.cardTop}>
@@ -472,9 +440,7 @@ export default function CardsScreen() {
                                                 <Text style={[styles.cardHolderName, { color: textColor, fontSize: 14 }]}>
                                                     {user?.email ? user.email.split('@')[0].toUpperCase() : 'TITULAR'}
                                                 </Text>
-                                                <Text style={{ color: subTextColor, fontSize: 10, fontWeight: '700', marginTop: 2 }}>Zenly Credit Premium</Text>
                                             </View>
-                                            
                                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                                 <MaterialIcons name="contactless" size={22} color={textColor} style={{ opacity: 0.8 }} />
                                                 <Text style={[styles.cardBrandText, { color: textColor, fontSize: 16, fontWeight: '900', fontStyle: 'italic' }]}>
@@ -482,184 +448,246 @@ export default function CardsScreen() {
                                                 </Text>
                                             </View>
                                         </View>
-
                                         <View style={{ marginVertical: 14 }}>
-                                            <Text style={[styles.cardBalanceLabel, { color: subTextColor, fontSize: 10, letterSpacing: 1.5 }]}>CRÉDITO DISPONIBLE</Text>
-                                            <Text style={[styles.cardBalanceAmount, { color: textColor, fontSize: 30, fontWeight: '900' }]}>{fmt(currentCard.limit - debt)}</Text>
+                                            <Text style={[styles.cardBalanceLabel, { color: subTextColor, fontSize: 10, letterSpacing: 1.5 }]}>Limit Card</Text>
+                                            <Text style={[styles.cardBalanceAmount, { color: textColor, fontSize: 30, fontWeight: '900' }]}>{fmt(currentCard.limit)}</Text>
                                         </View>
-
                                         <View style={styles.footer}>
-                                            <View style={{ flex: 1.5 }}>
-                                                <Text style={[styles.smallLabelDetail, { color: subTextColor }]}>DEUDA ACTUAL</Text>
-                                                <Text style={{ color: textColor, fontSize: 15, fontWeight: '800' }}>{fmt(debt)}</Text>
-                                            </View>
-                                            <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                                                <Text style={[styles.smallLabelDetail, { color: subTextColor }]}>CORTE</Text>
-                                                <Text style={{ color: textColor, fontSize: 13, fontWeight: '700' }}>Día {currentCard.cutDay}</Text>
-                                            </View>
-                                            <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                                                <Text style={[styles.smallLabelDetail, { color: subTextColor }]}>PAGO</Text>
-                                                <Text style={{ color: textColor, fontSize: 13, fontWeight: '700' }}>Día {currentCard.dueDay}</Text>
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                                <Text style={[styles.cardNumberText, { color: subTextColor, fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace', letterSpacing: 1 }]}>
+                                                    •••• {currentCard.id.slice(-4)}
+                                                </Text>
+                                                <View style={{ backgroundColor: isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
+                                                    <Text style={{ color: textColor, fontSize: 10, fontWeight: '700' }}>{utilization.toFixed(0)}% Used</Text>
+                                                </View>
                                             </View>
                                         </View>
                                     </View>
                                 </View>
 
-                                {/* Controles de Acción Rápida */}
-                                <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 24, marginTop: 15, marginBottom: 5 }}>
-                                    <TouchableOpacity 
-                                        style={[styles.payCardBtn, { backgroundColor: colorsNav.accent }]} 
-                                        onPress={() => { setSelectedCard(currentCard); setPayModalVisible(true); }}
-                                    >
-                                        <MaterialIcons name="payment" size={20} color="#FFF" />
-                                        <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 14 }}>Registrar Abono / Pago</Text>
+                                {/* Quick Actions */}
+                                <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 24, marginTop: 10, marginBottom: 20 }}>
+                                    <TouchableOpacity style={{ alignItems: 'center', gap: 8 }} onPress={() => { setSelectedCard(currentCard); setPayModalVisible(true); }}>
+                                        <View style={[styles.quickActionIcon, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
+                                            <MaterialIcons name="payment" size={24} color={colorsNav.text} />
+                                        </View>
+                                        <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '700' }}>Pay Card</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={{ alignItems: 'center', gap: 8 }} onPress={() => { Alert.alert("Congelar", "Lógica para congelar la tarjeta."); }}>
+                                        <View style={[styles.quickActionIcon, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
+                                            <Ionicons name="snow" size={24} color={colorsNav.text} />
+                                        </View>
+                                        <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '700' }}>Freeze Card</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={{ alignItems: 'center', gap: 8 }} onPress={() => handleDeleteCard(currentCard)}>
+                                        <View style={[styles.quickActionIcon, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
+                                            <MaterialIcons name="more-horiz" size={24} color={colorsNav.text} />
+                                        </View>
+                                        <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '700' }}>More</Text>
                                     </TouchableOpacity>
                                 </View>
 
-                                {/* Asesor de Salud Crediticia */}
-                                <View style={[styles.healthAdvisorCard, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <Text style={{ fontSize: 11, fontWeight: '800', color: colorsNav.sub, letterSpacing: 0.5 }}>SALUD DEL CRÉDITO</Text>
-                                        <View style={{ backgroundColor: healthBg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
-                                            <Text style={{ color: healthColor, fontWeight: '800', fontSize: 11 }}>{healthLabel}</Text>
-                                        </View>
-                                    </View>
+                                {/* Payment Next */}
+                                <Text style={{ fontSize: 18, fontWeight: '900', color: colorsNav.text, marginBottom: 15 }}>Payment Next</Text>
+                                {activeTxs.slice(0, 5).map(tx => {
+                                    const isExpense = tx.type === 'expense';
+                                    const cleanDesc = getCleanDescription(tx.description);
+                                    let displayAmt = tx.amount;
+                                    let subtitle = 'Due date ' + currentCard.dueDay;
+                                    const hasInstallments = tx.description?.includes('[CUOTAS:');
                                     
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
-                                        <View style={{ flex: 1 }}>
-                                            <View style={[styles.utilBarBG, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]}>
-                                                <View 
-                                                    style={[
-                                                        styles.utilBarFill, 
-                                                        { 
-                                                            width: `${Math.min(utilization, 100)}%`, 
-                                                            backgroundColor: healthColor 
-                                                        }
-                                                    ]} 
-                                                />
+                                    if (hasInstallments) {
+                                        const totalMatch = tx.description?.match(/\[CUOTAS:(\d+)/);
+                                        const total = totalMatch ? parseInt(totalMatch[1], 10) : 1;
+                                        const currentIdx = getCurrentInstallmentNumber(tx, currentCard, now.getMonth() + 1, now.getFullYear());
+                                        displayAmt = tx.amount / total;
+                                        subtitle = `${currentIdx} of ${total} Installment`;
+                                    }
+
+                                    return (
+                                        <View key={tx.id} style={[styles.txItem, { backgroundColor: colorsNav.card, borderColor: colorsNav.border, marginBottom: 8 }]}>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={{ color: colorsNav.text, fontWeight: '800', fontSize: 14 }} numberOfLines={1}>{cleanDesc}</Text>
+                                                <Text style={{ color: colorsNav.sub, fontSize: 11, marginTop: 4 }}>{subtitle}</Text>
+                                            </View>
+                                            <View style={{ alignItems: 'flex-end' }}>
+                                                <Text style={{ color: colorsNav.text, fontWeight: '900', fontSize: 14 }}>{fmt(displayAmt)}</Text>
+                                                <TouchableOpacity onPress={() => { setSelectedCard(currentCard); setPayAmount(displayAmt.toString()); setPayModalVisible(true); }}>
+                                                    <Text style={{ color: '#3B82F6', fontWeight: '800', fontSize: 12, marginTop: 4 }}>Pay Now</Text>
+                                                </TouchableOpacity>
                                             </View>
                                         </View>
-                                        <Text style={{ fontSize: 18, fontWeight: '900', color: healthColor, marginLeft: 15 }}>
-                                            {utilization.toFixed(0)}%
-                                        </Text>
-                                    </View>
-                                    
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-                                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Límite de Cupo: {fmt(currentCard.limit)}</Text>
-                                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Uso Actual: {fmt(debt)}</Text>
-                                    </View>
-
-                                    <View style={{ marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
-                                        <Text style={{ color: colorsNav.text, fontSize: 12, lineHeight: 17, fontWeight: '600' }}>
-                                            {healthAdviceText}
-                                        </Text>
-                                    </View>
-                                </View>
-
-                                {/* Ciclo Inteligente (Día de Oro) */}
-                                <View style={{
-                                    backgroundColor: advice.color,
-                                    borderWidth: 1,
-                                    borderColor: advice.borderColor,
-                                    padding: 16,
-                                    borderRadius: 24,
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    gap: 12,
-                                    marginTop: 15
-                                }}>
-                                    <Ionicons name="sparkles" size={24} color={advice.borderColor} />
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={{ fontWeight: '900', color: advice.textColor, fontSize: 13 }}>{advice.title}</Text>
-                                        <Text style={{ color: advice.textColor, fontSize: 11, marginTop: 2, lineHeight: 15 }}>{advice.msg}</Text>
-                                    </View>
-                                </View>
-
-                                {/* Historial de Movimientos de la Tarjeta */}
-                                <View style={{ gap: 12, marginTop: 15 }}>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <Text style={{ fontSize: 14, fontWeight: '900', color: colorsNav.text, marginLeft: 5 }}>HISTORIAL DE LA TARJETA</Text>
-                                        <View style={{ flexDirection: 'row', backgroundColor: colorsNav.card, padding: 2, borderRadius: 12, borderWidth: 1, borderColor: colorsNav.border }}>
-                                            {(['all', 'expense', 'income'] as const).map(tab => (
-                                                <TouchableOpacity 
-                                                    key={tab} 
-                                                    style={{ 
-                                                        paddingHorizontal: 10, 
-                                                        paddingVertical: 6, 
-                                                        borderRadius: 10, 
-                                                        backgroundColor: txFilter === tab ? colorsNav.accent : 'transparent' 
-                                                    }}
-                                                    onPress={() => setTxFilter(tab)}
-                                                >
-                                                    <Text style={{ color: txFilter === tab ? '#FFF' : colorsNav.sub, fontWeight: '700', fontSize: 11 }}>
-                                                        {tab === 'all' ? 'Todo' : tab === 'expense' ? 'Gastos' : 'Pagos'}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            ))}
-                                        </View>
-                                    </View>
-                                    
-                                    {hasTransactions ? (
-                                        Object.entries(groupedTxs).map(([groupName, txs]) => {
-                                            if (txs.length === 0) return null;
-                                            return (
-                                                <View key={groupName} style={{ gap: 8, marginTop: 4 }}>
-                                                    <Text style={{ fontSize: 10, fontWeight: '800', color: colorsNav.sub, letterSpacing: 1, marginLeft: 6 }}>{groupName}</Text>
-                                                    {txs.map(tx => {
-                                                        const isExpense = tx.type === 'expense';
-                                                        const hasInstallments = tx.description?.includes('[CUOTAS:');
-                                                        
-                                                        let displayAmt = tx.amount;
-                                                        let subtitle = new Date(tx.date).toLocaleDateString('es-CO');
-                                                        
-                                                        if (hasInstallments) {
-                                                            const totalMatch = tx.description?.match(/\[CUOTAS:(\d+)/);
-                                                            const total = totalMatch ? parseInt(totalMatch[1], 10) : 1;
-                                                            const currentIdx = getCurrentInstallmentNumber(tx, currentCard, now.getMonth() + 1, now.getFullYear());
-                                                            
-                                                            displayAmt = tx.amount / total;
-                                                            subtitle = `Cuota ${currentIdx || 'Fin.'}/${total} • ${new Date(tx.date).toLocaleDateString('es-CO')}`;
-                                                        }
-                                                        
-                                                        const cleanDesc = getCleanDescription(tx.description);
-                                                        const catIcon = getCategoryIcon(tx.category);
-                                                        
-                                                        return (
-                                                            <View key={tx.id} style={[styles.txItem, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
-                                                                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: isExpense ? '#EF444415' : '#10B98115', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
-                                                                    <Ionicons 
-                                                                        name={catIcon as any} 
-                                                                        size={18} 
-                                                                        color={isExpense ? '#EF4444' : '#10B981'} 
-                                                                    />
-                                                                </View>
-                                                                
-                                                                <View style={{ flex: 1 }}>
-                                                                    <Text style={{ color: colorsNav.text, fontWeight: '800', fontSize: 13 }} numberOfLines={1}>
-                                                                        {cleanDesc}
-                                                                    </Text>
-                                                                    <Text style={{ color: colorsNav.sub, fontSize: 10, marginTop: 2 }}>
-                                                                        {subtitle}
-                                                                    </Text>
-                                                                </View>
-                                                                
-                                                                <Text style={{ color: isExpense ? colorsNav.text : '#10B981', fontWeight: '900', fontSize: 14 }}>
-                                                                    {isExpense ? '-' : '+'}{fmt(displayAmt)}
-                                                                </Text>
-                                                            </View>
-                                                        );
-                                                    })}
-                                                </View>
-                                            );
-                                        })
-                                    ) : (
-                                        <View style={{ padding: 40, alignItems: 'center' }}>
-                                            <MaterialIcons name="history" size={40} color={colorsNav.sub} style={{ opacity: 0.3, marginBottom: 10 }} />
-                                            <Text style={{ color: colorsNav.sub, fontWeight: '700', fontSize: 14 }}>Sin movimientos en este filtro</Text>
-                                        </View>
-                                    )}
-                                </View>
+                                    );
+                                })}
                             </ScrollView>
+                        </View>
+                    );
+
+                    const renderWalletTab = () => (
+                        <View style={{ flex: 1 }}>
+                            <View style={styles.header}>
+                                <TouchableOpacity 
+                                    style={[styles.backBtn, { backgroundColor: isDark ? colorsNav.card : '#F8F5F0', borderColor: colorsNav.border }]} 
+                                    onPress={() => setSelectedCardId(null)}
+                                >
+                                    <Ionicons name="chevron-back" size={24} color={colorsNav.text} />
+                                </TouchableOpacity>
+                                <View style={{ flex: 1, marginLeft: 15 }}>
+                                    <Text style={[styles.headerTitle, { color: colorsNav.text }]}>{currentCard.name}</Text>
+                                    <Text style={[styles.headerSub, { color: colorsNav.sub }]}>Wallet & Limits</Text>
+                                </View>
+                            </View>
+
+                            <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 100 }]} showsVerticalScrollIndicator={false}>
+                                <View style={[styles.walletCard, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
+                                    <Text style={{ color: colorsNav.sub, fontSize: 13, fontWeight: '700' }}>Total Balance</Text>
+                                    <Text style={{ color: colorsNav.text, fontSize: 32, fontWeight: '900', marginVertical: 8 }}>{fmt(debt)}</Text>
+                                    
+                                    <View style={{ flexDirection: 'row', gap: 12, marginTop: 15 }}>
+                                        <View style={[styles.walletSubCard, { borderColor: colorsNav.border, flex: 1 }]}>
+                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>Payment Next</Text>
+                                            <Text style={{ color: colorsNav.text, fontSize: 16, fontWeight: '800', marginTop: 4 }}>{fmt(nextPaymentAmt)}</Text>
+                                        </View>
+                                        <View style={[styles.walletSubCard, { borderColor: colorsNav.border, flex: 1 }]}>
+                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>Payment Completed</Text>
+                                            <Text style={{ color: colorsNav.text, fontSize: 16, fontWeight: '800', marginTop: 4 }}>{fmt(currentCard.limit - debt)}</Text>
+                                        </View>
+                                    </View>
+                                </View>
+
+                                <View style={[styles.walletCard, { backgroundColor: colorsNav.card, borderColor: colorsNav.border, marginTop: 15 }]}>
+                                    <Text style={{ color: colorsNav.text, fontSize: 16, fontWeight: '900', marginBottom: 15 }}>Card Limits</Text>
+                                    
+                                    <View style={[styles.utilBarBG, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', height: 12, borderRadius: 6 }]}>
+                                        <View style={[styles.utilBarFill, { width: `${Math.min(utilization, 100)}%`, backgroundColor: '#3B82F6', borderRadius: 6 }]} />
+                                    </View>
+                                    
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, alignItems: 'center' }}>
+                                        <Text style={{ color: colorsNav.sub, fontSize: 12, fontWeight: '600' }}>Today Limits</Text>
+                                        <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '800' }}>{fmt(debt)} / {fmt(currentCard.limit)}</Text>
+                                    </View>
+                                </View>
+
+                                <Text style={{ fontSize: 18, fontWeight: '900', color: colorsNav.text, marginTop: 25, marginBottom: 10 }}>Transaction</Text>
+                                {hasTransactions ? (
+                                    Object.entries(groupedTxs).map(([groupName, txs]) => {
+                                        if (txs.length === 0) return null;
+                                        return (
+                                            <View key={groupName} style={{ gap: 8, marginTop: 4 }}>
+                                                <Text style={{ fontSize: 12, fontWeight: '800', color: colorsNav.sub, marginLeft: 6, marginBottom: 4 }}>{groupName}</Text>
+                                                {txs.map(tx => {
+                                                    const cleanDesc = getCleanDescription(tx.description);
+                                                    const catIcon = getCategoryIcon(tx.category);
+                                                    return (
+                                                        <View key={tx.id} style={[styles.txItem, { backgroundColor: colorsNav.card, borderColor: colorsNav.border, borderWidth: 0, paddingVertical: 12 }]}>
+                                                            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                                                                <Ionicons name={catIcon as any} size={20} color={colorsNav.text} />
+                                                            </View>
+                                                            <View style={{ flex: 1 }}>
+                                                                <Text style={{ color: colorsNav.text, fontWeight: '800', fontSize: 14 }} numberOfLines={1}>{cleanDesc}</Text>
+                                                                <Text style={{ color: colorsNav.sub, fontSize: 11, marginTop: 4 }}>{new Date(tx.date).toLocaleDateString('es-CO')}</Text>
+                                                            </View>
+                                                            <Text style={{ color: colorsNav.text, fontWeight: '900', fontSize: 14 }}>
+                                                                {fmt(tx.amount)}
+                                                            </Text>
+                                                        </View>
+                                                    );
+                                                })}
+                                            </View>
+                                        );
+                                    })
+                                ) : (
+                                    <Text style={{ color: colorsNav.sub }}>No transactions found.</Text>
+                                )}
+                            </ScrollView>
+                        </View>
+                    );
+
+                    const renderAnalyticsTab = () => {
+                        return (
+                            <View style={{ flex: 1 }}>
+                                <View style={styles.header}>
+                                    <TouchableOpacity 
+                                        style={[styles.backBtn, { backgroundColor: isDark ? colorsNav.card : '#F8F5F0', borderColor: colorsNav.border }]} 
+                                        onPress={() => setSelectedCardId(null)}
+                                    >
+                                        <Ionicons name="chevron-back" size={24} color={colorsNav.text} />
+                                    </TouchableOpacity>
+                                    <View style={{ flex: 1, marginLeft: 15 }}>
+                                        <Text style={[styles.headerTitle, { color: colorsNav.text }]}>Analytics</Text>
+                                    </View>
+                                    <TouchableOpacity style={[styles.addBtn, { backgroundColor: colorsNav.card, borderWidth: 1, borderColor: colorsNav.border }]}>
+                                        <MaterialIcons name="more-horiz" size={24} color={colorsNav.text} />
+                                    </TouchableOpacity>
+                                </View>
+
+                                <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 100 }]} showsVerticalScrollIndicator={false}>
+                                    <Text style={{ color: colorsNav.sub, fontSize: 13, fontWeight: '600' }}>Total Spending</Text>
+                                    <Text style={{ color: colorsNav.text, fontSize: 32, fontWeight: '900', marginBottom: 20 }}>{fmt(debt)}</Text>
+                                    
+                                    <View style={{ alignItems: 'center', marginVertical: 20 }}>
+                                        <LineChart
+                                            data={{
+                                                labels: ["Ene", "Feb", "Mar", "Abr", "May", "Jun"],
+                                                datasets: [{ data: [12000, 45000, 28000, 80000, 99000, debt] }]
+                                            }}
+                                            width={width - 40}
+                                            height={220}
+                                            chartConfig={{
+                                                backgroundColor: colorsNav.bg,
+                                                backgroundGradientFrom: colorsNav.bg,
+                                                backgroundGradientTo: colorsNav.bg,
+                                                decimalPlaces: 0,
+                                                color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+                                                labelColor: (opacity = 1) => colorsNav.sub,
+                                                style: { borderRadius: 16 },
+                                                propsForDots: { r: "4", strokeWidth: "2", stroke: "#3B82F6" }
+                                            }}
+                                            bezier
+                                            style={{ marginVertical: 8, borderRadius: 16 }}
+                                        />
+                                    </View>
+                                    
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, marginBottom: 20 }}>
+                                        <View style={{ flex: 1, alignItems: 'center' }}>
+                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>On Progress</Text>
+                                            <Text style={{ color: colorsNav.text, fontSize: 14, fontWeight: '800', marginTop: 4 }}>{fmt(debt * 0.7)}</Text>
+                                        </View>
+                                        <View style={{ flex: 1, alignItems: 'center' }}>
+                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>Overdue</Text>
+                                            <Text style={{ color: colorsNav.text, fontSize: 14, fontWeight: '800', marginTop: 4 }}>{fmt(0)}</Text>
+                                        </View>
+                                        <View style={{ flex: 1, alignItems: 'center' }}>
+                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>Total</Text>
+                                            <Text style={{ color: colorsNav.text, fontSize: 14, fontWeight: '800', marginTop: 4 }}>{fmt(debt)}</Text>
+                                        </View>
+                                    </View>
+                                </ScrollView>
+                            </View>
+                        );
+                    };
+
+                    return (
+                        <View style={{ flex: 1 }}>
+                            {detailTab === 'home' && renderHomeTab()}
+                            {detailTab === 'wallet' && renderWalletTab()}
+                            {detailTab === 'progress' && renderAnalyticsTab()}
+
+                            {/* Floating Bottom Nav */}
+                            <View style={[styles.floatingNav, { backgroundColor: isDark ? '#1C1C1E' : '#18181B' }]}>
+                                <TouchableOpacity style={[styles.floatingNavItem, detailTab === 'home' && styles.floatingNavItemActive]} onPress={() => setDetailTab('home')}>
+                                    <MaterialIcons name="credit-card" size={20} color={detailTab === 'home' ? '#FFF' : 'rgba(255,255,255,0.4)'} />
+                                    {detailTab === 'home' && <Text style={styles.floatingNavText}>Home</Text>}
+                                </TouchableOpacity>
+                                <TouchableOpacity style={[styles.floatingNavItem, detailTab === 'wallet' && styles.floatingNavItemActive]} onPress={() => setDetailTab('wallet')}>
+                                    <MaterialIcons name="account-balance-wallet" size={20} color={detailTab === 'wallet' ? '#FFF' : 'rgba(255,255,255,0.4)'} />
+                                    {detailTab === 'wallet' && <Text style={styles.floatingNavText}>Wallet</Text>}
+                                </TouchableOpacity>
+                                <TouchableOpacity style={[styles.floatingNavItem, detailTab === 'progress' && styles.floatingNavItemActive]} onPress={() => setDetailTab('progress')}>
+                                    <MaterialIcons name="bar-chart" size={20} color={detailTab === 'progress' ? '#FFF' : 'rgba(255,255,255,0.4)'} />
+                                    {detailTab === 'progress' && <Text style={styles.floatingNavText}>Progress</Text>}
+                                </TouchableOpacity>
+                            </View>
                         </View>
                     );
                 })() : null
@@ -909,4 +937,14 @@ const styles = StyleSheet.create({
     healthAdvisorCard: { padding: 20, borderRadius: 24, borderWidth: 1, gap: 12 },
     mainCardBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
     footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+
+    quickActionBtn: { alignItems: 'center', gap: 8, padding: 12, borderRadius: 20, borderWidth: 1, flex: 1 },
+    quickActionIcon: { width: 50, height: 50, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1, marginBottom: 4 },
+    quickActionText: { fontSize: 11, fontWeight: '700' },
+    walletCard: { padding: 24, borderRadius: 28, borderWidth: 1, gap: 4 },
+    walletSubCard: { padding: 16, borderRadius: 20, borderWidth: 1, flex: 1 },
+    floatingNav: { position: 'absolute', bottom: 30, alignSelf: 'center', flexDirection: 'row', padding: 8, borderRadius: 40, alignItems: 'center', elevation: 10, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, gap: 8 },
+    floatingNavItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 30, gap: 8 },
+    floatingNavItemActive: { backgroundColor: 'rgba(255,255,255,0.1)' },
+    floatingNavText: { color: '#FFF', fontSize: 13, fontWeight: '800' },
 });
