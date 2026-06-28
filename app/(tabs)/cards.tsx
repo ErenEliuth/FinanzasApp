@@ -15,6 +15,7 @@ import { LineChart } from 'react-native-chart-kit';
 import * as Haptics from 'expo-haptics';
 import {
     Alert,
+    Animated,
     Dimensions,
     Keyboard,
     KeyboardAvoidingView,
@@ -85,6 +86,36 @@ export default function CardsScreen() {
     const [detailTab, setDetailTab] = useState<'home' | 'wallet' | 'progress'>('home');
     const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
     const [txFilter, setTxFilter] = useState<'all' | 'expense' | 'income'>('all');
+
+    // Simulator State
+    const [simModalVisible, setSimModalVisible] = useState(false);
+    const [simAmount, setSimAmount] = useState('');
+    const [simInstallments, setSimInstallments] = useState('1');
+
+    // Flip Animation State
+    const flipAnim = useRef(new Animated.Value(0)).current;
+    const [isFlipped, setIsFlipped] = useState(false);
+    
+    const handleFlip = () => {
+        Animated.timing(flipAnim, {
+            toValue: isFlipped ? 0 : 180,
+            duration: 400,
+            useNativeDriver: true,
+        }).start();
+        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setIsFlipped(!isFlipped);
+    };
+
+    const frontStyle = {
+        transform: [{ rotateY: flipAnim.interpolate({ inputRange: [0, 180], outputRange: ['0deg', '180deg'] }) }],
+        backfaceVisibility: 'hidden' as const,
+    };
+    
+    const backStyle = {
+        transform: [{ rotateY: flipAnim.interpolate({ inputRange: [0, 180], outputRange: ['180deg', '360deg'] }) }],
+        backfaceVisibility: 'hidden' as const,
+        position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0,
+    };
 
     const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
 
@@ -193,6 +224,14 @@ export default function CardsScreen() {
             scrollRef.current?.scrollTo({ y: 0, animated: false });
         } 
     }, [isFocused, cards.length]);
+
+    // Reset flip when card changes
+    useEffect(() => {
+        if (selectedCardId && isFlipped) {
+            flipAnim.setValue(0);
+            setIsFlipped(false);
+        }
+    }, [selectedCardId]);
 
     const handleLimitChange = (text: string) => {
         setNewLimit(formatInputDisplay(text, currency));
@@ -354,7 +393,12 @@ export default function CardsScreen() {
                                                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                                             }}
                                         >
-                                            <View style={[styles.cardFacePremium, { backgroundColor: c.color, borderWidth: isLight ? 1 : 0, borderColor: 'rgba(0,0,0,0.08)' }]}>
+                                            <View style={[styles.cardFacePremium, { backgroundColor: c.color, borderWidth: utilization > 70 ? 2 : (isLight ? 1 : 0), borderColor: utilization > 70 ? '#EF4444' : 'rgba(0,0,0,0.08)' }]}>
+                                                {utilization > 70 && (
+                                                    <View style={{ position: 'absolute', top: 14, right: 14, backgroundColor: '#EF4444', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
+                                                        <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900' }}>ALTO USO</Text>
+                                                    </View>
+                                                )}
                                                 <View style={styles.cardTop}>
                                                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                                         <MaterialIcons name="contactless" size={22} color={textColor} style={{ opacity: 0.8 }} />
@@ -430,8 +474,20 @@ export default function CardsScreen() {
                             </View>
 
                             <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 100 }]} showsVerticalScrollIndicator={false}>
-                                <View style={[styles.cardWrapperDetail, { shadowColor: '#000', shadowOpacity: isDark ? 0.5 : 0.1, shadowRadius: 15, shadowOffset: { width: 0, height: 6 } }]}>
-                                    <View style={[styles.cardFacePremiumDetail, { backgroundColor: currentCard.color }]}>
+                                {(() => {
+                                    const advice = getShoppingAdvice(currentCard);
+                                    return (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: advice.color, padding: 12, borderRadius: 16, borderWidth: 1, borderColor: advice.borderColor, marginBottom: 10 }}>
+                                            <Text style={{ fontSize: 20, marginRight: 10 }}>{advice.title.split(' ')[0]}</Text>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={{ color: advice.textColor, fontWeight: '900', fontSize: 13 }}>{advice.title.replace(/[^A-Za-z0-9 ]/g, '').trim()}</Text>
+                                                <Text style={{ color: advice.textColor, opacity: 0.8, fontSize: 11, marginTop: 2 }}>{advice.msg}</Text>
+                                            </View>
+                                        </View>
+                                    );
+                                })()}
+                                <TouchableOpacity activeOpacity={0.9} onPress={handleFlip} style={[styles.cardWrapperDetail, { shadowColor: '#000', shadowOpacity: isDark ? 0.5 : 0.1, shadowRadius: 15, shadowOffset: { width: 0, height: 6 } }]}>
+                                    <Animated.View style={[styles.cardFacePremiumDetail, { backgroundColor: currentCard.color }, frontStyle]}>
                                         <View style={styles.cardTop}>
                                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                                 <MaterialIcons name="contactless" size={28} color={textColor} style={{ opacity: 0.8 }} />
@@ -456,8 +512,27 @@ export default function CardsScreen() {
                                                 </View>
                                             </View>
                                         </View>
-                                    </View>
-                                </View>
+                                    </Animated.View>
+                                    
+                                    <Animated.View style={[styles.cardFacePremiumDetail, { backgroundColor: currentCard.color }, backStyle]}>
+                                        <View style={{ width: '120%', height: 40, backgroundColor: 'rgba(0,0,0,0.8)', alignSelf: 'center', marginTop: 10, marginLeft: -24 }} />
+                                        <View style={{ flexDirection: 'row', marginTop: 20, alignItems: 'center' }}>
+                                            <View style={{ flex: 1, height: 30, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'flex-end', paddingRight: 10 }}>
+                                                <Text style={{ fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace', fontWeight: '900', color: '#000', fontStyle: 'italic' }}>CVV 123</Text>
+                                            </View>
+                                        </View>
+                                        <View style={{ marginTop: 20, flexDirection: 'row', justifyContent: 'space-between' }}>
+                                            <View>
+                                                <Text style={{ color: subTextColor, fontSize: 10, fontWeight: '800' }}>TASA E.A.</Text>
+                                                <Text style={{ color: textColor, fontSize: 16, fontWeight: '900' }}>{currentCard.interestRate}%</Text>
+                                            </View>
+                                            <View>
+                                                <Text style={{ color: subTextColor, fontSize: 10, fontWeight: '800' }}>CORTE / PAGO</Text>
+                                                <Text style={{ color: textColor, fontSize: 16, fontWeight: '900' }}>Día {currentCard.cutDay} / Día {currentCard.dueDay}</Text>
+                                            </View>
+                                        </View>
+                                    </Animated.View>
+                                </TouchableOpacity>
 
                                 {/* Quick Actions */}
                                 <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 24, marginTop: 10, marginBottom: 20 }}>
@@ -466,6 +541,12 @@ export default function CardsScreen() {
                                             <MaterialIcons name="payment" size={24} color={colorsNav.text} />
                                         </View>
                                         <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '700' }}>Pagar</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={{ alignItems: 'center', gap: 8 }} onPress={() => { setSelectedCard(currentCard); setSimModalVisible(true); }}>
+                                        <View style={[styles.quickActionIcon, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
+                                            <MaterialIcons name="calculate" size={24} color={colorsNav.text} />
+                                        </View>
+                                        <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '700' }}>Simular</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity style={{ alignItems: 'center', gap: 8 }} onPress={() => handleDeleteCard(currentCard)}>
                                         <View style={[styles.quickActionIcon, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
@@ -532,13 +613,13 @@ export default function CardsScreen() {
                                     <Text style={{ color: colorsNav.text, fontSize: 32, fontWeight: '900', marginVertical: 8 }}>{fmt(debt)}</Text>
                                     
                                     <View style={{ flexDirection: 'row', gap: 12, marginTop: 15 }}>
-                                        <View style={[styles.walletSubCard, { borderColor: colorsNav.border, flex: 1 }]}>
-                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>Próximo Pago</Text>
+                                        <View style={[styles.walletSubCard, { borderColor: colorsNav.border, flex: 1, backgroundColor: isDark ? 'rgba(59, 130, 246, 0.1)' : '#EFF6FF' }]}>
+                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>Pago Mínimo</Text>
                                             <Text style={{ color: colorsNav.text, fontSize: 16, fontWeight: '800', marginTop: 4 }}>{fmt(nextPaymentAmt)}</Text>
                                         </View>
                                         <View style={[styles.walletSubCard, { borderColor: colorsNav.border, flex: 1 }]}>
-                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>Cupo Disponible</Text>
-                                            <Text style={{ color: colorsNav.text, fontSize: 16, fontWeight: '800', marginTop: 4 }}>{fmt(currentCard.limit - debt)}</Text>
+                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>Pago Total</Text>
+                                            <Text style={{ color: colorsNav.text, fontSize: 16, fontWeight: '800', marginTop: 4 }}>{fmt(debt)}</Text>
                                         </View>
                                     </View>
                                 </View>
@@ -557,6 +638,30 @@ export default function CardsScreen() {
                                 </View>
 
                                 <Text style={{ fontSize: 18, fontWeight: '900', color: colorsNav.text, marginTop: 25, marginBottom: 10 }}>Movimientos</Text>
+                                {(() => {
+                                    const subKeywords = ['netflix', 'spotify', 'amazon', 'hbo', 'disney', 'gym', 'apple', 'google', 'youtube'];
+                                    const subs = filteredTxs.filter(tx => subKeywords.some(k => tx.description.toLowerCase().includes(k)) && tx.type === 'expense');
+                                    // Remove duplicates by description
+                                    const uniqueSubs = Array.from(new Map(subs.map(item => [getCleanDescription(item.description).toLowerCase(), item])).values());
+                                    if (uniqueSubs.length === 0) return null;
+                                    return (
+                                        <View style={{ marginBottom: 20 }}>
+                                            <Text style={{ fontSize: 14, fontWeight: '800', color: colorsNav.sub, marginBottom: 10 }}>Suscripciones Detectadas</Text>
+                                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+                                                {uniqueSubs.map(sub => (
+                                                    <View key={sub.id} style={{ backgroundColor: colorsNav.card, padding: 12, borderRadius: 16, borderWidth: 1, borderColor: colorsNav.border, width: 140 }}>
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 6 }}>
+                                                            <MaterialIcons name="autorenew" size={16} color={colorsNav.sub} />
+                                                            <Text style={{ color: colorsNav.text, fontWeight: '800', fontSize: 12, flex: 1 }} numberOfLines={1}>{getCleanDescription(sub.description)}</Text>
+                                                        </View>
+                                                        <Text style={{ color: colorsNav.text, fontWeight: '900', fontSize: 16 }}>{fmt(sub.amount)}</Text>
+                                                    </View>
+                                                ))}
+                                            </ScrollView>
+                                        </View>
+                                    );
+                                })()}
+                                
                                 {hasTransactions ? (
                                     Object.entries(groupedTxs).map(([groupName, txs]) => {
                                         if (txs.length === 0) return null;
@@ -613,28 +718,41 @@ export default function CardsScreen() {
                                     <Text style={{ color: colorsNav.sub, fontSize: 13, fontWeight: '600' }}>Gasto Total</Text>
                                     <Text style={{ color: colorsNav.text, fontSize: 32, fontWeight: '900', marginBottom: 20 }}>{fmt(debt)}</Text>
                                     
-                                    <View style={{ alignItems: 'center', marginVertical: 20 }}>
-                                        <LineChart
-                                            data={{
-                                                labels: ["Ene", "Feb", "Mar", "Abr", "May", "Jun"],
-                                                datasets: [{ data: [12000, 45000, 28000, 80000, 99000, debt] }]
-                                            }}
-                                            width={width - 40}
-                                            height={220}
-                                            chartConfig={{
-                                                backgroundColor: colorsNav.bg,
-                                                backgroundGradientFrom: colorsNav.bg,
-                                                backgroundGradientTo: colorsNav.bg,
-                                                decimalPlaces: 0,
-                                                color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-                                                labelColor: (opacity = 1) => colorsNav.sub,
-                                                style: { borderRadius: 16 },
-                                                propsForDots: { r: "4", strokeWidth: "2", stroke: "#3B82F6" }
-                                            }}
-                                            bezier
-                                            style={{ marginVertical: 8, borderRadius: 16 }}
-                                        />
-                                    </View>
+                                {(() => {
+                                    const months = ["Mes 1", "Mes 2", "Mes 3", "Mes 4", "Mes 5", "Mes 6"];
+                                    const pmt = nextPaymentAmt > 0 ? nextPaymentAmt : (debt > 0 ? debt / 6 : 0);
+                                    let current = debt;
+                                    const proj = [];
+                                    for (let i = 0; i < 6; i++) {
+                                        proj.push(current);
+                                        current = Math.max(0, current - pmt);
+                                    }
+                                    // If all 0, prevent chart crash
+                                    if (proj.every(v => v === 0)) proj[0] = 1;
+                                    
+                                    return (
+                                        <View style={{ alignItems: 'center', marginVertical: 20, backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', padding: 16, borderRadius: 24, borderWidth: 1, borderColor: colorsNav.border }}>
+                                            <Text style={{ alignSelf: 'flex-start', color: colorsNav.sub, fontSize: 13, fontWeight: '700', marginBottom: 10 }}>Deuda Proyectada (Sin compras)</Text>
+                                            <LineChart
+                                                data={{ labels: months, datasets: [{ data: proj }] }}
+                                                width={width - 72}
+                                                height={220}
+                                                chartConfig={{
+                                                    backgroundColor: 'transparent',
+                                                    backgroundGradientFromOpacity: 0,
+                                                    backgroundGradientToOpacity: 0,
+                                                    decimalPlaces: 0,
+                                                    color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+                                                    labelColor: (opacity = 1) => colorsNav.sub,
+                                                    style: { borderRadius: 16 },
+                                                    propsForDots: { r: "4", strokeWidth: "2", stroke: "#3B82F6" }
+                                                }}
+                                                bezier
+                                                style={{ marginVertical: 8, borderRadius: 16 }}
+                                            />
+                                        </View>
+                                    );
+                                })()}
                                     
                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, marginBottom: 20 }}>
                                         <View style={{ flex: 1, alignItems: 'center' }}>
@@ -766,6 +884,59 @@ export default function CardsScreen() {
                         <View style={styles.modalFooter}>
                             <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.bg }]} onPress={() => setPayModalVisible(false)}><Text style={{ color: colorsNav.text }}>Cerrar</Text></TouchableOpacity>
                             <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.accent }]} onPress={handlePayCard}><Text style={{ color: '#FFF', fontWeight: '800' }}>Confirmar Pago</Text></TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+            <Modal visible={simModalVisible} transparent animationType="slide">
+                <View style={[styles.overlay, { justifyContent: 'flex-end' }]}>
+                    <View style={[styles.modal, { backgroundColor: colorsNav.card, borderTopLeftRadius: 32, borderTopRightRadius: 32, width: '100%' }]}>
+                        <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Simulador de Cuotas</Text>
+                        <Text style={{ fontSize: 12, fontWeight: '800', color: colorsNav.sub, marginBottom: 10 }}>MONTO A SIMULAR</Text>
+                        <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border, fontSize: 24, padding: 20, marginBottom: 20 }]} placeholder="$ 0" placeholderTextColor={colorsNav.sub} keyboardType="decimal-pad" value={simAmount} onChangeText={t => setSimAmount(formatInputDisplay(t, currency))} />
+                        <Text style={{ fontSize: 12, fontWeight: '800', color: colorsNav.sub, marginBottom: 10 }}>NÚMERO DE CUOTAS</Text>
+                        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+                            {['1', '6', '12', '24'].map(cuotas => (
+                                <TouchableOpacity key={cuotas} style={[styles.accPill, { flex: 1, borderColor: colorsNav.border, alignItems: 'center' }, simInstallments === cuotas && { backgroundColor: colorsNav.accent, borderColor: colorsNav.accent }]} onPress={() => setSimInstallments(cuotas)}>
+                                    <Text style={{ color: simInstallments === cuotas ? '#FFF' : colorsNav.sub, fontWeight: '700' }}>{cuotas}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                        {(() => {
+                            const amt = convertToBase(parseInputToNumber(simAmount, currency), currency, rates);
+                            const n = parseInt(simInstallments, 10) || 1;
+                            const rateEA = selectedCard?.interestRate || 0;
+                            const rateEM = Math.pow(1 + (rateEA / 100), 1 / 12) - 1; // Effective Monthly
+                            let monthlyPay = 0;
+                            let totalPay = 0;
+                            if (amt > 0 && n > 0) {
+                                if (n === 1 || rateEM === 0) {
+                                    monthlyPay = amt / n;
+                                    totalPay = amt;
+                                } else {
+                                    monthlyPay = amt * (rateEM * Math.pow(1 + rateEM, n)) / (Math.pow(1 + rateEM, n) - 1);
+                                    totalPay = monthlyPay * n;
+                                }
+                            }
+                            return (
+                                <View style={{ backgroundColor: colorsNav.bg, padding: 20, borderRadius: 20, marginBottom: 20 }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+                                        <Text style={{ color: colorsNav.sub, fontWeight: '700' }}>Cuota Mensual:</Text>
+                                        <Text style={{ color: colorsNav.text, fontWeight: '900', fontSize: 16 }}>{fmt(monthlyPay)}</Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+                                        <Text style={{ color: colorsNav.sub, fontWeight: '700' }}>Total Intereses:</Text>
+                                        <Text style={{ color: '#EF4444', fontWeight: '900', fontSize: 16 }}>{fmt(totalPay - amt)}</Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                        <Text style={{ color: colorsNav.sub, fontWeight: '700' }}>Pago Total:</Text>
+                                        <Text style={{ color: colorsNav.text, fontWeight: '900', fontSize: 16 }}>{fmt(totalPay)}</Text>
+                                    </View>
+                                </View>
+                            );
+                        })()}
+                        <View style={styles.modalFooter}>
+                            <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.accent, width: '100%' }]} onPress={() => setSimModalVisible(false)}><Text style={{ color: '#FFF', fontWeight: '800' }}>Cerrar Simulador</Text></TouchableOpacity>
                         </View>
                     </View>
                 </View>
