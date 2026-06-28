@@ -56,8 +56,7 @@ export default function AddTransactionScreen() {
   const [account, setAccount] = useState('Efectivo');
   const [destAccount, setDestAccount] = useState('');
   const [customCategories, setCustomCategories] = useState<string[]>([]);
-  const [categoryThresholds, setCategoryThresholds] = useState<Record<string, number>>({});
-  const [showThresholdsModal, setShowThresholdsModal] = useState(false);
+
   const [modalVisible, setModalVisible] = useState(false);
   const [accountModalVisible, setAccountModalVisible] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -91,16 +90,7 @@ export default function AddTransactionScreen() {
   const [selectedGoalId, setSelectedGoalId] = useState<number | null>(null);
   const [smartSavingsPref, setSmartSavingsPref] = useState<'enabled' | 'disabled' | 'unset'>('unset');
   const [showPreferenceModal, setShowPreferenceModal] = useState(false);
-  const [showHealthAlert, setShowHealthAlert] = useState(false);
-  const [healthData, setHealthData] = useState<{
-    healthPct: number;
-    emergencyFund: { id: number; name: string; current: number; target: number } | null;
-    expenseAmount: number;
-    suggestedRedirect: number;
-    suggestedPct?: number;
-    message: string;
-  } | null>(null);
-  const [redirectAmount, setRedirectAmount] = useState('');
+
   const router = useRouter();
   const { user, currency, rates, isHidden, cards, customAccounts, refreshConfig } = useAuth();
   const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
@@ -116,14 +106,12 @@ export default function AddTransactionScreen() {
     if (!user?.id) return;
     const loadData = async () => {
       try {
-        const [rawCats, rawPref, rawThresholds] = await Promise.all([
+        const [rawCats, rawPref] = await Promise.all([
           AsyncStorage.getItem(SYNC_KEYS.CATEGORIES(user.id)),
           AsyncStorage.getItem(SYNC_KEYS.SMART_SAVINGS(user.id)),
-          AsyncStorage.getItem(SYNC_KEYS.CATEGORY_THRESHOLDS(user.id))
         ]);
         if (rawCats) setCustomCategories(JSON.parse(rawCats));
         if (rawPref) setSmartSavingsPref(rawPref as any);
-        if (rawThresholds) setCategoryThresholds(JSON.parse(rawThresholds));
       } catch (e) {
         console.error('Error al cargar datos persistidos:', e);
       }
@@ -464,90 +452,7 @@ export default function AddTransactionScreen() {
         } catch (e) { console.error('Error calculando sugerencia:', e); }
       }
 
-      if (type === 'expense') {
-        try {
-          const { data: allTx } = await supabase.from('transactions').select('amount, type, category, account').eq('user_id', user?.id);
-          const { data: allDebts } = await supabase.from('debts').select('value, paid, debt_type').eq('user_id', user?.id);
-          
-          let accs: Record<string, number> = {};
-          let savTotal = 0;
-          allTx?.forEach(tx => {
-            const amount = Number(tx.amount) || 0;
-            if (tx.type === 'income') {
-              const acc = tx.account || 'Efectivo';
-              if (!accs[acc]) accs[acc] = 0;
-              if (tx.category === 'Ahorro') {
-                if (tx.account === 'Ahorro') savTotal += amount;
-                else savTotal -= amount;
-              }
-              accs[acc] += amount;
-            } else {
-              if (tx.category === 'Ahorro') savTotal += amount;
-              const acc = !tx.account ? 'Efectivo' : tx.account;
-              if (!accs[acc]) accs[acc] = 0;
-              accs[acc] -= amount;
-            }
-          });
 
-          const validAccNames = ['Efectivo', ...(customAccounts || [])];
-          const cardNamesForFilter = (cards || []).map(c => c?.name || '');
-          const activeMoney = Object.entries(accs)
-            .filter(([accName]) => validAccNames.includes(accName) && !cardNamesForFilter.includes(accName) && accName !== 'Ahorro')
-            .reduce((sum, [_, amt]) => sum + Number(amt), 0);
-          
-          // Investment is hard to fetch perfectly here without loading goals fully, but let's approximate or just use savTotal
-          const currentAhorro = savTotal;
-          const currentInvestment = 0; // we skip investment for now to simplify, or assume 0
-          
-          const debtTotal = allDebts?.filter(d => d.debt_type !== 'loan').reduce((sum, d) => sum + (d.value - d.paid), 0) || 0;
-          const realMoney = activeMoney - debtTotal;
-          const assetsTotal = activeMoney + currentAhorro + currentInvestment;
-          
-          const rawHealthPct = assetsTotal > 0 ? Math.max(0, Math.min(100, Math.round((realMoney / assetsTotal) * 100))) : 0;
-          const healthPct = isNaN(rawHealthPct) ? 0 : rawHealthPct;
-          
-          // Buscar Fondo
-          const { data: goalsData } = await supabase.from('goals').select('id, name, current_amount, target_amount').eq('user_id', user?.id);
-          const storedInterests = await AsyncStorage.getItem(SYNC_KEYS.GOALS_INTEREST(user?.id ?? ''));
-          const iMap = storedInterests ? JSON.parse(storedInterests) : {};
-          const efGoal = goalsData?.find(g => iMap[g.id]?.is_emergency_fund);
-          
-          let shouldShowAlert = false;
-          let message = '';
-          
-          const limitToUse = categoryThresholds[dbCategory] ?? 0;
-          if (parsed > limitToUse) {
-              shouldShowAlert = true;
-              if (categoryThresholds[dbCategory] === undefined) {
-                  message = `Aún no has definido un límite para "${dbCategory}". Te recomendamos configurarlo ahora usando el botón de configuración arriba.`;
-              } else {
-                  const fundStatus = efGoal && efGoal.target_amount > 0 ? (efGoal.current_amount / efGoal.target_amount) : 0;
-                  if (healthPct < 40 || fundStatus < 0.5) {
-                      message = `Este monto de ${fmt(parsed)} es muy elevado. Actualmente tienes tu fondo de emergencia bajo y este gasto no aporta a tu libertad financiera futura. ¿De verdad es necesario?`;
-                  } else {
-                      message = `Este gasto de ${fmt(parsed)} supera el límite de ${fmt(categoryThresholds[dbCategory])} que fijaste para "${dbCategory}". Mantener la disciplina en estos detalles es clave para tu libertad financiera.`;
-                  }
-              }
-          }
-          
-          if (shouldShowAlert) {
-              const basePct = healthPct >= 70 ? 30 : healthPct >= 40 ? 20 : 10;
-              setHealthData({
-                  healthPct,
-                  emergencyFund: efGoal ? {
-                      id: efGoal.id, name: efGoal.name, current: efGoal.current_amount, target: efGoal.target_amount
-                  } : null,
-                  expenseAmount: parsed,
-                  suggestedRedirect: Math.round(parsed * (basePct / 100)),
-                  suggestedPct: basePct,
-                  message
-              });
-              setShowHealthAlert(true);
-              setIsSaving(false);
-              return;
-          }
-        } catch(e) { console.error('Error evaluando salud financiera:', e); }
-      }
 
       setAmount(''); setDescription(''); setCategory('');
       if (router.canGoBack()) router.back(); else router.replace('/(tabs)');
@@ -558,46 +463,7 @@ export default function AddTransactionScreen() {
     }
   };
 
-  const handleAcceptExpense = () => {
-      setShowHealthAlert(false);
-      setAmount(''); setDescription(''); setCategory('');
-      if (router.canGoBack()) router.back(); else router.replace('/(tabs)');
-  };
 
-  const handleRedirectToFund = async () => {
-      if (!healthData?.emergencyFund) {
-          setShowHealthAlert(false);
-          router.push('/goals');
-          return;
-      }
-      const val = parseInputToNumber(redirectAmount, currency);
-      const p = convertToBase(val, currency, rates);
-      if (isNaN(p) || p <= 0) return;
-      
-      setIsSaving(true);
-      try {
-          const { error } = await supabase.from('transactions').insert([{
-              user_id: user?.id,
-              type: 'expense',
-              amount: p,
-              description: `Aporte a fondo: ${healthData.emergencyFund.name}`,
-              category: 'Ahorro',
-              account: account,
-              date: getLocalISOString()
-          }]);
-          if (error) throw error;
-          
-          await supabase.from('goals').update({ current_amount: healthData.emergencyFund.current + p }).eq('id', healthData.emergencyFund.id);
-          setShowHealthAlert(false);
-          setAmount(''); setDescription(''); setCategory('');
-          if (router.canGoBack()) router.back(); else router.replace('/(tabs)');
-      } catch(e) {
-          console.error('Error redireccionando al fondo:', e);
-          Alert.alert('Error', 'No se pudo guardar la redirección de fondos.');
-      } finally {
-          setIsSaving(false);
-      }
-  };
 
   const handleSaveSavingSuggestion = async () => {
     setIsSaving(true);
@@ -1023,139 +889,7 @@ export default function AddTransactionScreen() {
           </View>
         </Modal>
 
-        <Modal visible={showHealthAlert} transparent animationType="slide">
-          <View style={styles.overlay}>
-             <View style={[styles.modalBox, { backgroundColor: colorsNav.card, borderColor: colorsNav.border, borderWidth: 1, elevation: 10, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 20 }]}>
-                
-                {/* Header del Modal */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                        <Ionicons name="warning" size={28} color="#F59E0B" />
-                        <Text style={[styles.modalTitle, { color: colorsNav.text, fontSize: 20 }]}>Límite Superado</Text>
-                    </View>
-                    <TouchableOpacity onPress={() => setShowThresholdsModal(true)} style={{ padding: 6, backgroundColor: colorsNav.bg, borderRadius: 8 }}>
-                        <Ionicons name="settings-outline" size={24} color={colorsNav.sub} />
-                    </TouchableOpacity>
-                </View>
-                
-                <Text style={[styles.modalSub, { color: colorsNav.sub, fontSize: 15, lineHeight: 22 }]}>
-                  {healthData?.message}
-                </Text>
 
-                {healthData?.emergencyFund ? (
-                    <View style={{ marginTop: 15, backgroundColor: colorsNav.bg, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: colorsNav.border + '50' }}>
-                        <Text style={{ color: colorsNav.text, fontWeight: '800', marginBottom: 12, fontSize: 12, letterSpacing: 0.5, textAlign: 'center' }}>TU FONDO DE EMERGENCIA</Text>
-                        
-                        {/* Barra de Progreso */}
-                        <View style={{ height: 8, backgroundColor: colorsNav.border, borderRadius: 4, overflow: 'hidden', marginBottom: 8 }}>
-                            <View style={{ height: '100%', backgroundColor: '#10B981', width: `${Math.min(100, (healthData.emergencyFund.current / healthData.emergencyFund.target) * 100)}%` }} />
-                        </View>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
-                            <Text style={{ color: colorsNav.sub, fontSize: 12, fontWeight: '600' }}>{fmt(healthData.emergencyFund.current)} ahorrados</Text>
-                            <Text style={{ color: colorsNav.sub, fontSize: 12 }}>Meta: {fmt(healthData.emergencyFund.target)}</Text>
-                        </View>
-
-                        <Text style={{ color: colorsNav.text, fontWeight: '700', marginBottom: 12, fontSize: 14, textAlign: 'center' }}>Sugerimos destinar el <Text style={{ color: colorsNav.accent, fontWeight: '900' }}>{healthData.suggestedPct}%</Text> al fondo:</Text>
-                        
-                        <TextInput
-                            style={[styles.modalInput, { backgroundColor: colorsNav.card, color: colorsNav.text, borderColor: colorsNav.border, textAlign: 'center', fontSize: 24, fontWeight: '900', paddingVertical: 12 }]}
-                            value={redirectAmount}
-                            onChangeText={t => setRedirectAmount(formatInputDisplay(t, currency))}
-                            placeholder={formatCurrency(healthData.suggestedRedirect, currency, false)}
-                            placeholderTextColor={colorsNav.sub + '50'}
-                            keyboardType="decimal-pad"
-                        />
-                    </View>
-                ) : null}
-
-                <View style={{ flexDirection: 'row', gap: 10, width: '100%', marginTop: 10 }}>
-                  <TouchableOpacity 
-                    style={[styles.mBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: colorsNav.border, flex: 1, paddingVertical: 14 }]} 
-                    onPress={handleAcceptExpense} disabled={isSaving}
-                  >
-                    <Text style={{ color: colorsNav.text, fontWeight: '700', fontSize: 14, textAlign: 'center' }}>Continuar</Text>
-                  </TouchableOpacity>
-
-                  {healthData?.emergencyFund ? (
-                      <TouchableOpacity 
-                        style={[styles.mBtn, { backgroundColor: colorsNav.accent, flex: 1, paddingVertical: 14 }]} 
-                        onPress={() => {
-                            if (!redirectAmount) {
-                                setRedirectAmount(formatCurrency(healthData.suggestedRedirect, currency, false).replace(/[^0-9.,]/g, ''));
-                            }
-                            handleRedirectToFund();
-                        }} disabled={isSaving}
-                      >
-                        <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 14, textAlign: 'center' }}>
-                            {isSaving ? '...' : 'Ahorrar'}
-                        </Text>
-                      </TouchableOpacity>
-                  ) : null}
-                </View>
-             </View>
-          </View>
-        </Modal>
-
-        <Modal visible={showThresholdsModal} transparent animationType="slide">
-          <View style={[styles.overlay, { justifyContent: 'flex-end', padding: 0 }]}>
-             <View style={{ backgroundColor: colorsNav.card, maxHeight: '85%', padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, borderTopLeftRadius: 32, borderTopRightRadius: 32, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 20 }}>
-                <View style={{ width: 40, height: 4, backgroundColor: colorsNav.border, borderRadius: 2, alignSelf: 'center', marginBottom: 20 }} />
-                
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                    <Text style={{ color: colorsNav.text, fontSize: 24, fontWeight: '900' }}>Tus Límites</Text>
-                    <TouchableOpacity onPress={() => setShowThresholdsModal(false)} style={{ backgroundColor: colorsNav.bg, padding: 8, borderRadius: 20 }}>
-                        <Ionicons name="close" size={20} color={colorsNav.sub} />
-                    </TouchableOpacity>
-                </View>
-                <Text style={{ color: colorsNav.sub, fontSize: 14, marginBottom: 24, lineHeight: 22 }}>Define un monto máximo para tus gastos. Te avisaremos cuando estés por encima para proteger tus ahorros.</Text>
-                
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 14 }}>
-                    {[...DEFAULT_EXPENSE_CATS, ...customCategories].map((cat) => (
-                        <View key={cat} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colorsNav.bg, padding: 12, borderRadius: 20, borderWidth: 1, borderColor: colorsNav.border + '40' }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 }}>
-                                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colorsNav.accent + '15', justifyContent: 'center', alignItems: 'center' }}>
-                                    <Ionicons name="pricetag" size={18} color={colorsNav.accent} />
-                                </View>
-                                <Text style={{ color: colorsNav.text, fontWeight: '700', fontSize: 16, flex: 1 }}>{cat}</Text>
-                            </View>
-                            <TextInput
-                                style={{ color: colorsNav.text, backgroundColor: colorsNav.card, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14, minWidth: 110, textAlign: 'right', fontWeight: '800', fontSize: 15, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4 }}
-                                placeholder="$ 0 (Avisar)"
-                                placeholderTextColor={colorsNav.sub + '80'}
-                                keyboardType="decimal-pad"
-                                value={categoryThresholds[cat] ? formatCurrency(categoryThresholds[cat], currency, false).replace(/[^0-9.,]/g, '') : ''}
-                                onChangeText={(val) => {
-                                    const num = parseInputToNumber(val, currency);
-                                    if (num > 0) {
-                                        setCategoryThresholds(prev => ({ ...prev, [cat]: num }));
-                                    } else {
-                                        setCategoryThresholds(prev => {
-                                            const next = { ...prev };
-                                            delete next[cat];
-                                            return next;
-                                        });
-                                    }
-                                }}
-                            />
-                        </View>
-                    ))}
-                </ScrollView>
-
-                <TouchableOpacity 
-                    style={{ backgroundColor: colorsNav.accent, marginTop: 24, paddingVertical: 18, borderRadius: 20, elevation: 4, shadowColor: colorsNav.accent, shadowOpacity: 0.3, shadowRadius: 8 }} 
-                    onPress={async () => {
-                        if (user?.id) {
-                            await AsyncStorage.setItem(SYNC_KEYS.CATEGORY_THRESHOLDS(user.id), JSON.stringify(categoryThresholds));
-                            syncUp(user.id);
-                        }
-                        setShowThresholdsModal(false);
-                    }}
-                >
-                    <Text style={{ color: '#FFF', fontWeight: '900', textAlign: 'center', fontSize: 16, letterSpacing: 0.5 }}>Guardar Límites</Text>
-                </TouchableOpacity>
-             </View>
-          </View>
-        </Modal>
       </SafeAreaView>
     </TouchableWithoutFeedback>
   );
