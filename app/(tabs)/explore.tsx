@@ -762,17 +762,11 @@ export default function AddTransactionScreen() {
                             <MaterialIcons name="event" size={16} color={colorsNav.accent} />
                             <Text style={{ color: colorsNav.text, fontSize: 13, fontWeight: '800' }}>Fecha de Compra</Text>
                         </View>
-                        <TextInput
-                            style={[{ borderWidth: 1, borderRadius: 14, padding: 14, fontSize: 15, fontWeight: '700', backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.accent + '60' }]}
-                            value={txDate}
-                            onChangeText={setTxDate}
-                            placeholder="AAAA-MM-DD"
-                            placeholderTextColor={colorsNav.sub}
-                            maxLength={10}
-                            keyboardType="numbers-and-punctuation"
-                        />
+                        <View style={[{ borderWidth: 1, borderRadius: 14, padding: 14, backgroundColor: colorsNav.bg, borderColor: colorsNav.border, alignItems: 'center' }]}>
+                            <Text style={{ fontSize: 15, fontWeight: '700', color: colorsNav.text }}>{txDate}</Text>
+                        </View>
                         <Text style={{ color: colorsNav.accent, fontSize: 11, marginTop: 6, marginLeft: 4, fontWeight: '600', opacity: 0.8 }}>
-                            💡 Si la compra fue hace meses, pon la fecha real. Las cuotas se calculan desde ese día.
+                            💡 Si la compra fue hace meses, puedes registrarla en tarjetas.
                         </Text>
                     </View>
                 </View>
@@ -783,15 +777,9 @@ export default function AddTransactionScreen() {
                 <View style={[styles.section, { marginTop: 5 }]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                         <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>Fecha</Text>
-                        <TextInput
-                            style={{ color: colorsNav.text, fontWeight: '700', fontSize: 14, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, borderColor: colorsNav.border, backgroundColor: colorsNav.card, minWidth: 130, textAlign: 'center' }}
-                            value={txDate}
-                            onChangeText={setTxDate}
-                            placeholder="AAAA-MM-DD"
-                            placeholderTextColor={colorsNav.sub}
-                            maxLength={10}
-                            keyboardType="numbers-and-punctuation"
-                        />
+                        <View style={{ borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 8, borderColor: colorsNav.border, backgroundColor: colorsNav.card, minWidth: 130, alignItems: 'center' }}>
+                            <Text style={{ color: colorsNav.text, fontWeight: '700', fontSize: 14 }}>{txDate}</Text>
+                        </View>
                     </View>
                 </View>
               )}
