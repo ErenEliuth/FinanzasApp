@@ -65,6 +65,10 @@ export default function AddTransactionScreen() {
   const [installments, setInstallments] = useState('1');
   const [interestRate, setInterestRate] = useState('0');
   const [selectedCardAvailable, setSelectedCardAvailable] = useState<number | null>(null);
+  const [txDate, setTxDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  });
   const [selectedCardLimit, setSelectedCardLimit] = useState<number | null>(null);
   
   const scrollRef = useRef<any>(null);
@@ -77,6 +81,8 @@ export default function AddTransactionScreen() {
       setCategory('');
       setDestAccount('');
       setInstallments('1');
+      const d = new Date();
+      setTxDate(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
     }
   }, [isFocused]);
 
@@ -391,9 +397,13 @@ export default function AddTransactionScreen() {
 
     const desc = finalDescription;
 
+    // Validate and use the custom date if provided
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    const finalDate = dateRegex.test(txDate) ? txDate : getLocalISOString().split('T')[0];
+
     try {
       const { error } = await supabase.from('transactions').insert([{
-        user_id: user?.id, type: dbType, amount: parsed, description: desc, category: dbCategory, account: account, date: getLocalISOString(),
+        user_id: user?.id, type: dbType, amount: parsed, description: desc, category: dbCategory, account: account, date: finalDate,
       }]);
       if (error) throw error;
 
@@ -745,6 +755,44 @@ export default function AddTransactionScreen() {
                             </View>
                         );
                     })()}
+
+                    {/* Fecha de Compra — clave para cuotas pasadas */}
+                    <View style={{ marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: colorsNav.border + '50' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                            <MaterialIcons name="event" size={16} color={colorsNav.accent} />
+                            <Text style={{ color: colorsNav.text, fontSize: 13, fontWeight: '800' }}>Fecha de Compra</Text>
+                        </View>
+                        <TextInput
+                            style={[{ borderWidth: 1, borderRadius: 14, padding: 14, fontSize: 15, fontWeight: '700', backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.accent + '60' }]}
+                            value={txDate}
+                            onChangeText={setTxDate}
+                            placeholder="AAAA-MM-DD"
+                            placeholderTextColor={colorsNav.sub}
+                            maxLength={10}
+                            keyboardType="numbers-and-punctuation"
+                        />
+                        <Text style={{ color: colorsNav.accent, fontSize: 11, marginTop: 6, marginLeft: 4, fontWeight: '600', opacity: 0.8 }}>
+                            💡 Si la compra fue hace meses, pon la fecha real. Las cuotas se calculan desde ese día.
+                        </Text>
+                    </View>
+                </View>
+              )}
+
+              {/* Fecha para otros tipos de transacción (colapsable) */}
+              {!(type === 'expense' && cards.map(c => c.name).includes(account)) && (
+                <View style={[styles.section, { marginTop: 5 }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>Fecha</Text>
+                        <TextInput
+                            style={{ color: colorsNav.text, fontWeight: '700', fontSize: 14, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, borderColor: colorsNav.border, backgroundColor: colorsNav.card, minWidth: 130, textAlign: 'center' }}
+                            value={txDate}
+                            onChangeText={setTxDate}
+                            placeholder="AAAA-MM-DD"
+                            placeholderTextColor={colorsNav.sub}
+                            maxLength={10}
+                            keyboardType="numbers-and-punctuation"
+                        />
+                    </View>
                 </View>
               )}
             </View>
