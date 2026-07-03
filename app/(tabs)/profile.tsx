@@ -1,7 +1,7 @@
 import { useAuth } from '@/utils/auth';
 import { THEMES, ThemeName } from '@/constants/Themes';
 import { supabase } from '@/utils/supabase';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
@@ -142,6 +142,43 @@ function InsightCard({ text, colorsNav, tone = 'info' }: { text: string; colorsN
     );
 }
 
+function getReminderIcon(title: string, defaultColor: string) {
+    const t = title.toLowerCase();
+    
+    // Brand mappings
+    if (t.includes('netflix')) return { name: 'netflix', library: 'MaterialCommunityIcons', color: '#E50914' };
+    if (t.includes('spotify')) return { name: 'spotify', library: 'MaterialCommunityIcons', color: '#1DB954' };
+    if (t.includes('apple')) return { name: 'apple', library: 'MaterialCommunityIcons', color: '#FFFFFF' };
+    if (t.includes('youtube')) return { name: 'youtube', library: 'MaterialCommunityIcons', color: '#FF0000' };
+    if (t.includes('amazon') || t.includes('prime')) return { name: 'amazon', library: 'MaterialCommunityIcons', color: '#FF9900' };
+    if (t.includes('starbucks')) return { name: 'starbucks', library: 'MaterialCommunityIcons', color: '#00704A' };
+    if (t.includes('google')) return { name: 'google', library: 'MaterialCommunityIcons', color: '#4285F4' };
+    if (t.includes('playstation') || t.includes('psn')) return { name: 'playstation', library: 'MaterialCommunityIcons', color: '#0037AE' };
+    if (t.includes('xbox')) return { name: 'xbox', library: 'MaterialCommunityIcons', color: '#107C10' };
+    if (t.includes('steam')) return { name: 'steam', library: 'MaterialCommunityIcons', color: '#000000' };
+    if (t.includes('disney')) return { name: 'alpha-d-circle', library: 'MaterialCommunityIcons', color: '#113CCF' };
+    if (t.includes('hbo')) return { name: 'alpha-h-circle', library: 'MaterialCommunityIcons', color: '#9B51E0' };
+    
+    // Services / Bills mappings
+    if (t.includes('agua') || t.includes('triple a')) return { name: 'water', library: 'MaterialCommunityIcons', color: '#2F80ED' };
+    if (t.includes('luz') || t.includes('electricidad') || t.includes('energia') || t.includes('aire')) return { name: 'flash', library: 'MaterialCommunityIcons', color: '#F2C94C' };
+    if (t.includes('gas')) return { name: 'fire', library: 'MaterialCommunityIcons', color: '#F2994A' };
+    if (t.includes('internet') || t.includes('wifi') || t.includes('claro') || t.includes('movistar') || t.includes('tigo') || t.includes('une')) return { name: 'wifi', library: 'MaterialCommunityIcons', color: '#2D9CDB' };
+    if (t.includes('celular') || t.includes('plan') || t.includes('telefono')) return { name: 'cellphone', library: 'MaterialCommunityIcons', color: '#9B51E0' };
+    
+    // Other common categories
+    if (t.includes('arriendo') || t.includes('alquiler') || t.includes('casa') || t.includes('apto') || t.includes('apartamento')) return { name: 'home', library: 'MaterialCommunityIcons', color: '#27AE60' };
+    if (t.includes('gym') || t.includes('gimnasio') || t.includes('fit')) return { name: 'dumbbell', library: 'MaterialCommunityIcons', color: '#EB5757' };
+    if (t.includes('seguro') || t.includes('eps') || t.includes('salud') || t.includes('medico')) return { name: 'heart-pulse', library: 'MaterialCommunityIcons', color: '#EB5757' };
+    if (t.includes('tarjeta') || t.includes('banco') || t.includes('credit') || t.includes('visa') || t.includes('mastercard') || t.includes('amex') || t.includes('bancolombia') || t.includes('davivienda') || t.includes('nu')) return { name: 'credit-card', library: 'MaterialCommunityIcons', color: '#F2C94C' };
+    if (t.includes('prestamo') || t.includes('credito') || t.includes('deuda')) return { name: 'cash', library: 'MaterialCommunityIcons', color: '#6FCF97' };
+    if (t.includes('colegio') || t.includes('u') || t.includes('universidad') || t.includes('pension') || t.includes('estudio')) return { name: 'school', library: 'MaterialCommunityIcons', color: '#2F80ED' };
+    if (t.includes('carro') || t.includes('moto') || t.includes('soat') || t.includes('taller') || t.includes('gasolina')) return { name: 'car', library: 'MaterialCommunityIcons', color: '#F2994A' };
+
+    // Generic
+    return { name: 'calendar-check', library: 'MaterialCommunityIcons', color: defaultColor };
+}
+
 function MonthHeatmap({ activeDays, colorsNav, onDayPress, reminders }: {
     activeDays: Map<string, number>;
     colorsNav: any;
@@ -182,8 +219,8 @@ function MonthHeatmap({ activeDays, colorsNav, onDayPress, reminders }: {
             </View>
             <View style={mSt.weekRow}>
                 {DAY_HEADERS.map((d, i) => (
-                    <View key={i} style={mSt.dayHeader}>
-                        <Text style={[mSt.dayHeaderTxt, { color: colorsNav.sub }]}>{d}</Text>
+                    <View key={i} style={[mSt.dayHeader, { backgroundColor: colorsNav.isDark ? '#2C2C2E' : '#E5E5EA' }]}>
+                        <Text style={[mSt.dayHeaderTxt, { color: colorsNav.text }]}>{d}</Text>
                     </View>
                 ))}
             </View>
@@ -196,6 +233,7 @@ function MonthHeatmap({ activeDays, colorsNav, onDayPress, reminders }: {
                         const count = activeDays.get(k) ?? 0;
                         const isToday = k === todayKey;
                         const isFuture = dateObj > today;
+                        
                         const dayReminders = reminders.filter(r => {
                             if (r.due_day === day) return true;
                             if (r.due_date) {
@@ -204,17 +242,32 @@ function MonthHeatmap({ activeDays, colorsNav, onDayPress, reminders }: {
                             }
                             return false;
                         });
+                        
                         const hasReminder = dayReminders.length > 0;
                         const hasUnpaidReminder = dayReminders.some(r => !r.is_paid);
                         const hasPaidReminder = hasReminder && !hasUnpaidReminder;
                         const isOverdue = hasUnpaidReminder && dateObj < new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-                        let bgColor = colorsNav.bg;
-                        if (isFuture) bgColor = 'transparent';
-                        else if (isOverdue) bgColor = '#EF4444';
-                        else if (hasUnpaidReminder) bgColor = '#F59E0B';
-                        else if (hasPaidReminder) bgColor = '#10B981';
-                        else if (count > 0) bgColor = colorsNav.accent;
+                        // Base background styling
+                        let cellBg = colorsNav.isDark ? '#1C1C1E' : '#F2F2F7';
+                        if (isFuture) {
+                            cellBg = colorsNav.isDark ? '#1C1C1E40' : '#F2F2F740';
+                        } else if (count > 0 && !hasReminder) {
+                            // Heatmap tint for standard active days
+                            cellBg = colorsNav.accent + '20';
+                        }
+
+                        // Dot indicators
+                        let dotColor = null;
+                        if (hasReminder) {
+                            if (isOverdue) dotColor = '#EF4444';
+                            else if (hasUnpaidReminder) dotColor = '#F59E0B';
+                            else if (hasPaidReminder) dotColor = '#10B981';
+                        }
+
+                        // Get icon details if there's a reminder
+                        const firstReminder = dayReminders[0];
+                        const iconInfo = hasReminder ? getReminderIcon(firstReminder.title, colorsNav.accent) : null;
 
                         return (
                             <TouchableOpacity 
@@ -224,20 +277,37 @@ function MonthHeatmap({ activeDays, colorsNav, onDayPress, reminders }: {
                             >
                                 <View style={[
                                     mSt.dayCircle,
-                                    { backgroundColor: bgColor },
-                                    isToday && { borderWidth: 2, borderColor: colorsNav.accent },
-                                    hasReminder && { borderBottomWidth: 3, borderBottomColor: isOverdue ? '#B91C1C' : hasPaidReminder ? '#059669' : '#D97706' }
+                                    { backgroundColor: cellBg },
+                                    isToday && { borderWidth: 1.5, borderColor: colorsNav.accent },
                                 ]}>
-                                    <Text style={[
-                                        mSt.dayNum,
-                                        { color: (count > 0 || hasReminder) && !isFuture ? '#FFF' : colorsNav.text },
-                                        isFuture && { color: colorsNav.sub + (count > 0 ? '' : '50') },
-                                        isToday && { fontWeight: '900' }
-                                    ]}>
-                                        {day}
-                                    </Text>
-                                    {hasReminder && (
-                                        <View style={[mSt.reminderDot, { backgroundColor: (!isFuture && (count > 0 || hasReminder)) ? '#FFF' : colorsNav.accent }]} />
+                                    {iconInfo ? (
+                                        <>
+                                            <MaterialCommunityIcons 
+                                                name={iconInfo.name as any} 
+                                                size={18} 
+                                                color={iconInfo.color} 
+                                                style={{ marginTop: -4 }}
+                                            />
+                                            {dotColor && (
+                                                <View style={[mSt.reminderDot, { backgroundColor: dotColor }]} />
+                                            )}
+                                            <Text style={[mSt.dayNumSub, { color: colorsNav.sub }]}>
+                                                {day}
+                                            </Text>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Text style={[
+                                                mSt.dayNum,
+                                                { color: isFuture ? colorsNav.sub + '80' : colorsNav.text },
+                                                isToday && { fontWeight: '900', color: colorsNav.accent }
+                                            ]}>
+                                                {day}
+                                            </Text>
+                                            {count > 0 && (
+                                                <View style={[mSt.transactionDot, { backgroundColor: colorsNav.accent }]} />
+                                            )}
+                                        </>
                                     )}
                                 </View>
                             </TouchableOpacity>
@@ -256,13 +326,23 @@ const mSt = StyleSheet.create({
     subtitle: { fontSize: 11, marginTop: 2 },
     pill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
     pillTxt: { fontSize: 10, fontWeight: '800' },
-    weekRow: { flexDirection: 'row', marginBottom: 6 },
-    dayHeader: { flex: 1, alignItems: 'center' },
-    dayHeaderTxt: { fontSize: 10, fontWeight: '700', opacity: 0.6 },
-    cell: { flex: 1, alignItems: 'center' },
-    dayCircle: { width: 30, height: 30, borderRadius: 9, justifyContent: 'center', alignItems: 'center', position: 'relative' },
-    dayNum: { fontSize: 11, fontWeight: '600' },
-    reminderDot: { position: 'absolute', bottom: 2, width: 4, height: 4, borderRadius: 2 },
+    weekRow: { flexDirection: 'row', marginBottom: 4, gap: 4 },
+    dayHeader: { flex: 1, alignItems: 'center', paddingVertical: 4, borderRadius: 8 },
+    dayHeaderTxt: { fontSize: 9, fontWeight: '800' },
+    cell: { flex: 1, aspectRatio: 1 },
+    dayCircle: { 
+        width: '100%', 
+        height: '100%', 
+        borderRadius: 10, 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        position: 'relative',
+        padding: 4
+    },
+    dayNum: { fontSize: 12, fontWeight: '700' },
+    dayNumSub: { fontSize: 8, fontWeight: '800', position: 'absolute', bottom: 3, right: 4 },
+    reminderDot: { position: 'absolute', top: 4, right: 4, width: 5, height: 5, borderRadius: 2.5 },
+    transactionDot: { width: 3, height: 3, borderRadius: 1.5, marginTop: 1 },
 });
 
 const CAT_INFO: Record<string, any> = {
