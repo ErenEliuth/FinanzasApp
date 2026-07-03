@@ -990,25 +990,6 @@ export default function ProfileScreen() {
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <Text style={[styles.sectionTitle, { color: colorsNav.sub, marginTop: 0, marginBottom: 0 }]}>AGENDA FINANCIERA</Text>
                 </View>
-                <View style={styles.agendaSummaryRow}>
-                    <View style={[styles.agendaSummaryCard, { backgroundColor: '#F59E0B12' }]}>
-                        <Text style={[styles.agendaSummaryLabel, { color: '#D97706' }]}>PENDIENTE</Text>
-                        <Text style={[styles.agendaSummaryValue, { color: colorsNav.text }]}>{fmt(pendingCommitmentTotal, currency, rates, isHidden)}</Text>
-                    </View>
-                    <View style={[styles.agendaSummaryCard, { backgroundColor: '#10B98112' }]}>
-                        <Text style={[styles.agendaSummaryLabel, { color: '#10B981' }]}>PAGADO</Text>
-                        <Text style={[styles.agendaSummaryValue, { color: colorsNav.text }]}>{fmt(paidCommitmentTotal, currency, rates, isHidden)}</Text>
-                    </View>
-                    <View style={[styles.agendaSummaryCard, { backgroundColor: colorsNav.accent + '12' }]}>
-                        <Text style={[styles.agendaSummaryLabel, { color: colorsNav.accent }]}>DIAS</Text>
-                        <Text style={[styles.agendaSummaryValue, { color: colorsNav.text }]}>{monthCommitments.length}</Text>
-                    </View>
-                </View>
-                <View style={styles.agendaLegend}>
-                    <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} /><Text style={[styles.legendText, { color: colorsNav.sub }]}>Pendiente</Text></View>
-                    <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#10B981' }]} /><Text style={[styles.legendText, { color: colorsNav.sub }]}>Pagado</Text></View>
-                    <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} /><Text style={[styles.legendText, { color: colorsNav.sub }]}>Vencido</Text></View>
-                </View>
                 <MonthHeatmap activeDays={activeDays} colorsNav={colorsNav} reminders={reminders} onDayPress={handleDayPress} />
 
                 
@@ -1517,7 +1498,7 @@ const styles = StyleSheet.create({
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? 40 : 10, marginBottom: 10 },
     headerTitle: { fontSize: 24, fontWeight: '800' },
     themeBtn: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-    scroll: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 100 },
+    scroll: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 140 },
     profileCard: { borderRadius: 28, padding: 20, marginBottom: 12, elevation: 2 },
     profileTop: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 },
     avatar: { width: 56, height: 56, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
