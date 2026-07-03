@@ -78,8 +78,8 @@ type ExpenseSplitDetailed = {
 
 const splitExpensesDetailed = (items: any[]): ExpenseSplitDetailed => {
     const expenses = items.filter(t => t.type === 'expense');
-    const savings = expenses.filter(t => t.category === 'Ahorro' || t.category === 'InversiÃ³n').reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0);
-    const actualExpenses = expenses.filter(t => t.category !== 'Ahorro' && t.category !== 'InversiÃ³n' && t.category !== 'Transferencia');
+    const savings = expenses.filter(t => t.category === 'Ahorro' || t.category === 'Inversión').reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0);
+    const actualExpenses = expenses.filter(t => t.category !== 'Ahorro' && t.category !== 'Inversión' && t.category !== 'Transferencia');
     const fixed = actualExpenses.filter(isFixedExpense).reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0);
     const total = sumAmounts(actualExpenses);
     return {
@@ -214,7 +214,7 @@ function MonthHeatmap({ activeDays, colorsNav, onDayPress, reminders }: {
                     <Text style={[mSt.subtitle, { color: colorsNav.sub }]}>Tu agenda financiera</Text>
                 </View>
                 <View style={[mSt.pill, { backgroundColor: colorsNav.accent + '20' }]}>
-                    <Text style={[mSt.pillTxt, { color: colorsNav.accent }]}>{totalActive} dÃ­as activos</Text>
+                    <Text style={[mSt.pillTxt, { color: colorsNav.accent }]}>{totalActive} días activos</Text>
                 </View>
             </View>
             <View style={mSt.weekRow}>
@@ -351,7 +351,7 @@ const CAT_INFO: Record<string, any> = {
     'Comida': { icon: 'restaurant', color: '#F59E0B', bg: '#FFF0E0' },
     'Supermercado': { icon: 'shopping-cart', color: '#F59E0B', bg: '#FFF0E0' },
     'Salud': { icon: 'favorite', color: '#E91E63', bg: '#FCE4EC' },
-    'EducaciÃ³n': { icon: 'school', color: '#3B82F6', bg: '#E3F0FF' },
+    'Educación': { icon: 'school', color: '#3B82F6', bg: '#E3F0FF' },
     'Entretenimiento': { icon: 'sports-esports', color: '#EC4899', bg: '#FDF2F8' },
     'Otros': { icon: 'more-horiz', color: '#94A3B8', bg: '#F1F5F9' },
 };
@@ -400,7 +400,7 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
     const balance = thisMonthIncTotal - thisMonthExpTotal;
     
     const projectionInsight = projectedClose > 0
-        ? `Si sigues asÃ­, cerrarÃ¡s el mes con gastos cercanos a ${fmt(projectedClose, currency, rates, isHidden)}.`
+        ? `Si sigues así, cerrarás el mes con gastos cercanos a ${fmt(projectedClose, currency, rates, isHidden)}.`
         : 'Registra gastos para predecir tu cierre de mes.';
 
     const categoryTotals: Record<string, number> = {};
@@ -501,7 +501,7 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
             </View>
 
             <View style={[statStyle.card, { backgroundColor: colorsNav.card }]}>
-                <Text style={[statStyle.title, { color: colorsNav.text, marginBottom: 20 }]}>Gastos por CategorÃ­a</Text>
+                <Text style={[statStyle.title, { color: colorsNav.text, marginBottom: 20 }]}>Gastos por Categoría</Text>
                 {sortedCats.map(([cat, val]) => {
                     const info = CAT_INFO[cat] || CAT_INFO['Otros'];
                     return (
@@ -624,7 +624,7 @@ export default function ProfileScreen() {
 
     const togglePushNotifications = async () => {
         if (Platform.OS !== 'web' || typeof Notification === 'undefined' || !('serviceWorker' in navigator)) {
-            Alert.alert('Solo Web', 'Las notificaciones estÃ¡n disponibles en la versiÃ³n web.');
+            Alert.alert('Solo Web', 'Las notificaciones están disponibles en la versión web.');
             return;
         }
         try {
@@ -636,7 +636,7 @@ export default function ProfileScreen() {
                 }
                 await AsyncStorage.setItem('push_notifications_enabled', 'false');
                 setPushEnabled(false);
-                Alert.alert('Desactivadas', 'Ya no recibirÃ¡s recordatorios.');
+                Alert.alert('Desactivadas', 'Ya no recibirás recordatorios.');
             } else {
                 const permission = await Notification.requestPermission();
                 if (permission === 'granted') {
@@ -660,10 +660,10 @@ export default function ProfileScreen() {
                     if (response.ok) {
                         await AsyncStorage.setItem('push_notifications_enabled', 'true');
                         setPushEnabled(true);
-                        Alert.alert('Â¡Activadas!', 'RecibirÃ¡s recordatorios y consejos diariamente.');
+                        Alert.alert('¡Activadas!', 'Recibirás recordatorios y consejos diariamente.');
                     } else {
                         const errData = await response.json();
-                        throw new Error(errData.error || 'Fallo en la suscripciÃ³n del servidor');
+                        throw new Error(errData.error || 'Fallo en la suscripción del servidor');
                     }
                 } else {
                     Alert.alert('Permiso Denegado', 'Habilita las notificaciones en los ajustes de tu navegador.');
@@ -683,11 +683,11 @@ export default function ProfileScreen() {
                 return;
             }
             const tips = [
-                'Â¡Recuerda aportar a tu fondo de emergencia hoy! Cada peso cuenta.',
-                'Revisa tus gastos de la semana. Â¿Hubo alguno innecesario?',
-                'El interÃ©s compuesto trabaja mientras duermes. Â¡Sigue ahorrando!',
+                '¡Recuerda aportar a tu fondo de emergencia hoy! Cada peso cuenta.',
+                'Revisa tus gastos de la semana. ¿Hubo alguno innecesario?',
+                'El interés compuesto trabaja mientras duermes. ¡Sigue ahorrando!',
                 'Tip: Automatiza tus aportes para no olvidarlos nunca.',
-                'Â¿SabÃ­as que el 10% de tus ingresos puede cambiar tu futuro financiero?'
+                '¿Sabías que el 10% de tus ingresos puede cambiar tu futuro financiero?'
             ];
             const randomTip = tips[Math.floor(Math.random() * tips.length)];
 
@@ -705,11 +705,11 @@ export default function ProfileScreen() {
 
             if (!response.ok) {
                 const errData = await response.json();
-                throw new Error(errData.error || 'Error al enviar notificaciÃ³n de prueba');
+                throw new Error(errData.error || 'Error al enviar notificación de prueba');
             }
         } catch (e: any) { 
             console.error('Test push error:', e);
-            Alert.alert('Error', `No se pudo enviar la notificaciÃ³n de prueba: ${e.message || e}`);
+            Alert.alert('Error', `No se pudo enviar la notificación de prueba: ${e.message || e}`);
         }
     };
     useEffect(() => {
@@ -908,10 +908,10 @@ export default function ProfileScreen() {
 
     const weeklyTopCategory = getTopExpenseCategory(currentWeekExpenses);
     
-    // Generar frases de insights dinÃ¡micas para el periodo semanal
+    // Generar frases de insights dinámicas para el periodo semanal
     const weeklyDiff = weeklySplit.total - previousWeekSpending;
     const weeklyCompareText = weeklyDiff > 0 
-        ? `Gastaste ${fmt(weeklyDiff, currency, rates, isHidden)} mÃ¡s que la semana pasada.` 
+        ? `Gastaste ${fmt(weeklyDiff, currency, rates, isHidden)} más que la semana pasada.` 
         : weeklyDiff < 0 
             ? `Gastaste ${fmt(Math.abs(weeklyDiff), currency, rates, isHidden)} menos que la semana pasada.` 
             : 'Gastaste lo mismo que la semana pasada.';
@@ -977,13 +977,13 @@ export default function ProfileScreen() {
                     <TouchableOpacity style={[styles.optBtn, { backgroundColor: '#FF8A6520' }]} onPress={() => setWeeklyModalVisible(true)}>
                         <View style={[styles.optIcon, { backgroundColor: '#FF8A65' }]}><MaterialIcons name="auto-graph" size={20} color="#FFF" /></View>
                         <Text style={[styles.optTitle, { color: colorsNav.text }]}>Semanal</Text>
-                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Gasto Ãºltimos 7 dÃ­as</Text>
+                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Gasto últimos 7 días</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={[styles.optBtn, { backgroundColor: colorsNav.accent + '20' }]} onPress={() => setStatsModalVisible(true)}>
                         <View style={[styles.optIcon, { backgroundColor: colorsNav.accent }]}><MaterialIcons name="analytics" size={20} color="#FFF" /></View>
-                        <Text style={[styles.optTitle, { color: colorsNav.text }]}>EstadÃ­sticas</Text>
-                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>AnÃ¡lisis de consumos</Text>
+                        <Text style={[styles.optTitle, { color: colorsNav.text }]}>Estadísticas</Text>
+                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Análisis de consumos</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -998,7 +998,7 @@ export default function ProfileScreen() {
                 <MonthHeatmap activeDays={activeDays} colorsNav={colorsNav} reminders={reminders} onDayPress={handleDayPress} />
 
                 
-                {/* BotÃ³n de Presupuestos abajo del calendario */}
+                {/* Botón de Presupuestos abajo del calendario */}
                 <TouchableOpacity 
                     style={[styles.budgetFullBtn, { backgroundColor: colorsNav.card }]} 
                     onPress={() => router.push('/budgets')}
@@ -1008,7 +1008,7 @@ export default function ProfileScreen() {
                     </View>
                     <View style={{ flex: 1, marginLeft: 12 }}>
                         <Text style={[styles.optTitle, { color: colorsNav.text }]}>Presupuestos</Text>
-                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Controla tus lÃ­mites de gasto</Text>
+                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Controla tus límites de gasto</Text>
                     </View>
                     <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
                 </TouchableOpacity>
@@ -1025,7 +1025,7 @@ export default function ProfileScreen() {
                         <View style={[styles.listIcon, { backgroundColor: '#8B5CF615' }]}><MaterialIcons name="auto-awesome" size={20} color="#8B5CF6" /></View>
                         <View style={{ flex: 1 }}>
                             <Text style={[styles.listTitle, { color: colorsNav.text }]}>Ahorro Inteligente</Text>
-                            <Text style={[styles.listSub, { color: colorsNav.sub }]}>Sugerencias automÃ¡ticas</Text>
+                            <Text style={[styles.listSub, { color: colorsNav.sub }]}>Sugerencias automáticas</Text>
                         </View>
                         <TouchableOpacity 
                             onPress={toggleSmartSavings}
@@ -1097,7 +1097,7 @@ export default function ProfileScreen() {
                                 >
                                     <View style={[styles.listIcon, { backgroundColor: '#3B82F615' }]}><MaterialIcons name="send" size={20} color="#3B82F6" /></View>
                                     <View style={{ flex: 1 }}>
-                                        <Text style={[styles.listTitle, { color: colorsNav.text }]}>Enviar NotificaciÃ³n de Prueba</Text>
+                                        <Text style={[styles.listTitle, { color: colorsNav.text }]}>Enviar Notificación de Prueba</Text>
                                         <Text style={[styles.listSub, { color: colorsNav.sub }]}>Probar alertas al instante</Text>
                                     </View>
                                     <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
@@ -1117,7 +1117,7 @@ export default function ProfileScreen() {
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                             <View>
                                 <Text style={[styles.modalTitle, { color: colorsNav.text, marginBottom: 2 }]}>Personaliza tu app</Text>
-                                <Text style={{ fontSize: 12, color: colorsNav.sub }}>Elige el estilo que mÃ¡s te guste</Text>
+                                <Text style={{ fontSize: 12, color: colorsNav.sub }}>Elige el estilo que más te guste</Text>
                             </View>
                             <TouchableOpacity style={[styles.closeCircle, { backgroundColor: isDark ? '#333' : '#F1F1F1' }]} onPress={() => setThemeModalVisible(false)}>
                                 <Ionicons name="close" size={20} color={colorsNav.text} />
@@ -1145,10 +1145,10 @@ export default function ProfileScreen() {
                                 {[
                                     { label: 'Sanctuary', light: 'light' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#4A7C59', darkColor: '#4A7C59', lightText: '#FFF8F0', darkText: '#FFF8F0' },
                                     { label: 'Lavanda', light: 'lavender' as ThemeName, dark: 'lavender_dark' as ThemeName, lightColor: '#7C5DBA', darkColor: '#9D7FE0', lightText: '#F8F7FF', darkText: '#1A1625' },
-                                    { label: 'OcÃ©ano', light: 'ocean' as ThemeName, dark: 'ocean_dark' as ThemeName, lightColor: '#008080', darkColor: '#26A69A', lightText: '#F0F9FA', darkText: '#0A1A1A' },
+                                    { label: 'Océano', light: 'ocean' as ThemeName, dark: 'ocean_dark' as ThemeName, lightColor: '#008080', darkColor: '#26A69A', lightText: '#F0F9FA', darkText: '#0A1A1A' },
                                     { label: 'Rosa', light: 'rose' as ThemeName, dark: 'rose_dark' as ThemeName, lightColor: '#E05C6E', darkColor: '#E07080', lightText: '#FFF5F5', darkText: '#1A0E0E' },
-                                    { label: 'Ãmbar', light: 'amber' as ThemeName, dark: 'amber_dark' as ThemeName, lightColor: '#D97706', darkColor: '#F59E0B', lightText: '#FFFBF0', darkText: '#1A1400' },
-                                    { label: 'Ãndigo', light: 'slate' as ThemeName, dark: 'midnight' as ThemeName, lightColor: '#3B5BDB', darkColor: '#818CF8', lightText: '#F5F7FA', darkText: '#0D0D1A' },
+                                    { label: 'Ámbar', light: 'amber' as ThemeName, dark: 'amber_dark' as ThemeName, lightColor: '#D97706', darkColor: '#F59E0B', lightText: '#FFFBF0', darkText: '#1A1400' },
+                                    { label: 'Índigo', light: 'slate' as ThemeName, dark: 'midnight' as ThemeName, lightColor: '#3B5BDB', darkColor: '#818CF8', lightText: '#F5F7FA', darkText: '#0D0D1A' },
                                     { label: 'Nieve', light: 'snow' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#1F2937', darkColor: '#4A7C59', lightText: '#FFFFFF', darkText: '#FFF8F0' },
                                 ].map((group) => {
                                     const targetTheme = isModalDark ? group.dark : group.light;
@@ -1189,7 +1189,7 @@ export default function ProfileScreen() {
                                                 </View>
                                                 <View>
                                                     <Text style={{ fontSize: 9, color: textColor, opacity: 0.75, fontWeight: '700', marginBottom: 2, letterSpacing: 1 }}>ESTADO</Text>
-                                                    <Text style={{ fontSize: 12, color: textColor, fontWeight: '800' }}>{isActive ? 'ACTIVO âœ“' : 'INACTIVO'}</Text>
+                                                    <Text style={{ fontSize: 12, color: textColor, fontWeight: '800' }}>{isActive ? 'ACTIVO ✓' : 'INACTIVO'}</Text>
                                                 </View>
                                             </View>
                                         </TouchableOpacity>
@@ -1206,7 +1206,7 @@ export default function ProfileScreen() {
                 <SafeAreaView style={{ flex: 1, backgroundColor: colorsNav.bg }}>
                     <View style={styles.modalHeader}>
                         <TouchableOpacity onPress={() => setStatsModalVisible(false)}><MaterialIcons name="close" size={28} color={colorsNav.text} /></TouchableOpacity>
-                        <Text style={[styles.modalHeaderTitle, { color: colorsNav.text }]}>AnÃ¡lisis de Gastos</Text>
+                        <Text style={[styles.modalHeaderTitle, { color: colorsNav.text }]}>Análisis de Gastos</Text>
                         <View style={{ width: 28 }} />
                     </View>
                     <ScrollView contentContainerStyle={{ padding: 20 }}>
@@ -1225,20 +1225,20 @@ export default function ProfileScreen() {
                         </View>
                         <View style={{ flexDirection: 'row', gap: 12, marginVertical: 20 }}>
                             <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#EF444410', padding: 16, borderRadius: 20 }}>
-                                <Text style={{ fontSize: 10, color: '#EF4444', fontWeight: '800' }}>GASTOS 7 DÃAS</Text>
+                                <Text style={{ fontSize: 10, color: '#EF4444', fontWeight: '800' }}>GASTOS 7 DÍAS</Text>
                                 <Text style={{ fontSize: 24, fontWeight: '900', color: '#EF4444' }}>{fmt(weeklySpending, currency, rates, isHidden)}</Text>
                                 <Text style={{ color: weeklyChangePct > 0 ? '#EF4444' : '#10B981', fontSize: 10, fontWeight: '800', marginTop: 4 }}>
                                     {weeklyChangePct >= 0 ? '+' : ''}{weeklyChangePct.toFixed(0)}% vs semana anterior
                                 </Text>
                             </View>
                             <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#10B98110', padding: 16, borderRadius: 20 }}>
-                                <Text style={{ fontSize: 10, color: '#10B981', fontWeight: '800' }}>INGRESOS 7 DÃAS</Text>
+                                <Text style={{ fontSize: 10, color: '#10B981', fontWeight: '800' }}>INGRESOS 7 DÍAS</Text>
                                 <Text style={{ fontSize: 24, fontWeight: '900', color: '#10B981' }}>{fmt(weeklyIncome, currency, rates, isHidden)}</Text>
                             </View>
                         </View>
 
                         <View style={[statStyle.card, { backgroundColor: colorsNav.bg, padding: 16, marginTop: 14, marginBottom: 16 }]}>
-                            <Text style={[statStyle.title, { color: colorsNav.text, fontSize: 14, marginBottom: 12 }]}>DistribuciÃ³n del flujo semanal</Text>
+                            <Text style={[statStyle.title, { color: colorsNav.text, fontSize: 14, marginBottom: 12 }]}>Distribución del flujo semanal</Text>
                             <View style={statStyle.splitTrack}>
                                 <View style={[statStyle.splitFixed, { width: `${Math.max(0, weeklyFixedPct)}%` }]} />
                                 <View style={[statStyle.splitVariable, { width: `${Math.max(0, weeklyVariablePct)}%` }]} />
@@ -1357,7 +1357,7 @@ export default function ProfileScreen() {
                 </View>
             </Modal>
 
-            {/* MODAL DETALLE DEL DÃA */}
+            {/* MODAL DETALLE DEL DÍA */}
             <Modal visible={dayDetailModalVisible} animationType="fade" transparent>
                 <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 }}>
                     <View style={[styles.modalBox, { backgroundColor: colorsNav.card }]}>
@@ -1396,8 +1396,8 @@ export default function ProfileScreen() {
                             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 10, backgroundColor: colorsNav.accent + '10', borderRadius: 12, marginBottom: 14 }}>
                                 <MaterialIcons name="insights" size={16} color={colorsNav.accent} style={{ marginTop: 1 }} />
                                 <Text style={{ flex: 1, fontSize: 12, lineHeight: 17, color: colorsNav.text, fontWeight: '500' }}>
-                                    Este dÃ­a representa {selectedDayWeekShare.toFixed(0)}% de tus gastos semanales y {selectedDayMonthShare.toFixed(0)}% del mes.
-                                    {selectedDayTxs.some(isFixedExpense) ? ' Este pago afectÃ³ tu categorÃ­a Gasto Fijo.' : ''}
+                                    Este día representa {selectedDayWeekShare.toFixed(0)}% de tus gastos semanales y {selectedDayMonthShare.toFixed(0)}% del mes.
+                                    {selectedDayTxs.some(isFixedExpense) ? ' Este pago afectó tu categoría Gasto Fijo.' : ''}
                                 </Text>
                             </View>
                         )}
@@ -1485,7 +1485,7 @@ export default function ProfileScreen() {
                             </TouchableOpacity>
                         </View>
                         
-                        <Text style={{ fontSize: 12, color: colorsNav.sub, marginBottom: 8 }}>TÃTULO (Ej. Arriendo)</Text>
+                        <Text style={{ fontSize: 12, color: colorsNav.sub, marginBottom: 8 }}>TÍTULO (Ej. Arriendo)</Text>
                         <TextInput 
                             style={{ backgroundColor: colorsNav.bg, borderRadius: 12, padding: 15, color: colorsNav.text, marginBottom: 15 }}
                             value={newReminderTitle}
@@ -1503,7 +1503,7 @@ export default function ProfileScreen() {
                         />
 
                         <Text style={{ fontSize: 12, color: colorsNav.sub, marginBottom: 15 }}>
-                            Se repetirÃ¡ todos los meses el dÃ­a {selectedDate ? selectedDate.getDate() : 'seleccionado'}.
+                            Se repetirá todos los meses el día {selectedDate ? selectedDate.getDate() : 'seleccionado'}.
                         </Text>
 
                         <TouchableOpacity 
