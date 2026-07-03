@@ -1,4 +1,4 @@
-import { useAuth } from '@/utils/auth';
+﻿import { useAuth } from '@/utils/auth';
 import { THEMES, ThemeName } from '@/constants/Themes';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -78,8 +78,8 @@ type ExpenseSplitDetailed = {
 
 const splitExpensesDetailed = (items: any[]): ExpenseSplitDetailed => {
     const expenses = items.filter(t => t.type === 'expense');
-    const savings = expenses.filter(t => t.category === 'Ahorro' || t.category === 'Inversión').reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0);
-    const actualExpenses = expenses.filter(t => t.category !== 'Ahorro' && t.category !== 'Inversión' && t.category !== 'Transferencia');
+    const savings = expenses.filter(t => t.category === 'Ahorro' || t.category === 'InversiÃ³n').reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0);
+    const actualExpenses = expenses.filter(t => t.category !== 'Ahorro' && t.category !== 'InversiÃ³n' && t.category !== 'Transferencia');
     const fixed = actualExpenses.filter(isFixedExpense).reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0);
     const total = sumAmounts(actualExpenses);
     return {
@@ -214,7 +214,7 @@ function MonthHeatmap({ activeDays, colorsNav, onDayPress, reminders }: {
                     <Text style={[mSt.subtitle, { color: colorsNav.sub }]}>Tu agenda financiera</Text>
                 </View>
                 <View style={[mSt.pill, { backgroundColor: colorsNav.accent + '20' }]}>
-                    <Text style={[mSt.pillTxt, { color: colorsNav.accent }]}>{totalActive} días activos</Text>
+                    <Text style={[mSt.pillTxt, { color: colorsNav.accent }]}>{totalActive} dÃ­as activos</Text>
                 </View>
             </View>
             <View style={mSt.weekRow}>
@@ -351,7 +351,7 @@ const CAT_INFO: Record<string, any> = {
     'Comida': { icon: 'restaurant', color: '#F59E0B', bg: '#FFF0E0' },
     'Supermercado': { icon: 'shopping-cart', color: '#F59E0B', bg: '#FFF0E0' },
     'Salud': { icon: 'favorite', color: '#E91E63', bg: '#FCE4EC' },
-    'Educación': { icon: 'school', color: '#3B82F6', bg: '#E3F0FF' },
+    'EducaciÃ³n': { icon: 'school', color: '#3B82F6', bg: '#E3F0FF' },
     'Entretenimiento': { icon: 'sports-esports', color: '#EC4899', bg: '#FDF2F8' },
     'Otros': { icon: 'more-horiz', color: '#94A3B8', bg: '#F1F5F9' },
 };
@@ -400,7 +400,7 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
     const balance = thisMonthIncTotal - thisMonthExpTotal;
     
     const projectionInsight = projectedClose > 0
-        ? `Si sigues así, cerrarás el mes con gastos cercanos a ${fmt(projectedClose, currency, rates, isHidden)}.`
+        ? `Si sigues asÃ­, cerrarÃ¡s el mes con gastos cercanos a ${fmt(projectedClose, currency, rates, isHidden)}.`
         : 'Registra gastos para predecir tu cierre de mes.';
 
     const categoryTotals: Record<string, number> = {};
@@ -501,7 +501,7 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
             </View>
 
             <View style={[statStyle.card, { backgroundColor: colorsNav.card }]}>
-                <Text style={[statStyle.title, { color: colorsNav.text, marginBottom: 20 }]}>Gastos por Categoría</Text>
+                <Text style={[statStyle.title, { color: colorsNav.text, marginBottom: 20 }]}>Gastos por CategorÃ­a</Text>
                 {sortedCats.map(([cat, val]) => {
                     const info = CAT_INFO[cat] || CAT_INFO['Otros'];
                     return (
@@ -624,7 +624,7 @@ export default function ProfileScreen() {
 
     const togglePushNotifications = async () => {
         if (Platform.OS !== 'web' || typeof Notification === 'undefined' || !('serviceWorker' in navigator)) {
-            Alert.alert('Solo Web', 'Las notificaciones están disponibles en la versión web.');
+            Alert.alert('Solo Web', 'Las notificaciones estÃ¡n disponibles en la versiÃ³n web.');
             return;
         }
         try {
@@ -636,7 +636,7 @@ export default function ProfileScreen() {
                 }
                 await AsyncStorage.setItem('push_notifications_enabled', 'false');
                 setPushEnabled(false);
-                Alert.alert('Desactivadas', 'Ya no recibirás recordatorios.');
+                Alert.alert('Desactivadas', 'Ya no recibirÃ¡s recordatorios.');
             } else {
                 const permission = await Notification.requestPermission();
                 if (permission === 'granted') {
@@ -660,10 +660,10 @@ export default function ProfileScreen() {
                     if (response.ok) {
                         await AsyncStorage.setItem('push_notifications_enabled', 'true');
                         setPushEnabled(true);
-                        Alert.alert('¡Activadas!', 'Recibirás recordatorios y consejos diariamente.');
+                        Alert.alert('Â¡Activadas!', 'RecibirÃ¡s recordatorios y consejos diariamente.');
                     } else {
                         const errData = await response.json();
-                        throw new Error(errData.error || 'Fallo en la suscripción del servidor');
+                        throw new Error(errData.error || 'Fallo en la suscripciÃ³n del servidor');
                     }
                 } else {
                     Alert.alert('Permiso Denegado', 'Habilita las notificaciones en los ajustes de tu navegador.');
@@ -683,11 +683,11 @@ export default function ProfileScreen() {
                 return;
             }
             const tips = [
-                '¡Recuerda aportar a tu fondo de emergencia hoy! Cada peso cuenta.',
-                'Revisa tus gastos de la semana. ¿Hubo alguno innecesario?',
-                'El interés compuesto trabaja mientras duermes. ¡Sigue ahorrando!',
+                'Â¡Recuerda aportar a tu fondo de emergencia hoy! Cada peso cuenta.',
+                'Revisa tus gastos de la semana. Â¿Hubo alguno innecesario?',
+                'El interÃ©s compuesto trabaja mientras duermes. Â¡Sigue ahorrando!',
                 'Tip: Automatiza tus aportes para no olvidarlos nunca.',
-                '¿Sabías que el 10% de tus ingresos puede cambiar tu futuro financiero?'
+                'Â¿SabÃ­as que el 10% de tus ingresos puede cambiar tu futuro financiero?'
             ];
             const randomTip = tips[Math.floor(Math.random() * tips.length)];
 
@@ -696,7 +696,7 @@ export default function ProfileScreen() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    title: `💡 Consejo para ${name}`,
+                    title: `ðŸ’¡ Consejo para ${name}`,
                     body: randomTip,
                     userId: user?.id,
                     url: '/goals'
@@ -705,11 +705,11 @@ export default function ProfileScreen() {
 
             if (!response.ok) {
                 const errData = await response.json();
-                throw new Error(errData.error || 'Error al enviar notificación de prueba');
+                throw new Error(errData.error || 'Error al enviar notificaciÃ³n de prueba');
             }
         } catch (e: any) { 
             console.error('Test push error:', e);
-            Alert.alert('Error', `No se pudo enviar la notificación de prueba: ${e.message || e}`);
+            Alert.alert('Error', `No se pudo enviar la notificaciÃ³n de prueba: ${e.message || e}`);
         }
     };
     useEffect(() => {
@@ -908,10 +908,10 @@ export default function ProfileScreen() {
 
     const weeklyTopCategory = getTopExpenseCategory(currentWeekExpenses);
     
-    // Generar frases de insights dinámicas para el periodo semanal
+    // Generar frases de insights dinÃ¡micas para el periodo semanal
     const weeklyDiff = weeklySplit.total - previousWeekSpending;
     const weeklyCompareText = weeklyDiff > 0 
-        ? `Gastaste ${fmt(weeklyDiff, currency, rates, isHidden)} más que la semana pasada.` 
+        ? `Gastaste ${fmt(weeklyDiff, currency, rates, isHidden)} mÃ¡s que la semana pasada.` 
         : weeklyDiff < 0 
             ? `Gastaste ${fmt(Math.abs(weeklyDiff), currency, rates, isHidden)} menos que la semana pasada.` 
             : 'Gastaste lo mismo que la semana pasada.';
@@ -977,13 +977,13 @@ export default function ProfileScreen() {
                     <TouchableOpacity style={[styles.optBtn, { backgroundColor: '#FF8A6520' }]} onPress={() => setWeeklyModalVisible(true)}>
                         <View style={[styles.optIcon, { backgroundColor: '#FF8A65' }]}><MaterialIcons name="auto-graph" size={20} color="#FFF" /></View>
                         <Text style={[styles.optTitle, { color: colorsNav.text }]}>Semanal</Text>
-                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Gasto últimos 7 días</Text>
+                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Gasto Ãºltimos 7 dÃ­as</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={[styles.optBtn, { backgroundColor: colorsNav.accent + '20' }]} onPress={() => setStatsModalVisible(true)}>
                         <View style={[styles.optIcon, { backgroundColor: colorsNav.accent }]}><MaterialIcons name="analytics" size={20} color="#FFF" /></View>
-                        <Text style={[styles.optTitle, { color: colorsNav.text }]}>Estadísticas</Text>
-                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Análisis de consumos</Text>
+                        <Text style={[styles.optTitle, { color: colorsNav.text }]}>EstadÃ­sticas</Text>
+                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>AnÃ¡lisis de consumos</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -998,7 +998,7 @@ export default function ProfileScreen() {
                 <MonthHeatmap activeDays={activeDays} colorsNav={colorsNav} reminders={reminders} onDayPress={handleDayPress} />
 
                 
-                {/* Botón de Presupuestos abajo del calendario */}
+                {/* BotÃ³n de Presupuestos abajo del calendario */}
                 <TouchableOpacity 
                     style={[styles.budgetFullBtn, { backgroundColor: colorsNav.card }]} 
                     onPress={() => router.push('/budgets')}
@@ -1008,7 +1008,7 @@ export default function ProfileScreen() {
                     </View>
                     <View style={{ flex: 1, marginLeft: 12 }}>
                         <Text style={[styles.optTitle, { color: colorsNav.text }]}>Presupuestos</Text>
-                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Controla tus límites de gasto</Text>
+                        <Text style={{ fontSize: 11, color: colorsNav.sub }}>Controla tus lÃ­mites de gasto</Text>
                     </View>
                     <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
                 </TouchableOpacity>
@@ -1025,7 +1025,7 @@ export default function ProfileScreen() {
                         <View style={[styles.listIcon, { backgroundColor: '#8B5CF615' }]}><MaterialIcons name="auto-awesome" size={20} color="#8B5CF6" /></View>
                         <View style={{ flex: 1 }}>
                             <Text style={[styles.listTitle, { color: colorsNav.text }]}>Ahorro Inteligente</Text>
-                            <Text style={[styles.listSub, { color: colorsNav.sub }]}>Sugerencias automáticas</Text>
+                            <Text style={[styles.listSub, { color: colorsNav.sub }]}>Sugerencias automÃ¡ticas</Text>
                         </View>
                         <TouchableOpacity 
                             onPress={toggleSmartSavings}
@@ -1054,7 +1054,7 @@ export default function ProfileScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    {/* ── Web Push Notification Controls ── */}
+                    {/* â”€â”€ Web Push Notification Controls â”€â”€ */}
                     {Platform.OS === 'web' && (
                         <>
                             <View style={[styles.listItem, { borderTopWidth: 1, borderTopColor: colorsNav.bg }]}>
@@ -1097,7 +1097,7 @@ export default function ProfileScreen() {
                                 >
                                     <View style={[styles.listIcon, { backgroundColor: '#3B82F615' }]}><MaterialIcons name="send" size={20} color="#3B82F6" /></View>
                                     <View style={{ flex: 1 }}>
-                                        <Text style={[styles.listTitle, { color: colorsNav.text }]}>Enviar Notificación de Prueba</Text>
+                                        <Text style={[styles.listTitle, { color: colorsNav.text }]}>Enviar NotificaciÃ³n de Prueba</Text>
                                         <Text style={[styles.listSub, { color: colorsNav.sub }]}>Probar alertas al instante</Text>
                                     </View>
                                     <MaterialIcons name="chevron-right" size={24} color={colorsNav.sub} />
@@ -1117,7 +1117,7 @@ export default function ProfileScreen() {
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                             <View>
                                 <Text style={[styles.modalTitle, { color: colorsNav.text, marginBottom: 2 }]}>Personaliza tu app</Text>
-                                <Text style={{ fontSize: 12, color: colorsNav.sub }}>Elige el estilo que más te guste</Text>
+                                <Text style={{ fontSize: 12, color: colorsNav.sub }}>Elige el estilo que mÃ¡s te guste</Text>
                             </View>
                             <TouchableOpacity style={[styles.closeCircle, { backgroundColor: isDark ? '#333' : '#F1F1F1' }]} onPress={() => setThemeModalVisible(false)}>
                                 <Ionicons name="close" size={20} color={colorsNav.text} />
@@ -1145,10 +1145,10 @@ export default function ProfileScreen() {
                                 {[
                                     { label: 'Sanctuary', light: 'light' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#4A7C59', darkColor: '#4A7C59', lightText: '#FFF8F0', darkText: '#FFF8F0' },
                                     { label: 'Lavanda', light: 'lavender' as ThemeName, dark: 'lavender_dark' as ThemeName, lightColor: '#7C5DBA', darkColor: '#9D7FE0', lightText: '#F8F7FF', darkText: '#1A1625' },
-                                    { label: 'Océano', light: 'ocean' as ThemeName, dark: 'ocean_dark' as ThemeName, lightColor: '#008080', darkColor: '#26A69A', lightText: '#F0F9FA', darkText: '#0A1A1A' },
+                                    { label: 'OcÃ©ano', light: 'ocean' as ThemeName, dark: 'ocean_dark' as ThemeName, lightColor: '#008080', darkColor: '#26A69A', lightText: '#F0F9FA', darkText: '#0A1A1A' },
                                     { label: 'Rosa', light: 'rose' as ThemeName, dark: 'rose_dark' as ThemeName, lightColor: '#E05C6E', darkColor: '#E07080', lightText: '#FFF5F5', darkText: '#1A0E0E' },
-                                    { label: 'Ámbar', light: 'amber' as ThemeName, dark: 'amber_dark' as ThemeName, lightColor: '#D97706', darkColor: '#F59E0B', lightText: '#FFFBF0', darkText: '#1A1400' },
-                                    { label: 'Índigo', light: 'slate' as ThemeName, dark: 'midnight' as ThemeName, lightColor: '#3B5BDB', darkColor: '#818CF8', lightText: '#F5F7FA', darkText: '#0D0D1A' },
+                                    { label: 'Ãmbar', light: 'amber' as ThemeName, dark: 'amber_dark' as ThemeName, lightColor: '#D97706', darkColor: '#F59E0B', lightText: '#FFFBF0', darkText: '#1A1400' },
+                                    { label: 'Ãndigo', light: 'slate' as ThemeName, dark: 'midnight' as ThemeName, lightColor: '#3B5BDB', darkColor: '#818CF8', lightText: '#F5F7FA', darkText: '#0D0D1A' },
                                     { label: 'Nieve', light: 'snow' as ThemeName, dark: 'dark' as ThemeName, lightColor: '#1F2937', darkColor: '#4A7C59', lightText: '#FFFFFF', darkText: '#FFF8F0' },
                                 ].map((group) => {
                                     const targetTheme = isModalDark ? group.dark : group.light;
@@ -1189,7 +1189,7 @@ export default function ProfileScreen() {
                                                 </View>
                                                 <View>
                                                     <Text style={{ fontSize: 9, color: textColor, opacity: 0.75, fontWeight: '700', marginBottom: 2, letterSpacing: 1 }}>ESTADO</Text>
-                                                    <Text style={{ fontSize: 12, color: textColor, fontWeight: '800' }}>{isActive ? 'ACTIVO ✓' : 'INACTIVO'}</Text>
+                                                    <Text style={{ fontSize: 12, color: textColor, fontWeight: '800' }}>{isActive ? 'ACTIVO âœ“' : 'INACTIVO'}</Text>
                                                 </View>
                                             </View>
                                         </TouchableOpacity>
@@ -1206,7 +1206,7 @@ export default function ProfileScreen() {
                 <SafeAreaView style={{ flex: 1, backgroundColor: colorsNav.bg }}>
                     <View style={styles.modalHeader}>
                         <TouchableOpacity onPress={() => setStatsModalVisible(false)}><MaterialIcons name="close" size={28} color={colorsNav.text} /></TouchableOpacity>
-                        <Text style={[styles.modalHeaderTitle, { color: colorsNav.text }]}>Análisis de Gastos</Text>
+                        <Text style={[styles.modalHeaderTitle, { color: colorsNav.text }]}>AnÃ¡lisis de Gastos</Text>
                         <View style={{ width: 28 }} />
                     </View>
                     <ScrollView contentContainerStyle={{ padding: 20 }}>
@@ -1225,20 +1225,20 @@ export default function ProfileScreen() {
                         </View>
                         <View style={{ flexDirection: 'row', gap: 12, marginVertical: 20 }}>
                             <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#EF444410', padding: 16, borderRadius: 20 }}>
-                                <Text style={{ fontSize: 10, color: '#EF4444', fontWeight: '800' }}>GASTOS 7 DÍAS</Text>
+                                <Text style={{ fontSize: 10, color: '#EF4444', fontWeight: '800' }}>GASTOS 7 DÃAS</Text>
                                 <Text style={{ fontSize: 24, fontWeight: '900', color: '#EF4444' }}>{fmt(weeklySpending, currency, rates, isHidden)}</Text>
                                 <Text style={{ color: weeklyChangePct > 0 ? '#EF4444' : '#10B981', fontSize: 10, fontWeight: '800', marginTop: 4 }}>
                                     {weeklyChangePct >= 0 ? '+' : ''}{weeklyChangePct.toFixed(0)}% vs semana anterior
                                 </Text>
                             </View>
                             <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#10B98110', padding: 16, borderRadius: 20 }}>
-                                <Text style={{ fontSize: 10, color: '#10B981', fontWeight: '800' }}>INGRESOS 7 DÍAS</Text>
+                                <Text style={{ fontSize: 10, color: '#10B981', fontWeight: '800' }}>INGRESOS 7 DÃAS</Text>
                                 <Text style={{ fontSize: 24, fontWeight: '900', color: '#10B981' }}>{fmt(weeklyIncome, currency, rates, isHidden)}</Text>
                             </View>
                         </View>
 
                         <View style={[statStyle.card, { backgroundColor: colorsNav.bg, padding: 16, marginTop: 14, marginBottom: 16 }]}>
-                            <Text style={[statStyle.title, { color: colorsNav.text, fontSize: 14, marginBottom: 12 }]}>Distribución del flujo semanal</Text>
+                            <Text style={[statStyle.title, { color: colorsNav.text, fontSize: 14, marginBottom: 12 }]}>DistribuciÃ³n del flujo semanal</Text>
                             <View style={statStyle.splitTrack}>
                                 <View style={[statStyle.splitFixed, { width: `${Math.max(0, weeklyFixedPct)}%` }]} />
                                 <View style={[statStyle.splitVariable, { width: `${Math.max(0, weeklyVariablePct)}%` }]} />
@@ -1357,60 +1357,35 @@ export default function ProfileScreen() {
                 </View>
             </Modal>
 
-            {/* MODAL DETALLE DEL DÍA */}
-            <Modal visible={dayDetailModalVisible} animationType="slide" transparent>
-                <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}>
-                    <View style={{
-                        backgroundColor: colorsNav.card,
-                        borderTopLeftRadius: 36,
-                        borderTopRightRadius: 36,
-                        maxHeight: '90%',
-                        overflow: 'hidden',
-                    }}>
-                        {/* DRAG HANDLE */}
-                        <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 4 }}>
-                            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colorsNav.sub + '40' }} />
-                        </View>
+            {/* MODAL DETALLE DEL DÃA */}
+            <Modal visible={dayDetailModalVisible} animationType="fade" transparent>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 }}>
+                    <View style={[styles.modalBox, { backgroundColor: colorsNav.card }]}>
 
                         {/* HEADER */}
-                        <View style={{
-                            marginHorizontal: 20, marginTop: 8, marginBottom: 16,
-                            padding: 20, borderRadius: 24,
-                            backgroundColor: colorsNav.accent + '18',
-                            borderWidth: 1, borderColor: colorsNav.accent + '25',
-                            flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-                        }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                             <View>
-                                <Text style={{ fontSize: 26, fontWeight: '900', color: colorsNav.text }}>
+                                <Text style={{ fontSize: 22, fontWeight: '900', color: colorsNav.text }}>
                                     {selectedDate ? `${selectedDate.getDate()} de ${MONTH_NAMES_FULL[selectedDate.getMonth()]}` : ''}
                                 </Text>
-                                <Text style={{ color: colorsNav.sub, fontSize: 12, fontWeight: '600', marginTop: 2 }}>Detalle de la jornada</Text>
+                                <Text style={{ color: colorsNav.sub, fontSize: 12 }}>Detalle de la jornada</Text>
                             </View>
-                            <TouchableOpacity
-                                onPress={() => setDayDetailModalVisible(false)}
-                                style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colorsNav.bg, justifyContent: 'center', alignItems: 'center' }}
-                            >
-                                <Ionicons name="close" size={20} color={colorsNav.sub} />
+                            <TouchableOpacity onPress={() => setDayDetailModalVisible(false)} style={styles.closeCircle}>
+                                <Ionicons name="close" size={22} color={colorsNav.text} />
                             </TouchableOpacity>
                         </View>
 
-                        {/* INCOME / EXPENSE CARDS */}
-                        <View style={{ flexDirection: 'row', gap: 10, marginHorizontal: 20, marginBottom: 16 }}>
-                            <View style={{ flex: 1, padding: 16, borderRadius: 20, backgroundColor: '#10B981' }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                                    <MaterialCommunityIcons name="arrow-down-circle" size={16} color="#fff" />
-                                    <Text style={{ fontSize: 10, fontWeight: '900', color: '#ffffff99', letterSpacing: 0.8 }}>INGRESOS</Text>
-                                </View>
-                                <Text style={{ fontSize: 18, fontWeight: '900', color: '#FFF' }}>
+                        {/* INGRESOS / GASTOS */}
+                        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
+                            <View style={{ flex: 1, backgroundColor: '#10B98115', padding: 12, borderRadius: 14, borderWidth: 1, borderColor: '#10B98130' }}>
+                                <Text style={{ fontSize: 9, fontWeight: '900', color: '#10B981', letterSpacing: 0.6, marginBottom: 3 }}>INGRESOS</Text>
+                                <Text style={{ fontSize: 15, fontWeight: '900', color: '#10B981' }}>
                                     {fmt(getDayTransactions(selectedDate).filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0), currency, rates, isHidden)}
                                 </Text>
                             </View>
-                            <View style={{ flex: 1, padding: 16, borderRadius: 20, backgroundColor: '#EF4444' }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                                    <MaterialCommunityIcons name="arrow-up-circle" size={16} color="#fff" />
-                                    <Text style={{ fontSize: 10, fontWeight: '900', color: '#ffffff99', letterSpacing: 0.8 }}>GASTOS</Text>
-                                </View>
-                                <Text style={{ fontSize: 18, fontWeight: '900', color: '#FFF' }}>
+                            <View style={{ flex: 1, backgroundColor: '#EF444415', padding: 12, borderRadius: 14, borderWidth: 1, borderColor: '#EF444430' }}>
+                                <Text style={{ fontSize: 9, fontWeight: '900', color: '#EF4444', letterSpacing: 0.6, marginBottom: 3 }}>GASTOS</Text>
+                                <Text style={{ fontSize: 15, fontWeight: '900', color: '#EF4444' }}>
                                     {fmt(getDayTransactions(selectedDate).filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(t.amount), 0), currency, rates, isHidden)}
                                 </Text>
                             </View>
@@ -1418,144 +1393,85 @@ export default function ProfileScreen() {
 
                         {/* INSIGHT */}
                         {selectedDayExpenseTotal > 0 && (
-                            <View style={{
-                                marginHorizontal: 20, marginBottom: 16, padding: 14,
-                                backgroundColor: colorsNav.accent + '12', borderRadius: 18,
-                                flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-                                borderLeftWidth: 3, borderLeftColor: colorsNav.accent,
-                            }}>
-                                <MaterialCommunityIcons name="lightbulb-on-outline" size={18} color={colorsNav.accent} style={{ marginTop: 1 }} />
-                                <Text style={{ flex: 1, fontSize: 12, lineHeight: 18, fontWeight: '600', color: colorsNav.text }}>
-                                    Este día representa {selectedDayWeekShare.toFixed(0)}% de tus gastos semanales y {selectedDayMonthShare.toFixed(0)}% del mes.
-                                    {selectedDayTxs.some(isFixedExpense) ? ' Incluye gastos fijos.' : ''}
+                            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 10, backgroundColor: colorsNav.accent + '10', borderRadius: 12, marginBottom: 14 }}>
+                                <MaterialIcons name="insights" size={16} color={colorsNav.accent} style={{ marginTop: 1 }} />
+                                <Text style={{ flex: 1, fontSize: 12, lineHeight: 17, color: colorsNav.text, fontWeight: '500' }}>
+                                    Este dÃ­a representa {selectedDayWeekShare.toFixed(0)}% de tus gastos semanales y {selectedDayMonthShare.toFixed(0)}% del mes.
+                                    {selectedDayTxs.some(isFixedExpense) ? ' Este pago afectÃ³ tu categorÃ­a Gasto Fijo.' : ''}
                                 </Text>
                             </View>
                         )}
 
-                        <ScrollView showsVerticalScrollIndicator={false} style={{ paddingHorizontal: 20 }}>
-                            {/* MOVIMIENTOS */}
-                            {getDayTransactions(selectedDate).length > 0 && (
-                                <>
-                                    <Text style={{ fontSize: 11, fontWeight: '900', color: colorsNav.sub, marginBottom: 10, letterSpacing: 0.8 }}>MOVIMIENTOS</Text>
-                                    <View style={{ backgroundColor: colorsNav.bg, borderRadius: 20, overflow: 'hidden', marginBottom: 20 }}>
-                                        {getDayTransactions(selectedDate).map((t, idx, arr) => {
-                                            const catColors: Record<string, string> = {
-                                                'Comida': '#F59E0B', 'Supermercado': '#F59E0B',
-                                                'Transporte': '#3B82F6', 'Salud': '#EF4444',
-                                                'Educación': '#8B5CF6', 'Hogar': '#10B981',
-                                                'Entretenimiento': '#EC4899', 'Ahorro': '#06B6D4',
-                                                'Inversión': '#06B6D4', 'Sueldo': '#10B981',
-                                                'Gasto Fijo': '#F59E0B', 'Deudas': '#EF4444',
-                                            };
-                                            const catIcons: Record<string, string> = {
-                                                'Comida': 'food', 'Supermercado': 'cart',
-                                                'Transporte': 'car', 'Salud': 'heart-pulse',
-                                                'Educación': 'school', 'Hogar': 'home',
-                                                'Entretenimiento': 'gamepad-variant', 'Ahorro': 'piggy-bank',
-                                                'Inversión': 'trending-up', 'Sueldo': 'briefcase',
-                                                'Gasto Fijo': 'repeat', 'Deudas': 'credit-card',
-                                            };
-                                            const color = catColors[t.category] || (t.type === 'income' ? '#10B981' : colorsNav.accent);
-                                            const icon = catIcons[t.category] || (t.type === 'income' ? 'arrow-down' : 'arrow-up');
-                                            return (
-                                                <View key={idx} style={{
-                                                    flexDirection: 'row', alignItems: 'center', gap: 12,
-                                                    padding: 14,
-                                                    borderBottomWidth: idx < arr.length - 1 ? 1 : 0,
-                                                    borderBottomColor: colorsNav.card,
-                                                }}>
-                                                    <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: color + '20', justifyContent: 'center', alignItems: 'center' }}>
-                                                        <MaterialCommunityIcons name={icon as any} size={18} color={color} />
-                                                    </View>
-                                                    <View style={{ flex: 1 }}>
-                                                        <Text style={{ color: colorsNav.text, fontWeight: '700', fontSize: 14 }}>{t.category}</Text>
-                                                        {t.note ? <Text style={{ color: colorsNav.sub, fontSize: 11, marginTop: 1 }}>{t.note}</Text> : null}
-                                                    </View>
-                                                    <Text style={{ color: t.type === 'income' ? '#10B981' : '#EF4444', fontWeight: '900', fontSize: 14 }}>
-                                                        {t.type === 'income' ? '+' : '-'}{fmt(Math.abs(t.amount), currency, rates, isHidden)}
-                                                    </Text>
+                        {/* MOVIMIENTOS */}
+                        {getDayTransactions(selectedDate).length > 0 && (
+                            <>
+                                <Text style={{ fontSize: 10, fontWeight: '900', color: colorsNav.sub, marginBottom: 6, letterSpacing: 0.6 }}>MOVIMIENTOS</Text>
+                                <ScrollView style={{ maxHeight: 180 }} showsVerticalScrollIndicator={false}>
+                                    {getDayTransactions(selectedDate).map((t, idx) => (
+                                        <View key={idx} style={{
+                                            flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                                            paddingVertical: 7,
+                                            borderBottomWidth: 1, borderBottomColor: colorsNav.bg,
+                                        }}>
+                                            <Text style={{ color: colorsNav.text, fontWeight: '600', fontSize: 13 }}>{t.category}</Text>
+                                            <Text style={{ color: t.type === 'income' ? '#10B981' : '#EF4444', fontWeight: '800', fontSize: 13 }}>
+                                                {t.type === 'income' ? '+' : '-'}{fmt(Math.abs(t.amount), currency, rates, isHidden)}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </ScrollView>
+                            </>
+                        )}
+                        {getDayTransactions(selectedDate).length === 0 && getDayReminders(selectedDate).length === 0 && (
+                            <Text style={{ color: colorsNav.sub, fontStyle: 'italic', fontSize: 13, paddingVertical: 8 }}>Sin movimientos registrados.</Text>
+                        )}
+
+                        {/* COMPROMISOS */}
+                        {getDayReminders(selectedDate).length > 0 && (
+                            <>
+                                <Text style={{ fontSize: 10, fontWeight: '900', color: colorsNav.sub, marginTop: 14, marginBottom: 6, letterSpacing: 0.6 }}>COMPROMISOS / FACTURAS</Text>
+                                <ScrollView style={{ maxHeight: 130 }} showsVerticalScrollIndicator={false}>
+                                    {getDayReminders(selectedDate).map((r, idx) => (
+                                        <View key={idx} style={{
+                                            flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                                            paddingVertical: 8, paddingHorizontal: 10,
+                                            backgroundColor: colorsNav.bg, borderRadius: 10, marginBottom: 6,
+                                            opacity: r.is_paid ? 0.6 : 1,
+                                        }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 }}>
+                                                <TouchableOpacity onPress={() => handleTogglePaid(r)}>
+                                                    <Ionicons name={r.is_paid ? 'checkbox' : 'square-outline'} size={20} color={r.is_paid ? '#10B981' : colorsNav.sub} />
+                                                </TouchableOpacity>
+                                                <View>
+                                                    <Text style={{ color: colorsNav.text, fontWeight: '700', fontSize: 13, textDecorationLine: r.is_paid ? 'line-through' : 'none' }}>{r.title}</Text>
+                                                    <Text style={{ color: colorsNav.sub, fontSize: 11 }}>{fmt(r.amount, currency, rates, isHidden)}</Text>
                                                 </View>
-                                            );
-                                        })}
-                                    </View>
-                                </>
-                            )}
+                                            </View>
+                                            <TouchableOpacity onPress={() => {
+                                                if (r.is_fixed_expense) {
+                                                    router.push('/(tabs)/debts');
+                                                    setDayDetailModalVisible(false);
+                                                } else {
+                                                    handleDeleteReminder(r.id);
+                                                }
+                                            }}>
+                                                <MaterialIcons name={r.is_fixed_expense ? 'arrow-forward' : 'delete-outline'} size={18} color={r.is_fixed_expense ? colorsNav.accent : '#EF4444'} />
+                                            </TouchableOpacity>
+                                        </View>
+                                    ))}
+                                </ScrollView>
+                            </>
+                        )}
 
-                            {/* COMPROMISOS */}
-                            {getDayReminders(selectedDate).length > 0 && (
-                                <>
-                                    <Text style={{ fontSize: 11, fontWeight: '900', color: colorsNav.sub, marginBottom: 10, letterSpacing: 0.8 }}>COMPROMISOS / FACTURAS</Text>
-                                    <View style={{ gap: 8, marginBottom: 20 }}>
-                                        {getDayReminders(selectedDate).map((r, idx) => {
-                                            const iconInfo = getReminderIcon(r.title, colorsNav.accent);
-                                            const isPast = selectedDate && selectedDate < new Date(new Date().setHours(0,0,0,0));
-                                            const statusColor = r.is_paid ? '#10B981' : isPast ? '#EF4444' : '#F59E0B';
-                                            return (
-                                                <View key={idx} style={{
-                                                    flexDirection: 'row', alignItems: 'center', gap: 12,
-                                                    padding: 14, borderRadius: 18,
-                                                    backgroundColor: statusColor + '10',
-                                                    borderWidth: 1, borderColor: statusColor + '30',
-                                                    opacity: r.is_paid ? 0.7 : 1,
-                                                }}>
-                                                    <View style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: iconInfo.color + '20', justifyContent: 'center', alignItems: 'center' }}>
-                                                        <MaterialCommunityIcons name={iconInfo.name as any} size={20} color={iconInfo.color} />
-                                                    </View>
-                                                    <View style={{ flex: 1 }}>
-                                                        <Text style={{ color: colorsNav.text, fontWeight: '800', fontSize: 14, textDecorationLine: r.is_paid ? 'line-through' : 'none' }}>{r.title}</Text>
-                                                        <Text style={{ color: statusColor, fontSize: 12, fontWeight: '700', marginTop: 2 }}>
-                                                            {r.is_paid ? '✓ Pagado' : isPast ? '⚠ Vencido' : '○ Pendiente'} · {fmt(r.amount, currency, rates, isHidden)}
-                                                        </Text>
-                                                    </View>
-                                                    <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                                                        <TouchableOpacity onPress={() => handleTogglePaid(r)} style={{
-                                                            width: 32, height: 32, borderRadius: 10,
-                                                            backgroundColor: r.is_paid ? '#10B98120' : colorsNav.bg,
-                                                            justifyContent: 'center', alignItems: 'center',
-                                                        }}>
-                                                            <Ionicons name={r.is_paid ? 'checkbox' : 'square-outline'} size={20} color={r.is_paid ? '#10B981' : colorsNav.sub} />
-                                                        </TouchableOpacity>
-                                                        <TouchableOpacity onPress={() => {
-                                                            if (r.is_fixed_expense) {
-                                                                router.push('/(tabs)/debts');
-                                                                setDayDetailModalVisible(false);
-                                                            } else {
-                                                                handleDeleteReminder(r.id);
-                                                            }
-                                                        }} style={{
-                                                            width: 32, height: 32, borderRadius: 10,
-                                                            backgroundColor: colorsNav.bg,
-                                                            justifyContent: 'center', alignItems: 'center',
-                                                        }}>
-                                                            <MaterialIcons name={r.is_fixed_expense ? 'arrow-forward' : 'delete-outline'} size={18} color={r.is_fixed_expense ? colorsNav.accent : '#EF4444'} />
-                                                        </TouchableOpacity>
-                                                    </View>
-                                                </View>
-                                            );
-                                        })}
-                                    </View>
-                                </>
-                            )}
-
-                            {/* EMPTY STATE */}
-                            {getDayTransactions(selectedDate).length === 0 && getDayReminders(selectedDate).length === 0 && (
-                                <View style={{ alignItems: 'center', paddingVertical: 30, gap: 10 }}>
-                                    <MaterialCommunityIcons name="calendar-blank-outline" size={48} color={colorsNav.sub + '60'} />
-                                    <Text style={{ color: colorsNav.sub, fontSize: 14, fontWeight: '600' }}>Sin actividad en este día</Text>
-                                </View>
-                            )}
-
-                            {/* CLOSE BUTTON */}
-                            <TouchableOpacity
-                                style={{ backgroundColor: colorsNav.accent, paddingVertical: 16, borderRadius: 20, alignItems: 'center', marginBottom: 32 }}
-                                onPress={() => setDayDetailModalVisible(false)}
-                            >
-                                <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 15 }}>Cerrar</Text>
-                            </TouchableOpacity>
-                        </ScrollView>
+                        {/* CLOSE BUTTON */}
+                        <TouchableOpacity
+                            style={{ backgroundColor: colorsNav.accent, paddingVertical: 13, borderRadius: 16, alignItems: 'center', marginTop: 16 }}
+                            onPress={() => setDayDetailModalVisible(false)}
+                        >
+                            <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 14 }}>Cerrar</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
-            </Modal>
 
             {/* MODAL NUEVO RECORDATORIO */}
             <Modal visible={addReminderModalVisible} animationType="slide" transparent>
@@ -1568,7 +1484,7 @@ export default function ProfileScreen() {
                             </TouchableOpacity>
                         </View>
                         
-                        <Text style={{ fontSize: 12, color: colorsNav.sub, marginBottom: 8 }}>TÍTULO (Ej. Arriendo)</Text>
+                        <Text style={{ fontSize: 12, color: colorsNav.sub, marginBottom: 8 }}>TÃTULO (Ej. Arriendo)</Text>
                         <TextInput 
                             style={{ backgroundColor: colorsNav.bg, borderRadius: 12, padding: 15, color: colorsNav.text, marginBottom: 15 }}
                             value={newReminderTitle}
@@ -1586,7 +1502,7 @@ export default function ProfileScreen() {
                         />
 
                         <Text style={{ fontSize: 12, color: colorsNav.sub, marginBottom: 15 }}>
-                            Se repetirá todos los meses el día {selectedDate ? selectedDate.getDate() : 'seleccionado'}.
+                            Se repetirÃ¡ todos los meses el dÃ­a {selectedDate ? selectedDate.getDate() : 'seleccionado'}.
                         </Text>
 
                         <TouchableOpacity 
