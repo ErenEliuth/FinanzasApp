@@ -1,4 +1,4 @@
-﻿import { useAuth } from '@/utils/auth';
+import { useAuth } from '@/utils/auth';
 import { THEMES, ThemeName } from '@/constants/Themes';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -1472,6 +1472,7 @@ export default function ProfileScreen() {
                         </TouchableOpacity>
                     </View>
                 </View>
+            </Modal>
 
             {/* MODAL NUEVO RECORDATORIO */}
             <Modal visible={addReminderModalVisible} animationType="slide" transparent>
