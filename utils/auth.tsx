@@ -101,6 +101,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             try {
                 if (newUser) {
+                    const dispName = newUser.user_metadata?.name || newUser.email?.split('@')[0] || 'Usuario';
+                    await AsyncStorage.setItem(`@user_name_${userId}`, dispName);
+
                     // 1. CARGA LOCAL INMEDIATA: Leemos lo que ya tenemos en el dispositivo para abrir la app al instante
                     await loadUserPrefs(userId!);
                     setLoading(false); // Liberamos la UI rápidamente

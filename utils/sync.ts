@@ -25,6 +25,7 @@ export const SYNC_KEYS = {
     INVEST_WATCHLIST: (uid: string) => `@invest_watchlist_${uid}`,
     INVEST_HIDDEN: (uid: string) => `@invest_hidden_${uid}`,
     CATEGORY_THRESHOLDS: (uid: string) => `@category_thresholds_${uid}`,
+    NAME: (uid: string) => `@user_name_${uid}`,
 };
 
 const OLD_KEYS = {
@@ -79,13 +80,14 @@ export async function syncUp(userId: string) {
     if (!userId) return;
     try {
         const [
-            accounts, categories, cards, budgetPeriod, 
+            name, accounts, categories, cards, budgetPeriod, 
             smartSavings, theme, currency, hiddenMode, 
             reminders, tutorialSeen, lock,
             invDivs, invSync, invPerf, invAlloc, notifs,
             remPrompt, onboarding, changelog, goalsInterest,
             invWatchlist, invHidden, categoryThresholds
         ] = await Promise.all([
+            AsyncStorage.getItem(SYNC_KEYS.NAME(userId)),
             AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(userId)),
             AsyncStorage.getItem(SYNC_KEYS.CATEGORIES(userId)),
             AsyncStorage.getItem(SYNC_KEYS.CARDS(userId)),
@@ -112,6 +114,7 @@ export async function syncUp(userId: string) {
         ]);
 
         const data = {
+            name,
             accounts: accounts ? JSON.parse(accounts) : [],
             categories: categories ? JSON.parse(categories) : [],
             cards: cards ? JSON.parse(cards) : [],
@@ -170,6 +173,7 @@ export async function syncDown(userId: string) {
         const config = data.data;
         const tasks = [];
 
+        if (config.name) tasks.push(AsyncStorage.setItem(SYNC_KEYS.NAME(userId), config.name));
         if (config.accounts) tasks.push(AsyncStorage.setItem(SYNC_KEYS.ACCOUNTS(userId), JSON.stringify(config.accounts)));
         if (config.categories) tasks.push(AsyncStorage.setItem(SYNC_KEYS.CATEGORIES(userId), JSON.stringify(config.categories)));
         if (config.cards) tasks.push(AsyncStorage.setItem(SYNC_KEYS.CARDS(userId), JSON.stringify(config.cards)));

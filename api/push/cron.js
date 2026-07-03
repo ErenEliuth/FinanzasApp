@@ -3,11 +3,11 @@ const webpush = require('web-push');
 
 const MESSAGES = {
   evening: [
-    { title: '🌙 Resumen nocturno para {name}', body: '¿Registraste todos tus gastos de hoy? Tómate 2 minutos antes de dormir.' },
-    { title: '💰 ¿Cómo estuvo tu día, {name}?', body: 'Un buen hábito: revisar tus transacciones cada noche. Mantén tu control financiero.' },
-    { title: '📊 Recordatorio para {name}', body: 'Llevar el control diario de tus finanzas te salvará de sorpresas a fin de mes.' },
-    { title: '🔔 Recordatorio de ahorro, {name}', body: '¿Pusiste algo en tu fondo de emergencia hoy? Cada peso acumulado cuenta.' },
-    { title: '😴 {name}, antes de dormir...', body: 'Revisa si tienes deudas o compromisos próximos. Mejor prevenidos.' },
+    { title: '🌙 ¿Registraste tus gastos, {name}?', body: 'Tómate 1 minuto antes de dormir para mantener el control.' },
+    { title: '💰 ¿Cómo estuvo tu día, {name}?', body: 'Un buen hábito: revisa tus transacciones de hoy.' },
+    { title: '📊 Revisa tu balance, {name}', body: 'Llevar el control diario de tus finanzas te ahorrará sorpresas.' },
+    { title: '🔔 Fondo de emergencia, {name}', body: '¿Aportaste algo hoy? Cada peso acumulado cuenta.' },
+    { title: '😴 {name}, antes de dormir...', body: 'Un último vistazo a tus gastos ayuda a dormir con tranquilidad.' },
   ],
   weekly: [
     { title: '📅 Resumen semanal para {name}', body: 'Es domingo, momento perfecto para revisar tus gastos de la semana y planear la siguiente.' },
@@ -41,9 +41,21 @@ async function getPersonalizedMessages(supabase, userId, type) {
 
   if (userId) {
     try {
-      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
-      if (!userError && userData && userData.user) {
-        name = userData.user.user_metadata?.name || userData.user.email?.split('@')[0] || 'Usuario';
+      // 1. Try to get name from user_configs data
+      const { data: configData, error: configError } = await supabase
+        .from('user_configs')
+        .select('data')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!configError && configData && configData.data && configData.data.name) {
+        name = configData.data.name;
+      } else {
+        // 2. Fallback to auth admin API
+        const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
+        if (!userError && userData && userData.user) {
+          name = userData.user.user_metadata?.name || userData.user.email?.split('@')[0] || 'Usuario';
+        }
       }
     } catch (e) {
       console.error('Error fetching user info for notifications:', e);

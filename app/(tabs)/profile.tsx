@@ -756,6 +756,8 @@ export default function ProfileScreen() {
         await supabase.auth.updateUser({ data: { name: newName.trim() } });
         try {
             if (user?.id) {
+                await AsyncStorage.setItem(`@user_name_${user.id}`, newName.trim());
+                await syncUp(user.id);
                 const isEnabled = await AsyncStorage.getItem(SYNC_KEYS.REMINDERS(user.id));
                 if (isEnabled) {
                     await Notifications.scheduleCoherentReminders(newName.trim());
