@@ -987,8 +987,13 @@ export default function ProfileScreen() {
                     </TouchableOpacity>
                 </View>
 
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                     <Text style={[styles.sectionTitle, { color: colorsNav.sub, marginTop: 0, marginBottom: 0 }]}>AGENDA FINANCIERA</Text>
+                </View>
+                <View style={styles.agendaLegend}>
+                    <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} /><Text style={[styles.legendText, { color: colorsNav.sub }]}>Pendiente</Text></View>
+                    <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#10B981' }]} /><Text style={[styles.legendText, { color: colorsNav.sub }]}>Pagado</Text></View>
+                    <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} /><Text style={[styles.legendText, { color: colorsNav.sub }]}>Vencido</Text></View>
                 </View>
                 <MonthHeatmap activeDays={activeDays} colorsNav={colorsNav} reminders={reminders} onDayPress={handleDayPress} />
 
