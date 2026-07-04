@@ -125,6 +125,10 @@ export default function HomeScreen() {
       const isDismissed = await AsyncStorage.getItem(SYNC_KEYS.REMINDER_PROMPT_DISMISSED(user.id));
       if (!isEnabled && isDismissed !== 'true') {
         // setShowReminderPrompt(true); // Removido por limpieza
+      } else if (isEnabled) {
+        // Reschedule to ensure name is updated
+        const dispName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuario';
+        await Notifications.scheduleCoherentReminders(dispName);
       }
     } catch (e) { }
   };
@@ -133,7 +137,7 @@ export default function HomeScreen() {
     if (!user?.id) return;
     const granted = await Notifications.registerForPushNotificationsAsync();
     if (granted) {
-      const displayName = user?.user_metadata?.name || 'Usuario';
+      const displayName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuario';
       await Notifications.scheduleCoherentReminders(displayName);
       const config = { enabled: true, h: 20, m: 30 };
       await AsyncStorage.setItem(SYNC_KEYS.REMINDERS(user.id), JSON.stringify(config));
@@ -844,7 +848,7 @@ export default function HomeScreen() {
     );
   };
 
-  const displayName = user?.user_metadata?.name || 'Usuario';
+  const displayName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuario';
   const initials = displayName
     .trim().split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
 

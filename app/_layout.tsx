@@ -239,7 +239,7 @@ function RootStack() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ThemeProvider value={customTheme}>
-        <SanctuaryLock userName={user?.user_metadata?.name?.split(' ')[0] || 'Usuario'}>
+        <SanctuaryLock userName={user?.user_metadata?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'Usuario'}>
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
