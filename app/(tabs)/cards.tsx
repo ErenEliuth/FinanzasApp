@@ -451,6 +451,20 @@ export default function CardsScreen() {
         if (isNaN(payVal) || payVal <= 0) return;
 
         try {
+            const { data: txs, error: txErr } = await supabase
+                .from('transactions')
+                .select('amount, type')
+                .eq('user_id', user?.id)
+                .eq('account', selectedAccount);
+            
+            if (!txErr && txs) {
+                const balance = txs.reduce((acc, curr) => curr.type === 'income' ? acc + curr.amount : acc - curr.amount, 0);
+                if (balance < payVal) {
+                    Alert.alert('Saldo Insuficiente', `No tienes fondos suficientes en "${selectedAccount}".\n\nDisponible: ${fmt(balance)}\nRequerido: ${fmt(payVal)}`);
+                    return;
+                }
+            }
+
             await supabase.from('transactions').insert([
                 { user_id: user?.id, amount: payVal, type: 'expense', category: 'Tarjetas', description: `Pago a ${selectedCard.name}`, account: selectedAccount, date: getLocalISOString() },
                 { user_id: user?.id, amount: payVal, type: 'income', category: 'Tarjetas', description: `Abono desde ${selectedAccount}`, account: selectedCard.name, date: getLocalISOString() }
@@ -989,7 +1003,7 @@ export default function CardsScreen() {
                                     // Chart data
                                     const months = ['Hoy', 'Mes 2', 'Mes 3', 'Mes 4', 'Mes 5', 'Mes 6'];
                                     let current = debt;
-                                    const proj = [];
+                                    const proj: number[] = [];
                                     for (let i = 0; i < 6; i++) { proj.push(Math.max(0, current)); current = Math.max(0, current - pmt); }
                                     if (proj.every(v => v === 0)) proj[0] = 1;
                                     return (

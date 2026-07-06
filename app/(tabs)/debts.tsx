@@ -225,6 +225,20 @@ export default function DebtsScreen() {
         if (isNaN(pVal) || pVal <= 0) return;
         const actualPay = isFixed ? pVal : Math.min(pVal, selectedDebt.value - selectedDebt.paid);
         try {
+            const { data: txs, error: txErr } = await supabase
+                .from('transactions')
+                .select('amount, type')
+                .eq('user_id', user?.id)
+                .eq('account', selectedAccount);
+            
+            if (!txErr && txs) {
+                const balance = txs.reduce((acc, curr) => curr.type === 'income' ? acc + curr.amount : acc - curr.amount, 0);
+                if (balance < actualPay) {
+                    Alert.alert('Saldo Insuficiente', `No tienes fondos suficientes en "${selectedAccount}".\n\nDisponible: ${fmt(balance)}\nRequerido: ${fmt(actualPay)}`);
+                    return;
+                }
+            }
+
             await supabase.from('debts').update({ paid: selectedDebt.paid + actualPay }).eq('id', selectedDebt.id);
             await supabase.from('transactions').insert([{ user_id: user?.id, amount: actualPay, type: 'expense', category: isFixed ? 'Gasto Fijo' : 'Deudas', description: isFixed ? `Pago: ${selectedDebt.client}` : `Abono: ${selectedDebt.client}`, account: selectedAccount, date: getLocalISOString() }]);
             setPayModalVisible(false); setPayAmount(''); setSelectedDebt(null); loadData();

@@ -282,6 +282,29 @@ export default function AddTransactionScreen() {
         setIsSaving(false);
         return;
       }
+      try {
+        const { data: txs, error: txErr } = await supabase
+          .from('transactions')
+          .select('amount, type')
+          .eq('user_id', user?.id)
+          .eq('account', account);
+        
+        if (!txErr && txs) {
+          const balance = txs.reduce((acc, curr) => {
+            return curr.type === 'income' ? acc + curr.amount : acc - curr.amount;
+          }, 0);
+
+          if (balance < parsed) {
+            Alert.alert(
+              'Saldo Insuficiente',
+              `No tienes fondos suficientes en "${account}".\n\nDisponible: ${fmt(balance)}\nRequerido: ${fmt(parsed)}`
+            );
+            setIsSaving(false);
+            return;
+          }
+        }
+      } catch (e) { console.error('Error validando saldo en transferencia:', e); }
+
       const desc = description.trim() || `Transferencia ${account} → ${destAccount}`;
       try {
         const { error: err1 } = await supabase.from('transactions').insert([{

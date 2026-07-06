@@ -125,6 +125,23 @@ export default function LoansScreen() {
         const dateStr = dueDate.toISOString().split('T')[0];
         
         try {
+            if (!isEditing && selectedAccount) {
+                const { data: txs, error: txErr } = await supabase
+                    .from('transactions')
+                    .select('amount, type')
+                    .eq('user_id', user?.id)
+                    .eq('account', selectedAccount);
+                
+                if (!txErr && txs) {
+                    const balance = txs.reduce((acc, curr) => curr.type === 'income' ? acc + curr.amount : acc - curr.amount, 0);
+                    if (balance < val) {
+                        if (Platform.OS === 'web') window.alert('Saldo insuficiente en la cuenta origen.');
+                        else Alert.alert('Saldo Insuficiente', `No tienes fondos suficientes en "${selectedAccount}".\n\nDisponible: ${fmt(balance)}\nRequerido: ${fmt(val)}`);
+                        return;
+                    }
+                }
+            }
+
             if (isEditing && editId) {
                 await supabase.from('debts').update({ client: name.trim(), value: val, due_date: dateStr }).eq('id', editId);
             } else {

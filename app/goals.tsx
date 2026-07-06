@@ -330,47 +330,9 @@ export default function GoalsScreen() {
             let newTotalInterest = 0;
             const today = getLocalDateKey();
 
-            // Verificar en la BD si ya se generaron rendimientos hoy
-            const { data: existingInterest } = await supabase
-                .from('transactions')
-                .select('id')
-                .eq('user_id', user.id)
-                .eq('category', 'Ahorro')
-                .like('description', 'Rendimientos cajita:%')
-                .gte('date', `${today}T00:00:00`)
-                .lte('date', `${today}T23:59:59`)
-                .limit(1);
-
-            if (existingInterest && existingInterest.length > 0) {
-                 // Ya se aplicaron intereses hoy, solo actualizar last_updated y promover tasas si aplica
-                 for (const goal of goalsData) {
-                     const info = interestData[goal.id];
-                     if (info) {
-                         if (info.next_rate !== undefined && info.next_rate_date) {
-                             if (today >= info.next_rate_date) {
-                                 info.rate = info.next_rate;
-                                 delete info.next_rate;
-                                 delete info.next_rate_date;
-                                 updatedAny = true;
-                             }
-                         }
-                         if (info.rate > 0) {
-                             const lastUpdated = info.last_updated || '';
-                             if (lastUpdated !== today) {
-                                 info.last_updated = today;
-                                 updatedAny = true;
-                             }
-                         }
-                     }
-                 }
-                 if (updatedAny) {
-                     setInterestMap(interestData);
-                     await AsyncStorage.setItem(SYNC_KEYS.GOALS_INTEREST(user.id), JSON.stringify(interestData));
-                 }
-                 isApplyingInterestRef.current = false;
-                 return goalsData;
-            }
-
+            // Eliminar la comprobación global de existingInterest ya que podría saltar cajitas que sí necesitan actualización
+            // y además el control de duplicados se lleva por cada cajita mediante info.last_updated.
+            
             for (const goal of goalsData) {
                 const info = interestData[goal.id];
                 if (info) {
@@ -385,37 +347,69 @@ export default function GoalsScreen() {
 
                     if (info.rate > 0) {
                         const lastUpdated = info.last_updated || today;
-                        // Normalizar la fecha de last_updated (quitar Z si existe)
                         const cleanLastUpdated = lastUpdated.split('T')[0];
                         
                         if (cleanLastUpdated !== today) {
-                            const daysDiff = Math.floor((new Date(today + 'T12:00:00').getTime() - new Date(cleanLastUpdated + 'T12:00:00').getTime()) / (1000 * 60 * 60 * 24));
-                            if (daysDiff > 0 && goal.current_amount > 0) {
-                                 // Tasa Diaria = EA/365 (método de Nubank en Colombia)
-                                 // Nubank aplica una retención en la fuente (ReteFuente) de 7% sobre los rendimientos diarios.
-                                 // Por lo tanto, el rendimiento neto que recibe el usuario es el 93% del rendimiento bruto.
-                                 const grossDailyRate = (info.rate / 100) / 365;
-                                 const netDailyRate = grossDailyRate * 0.93;
-                                 const interest = goal.current_amount * netDailyRate * daysDiff;
-                                 if (interest > 0) {
-                                     await supabase.from('goals').update({ current_amount: goal.current_amount + interest }).eq('id', goal.id);
-                                    await supabase.from('transactions').insert([{
-                                        user_id: user.id,
-                                        amount: interest,
-                                        type: 'income',
-                                        category: 'Ahorro',
-                                        description: `Rendimientos cajita: ${goal.name}`,
-                                        account: 'Ahorro',
-                                        date: getLocalISOString()
-                                    }]);
-                                    goal.current_amount += interest;
-                                    info.last_updated = today;
-                                    info.last_earned = interest;
-                                    info.total_earned = (info.total_earned || 0) + interest;
-                                    updatedAny = true;
-                                    newTotalInterest += interest;
-                                }
-                            } else if (daysDiff > 0) {
+                            // Validar que no se hayan insertado ya transacciones para esta cajita hoy por otro dispositivo
+                            const { data: existingTx } = await supabase
+                                .from('transactions')
+                                .select('id')
+                                .eq('user_id', user.id)
+                                .eq('description', `Rendimientos cajita: ${goal.name}`)
+                                .gte('date', `${today}T00:00:00`)
+                                .lte('date', `${today}T23:59:59`)
+                                .limit(1);
+
+                            if (existingTx && existingTx.length > 0) {
+                                info.last_updated = today;
+                                updatedAny = true;
+                                continue;
+                            }
+
+                            if (goal.current_amount > 0) {
+                                 // Tasa Diaria = (1 + EA)^(1/365) - 1
+                                 const ea = info.rate / 100;
+                                 const grossDailyRate = Math.pow(1 + ea, 1 / 365) - 1;
+                                 const netDailyRate = grossDailyRate * 0.93; // 7% retención Nubank Colombia
+
+                                 let currentDateStr = cleanLastUpdated;
+                                 let currentGoalBalance = goal.current_amount;
+                                 let totalAccumulated = 0;
+
+                                 while (currentDateStr < today) {
+                                     // Avanzar un día
+                                     const nextDate = new Date(currentDateStr + 'T12:00:00');
+                                     nextDate.setDate(nextDate.getDate() + 1);
+                                     currentDateStr = nextDate.toISOString().split('T')[0];
+                                     
+                                     const dailyInterest = currentGoalBalance * netDailyRate;
+                                     
+                                     if (dailyInterest > 0) {
+                                         currentGoalBalance += dailyInterest;
+                                         totalAccumulated += dailyInterest;
+                                         
+                                         await supabase.from('transactions').insert([{
+                                             user_id: user.id,
+                                             amount: dailyInterest,
+                                             type: 'income',
+                                             category: 'Ahorro',
+                                             description: `Rendimientos cajita: ${goal.name}`,
+                                             account: 'Ahorro',
+                                             date: currentDateStr + 'T12:00:00.000Z'
+                                         }]);
+                                     }
+                                 }
+
+                                 if (totalAccumulated > 0) {
+                                     await supabase.from('goals').update({ current_amount: currentGoalBalance }).eq('id', goal.id);
+                                     goal.current_amount = currentGoalBalance;
+                                     info.last_updated = today;
+                                     info.last_earned = totalAccumulated;
+                                     info.total_earned = (info.total_earned || 0) + totalAccumulated;
+                                     updatedAny = true;
+                                     newTotalInterest += totalAccumulated;
+                                 }
+                            } else {
                                 info.last_updated = today;
                                 updatedAny = true;
                             }
