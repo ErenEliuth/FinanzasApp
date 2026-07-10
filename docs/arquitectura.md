@@ -39,6 +39,7 @@ Este documento describe la arquitectura global, el flujo de datos y las tecnolog
 ## 🔗 Relaciones con el Cerebro
 * Ver el esquema detallado de datos en [[esquema-db]].
 * Ver la explicación lógica de los procesos en [[flujos]].
+* Ver la guía detallada de las [[secciones-app]].
 
 ---
 

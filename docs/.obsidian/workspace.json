@@ -74,8 +74,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300,
-    "collapsed": true
+    "width": 300
   },
   "right": {
     "id": "003c1de5181e70e8",
@@ -179,11 +178,12 @@
   },
   "active": "5455bfad12b0e1f5",
   "lastOpenFiles": [
+    "secciones-app.md",
+    "arquitectura.md",
+    "esquema-db.md",
+    "flujos.md",
     "Sin título 1.base",
     "Sin título.base",
-    "arquitectura.md",
-    "Sin título.canvas",
-    "flujos.md",
-    "esquema-db.md"
+    "Sin título.canvas"
   ]
 }
