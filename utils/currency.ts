@@ -69,10 +69,10 @@ export function formatCurrency(amount: number, code: string, isHidden: boolean =
 export function formatCurrencyCompact(amount: number, code: string, isHidden: boolean = false): string {
     if (isHidden) return '****';
     const info = getCurrencyInfo(code);
-    // Always use en-US for consistent number grouping (1,234.56)
+    // Use the specific currency's locale for correct grouping separators (e.g. '.' for COP, ',' for USD)
     // and manually handle sign so it always appears BEFORE the $
     const abs = Math.abs(amount);
-    const formatted = new Intl.NumberFormat('en-US', {
+    const formatted = new Intl.NumberFormat(info.locale, {
         minimumFractionDigits: info.hasDecimals ? 2 : 0,
         maximumFractionDigits: info.hasDecimals ? 2 : 0,
     }).format(abs);
