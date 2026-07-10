@@ -59,6 +59,27 @@ export function formatCurrency(amount: number, code: string, isHidden: boolean =
     }).format(amount);
 }
 
+/**
+ * Compact display format: uses a plain "$" prefix for all currencies
+ * to avoid long symbol prefixes (RD$, US$, €) that clutter the UI.
+ * Always uses en-US number formatting to prevent locale quirks where
+ * the minus sign ends up between the $ and the number ($-943.07).
+ * Use this for large hero/balance text where space is tight.
+ */
+export function formatCurrencyCompact(amount: number, code: string, isHidden: boolean = false): string {
+    if (isHidden) return '****';
+    const info = getCurrencyInfo(code);
+    // Always use en-US for consistent number grouping (1,234.56)
+    // and manually handle sign so it always appears BEFORE the $
+    const abs = Math.abs(amount);
+    const formatted = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: info.hasDecimals ? 2 : 0,
+        maximumFractionDigits: info.hasDecimals ? 2 : 0,
+    }).format(abs);
+    const sign = amount < 0 ? '-' : '';
+    return `${sign}$${formatted}`;
+}
+
 // ─── Input Helpers ────────────────────────────────────────────────────────────
 
 /**
@@ -183,8 +204,8 @@ export function convertToBase(
 
 // ─── Rate Fetching ────────────────────────────────────────────────────────────
 
-const RATES_CACHE_KEY = '@sanctuary_exchange_rates';
-const RATES_TIMESTAMP_KEY = '@sanctuary_rates_timestamp';
+const RATES_CACHE_KEY = '@sanctuary_exchange_rates_v2';
+const RATES_TIMESTAMP_KEY = '@sanctuary_rates_timestamp_v2';
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 /**
@@ -243,8 +264,9 @@ export async function fetchExchangeRates(
         const currencies = ['USD', 'EUR', 'DOP'];
         for (const code of currencies) {
             if (data.rates[code]) {
-                // Round to 2 decimal places to avoid floating point drift
-                newRates[code] = Math.round((copPerUsd / data.rates[code]) * 100) / 100;
+                // Round to 6 decimal places for precision — avoids round-trip drift
+                // (e.g. COP→USD→COP should return the same amount)
+                newRates[code] = Math.round((copPerUsd / data.rates[code]) * 1_000_000) / 1_000_000;
             }
         }
 

@@ -8,7 +8,7 @@ import * as Notifications from '@/utils/notifications';
 import { syncUp, SYNC_KEYS } from '@/utils/sync';
 import { THEMES, ThemeName } from '@/constants/Themes';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { formatCurrency, convertCurrency } from '@/utils/currency';
+import { formatCurrency, formatCurrencyCompact, convertCurrency } from '@/utils/currency';
 import { parseLocalDate } from '@/utils/dateUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LATEST_VERSION, CHANGELOG_UPDATES } from '@/constants/Changelog';
@@ -79,7 +79,9 @@ export default function HomeScreen() {
   const colorsNav = useThemeColors();
   const isDark = colorsNav.isDark;
 
-  const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
+  const fmt  = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
+  // Compact fmt: plain $ prefix, auto-shrinks for long numbers
+  const fmtC = (n: number) => formatCurrencyCompact(convertCurrency(n, currency, rates), currency, isHidden);
 
   const [debtTotal, setDebtTotal] = useState(0);
   const [loansTotal, setLoansTotal] = useState(0);
@@ -974,7 +976,12 @@ export default function HomeScreen() {
               <View style={styles.heroHeader}>
                 <Text style={[styles.heroLabel, !isDesktop && { textTransform: 'uppercase', fontSize: 11, fontWeight: '900', color: 'rgba(255,255,255,0.8)', letterSpacing: 1.2 }]}>Dinero Activo</Text>
               </View>
-              <Text style={[styles.heroAmount, !isDesktop && { fontSize: 42, marginTop: 6 }]}>{fmt(dineroActivo)}</Text>
+              <Text
+                style={[styles.heroAmount, !isDesktop && { fontSize: 42, marginTop: 6 }]}
+                adjustsFontSizeToFit
+                numberOfLines={1}
+                minimumFontScale={0.5}
+              >{fmtC(dineroActivo)}</Text>
               
               {!isDesktop && (
                 <View style={styles.mobileTrendContainer}>
@@ -1044,8 +1051,8 @@ export default function HomeScreen() {
                       <MaterialIcons name="savings" size={20} color={isDark ? '#34D399' : '#2D5A3D'} />
                     </View>
                     <Text style={[styles.statLabelRefined, { fontSize: 10, marginTop: 8, color: colorsNav.sub }]}>AHORROS</Text>
-                    <Text style={[styles.mobileStatValue, { color: colorsNav.text }]}>
-                      {fmt((ahorroBreakdown.metas || 0) + (ahorroBreakdown.cajitas || 0) + (ahorroBreakdown.retos || 0))}
+                    <Text style={[styles.mobileStatValue, { color: colorsNav.text }]} adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.6}>
+                      {fmtC((ahorroBreakdown.metas || 0) + (ahorroBreakdown.cajitas || 0) + (ahorroBreakdown.retos || 0))}
                     </Text>
                   </TouchableOpacity>
 
@@ -1054,7 +1061,7 @@ export default function HomeScreen() {
                       <MaterialIcons name="credit-card" size={20} color="#EF4444" />
                     </View>
                     <Text style={[styles.statLabelRefined, { fontSize: 10, marginTop: 8, color: colorsNav.sub }]}>DEUDAS</Text>
-                    <Text style={[styles.mobileStatValue, { color: '#EF4444' }]}>{fmt(debtTotal)}</Text>
+                    <Text style={[styles.mobileStatValue, { color: '#EF4444' }]} adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.6}>{fmtC(debtTotal)}</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -1064,7 +1071,7 @@ export default function HomeScreen() {
                       <MaterialIcons name="show-chart" size={20} color={isDark ? '#60A5FA' : '#1976D2'} />
                     </View>
                     <Text style={[styles.statLabelRefined, { fontSize: 10, marginTop: 8, color: colorsNav.sub }]}>INVERSIONES</Text>
-                    <Text style={[styles.mobileStatValue, { color: colorsNav.text }]}>{fmt(investmentTotal)}</Text>
+                    <Text style={[styles.mobileStatValue, { color: colorsNav.text }]} adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.6}>{fmtC(investmentTotal)}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity style={[styles.mobileStatBox, { backgroundColor: isDark ? colorsNav.card : '#FFF' }]} onPress={() => router.push('/(tabs)/loans')}>
@@ -1072,7 +1079,7 @@ export default function HomeScreen() {
                       <MaterialIcons name="handshake" size={20} color="#FF9800" />
                     </View>
                     <Text style={[styles.statLabelRefined, { fontSize: 10, marginTop: 8, color: colorsNav.sub }]}>PRÉSTAMOS</Text>
-                    <Text style={[styles.mobileStatValue, { color: colorsNav.text }]}>{fmt(loansTotal)}</Text>
+                    <Text style={[styles.mobileStatValue, { color: colorsNav.text }]} adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.6}>{fmtC(loansTotal)}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1095,7 +1102,7 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.mobileHealthDetails}>
                   <Text style={[styles.mobileHealthLabel, { color: colorsNav.sub }]}>SALDO DISPONIBLE</Text>
-                  <Text style={[styles.mobileHealthAmount, { color: saldoDisponible >= 0 ? colorsNav.text : '#EF4444' }]}>{fmt(saldoDisponible)}</Text>
+                  <Text style={[styles.mobileHealthAmount, { color: saldoDisponible >= 0 ? colorsNav.text : '#EF4444' }]} adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.55}>{fmtC(saldoDisponible)}</Text>
                   <TouchableOpacity 
                     style={[styles.mobileHealthBtn, { borderColor: colorsNav.border + '50', backgroundColor: 'transparent' }]} 
                     onPress={() => setBreakdownVisible(true)}

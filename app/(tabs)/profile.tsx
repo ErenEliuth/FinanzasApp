@@ -696,7 +696,7 @@ export default function ProfileScreen() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    title: `ðŸ’¡ Consejo para ${name}`,
+                    title: `💡 Consejo para ${name}`,
                     body: randomTip,
                     userId: user?.id,
                     url: '/goals'
@@ -1312,10 +1312,27 @@ export default function ProfileScreen() {
                             </Text>
                         )}
 
-                        {/* Currency list with live rates */}
+                        {/* Currency list with live rates relative to active currency */}
                         {CURRENCIES.map(curr => {
                             const isActive = currency === curr.code;
-                            const rate = curr.code === 'COP' ? null : rates[curr.code];
+
+                            // Compute "1 curr.code = X [other]" for each other currency
+                            const getRateLabel = (fromCode: string, toCode: string): string => {
+                                if (fromCode === toCode) return '';
+                                // rates[X] = how many COP per 1 unit of X
+                                const fromInCop = fromCode === 'COP' ? 1 : (rates[fromCode] ?? 1);
+                                const toInCop   = toCode   === 'COP' ? 1 : (rates[toCode]   ?? 1);
+                                // 1 fromCode = fromInCop COP / toInCop COP per toCode = fromInCop/toInCop toCode
+                                const equivalence = fromInCop / toInCop;
+                                const toCurr = CURRENCIES.find(c => c.code === toCode);
+                                const decimals = toCurr?.hasDecimals ? (equivalence < 10 ? 4 : 2) : 0;
+                                return `${new Intl.NumberFormat('es-CO', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(equivalence)} ${toCode}`;
+                            };
+
+                            // Build equivalences: if this card is the active one → show all others
+                            // If not active → show its value vs the active currency
+                            const otherCurrencies = CURRENCIES.filter(c => c.code !== curr.code);
+
                             return (
                                 <TouchableOpacity
                                     key={curr.code}
@@ -1326,9 +1343,19 @@ export default function ProfileScreen() {
                                         <Text style={{ color: colorsNav.text, fontWeight: '700', fontSize: 15 }}>
                                             {curr.symbol} {curr.name}
                                         </Text>
-                                        {rate && (
+                                        {isActive ? (
+                                            // Active card: show all equivalences
+                                            <View style={{ marginTop: 5, gap: 2 }}>
+                                                {otherCurrencies.map(other => (
+                                                    <Text key={other.code} style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>
+                                                        1 {curr.code} = {getRateLabel(curr.code, other.code)}
+                                                    </Text>
+                                                ))}
+                                            </View>
+                                        ) : (
+                                            // Non-active: show its value vs active currency
                                             <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600', marginTop: 2 }}>
-                                                1 {curr.code} = {new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(rate)} COP
+                                                1 {curr.code} = {getRateLabel(curr.code, currency)}
                                             </Text>
                                         )}
                                     </View>
@@ -1343,6 +1370,7 @@ export default function ProfileScreen() {
                     </View>
                 </View>
             </Modal>
+
 
             <Modal visible={editModalVisible} transparent animationType="fade">
                 <View style={styles.overlay}>
