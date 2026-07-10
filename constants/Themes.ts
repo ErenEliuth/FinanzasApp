@@ -11,7 +11,11 @@ export type ThemeName =
   | 'amber'
   | 'amber_dark'
   | 'slate'
-  | 'midnight';
+  | 'midnight'
+  | 'emerald'
+  | 'emerald_dark'
+  | 'cherry'
+  | 'cherry_dark';
 
 export const THEMES: Record<ThemeName, any> = {
   light: {
@@ -194,6 +198,62 @@ export const THEMES: Record<ThemeName, any> = {
     greenCard: '#0D0D1A',
     cream: '#161628',
     input: '#0D0D1A',
+    isDark: true,
+  },
+  emerald: {
+    bg: '#ECFDF5',
+    card: '#FFFFFF',
+    text: '#064E3B',
+    sub: '#047857',
+    border: '#D1FAE5',
+    accent: '#10B981',
+    cardBg: '#F0FDF4',
+    warmBg: '#ECFDF5',
+    greenCard: '#064E3B',
+    cream: '#D1FAE5',
+    input: '#D1FAE5',
+    isDark: false,
+  },
+  emerald_dark: {
+    bg: '#022C22',
+    card: '#064E3B',
+    text: '#ECFDF5',
+    sub: '#34D399',
+    border: '#047857',
+    accent: '#10B981',
+    cardBg: '#065F46',
+    warmBg: '#022C22',
+    greenCard: '#022C22',
+    cream: '#064E3B',
+    input: '#022C22',
+    isDark: true,
+  },
+  cherry: {
+    bg: '#FFF5F5',
+    card: '#FFFFFF',
+    text: '#4C0519',
+    sub: '#BE123C',
+    border: '#FFE4E6',
+    accent: '#E11D48',
+    cardBg: '#FFF1F2',
+    warmBg: '#FFF5F5',
+    greenCard: '#4C0519',
+    cream: '#FFE4E6',
+    input: '#FFE4E6',
+    isDark: false,
+  },
+  cherry_dark: {
+    bg: '#31040E',
+    card: '#4C0519',
+    text: '#FFE4E6',
+    sub: '#FB7185',
+    border: '#881337',
+    accent: '#E11D48',
+    cardBg: '#881337',
+    warmBg: '#31040E',
+    greenCard: '#31040E',
+    cream: '#4C0519',
+    input: '#31040E',
     isDark: true,
   },
 };
