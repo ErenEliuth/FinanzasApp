@@ -864,8 +864,11 @@ export default function AddTransactionScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={0}
           >
-          <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
           <View style={[styles.overlay, { justifyContent: 'flex-end', paddingBottom: 0, padding: 0 }]}>
+            {/* Backdrop: toca fuera para cerrar teclado */}
+            <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+              <View style={{ ...StyleSheet.absoluteFillObject }} />
+            </TouchableWithoutFeedback>
              <View style={{ backgroundColor: colorsNav.card, paddingHorizontal: 22, paddingTop: 22, paddingBottom: 30, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colorsNav.border }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
                     <View>
@@ -1013,9 +1016,8 @@ export default function AddTransactionScreen() {
                         <Ionicons name="checkmark-circle" size={18} color="#FFF" />
                     </TouchableOpacity>
                 </View>
-             </View>
-          </View>
-          </TouchableWithoutFeedback>
+              </View>
+           </View>
           </KeyboardAvoidingView>
         </Modal>
 
