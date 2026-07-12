@@ -640,46 +640,32 @@ export default function AddTransactionScreen() {
               </View>
 
               {cards.length > 0 && type === 'expense' && (
-                <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>Tarjeta de Crédito</Text>
+                <View style={{ marginTop: -10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6, marginLeft: 4 }}>
+                    <View style={{ flex: 1, height: 1, backgroundColor: colorsNav.border }} />
+                    <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '700', textTransform: 'uppercase' }}>Tarjeta de Crédito</Text>
+                    <View style={{ flex: 1, height: 1, backgroundColor: colorsNav.border }} />
+                  </View>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
                     {cards.map(c => (
                         <TouchableOpacity
                           key={c.name}
-                          style={[styles.chip, { backgroundColor: account === c.name ? typeColor : colorsNav.card }]}
+                          style={[styles.chip, { backgroundColor: account === c.name ? typeColor : colorsNav.card, flexDirection: 'row', alignItems: 'center', gap: 5 }]}
                           onPress={() => {
                             setAccount(c.name);
                             setInterestRate(c.interestRate?.toString() || '28');
                           }}
                         >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <MaterialIcons name="credit-card" size={14} color={account === c.name ? '#FFF' : colorsNav.text} />
+                          <MaterialIcons name="credit-card" size={13} color={account === c.name ? '#FFF' : colorsNav.text} />
                           <Text style={[styles.chipText, { color: account === c.name ? '#FFF' : colorsNav.text }]}>{c.name}</Text>
-                        </View>
-                      </TouchableOpacity>
+                          {selectedCardAvailable !== null && account === c.name && (
+                            <Text style={{ color: account === c.name ? 'rgba(255,255,255,0.75)' : colorsNav.sub, fontSize: 10, fontWeight: '700' }}>
+                              · {fmt(selectedCardAvailable)}
+                            </Text>
+                          )}
+                        </TouchableOpacity>
                     ))}
                   </ScrollView>
-                </View>
-              )}
-
-              {selectedCardAvailable !== null && selectedCardLimit !== null && (
-                <View style={{ 
-                  flexDirection: 'row', 
-                  alignItems: 'center', 
-                  gap: 6, 
-                  backgroundColor: colorsNav.card, 
-                  alignSelf: 'flex-start',
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  borderRadius: 12,
-                  marginTop: -5,
-                  marginBottom: 10,
-                  marginLeft: 15
-                }}>
-                  <Ionicons name="card-outline" size={14} color={colorsNav.accent} />
-                  <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '700' }}>
-                    Disponible: <Text style={{ color: colorsNav.accent }}>{fmt(selectedCardAvailable)}</Text> de {fmt(selectedCardLimit)}
-                  </Text>
                 </View>
               )}
 
@@ -872,9 +858,15 @@ export default function AddTransactionScreen() {
           </View>
         </Modal>
 
-        <Modal visible={showFinancingModal} transparent animationType="slide">
-          <View style={styles.overlay}>
-             <View style={[styles.modalBox, { backgroundColor: colorsNav.card, padding: 22, borderRadius: 28, borderWidth: 1, borderColor: colorsNav.border }]}>
+        <Modal visible={showFinancingModal} transparent animationType="slide" onRequestClose={() => setShowFinancingModal(false)}>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={0}
+          >
+          <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+          <View style={[styles.overlay, { justifyContent: 'flex-end', paddingBottom: 0, padding: 0 }]}>
+             <View style={{ backgroundColor: colorsNav.card, paddingHorizontal: 22, paddingTop: 22, paddingBottom: 30, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colorsNav.border }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
                     <View>
                         <Text style={{ fontSize: 20, fontWeight: '900', color: colorsNav.text }}>Financiación</Text>
@@ -945,13 +937,13 @@ export default function AddTransactionScreen() {
                                 borderWidth: 1,
                                 borderColor: colorsNav.border
                             }}>
-                                <View>
+                                <View style={{ flex: 1, marginRight: 10 }}>
                                     <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '800' }}>Tasa de Interés</Text>
                                     <Text style={{ color: colorsNav.sub, fontSize: 10 }}>Efectiva Anual (E.A. %)</Text>
                                 </View>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colorsNav.card, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: colorsNav.border }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colorsNav.card, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: colorsNav.border, flexShrink: 0 }}>
                                     <TextInput 
-                                        style={{ color: colorsNav.text, fontWeight: '900', textAlign: 'right', fontSize: 14, minWidth: 35, padding: 0 }}
+                                        style={{ color: colorsNav.text, fontWeight: '900', textAlign: 'right', fontSize: 14, width: 50, padding: 0 }}
                                         value={interestRate}
                                         onChangeText={setInterestRate}
                                         keyboardType="decimal-pad"
@@ -1023,6 +1015,8 @@ export default function AddTransactionScreen() {
                 </View>
              </View>
           </View>
+          </TouchableWithoutFeedback>
+          </KeyboardAvoidingView>
         </Modal>
 
 
