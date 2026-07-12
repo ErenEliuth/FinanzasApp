@@ -59,6 +59,7 @@ export default function AddTransactionScreen() {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [accountModalVisible, setAccountModalVisible] = useState(false);
+  const [showFinancingModal, setShowFinancingModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newAccountName, setNewAccountName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -81,6 +82,7 @@ export default function AddTransactionScreen() {
       setCategory('');
       setDestAccount('');
       setInstallments('1');
+      setShowFinancingModal(false);
       const d = new Date();
       setTxDate(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
     }
@@ -268,10 +270,54 @@ export default function AddTransactionScreen() {
     setAmount(formatInputDisplay(text, currency));
   };
 
-  const handleSave = async () => {
+  const handleSave = async (bypassFinancing = false) => {
     const typedVal = parseInputToNumber(amount, currency);
     const parsed = convertToBase(typedVal, currency, rates);
     if (isNaN(parsed) || parsed <= 0 || isSaving) return;
+
+    const cardNames = cards.map(c => c.name);
+    const isCreditCard = cardNames.includes(account);
+
+    // Validación de saldo de tarjeta de crédito
+    if (type === 'expense' && isCreditCard) {
+      try {
+        const { data: txs, error: txErr } = await supabase
+          .from('transactions')
+          .select('amount, type')
+          .eq('user_id', user?.id)
+          .eq('account', account);
+        
+        if (!txErr && txs) {
+          let currentDebt = 0;
+          txs.forEach(tx => {
+            const amt = Number(tx.amount || 0);
+            if (tx.type === 'expense') currentDebt += amt;
+            else if (tx.type === 'income' || tx.type === 'transfer') currentDebt -= amt;
+          });
+          if (currentDebt < 0) currentDebt = 0;
+
+          const selectedCard = cards.find(c => c.name === account);
+          if (selectedCard) {
+            const totalRequiredDebt = currentDebt + parsed;
+            if (totalRequiredDebt > selectedCard.limit) {
+              const available = selectedCard.limit - currentDebt;
+              Alert.alert(
+                'Límite de Crédito Superado',
+                `⚠️ Límite de crédito insuficiente en "${account}".\n\nDisponible: ${fmt(available)}\nIntentas usar: ${fmt(parsed)}`
+              );
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error validando límite de tarjeta de crédito:', e);
+      }
+
+      if (!bypassFinancing) {
+        setShowFinancingModal(true);
+        return;
+      }
+    }
 
     setIsSaving(true);
 
@@ -338,45 +384,6 @@ export default function AddTransactionScreen() {
         setIsSaving(false);
       }
       return;
-    }
-
-    const cardNames = cards.map(c => c.name);
-
-    // Validación de saldo de tarjeta de crédito
-    if (type === 'expense' && cardNames.includes(account)) {
-      try {
-        const { data: txs, error: txErr } = await supabase
-          .from('transactions')
-          .select('amount, type')
-          .eq('user_id', user?.id)
-          .eq('account', account);
-        
-        if (!txErr && txs) {
-          let currentDebt = 0;
-          txs.forEach(tx => {
-            const amt = Number(tx.amount || 0);
-            if (tx.type === 'expense') currentDebt += amt;
-            else if (tx.type === 'income' || tx.type === 'transfer') currentDebt -= amt;
-          });
-          if (currentDebt < 0) currentDebt = 0;
-
-          const selectedCard = cards.find(c => c.name === account);
-          if (selectedCard) {
-            const totalRequiredDebt = currentDebt + parsed;
-            if (totalRequiredDebt > selectedCard.limit) {
-              const available = selectedCard.limit - currentDebt;
-              Alert.alert(
-                'Límite de Crédito Superado',
-                `⚠️ Límite de crédito insuficiente en "${account}".\n\nDisponible: ${fmt(available)}\nIntentas usar: ${fmt(parsed)}`
-              );
-              setIsSaving(false);
-              return;
-            }
-          }
-        }
-      } catch (e) {
-        console.error('Error validando límite de tarjeta de crédito:', e);
-      }
     }
 
     // Validación de saldo solo para gastos normales (no transferencias)
@@ -715,133 +722,15 @@ export default function AddTransactionScreen() {
               </View>
               )}
 
-              {/* Selector de Cuotas para Tarjetas */}
-              {type === 'expense' && cards.map(c => c.name).includes(account) && (
-                <View style={[styles.section, { backgroundColor: colorsNav.card, padding: 18, borderRadius: 24, marginTop: 10, borderWidth: 1, borderColor: colorsNav.border }]}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={[styles.sectionTitle, { color: colorsNav.text, marginLeft: 0, textTransform: 'uppercase', fontSize: 12 }]}>Financiación</Text>
-                        <View style={{ backgroundColor: colorsNav.accent + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
-                            <Text style={{ color: colorsNav.accent, fontWeight: '800', fontSize: 11 }}>{installments} {parseInt(installments, 10) === 1 ? 'Cuota' : 'Cuotas'}</Text>
-                        </View>
-                    </View>
-                    
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginTop: 6 }}>
-                        {['1', '2', '3', '6', '12', '24', '36'].map(num => (
-                            <TouchableOpacity 
-                                key={num} 
-                                style={[styles.instChip, { 
-                                    backgroundColor: installments === num ? colorsNav.accent : colorsNav.bg, 
-                                    borderColor: colorsNav.border,
-                                    width: 40,
-                                    height: 40,
-                                    borderRadius: 10
-                                }]} 
-                                onPress={() => setInstallments(num)}
-                            >
-                                <Text style={{ color: installments === num ? '#FFF' : colorsNav.text, fontWeight: '800', fontSize: 13 }}>{num}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-
-                    {parseInt(installments, 10) > 1 && (() => {
-                        const typedVal = parseInputToNumber(amount, currency) || 0;
-                        const p = convertToBase(typedVal, currency, rates);
-                        
-                        const ea = parseFloat(interestRate) / 100;
-                        const mv = Math.pow(1 + ea, 1/12) - 1;
-                        const n = parseInt(installments, 10);
-                        
-                        // Fórmula cuota fija (amortización francesa)
-                        const cuota = mv > 0 ? (p * mv) / (1 - Math.pow(1 + mv, -n)) : p / n;
-                        const totalReal = cuota * n;
-
-                        return (
-                            <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colorsNav.border + '50' }}>
-                                <View style={{ 
-                                    flexDirection: 'row', 
-                                    justifyContent: 'space-between', 
-                                    alignItems: 'center', 
-                                    backgroundColor: colorsNav.bg, 
-                                    paddingHorizontal: 12, 
-                                    paddingVertical: 8, 
-                                    borderRadius: 12,
-                                    borderWidth: 1,
-                                    borderColor: colorsNav.border,
-                                    marginBottom: 12
-                                }}>
-                                    <View>
-                                        <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '800' }}>Tasa de Interés</Text>
-                                        <Text style={{ color: colorsNav.sub, fontSize: 10 }}>Efectiva Anual (E.A. %)</Text>
-                                    </View>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colorsNav.card, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: colorsNav.border }}>
-                                        <TextInput 
-                                            style={{ color: colorsNav.text, fontWeight: '900', textAlign: 'right', fontSize: 14, minWidth: 35, padding: 0 }}
-                                            value={interestRate}
-                                            onChangeText={setInterestRate}
-                                            keyboardType="decimal-pad"
-                                            selectTextOnFocus
-                                        />
-                                        <Text style={{ color: colorsNav.text, fontWeight: '900', fontSize: 14, marginLeft: 2 }}>%</Text>
-                                    </View>
-                                </View>
-                                
-                                <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
-                                    <View style={{ flex: 1, backgroundColor: colorsNav.bg, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: colorsNav.border }}>
-                                        <Text style={{ color: colorsNav.sub, fontSize: 9, fontWeight: '700', textTransform: 'uppercase', marginBottom: 2 }}>Cuota Mensual</Text>
-                                        <Text style={{ color: colorsNav.text, fontSize: 14, fontWeight: '900' }}>{fmt(cuota)}</Text>
-                                    </View>
-                                    <View style={{ flex: 1, backgroundColor: colorsNav.bg, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: colorsNav.border }}>
-                                        <Text style={{ color: colorsNav.sub, fontSize: 9, fontWeight: '700', textTransform: 'uppercase', marginBottom: 2 }}>Intereses Totales</Text>
-                                        <Text style={{ color: '#EF4444', fontSize: 14, fontWeight: '900' }}>{fmt(totalReal - p)}</Text>
-                                    </View>
-                                </View>
-                                <View style={{ backgroundColor: colorsNav.accent + '10', padding: 10, borderRadius: 12, borderWidth: 1, borderColor: colorsNav.accent + '25', alignItems: 'center' }}>
-                                    <Text style={{ color: colorsNav.sub, fontSize: 9, fontWeight: '700', textTransform: 'uppercase', marginBottom: 1 }}>Total Estimado a Pagar</Text>
-                                    <Text style={{ color: colorsNav.accent, fontSize: 16, fontWeight: '900' }}>{fmt(totalReal)}</Text>
-                                </View>
-                            </View>
-                        );
-                    })()}
-
-                    {/* Fecha de Compra — Compactado como una pequeña fila simple */}
-                    <View style={{ 
-                        flexDirection: 'row', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center',
-                        marginTop: 12, 
-                        paddingTop: 12, 
-                        borderTopWidth: 1, 
-                        borderTopColor: colorsNav.border + '50' 
-                    }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <MaterialIcons name="event" size={15} color={colorsNav.accent} />
-                            <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '800' }}>Fecha de Compra</Text>
-                        </View>
-                        <View style={{ 
-                            borderWidth: 1, 
-                            borderRadius: 10, 
-                            paddingHorizontal: 12, 
-                            paddingVertical: 6, 
-                            backgroundColor: colorsNav.bg, 
-                            borderColor: colorsNav.border 
-                        }}>
-                            <Text style={{ fontSize: 13, fontWeight: '700', color: colorsNav.text }}>{txDate}</Text>
-                        </View>
-                    </View>
-                </View>
-              )}
-
-              {/* Fecha para otros tipos de transacción (colapsable) */}
-              {!(type === 'expense' && cards.map(c => c.name).includes(account)) && (
-                <View style={[styles.section, { marginTop: 5 }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>Fecha</Text>
-                        <View style={{ borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 8, borderColor: colorsNav.border, backgroundColor: colorsNav.card, minWidth: 130, alignItems: 'center' }}>
-                            <Text style={{ color: colorsNav.text, fontWeight: '700', fontSize: 14 }}>{txDate}</Text>
-                        </View>
-                    </View>
-                </View>
-              )}
+              {/* Fecha de transacción */}
+              <View style={[styles.section, { marginTop: 5 }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>Fecha</Text>
+                      <View style={{ borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 8, borderColor: colorsNav.border, backgroundColor: colorsNav.card, minWidth: 130, alignItems: 'center' }}>
+                          <Text style={{ color: colorsNav.text, fontWeight: '700', fontSize: 14 }}>{txDate}</Text>
+                      </View>
+                  </View>
+              </View>
             </View>
 
             <TouchableOpacity
@@ -980,6 +869,159 @@ export default function AddTransactionScreen() {
                 <TouchableOpacity onPress={() => { setShowAiModal(false); handleSmartSavingsPref(false); }} style={{ marginTop: 16 }}>
                     <Text style={{ fontSize: 13, color: colorsNav.sub, textDecorationLine: 'underline', fontWeight: '600' }}>No volver a mostrar estos consejos</Text>
                 </TouchableOpacity>
+             </View>
+          </View>
+        </Modal>
+
+        <Modal visible={showFinancingModal} transparent animationType="slide">
+          <View style={styles.overlay}>
+             <View style={[styles.modalBox, { backgroundColor: colorsNav.card, padding: 22, borderRadius: 28, borderWidth: 1, borderColor: colorsNav.border }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+                    <View>
+                        <Text style={{ fontSize: 20, fontWeight: '900', color: colorsNav.text }}>Financiación</Text>
+                        <Text style={{ fontSize: 12, color: colorsNav.sub }}>Detalles de tu compra a cuotas</Text>
+                    </View>
+                    <TouchableOpacity 
+                        onPress={() => setShowFinancingModal(false)}
+                        style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colorsNav.bg, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colorsNav.border }}
+                    >
+                        <Ionicons name="close" size={20} color={colorsNav.text} />
+                    </TouchableOpacity>
+                </View>
+
+                {/* Número de Cuotas */}
+                <View style={{ marginBottom: 15 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <Text style={{ color: colorsNav.text, fontWeight: '800', fontSize: 12, textTransform: 'uppercase' }}>Número de Cuotas</Text>
+                        <View style={{ backgroundColor: colorsNav.accent + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
+                            <Text style={{ color: colorsNav.accent, fontWeight: '800', fontSize: 11 }}>{installments} {parseInt(installments, 10) === 1 ? 'Cuota' : 'Cuotas'}</Text>
+                        </View>
+                    </View>
+                    
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+                        {['1', '2', '3', '6', '12', '24', '36'].map(num => (
+                            <TouchableOpacity 
+                                key={num} 
+                                style={[styles.instChip, { 
+                                    backgroundColor: installments === num ? colorsNav.accent : colorsNav.bg, 
+                                    borderColor: colorsNav.border,
+                                    width: 38,
+                                    height: 38,
+                                    borderRadius: 9
+                                }]} 
+                                onPress={() => {
+                                    setInstallments(num);
+                                    if (num === '1') setInterestRate('0');
+                                }}
+                            >
+                                <Text style={{ color: installments === num ? '#FFF' : colorsNav.text, fontWeight: '800', fontSize: 12 }}>{num}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+
+                {/* Detalles de interés (solo si cuotas > 1) */}
+                {parseInt(installments, 10) > 1 && (() => {
+                    const typedVal = parseInputToNumber(amount, currency) || 0;
+                    const p = convertToBase(typedVal, currency, rates);
+                    
+                    const ea = parseFloat(interestRate) / 100;
+                    const mv = Math.pow(1 + ea, 1/12) - 1;
+                    const n = parseInt(installments, 10);
+                    
+                    // Fórmula cuota fija (amortización francesa)
+                    const cuota = mv > 0 ? (p * mv) / (1 - Math.pow(1 + mv, -n)) : p / n;
+                    const totalReal = cuota * n;
+
+                    return (
+                        <View style={{ gap: 10, marginBottom: 15 }}>
+                            <View style={{ 
+                                flexDirection: 'row', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center', 
+                                backgroundColor: colorsNav.bg, 
+                                paddingHorizontal: 12, 
+                                paddingVertical: 8, 
+                                borderRadius: 12,
+                                borderWidth: 1,
+                                borderColor: colorsNav.border
+                            }}>
+                                <View>
+                                    <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '800' }}>Tasa de Interés</Text>
+                                    <Text style={{ color: colorsNav.sub, fontSize: 10 }}>Efectiva Anual (E.A. %)</Text>
+                                </View>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colorsNav.card, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: colorsNav.border }}>
+                                    <TextInput 
+                                        style={{ color: colorsNav.text, fontWeight: '900', textAlign: 'right', fontSize: 14, minWidth: 35, padding: 0 }}
+                                        value={interestRate}
+                                        onChangeText={setInterestRate}
+                                        keyboardType="decimal-pad"
+                                        selectTextOnFocus
+                                    />
+                                    <Text style={{ color: colorsNav.text, fontWeight: '900', fontSize: 14, marginLeft: 2 }}>%</Text>
+                                </View>
+                            </View>
+                            
+                            <View style={{ flexDirection: 'row', gap: 6 }}>
+                                <View style={{ flex: 1, backgroundColor: colorsNav.bg, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: colorsNav.border }}>
+                                    <Text style={{ color: colorsNav.sub, fontSize: 9, fontWeight: '700', textTransform: 'uppercase', marginBottom: 2 }}>Cuota Mensual</Text>
+                                    <Text style={{ color: colorsNav.text, fontSize: 14, fontWeight: '900' }}>{fmt(cuota)}</Text>
+                                </View>
+                                <View style={{ flex: 1, backgroundColor: colorsNav.bg, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: colorsNav.border }}>
+                                    <Text style={{ color: colorsNav.sub, fontSize: 9, fontWeight: '700', textTransform: 'uppercase', marginBottom: 2 }}>Intereses Totales</Text>
+                                    <Text style={{ color: '#EF4444', fontSize: 14, fontWeight: '900' }}>{fmt(totalReal - p)}</Text>
+                                </View>
+                            </View>
+                            <View style={{ backgroundColor: colorsNav.accent + '10', padding: 10, borderRadius: 12, borderWidth: 1, borderColor: colorsNav.accent + '25', alignItems: 'center' }}>
+                                <Text style={{ color: colorsNav.sub, fontSize: 9, fontWeight: '700', textTransform: 'uppercase', marginBottom: 1 }}>Total Estimado a Pagar</Text>
+                                <Text style={{ color: colorsNav.accent, fontSize: 16, fontWeight: '900' }}>{fmt(totalReal)}</Text>
+                            </View>
+                        </View>
+                    );
+                })()}
+
+                {/* Fecha de Compra */}
+                <View style={{ 
+                    flexDirection: 'row', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    marginBottom: 20
+                }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <MaterialIcons name="event" size={15} color={colorsNav.accent} />
+                        <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '800' }}>Fecha de Compra</Text>
+                    </View>
+                    <View style={{ 
+                        borderWidth: 1, 
+                        borderRadius: 10, 
+                        paddingHorizontal: 12, 
+                        paddingVertical: 6, 
+                        backgroundColor: colorsNav.bg, 
+                        borderColor: colorsNav.border 
+                    }}>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: colorsNav.text }}>{txDate}</Text>
+                    </View>
+                </View>
+
+                {/* Botones */}
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TouchableOpacity 
+                        style={{ flex: 1, padding: 15, borderRadius: 14, backgroundColor: colorsNav.bg, alignItems: 'center', borderWidth: 1, borderColor: colorsNav.border }}
+                        onPress={() => setShowFinancingModal(false)}
+                    >
+                        <Text style={{ color: colorsNav.text, fontWeight: '700' }}>Cancelar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                        style={{ flex: 1.5, padding: 15, borderRadius: 14, backgroundColor: colorsNav.accent, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
+                        onPress={() => {
+                            setShowFinancingModal(false);
+                            handleSave(true);
+                        }}
+                    >
+                        <Text style={{ color: '#FFF', fontWeight: '800' }}>Confirmar Pago</Text>
+                        <Ionicons name="checkmark-circle" size={18} color="#FFF" />
+                    </TouchableOpacity>
+                </View>
              </View>
           </View>
         </Modal>
