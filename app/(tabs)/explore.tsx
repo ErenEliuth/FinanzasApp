@@ -417,7 +417,6 @@ export default function AddTransactionScreen() {
     
     // Formatear descripción con info de cuotas si aplica
     let finalDescription = description.trim() || dbCategory;
-    const isCreditCard = cardNames.includes(account);
     const instNum = parseInt(installments, 10);
     const rate = parseFloat(interestRate) || 0;
     
@@ -735,7 +734,7 @@ export default function AddTransactionScreen() {
 
             <TouchableOpacity
               style={[styles.saveBtn, { backgroundColor: typeColor }, (!amount || isSaving) && { opacity: 0.5 }]}
-              onPress={handleSave}
+              onPress={() => handleSave()}
               disabled={!amount || isSaving}
             >
               <Text style={styles.saveBtnText}>{isSaving ? 'Guardando...' : 'Guardar Movimiento'}</Text>
