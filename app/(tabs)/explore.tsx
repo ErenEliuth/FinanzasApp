@@ -547,7 +547,7 @@ export default function AddTransactionScreen() {
   return (
     <TouchableWithoutFeedback onPress={Platform.OS === 'web' ? undefined : Keyboard.dismiss}>
       <SafeAreaView style={[styles.container, { backgroundColor: colorsNav.bg }]}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
             <View style={styles.header}>
@@ -717,22 +717,28 @@ export default function AddTransactionScreen() {
 
               {/* Selector de Cuotas para Tarjetas */}
               {type === 'expense' && cards.map(c => c.name).includes(account) && (
-                <View style={[styles.section, { backgroundColor: colorsNav.card, padding: 20, borderRadius: 24, marginTop: 10 }]}>
+                <View style={[styles.section, { backgroundColor: colorsNav.card, padding: 18, borderRadius: 24, marginTop: 10, borderWidth: 1, borderColor: colorsNav.border }]}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={[styles.sectionTitle, { color: colorsNav.text, marginLeft: 0 }]}>Número de Cuotas</Text>
-                        <View style={{ backgroundColor: colorsNav.accent + '20', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
-                            <Text style={{ color: colorsNav.accent, fontWeight: '800', fontSize: 12 }}>{installments} {parseInt(installments, 10) === 1 ? 'Cuota' : 'Cuotas'}</Text>
+                        <Text style={[styles.sectionTitle, { color: colorsNav.text, marginLeft: 0, textTransform: 'uppercase', fontSize: 12 }]}>Financiación</Text>
+                        <View style={{ backgroundColor: colorsNav.accent + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
+                            <Text style={{ color: colorsNav.accent, fontWeight: '800', fontSize: 11 }}>{installments} {parseInt(installments, 10) === 1 ? 'Cuota' : 'Cuotas'}</Text>
                         </View>
                     </View>
                     
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 10 }}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginTop: 6 }}>
                         {['1', '2', '3', '6', '12', '24', '36'].map(num => (
                             <TouchableOpacity 
                                 key={num} 
-                                style={[styles.instChip, { backgroundColor: installments === num ? colorsNav.accent : colorsNav.bg, borderColor: colorsNav.border }]} 
+                                style={[styles.instChip, { 
+                                    backgroundColor: installments === num ? colorsNav.accent : colorsNav.bg, 
+                                    borderColor: colorsNav.border,
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: 10
+                                }]} 
                                 onPress={() => setInstallments(num)}
                             >
-                                <Text style={{ color: installments === num ? '#FFF' : colorsNav.text, fontWeight: '800' }}>{num}</Text>
+                                <Text style={{ color: installments === num ? '#FFF' : colorsNav.text, fontWeight: '800', fontSize: 13 }}>{num}</Text>
                             </TouchableOpacity>
                         ))}
                     </ScrollView>
@@ -750,47 +756,77 @@ export default function AddTransactionScreen() {
                         const totalReal = cuota * n;
 
                         return (
-                            <View style={{ marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: colorsNav.border + '50' }}>
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
-                                    <Text style={{ color: colorsNav.sub, fontSize: 12, fontWeight: '600' }}>Tasa interés (E.A. %)</Text>
-                                    <TextInput 
-                                        style={{ color: colorsNav.text, fontWeight: '800', textAlign: 'right', minWidth: 40 }}
-                                        value={interestRate}
-                                        onChangeText={setInterestRate}
-                                        keyboardType="numeric"
-                                    />
+                            <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colorsNav.border + '50' }}>
+                                <View style={{ 
+                                    flexDirection: 'row', 
+                                    justifyContent: 'space-between', 
+                                    alignItems: 'center', 
+                                    backgroundColor: colorsNav.bg, 
+                                    paddingHorizontal: 12, 
+                                    paddingVertical: 8, 
+                                    borderRadius: 12,
+                                    borderWidth: 1,
+                                    borderColor: colorsNav.border,
+                                    marginBottom: 12
+                                }}>
+                                    <View>
+                                        <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '800' }}>Tasa de Interés</Text>
+                                        <Text style={{ color: colorsNav.sub, fontSize: 10 }}>Efectiva Anual (E.A. %)</Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colorsNav.card, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: colorsNav.border }}>
+                                        <TextInput 
+                                            style={{ color: colorsNav.text, fontWeight: '900', textAlign: 'right', fontSize: 14, minWidth: 35, padding: 0 }}
+                                            value={interestRate}
+                                            onChangeText={setInterestRate}
+                                            keyboardType="decimal-pad"
+                                            selectTextOnFocus
+                                        />
+                                        <Text style={{ color: colorsNav.text, fontWeight: '900', fontSize: 14, marginLeft: 2 }}>%</Text>
+                                    </View>
                                 </View>
                                 
-                                <View style={{ gap: 4 }}>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                        <Text style={{ color: colorsNav.sub, fontSize: 12 }}>Pago mensual:</Text>
-                                        <Text style={{ color: colorsNav.text, fontWeight: '800' }}>{fmt(cuota)}</Text>
+                                <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
+                                    <View style={{ flex: 1, backgroundColor: colorsNav.bg, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: colorsNav.border }}>
+                                        <Text style={{ color: colorsNav.sub, fontSize: 9, fontWeight: '700', textTransform: 'uppercase', marginBottom: 2 }}>Cuota Mensual</Text>
+                                        <Text style={{ color: colorsNav.text, fontSize: 14, fontWeight: '900' }}>{fmt(cuota)}</Text>
                                     </View>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                        <Text style={{ color: colorsNav.sub, fontSize: 12 }}>Total a pagar (con intereses):</Text>
-                                        <Text style={{ color: colorsNav.accent, fontWeight: '900' }}>{fmt(totalReal)}</Text>
+                                    <View style={{ flex: 1, backgroundColor: colorsNav.bg, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: colorsNav.border }}>
+                                        <Text style={{ color: colorsNav.sub, fontSize: 9, fontWeight: '700', textTransform: 'uppercase', marginBottom: 2 }}>Intereses Totales</Text>
+                                        <Text style={{ color: '#EF4444', fontSize: 14, fontWeight: '900' }}>{fmt(totalReal - p)}</Text>
                                     </View>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                        <Text style={{ color: colorsNav.sub, fontSize: 12 }}>Intereses totales:</Text>
-                                        <Text style={{ color: '#EF4444', fontWeight: '800' }}>{fmt(totalReal - p)}</Text>
-                                    </View>
+                                </View>
+                                <View style={{ backgroundColor: colorsNav.accent + '10', padding: 10, borderRadius: 12, borderWidth: 1, borderColor: colorsNav.accent + '25', alignItems: 'center' }}>
+                                    <Text style={{ color: colorsNav.sub, fontSize: 9, fontWeight: '700', textTransform: 'uppercase', marginBottom: 1 }}>Total Estimado a Pagar</Text>
+                                    <Text style={{ color: colorsNav.accent, fontSize: 16, fontWeight: '900' }}>{fmt(totalReal)}</Text>
                                 </View>
                             </View>
                         );
                     })()}
 
-                    {/* Fecha de Compra — clave para cuotas pasadas */}
-                    <View style={{ marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: colorsNav.border + '50' }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                            <MaterialIcons name="event" size={16} color={colorsNav.accent} />
-                            <Text style={{ color: colorsNav.text, fontSize: 13, fontWeight: '800' }}>Fecha de Compra</Text>
+                    {/* Fecha de Compra — Compactado como una pequeña fila simple */}
+                    <View style={{ 
+                        flexDirection: 'row', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        marginTop: 12, 
+                        paddingTop: 12, 
+                        borderTopWidth: 1, 
+                        borderTopColor: colorsNav.border + '50' 
+                    }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <MaterialIcons name="event" size={15} color={colorsNav.accent} />
+                            <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '800' }}>Fecha de Compra</Text>
                         </View>
-                        <View style={[{ borderWidth: 1, borderRadius: 14, padding: 14, backgroundColor: colorsNav.bg, borderColor: colorsNav.border, alignItems: 'center' }]}>
-                            <Text style={{ fontSize: 15, fontWeight: '700', color: colorsNav.text }}>{txDate}</Text>
+                        <View style={{ 
+                            borderWidth: 1, 
+                            borderRadius: 10, 
+                            paddingHorizontal: 12, 
+                            paddingVertical: 6, 
+                            backgroundColor: colorsNav.bg, 
+                            borderColor: colorsNav.border 
+                        }}>
+                            <Text style={{ fontSize: 13, fontWeight: '700', color: colorsNav.text }}>{txDate}</Text>
                         </View>
-                        <Text style={{ color: colorsNav.accent, fontSize: 11, marginTop: 6, marginLeft: 4, fontWeight: '600', opacity: 0.8 }}>
-                            💡 Si la compra fue hace meses, puedes registrarla en tarjetas.
-                        </Text>
                     </View>
                 </View>
               )}
