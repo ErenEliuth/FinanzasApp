@@ -30,6 +30,7 @@ Ubicadas dentro de la carpeta [app/(tabs)](file:///c:/Users/Admin/OneDrive/Escri
   * Registro visual de tarjetas con colores personalizados.
   * Control del cupo disponible, cupo usado y fecha de corte/pago.
   * Permite ver la lista de consumos asociados específicamente a cada tarjeta.
+  * **Flujo de Financiación (explore.tsx):** Al registrar una transacción asignada a una Tarjeta de Crédito, la app despliega un panel de financiación para compras diferidas en cuotas (1 a 36 cuotas) con cálculo automático de Tasa Efectiva Anual (E.A. %), cuotas mensuales fijas, interés total acumulado y monto final a pagar.
 
 ### 📊 Historial (History)
 * **Archivo:** [app/(tabs)/history.tsx](file:///c:/Users/Admin/OneDrive/Escritorio/AppMobile/app/(tabs)/history.tsx)
