@@ -72,6 +72,8 @@ export default function GoalsScreen() {
 
     const [payModalVisible, setPayModalVisible] = useState(false);
     const [withdrawModalVisible, setWithdrawModalVisible] = useState(false);
+    const [deleteAmountModalVisible, setDeleteAmountModalVisible] = useState(false);
+    const [deleteAmountVal, setDeleteAmountVal] = useState('');
     const [selectedGoal, setSelectedGoal] = useState<any | null>(null);
     const [payAmount, setPayAmount] = useState('');
     const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -596,6 +598,43 @@ export default function GoalsScreen() {
         } catch (e: any) { 
             console.error(e);
             Alert.alert('Error', e?.message || 'No se pudo procesar el retiro.');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleDeleteSpecificAmount = async () => {
+        if (!selectedGoal) return;
+        const typedVal = parseInputToNumber(deleteAmountVal, currency);
+        const val = convertToBase(typedVal, currency, rates);
+        if (isNaN(val) || val <= 0 || val > selectedGoal.current_amount) {
+            Alert.alert('Monto inválido', 'El monto a eliminar debe ser menor o igual al saldo actual.');
+            return;
+        }
+        try {
+            setIsProcessing(true);
+            
+            // Insertar una transacción que reduzca totalAhorro pero que tenga account: 'Ajuste'
+            // de modo que no afecte el saldo de ninguna cuenta real bancaria.
+            const { error } = await supabase.from('transactions').insert([{
+                user_id: user?.id,
+                type: 'income',
+                amount: val,
+                description: `Ajuste (eliminación) en ${activeTab === 'metas' ? 'meta' : 'cajita'}: ${selectedGoal.name}`,
+                category: 'Ahorro',
+                account: 'Ajuste', // Ignorado en saldos de cuentas reales
+                date: getLocalISOString()
+            }]);
+            if (error) throw error;
+
+            await supabase.from('goals').update({ current_amount: selectedGoal.current_amount - val }).eq('id', selectedGoal.id);
+            setDeleteAmountVal('');
+            setDeleteAmountModalVisible(false);
+            loadData();
+            Alert.alert('Ajuste Exitoso', `Se eliminaron ${fmt(val)} de la cajita sin afectar tus cuentas bancarias.`);
+        } catch (e: any) {
+            console.error(e);
+            Alert.alert('Error', e?.message || 'No se pudo procesar el ajuste.');
         } finally {
             setIsProcessing(false);
         }
@@ -1624,6 +1663,51 @@ export default function GoalsScreen() {
                 </View>
             </Modal>
 
+            {/* Modal Eliminar Monto Específico */}
+            <Modal visible={deleteAmountModalVisible} animationType="fade" transparent>
+                <View style={styles.overlayCenter}>
+                    <View style={[styles.miniModal, { backgroundColor: colors.card }]}>
+                        <Text style={[styles.miniTitle, { color: colors.text }]}>Eliminar Monto</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <Text style={[styles.miniSub, { color: colors.sub }]}>Saldo actual: {fmt(selectedGoal?.current_amount || 0)}</Text>
+                            <TouchableOpacity 
+                                onPress={() => {
+                                    const val = convertCurrency(selectedGoal?.current_amount || 0, currency, rates);
+                                    const info = getCurrencyInfo(currency);
+                                    const cleanStr = info.hasDecimals ? val.toFixed(2) : Math.floor(val).toString();
+                                    setDeleteAmountVal(formatInput(cleanStr));
+                                }}
+                                style={{ backgroundColor: '#EF444420', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}
+                            >
+                                <Text style={{ color: '#EF4444', fontSize: 10, fontWeight: '800' }}>ELIMINAR TODO</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border, textAlign: 'center', fontSize: 32, width: '100%', marginVertical: 10 }]} 
+                            placeholder="$ 0" placeholderTextColor={colors.sub + '40'} keyboardType="decimal-pad" autoFocus
+                            value={deleteAmountVal} onChangeText={t => setDeleteAmountVal(formatInput(t))} />
+
+                        <View style={{ backgroundColor: '#EF444410', padding: 12, borderRadius: 12, width: '100%', marginTop: 5, marginBottom: 15 }}>
+                            <Text style={{ color: '#EF4444', fontSize: 11, textAlign: 'center', lineHeight: 16, fontWeight: '600' }}>
+                                ⚠️ Este ajuste restará el monto del fondo directamente sin sumarlo a ninguna de tus cuentas bancarias.
+                            </Text>
+                        </View>
+
+                        <View style={styles.miniBtns}>
+                            <TouchableOpacity style={[styles.miniBtn, { backgroundColor: colors.bg }]} onPress={() => setDeleteAmountModalVisible(false)}>
+                                <Text style={{ color: colors.text }}>Cancelar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.miniBtn, { backgroundColor: '#EF4444' }, (!deleteAmountVal || isProcessing) && { opacity: 0.6 }]} 
+                                onPress={handleDeleteSpecificAmount}
+                                disabled={!deleteAmountVal || isProcessing}
+                            >
+                                <Text style={{ color: '#FFF', fontWeight: '800' }}>Eliminar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
             {/* Modal Retirar a Cuenta */}
             <Modal visible={withdrawAccountModalVisible} animationType="fade" transparent>
                 <View style={styles.overlayCenter}>
@@ -1776,6 +1860,24 @@ export default function GoalsScreen() {
                                 <View style={{ flex: 1 }}>
                                     <Text style={[styles.optionTitle, { color: colors.text }]}>Retirar dinero</Text>
                                     <Text style={[styles.optionSub, { color: colors.sub }]}>Mover de esta meta a saldo disponible</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={18} color={colors.sub + '60'} />
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.optionItem, { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border }]} 
+                                onPress={() => {
+                                    setOptionsModalVisible(false);
+                                    setSelectedGoal(goalForOptions);
+                                    setDeleteAmountVal('');
+                                    setDeleteAmountModalVisible(true);
+                                }}
+                            >
+                                <View style={[styles.optionIcon, { backgroundColor: '#EF444415' }]}>
+                                    <Ionicons name="close-circle-outline" size={22} color="#EF4444" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.optionTitle, { color: colors.text }]}>Eliminar monto específico</Text>
+                                    <Text style={[styles.optionSub, { color: colors.sub }]}>Restar saldo del fondo sin afectar tus cuentas reales</Text>
                                 </View>
                                 <Ionicons name="chevron-forward" size={18} color={colors.sub + '60'} />
                             </TouchableOpacity>
