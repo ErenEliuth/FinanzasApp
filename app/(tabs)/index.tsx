@@ -103,6 +103,51 @@ export default function HomeScreen() {
   const scrollRef = useRef<any>(null);
 
   const [ahorroBreakdown, setAhorroBreakdown] = useState({ metas: 0, cajitas: 0, retos: 0 });
+  const [showStatsModal, setShowStatsModal] = useState(false);
+  const [statsPeriod, setStatsPeriod] = useState<'week' | 'month'>('month');
+
+  // ── Category breakdown for income & expenses ──────────────────────────
+  const categoryStats = React.useMemo(() => {
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const incomeByCategory: Record<string, number> = {};
+    const expenseByCategory: Record<string, number> = {};
+    let totalIncome = 0;
+    let totalExpense = 0;
+
+    allTransactions.forEach(tx => {
+      const dateStr = tx.date?.includes('T') ? tx.date : `${tx.date}T12:00:00`;
+      const txDate = new Date(dateStr);
+      const cutoff = statsPeriod === 'week' ? startOfWeek : startOfMonth;
+      if (txDate < cutoff) return;
+      if (tx.category === 'Transferencia' || tx.category === 'Ahorro') return;
+
+      const amt = Number(tx.amount) || 0;
+      const cat = tx.category || (tx.type === 'income' ? 'Ingreso' : 'General');
+
+      if (tx.type === 'income') {
+        incomeByCategory[cat] = (incomeByCategory[cat] || 0) + amt;
+        totalIncome += amt;
+      } else if (tx.type === 'expense') {
+        expenseByCategory[cat] = (expenseByCategory[cat] || 0) + amt;
+        totalExpense += amt;
+      }
+    });
+
+    const sortDesc = (obj: Record<string, number>) =>
+      Object.entries(obj).sort((a, b) => b[1] - a[1]);
+
+    return {
+      income: sortDesc(incomeByCategory),
+      expense: sortDesc(expenseByCategory),
+      totalIncome,
+      totalExpense,
+    };
+  }, [allTransactions, statsPeriod]);
 
   useEffect(() => {
     let interval: any;
@@ -1114,6 +1159,25 @@ export default function HomeScreen() {
               </View>
             </View>
 
+            {/* ── Botón Estadísticas por Categoría ─── */}
+            <TouchableOpacity
+              style={[
+                styles.mobileHealthCard,
+                { backgroundColor: isDark ? colorsNav.card : '#FFF', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, marginTop: 0 }
+              ]}
+              onPress={() => setShowStatsModal(true)}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: isDark ? '#6366F120' : '#EEF2FF', justifyContent: 'center', alignItems: 'center' }}>
+                  <MaterialIcons name="bar-chart" size={22} color="#6366F1" />
+                </View>
+                <View>
+                  <Text style={{ fontSize: 15, fontWeight: '900', color: colorsNav.text }}>Estadísticas</Text>
+                  <Text style={{ fontSize: 11, color: colorsNav.sub, fontWeight: '600' }}>Ingresos y gastos por categoría</Text>
+                </View>
+              </View>
+              <MaterialIcons name="chevron-right" size={22} color={colorsNav.sub} />
+            </TouchableOpacity>
 
           </View>
 
@@ -1544,6 +1608,136 @@ export default function HomeScreen() {
               onPress={() => setBreakdownVisible(false)}
             >
               <Text style={[styles.modalCloseBtnText, { color: colorsNav.text, fontSize: 15 }]}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Modal de Estadísticas por Categoría ─── */}
+      <Modal visible={showStatsModal} transparent animationType="slide" onRequestClose={() => setShowStatsModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: isDark ? colorsNav.card : '#FFF', maxWidth: 480, maxHeight: '88%' }]}>
+
+            {/* Header */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <View>
+                <Text style={{ fontSize: 20, fontWeight: '900', color: colorsNav.text }}>Estadísticas</Text>
+                <Text style={{ fontSize: 12, color: colorsNav.sub }}>Ingresos y gastos por categoría</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowStatsModal(false)}
+                style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: isDark ? colorsNav.border + '50' : '#F3F4F6', justifyContent: 'center', alignItems: 'center' }}>
+                <MaterialIcons name="close" size={18} color={colorsNav.text} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Selector de período */}
+            <View style={{ flexDirection: 'row', backgroundColor: isDark ? colorsNav.bg : '#F3F4F6', borderRadius: 12, padding: 3, marginBottom: 20 }}>
+              {(['week', 'month'] as const).map(p => (
+                <TouchableOpacity
+                  key={p}
+                  style={{ flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center', backgroundColor: statsPeriod === p ? (isDark ? colorsNav.card : '#FFF') : 'transparent' }}
+                  onPress={() => setStatsPeriod(p)}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: statsPeriod === p ? colorsNav.text : colorsNav.sub }}>
+                    {p === 'week' ? 'Esta Semana' : 'Este Mes'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+
+              {/* INGRESOS por categoría */}
+              <View style={{ marginBottom: 20 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#10B981' }} />
+                    <Text style={{ fontSize: 12, fontWeight: '900', color: colorsNav.sub, textTransform: 'uppercase', letterSpacing: 1 }}>Ingresos</Text>
+                  </View>
+                  <Text style={{ fontSize: 15, fontWeight: '900', color: '#10B981' }}>{fmt(categoryStats.totalIncome)}</Text>
+                </View>
+
+                {categoryStats.income.length === 0 ? (
+                  <Text style={{ color: colorsNav.sub, fontSize: 13, fontStyle: 'italic', textAlign: 'center', paddingVertical: 12 }}>Sin ingresos en este período</Text>
+                ) : (
+                  categoryStats.income.map(([cat, amt]) => {
+                    const pct = categoryStats.totalIncome > 0 ? (amt / categoryStats.totalIncome) * 100 : 0;
+                    return (
+                      <View key={cat} style={{ marginBottom: 12 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }}>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: colorsNav.text }}>{cat}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Text style={{ fontSize: 11, color: colorsNav.sub, fontWeight: '600' }}>{pct.toFixed(0)}%</Text>
+                            <Text style={{ fontSize: 13, fontWeight: '800', color: '#10B981' }}>{fmt(amt)}</Text>
+                          </View>
+                        </View>
+                        <View style={{ height: 6, backgroundColor: isDark ? colorsNav.bg : '#F3F4F6', borderRadius: 3, overflow: 'hidden' }}>
+                          <View style={{ height: 6, width: `${pct}%`, backgroundColor: '#10B981', borderRadius: 3 }} />
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
+              </View>
+
+              {/* Divider */}
+              <View style={{ height: 1, backgroundColor: isDark ? colorsNav.border + '40' : '#E5E7EB', marginBottom: 20 }} />
+
+              {/* GASTOS por categoría */}
+              <View style={{ marginBottom: 8 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' }} />
+                    <Text style={{ fontSize: 12, fontWeight: '900', color: colorsNav.sub, textTransform: 'uppercase', letterSpacing: 1 }}>Gastos</Text>
+                  </View>
+                  <Text style={{ fontSize: 15, fontWeight: '900', color: '#EF4444' }}>{fmt(categoryStats.totalExpense)}</Text>
+                </View>
+
+                {categoryStats.expense.length === 0 ? (
+                  <Text style={{ color: colorsNav.sub, fontSize: 13, fontStyle: 'italic', textAlign: 'center', paddingVertical: 12 }}>Sin gastos en este período</Text>
+                ) : (
+                  categoryStats.expense.map(([cat, amt]) => {
+                    const pct = categoryStats.totalExpense > 0 ? (amt / categoryStats.totalExpense) * 100 : 0;
+                    const EXPENSE_COLORS: Record<string, string> = {
+                      Comida: '#FB8C00', Supermercado: '#F59E0B', Transporte: '#0288D1',
+                      Salud: '#E91E63', Hogar: '#4CAF50', Entretenimiento: '#8B5CF6',
+                      Educación: '#6366F1', Ropa: '#EC4899', General: '#64748B',
+                    };
+                    const barColor = EXPENSE_COLORS[cat] || '#EF4444';
+                    return (
+                      <View key={cat} style={{ marginBottom: 12 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }}>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: colorsNav.text }}>{cat}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Text style={{ fontSize: 11, color: colorsNav.sub, fontWeight: '600' }}>{pct.toFixed(0)}%</Text>
+                            <Text style={{ fontSize: 13, fontWeight: '800', color: barColor }}>{fmt(amt)}</Text>
+                          </View>
+                        </View>
+                        <View style={{ height: 6, backgroundColor: isDark ? colorsNav.bg : '#F3F4F6', borderRadius: 3, overflow: 'hidden' }}>
+                          <View style={{ height: 6, width: `${pct}%`, backgroundColor: barColor, borderRadius: 3 }} />
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
+              </View>
+
+              {/* Balance neto */}
+              {(categoryStats.totalIncome > 0 || categoryStats.totalExpense > 0) && (
+                <View style={{ backgroundColor: isDark ? colorsNav.bg : '#F9FAFB', borderRadius: 16, padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 8 }}>
+                  <Text style={{ fontWeight: '800', color: colorsNav.sub, fontSize: 13 }}>Balance Neto</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '900', color: categoryStats.totalIncome - categoryStats.totalExpense >= 0 ? '#10B981' : '#EF4444' }}>
+                    {fmt(categoryStats.totalIncome - categoryStats.totalExpense)}
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.modalCloseBtn, { backgroundColor: isDark ? '#3A3A52' : '#EEF2FF', marginTop: 16 }]}
+              onPress={() => setShowStatsModal(false)}
+            >
+              <Text style={[styles.modalCloseBtnText, { color: isDark ? '#FFF' : '#6366F1', fontWeight: '800' }]}>Cerrar</Text>
             </TouchableOpacity>
           </View>
         </View>
