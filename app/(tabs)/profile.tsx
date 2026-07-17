@@ -750,10 +750,19 @@ export default function ProfileScreen() {
         const remData = remRes.data || [];
         const debtsData = (debtsRes.data || []).map(f => {
             const isFixed = f.debt_type === 'fixed';
+            let title = f.client;
+            try {
+                if (f.client && f.client.startsWith('{')) {
+                    const parsed = JSON.parse(f.client);
+                    if (parsed && parsed.isFinancialLoan) {
+                        title = parsed.name || `${parsed.entity} (${parsed.loanType})`;
+                    }
+                }
+            } catch (e) {}
             return {
                 ...f,
                 is_fixed_expense: isFixed,
-                title: f.client,
+                title: title,
                 amount: f.value,
                 due_day: isFixed ? new Date(f.due_date + 'T12:00:00').getDate() : undefined,
                 due_date: isFixed ? undefined : f.due_date,

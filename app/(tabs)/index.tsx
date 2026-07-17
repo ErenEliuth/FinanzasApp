@@ -399,12 +399,25 @@ export default function HomeScreen() {
         setAhorroBreakdown({ metas: sumMetas, cajitas: sumCajitas, retos: sumRetos });
       } catch (e) { }
 
-      const { data: allDebts, error: debtError } = await supabase
+      const { data: rawDebts, error: debtError } = await supabase
         .from('debts')
         .select('*')
         .eq('user_id', user.id);
 
       if (debtError) throw debtError;
+
+      const allDebts = (rawDebts || []).map((d: any) => {
+        let clientName = d.client;
+        try {
+          if (d.client && d.client.startsWith('{')) {
+            const parsed = JSON.parse(d.client);
+            if (parsed && parsed.isFinancialLoan) {
+              clientName = parsed.name || `${parsed.entity} (${parsed.loanType})`;
+            }
+          }
+        } catch (e) {}
+        return { ...d, client: clientName };
+      });
 
       const remainingDebts = allDebts?.filter(d => d.debt_type !== 'loan' && Number(d.paid || 0) < Number(d.value)) || [];
       const userLoans = allDebts?.filter(d => d.debt_type === 'loan' && Number(d.paid || 0) < Number(d.value)) || [];
