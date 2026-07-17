@@ -1172,25 +1172,7 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            {/* ── Botón Estadísticas por Categoría ─── */}
-            <TouchableOpacity
-              style={[
-                styles.mobileHealthCard,
-                { backgroundColor: isDark ? colorsNav.card : '#FFF', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, marginTop: 0 }
-              ]}
-              onPress={() => setShowStatsModal(true)}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: isDark ? '#6366F120' : '#EEF2FF', justifyContent: 'center', alignItems: 'center' }}>
-                  <MaterialIcons name="bar-chart" size={22} color="#6366F1" />
-                </View>
-                <View>
-                  <Text style={{ fontSize: 15, fontWeight: '900', color: colorsNav.text }}>Estadísticas</Text>
-                  <Text style={{ fontSize: 11, color: colorsNav.sub, fontWeight: '600' }}>Ingresos y gastos por categoría</Text>
-                </View>
-              </View>
-              <MaterialIcons name="chevron-right" size={22} color={colorsNav.sub} />
-            </TouchableOpacity>
+
 
           </View>
 
