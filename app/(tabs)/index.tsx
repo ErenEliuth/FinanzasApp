@@ -425,9 +425,9 @@ export default function HomeScreen() {
 
       // Préstamos financieros (loan_owe): solo sumar la cuota si vence este mes o está vencida
       const loanOweItems = (rawDebts || []).filter((d: any) => d.debt_type === 'loan_owe' && Number(d.paid || 0) < Number(d.value));
-      const today = new Date();
-      const currentMonth = today.getMonth();
-      const currentYear = today.getFullYear();
+      const loanToday = new Date();
+      const loanMonth = loanToday.getMonth();
+      const loanYear = loanToday.getFullYear();
 
       const loanOweMonthly = loanOweItems.reduce((sum: number, d: any) => {
         try {
@@ -440,10 +440,11 @@ export default function HomeScreen() {
                 const dueMonth = nextDueDate.getMonth();
                 const dueYear = nextDueDate.getFullYear();
                 const isThisMonthOrOverdue =
-                  (dueYear < currentYear) ||
-                  (dueYear === currentYear && dueMonth <= currentMonth);
+                  (dueYear < loanYear) ||
+                  (dueYear === loanYear && dueMonth <= loanMonth);
                 if (!isThisMonthOrOverdue) return sum; // próxima cuota es mes futuro, no sumar
               }
+
 
               const rateVal = meta.interestRate / 100;
               let r = rateVal;
