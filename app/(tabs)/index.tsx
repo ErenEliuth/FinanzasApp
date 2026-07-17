@@ -419,9 +419,38 @@ export default function HomeScreen() {
         return { ...d, client: clientName };
       });
 
-      const remainingDebts = allDebts?.filter(d => d.debt_type !== 'loan' && Number(d.paid || 0) < Number(d.value)) || [];
+      // Deudas y gastos fijos normales (excluyendo loan_owe y loan)
+      const remainingDebts = allDebts?.filter(d => d.debt_type !== 'loan' && d.debt_type !== 'loan_owe' && Number(d.paid || 0) < Number(d.value)) || [];
       const userLoans = allDebts?.filter(d => d.debt_type === 'loan' && Number(d.paid || 0) < Number(d.value)) || [];
-      
+
+      // Préstamos financieros (loan_owe): solo sumar la próxima cuota mensual, no el capital total
+      const loanOweItems = (rawDebts || []).filter((d: any) => d.debt_type === 'loan_owe' && Number(d.paid || 0) < Number(d.value));
+      const loanOweMonthly = loanOweItems.reduce((sum: number, d: any) => {
+        try {
+          if (d.client && d.client.startsWith('{')) {
+            const meta = JSON.parse(d.client);
+            if (meta && meta.isFinancialLoan) {
+              const rateVal = meta.interestRate / 100;
+              let r = rateVal;
+              if (meta.rateType === 'EA') r = Math.pow(1 + rateVal, 1 / 12) - 1;
+              else if (meta.rateType === 'NMV') r = rateVal / 12;
+              const paidList: number[] = meta.paidInstallments || [];
+              const remaining = meta.termMonths - paidList.length;
+              const balance = Number(d.value) - Number(d.paid || 0);
+              if (remaining <= 0 || balance <= 0) return sum;
+              // Cuota fija (francesa) sobre saldo pendiente y meses restantes
+              const cuota = r > 0
+                ? (balance * r) / (1 - Math.pow(1 + r, -remaining))
+                : balance / remaining;
+              return sum + cuota;
+            }
+          }
+        } catch (e) {}
+        // Fallback: dividir saldo entre meses restantes
+        const balance = Number(d.value) - Number(d.paid || 0);
+        return sum + (balance > 0 ? balance / Math.max(1, 12) : 0);
+      }, 0);
+
       const calcLoans = userLoans.reduce((sum, d) => sum + (Number(d.value) - Number(d.paid || 0)), 0);
       setLoansTotal(calcLoans);
 
@@ -465,7 +494,7 @@ export default function HomeScreen() {
         }
       });
 
-      const totalDue = remainingDebts.reduce((sum, d) => sum + (Number(d.value) - Number(d.paid || 0)), 0) + cardObligations;
+      const totalDue = remainingDebts.reduce((sum, d) => sum + (Number(d.value) - Number(d.paid || 0)), 0) + cardObligations + loanOweMonthly;
 
       setDebtTotal(totalDue);
 
