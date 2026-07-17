@@ -423,13 +423,28 @@ export default function HomeScreen() {
       const remainingDebts = allDebts?.filter(d => d.debt_type !== 'loan' && d.debt_type !== 'loan_owe' && Number(d.paid || 0) < Number(d.value)) || [];
       const userLoans = allDebts?.filter(d => d.debt_type === 'loan' && Number(d.paid || 0) < Number(d.value)) || [];
 
-      // Préstamos financieros (loan_owe): solo sumar la próxima cuota mensual, no el capital total
+      // Préstamos financieros (loan_owe): solo sumar la cuota si vence este mes o está vencida
       const loanOweItems = (rawDebts || []).filter((d: any) => d.debt_type === 'loan_owe' && Number(d.paid || 0) < Number(d.value));
+      const today = new Date();
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+
       const loanOweMonthly = loanOweItems.reduce((sum: number, d: any) => {
         try {
           if (d.client && d.client.startsWith('{')) {
             const meta = JSON.parse(d.client);
             if (meta && meta.isFinancialLoan) {
+              // Verificar si la próxima cuota vence este mes o ya venció
+              const nextDueDate = d.due_date ? new Date(d.due_date + 'T12:00:00') : null;
+              if (nextDueDate) {
+                const dueMonth = nextDueDate.getMonth();
+                const dueYear = nextDueDate.getFullYear();
+                const isThisMonthOrOverdue =
+                  (dueYear < currentYear) ||
+                  (dueYear === currentYear && dueMonth <= currentMonth);
+                if (!isThisMonthOrOverdue) return sum; // próxima cuota es mes futuro, no sumar
+              }
+
               const rateVal = meta.interestRate / 100;
               let r = rateVal;
               if (meta.rateType === 'EA') r = Math.pow(1 + rateVal, 1 / 12) - 1;
@@ -438,7 +453,6 @@ export default function HomeScreen() {
               const remaining = meta.termMonths - paidList.length;
               const balance = Number(d.value) - Number(d.paid || 0);
               if (remaining <= 0 || balance <= 0) return sum;
-              // Cuota fija (francesa) sobre saldo pendiente y meses restantes
               const cuota = r > 0
                 ? (balance * r) / (1 - Math.pow(1 + r, -remaining))
                 : balance / remaining;
@@ -446,10 +460,9 @@ export default function HomeScreen() {
             }
           }
         } catch (e) {}
-        // Fallback: dividir saldo entre meses restantes
-        const balance = Number(d.value) - Number(d.paid || 0);
-        return sum + (balance > 0 ? balance / Math.max(1, 12) : 0);
+        return sum;
       }, 0);
+
 
       const calcLoans = userLoans.reduce((sum, d) => sum + (Number(d.value) - Number(d.paid || 0)), 0);
       setLoansTotal(calcLoans);
