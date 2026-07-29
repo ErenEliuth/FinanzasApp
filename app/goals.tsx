@@ -51,6 +51,7 @@ export default function GoalsScreen() {
     const [newGoalImage, setNewGoalImage] = useState<string | null>(null);
     const [newGoalPriority, setNewGoalPriority] = useState<'high' | 'medium' | 'low'>('medium');
     const [newGoalInterest, setNewGoalInterest] = useState('');
+    const [initialBalance, setInitialBalance] = useState('');
     const [activeTab, setActiveTab] = useState<'fondo' | 'cajitas' | 'metas'>('fondo');
     const [interestMap, setInterestMap] = useState<Record<string, any>>({});
     const [isProcessing, setIsProcessing] = useState(false);
@@ -486,11 +487,14 @@ export default function GoalsScreen() {
                 }
             }
 
+            const initialBalTyped = parseInputToNumber(initialBalance, currency);
+            const initialBalBase = isNaN(initialBalTyped) ? 0 : convertToBase(initialBalTyped, currency, rates);
+
             const { data: newGoalData, error } = await supabase.from('goals').insert([{ 
                 user_id: user?.id, 
                 name: goalName, 
                 target_amount: val, 
-                current_amount: 0, 
+                current_amount: initialBalBase, 
                 image_uri: finalImageUri,
                 priority: newGoalPriority
             }]).select();
@@ -524,7 +528,7 @@ export default function GoalsScreen() {
                 await syncUp(user?.id ?? '');
             }
             
-            setNewGoalName(''); setNewGoalTarget(''); setNewGoalImage(null); setNewGoalInterest(''); setAddModalVisible(false);
+            setNewGoalName(''); setNewGoalTarget(''); setNewGoalImage(null); setNewGoalInterest(''); setInitialBalance(''); setAddModalVisible(false);
             loadData();
         } catch (e: any) { 
             console.error('Error al crear meta/cajita:', e); 
@@ -1275,6 +1279,13 @@ export default function GoalsScreen() {
                                     </View>
 
                                     <View style={styles.mInputCont}>
+                                        <Text style={[styles.mLabel, { color: colors.sub }]}>SALDO INICIAL (OPCIONAL)</Text>
+                                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
+                                            placeholder="$ 0" placeholderTextColor={colors.sub + '80'} keyboardType="decimal-pad"
+                                            value={initialBalance} onChangeText={t => setInitialBalance(formatInput(t))} />
+                                    </View>
+
+                                    <View style={styles.mInputCont}>
                                         <Text style={[styles.mLabel, { color: colors.sub }]}>PRIORIDAD</Text>
                                         <View style={styles.priorityRow}>
                                             {[
@@ -1318,6 +1329,13 @@ export default function GoalsScreen() {
                                         <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
                                             placeholder="0" placeholderTextColor={colors.sub + '80'} keyboardType="decimal-pad"
                                             value={newGoalInterest} onChangeText={setNewGoalInterest} />
+                                    </View>
+
+                                    <View style={styles.mInputCont}>
+                                        <Text style={[styles.mLabel, { color: colors.sub }]}>SALDO INICIAL (OPCIONAL)</Text>
+                                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
+                                            placeholder="$ 0" placeholderTextColor={colors.sub + '80'} keyboardType="decimal-pad"
+                                            value={initialBalance} onChangeText={t => setInitialBalance(formatInput(t))} />
                                     </View>
                                     
                                     <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
@@ -1500,6 +1518,13 @@ export default function GoalsScreen() {
                                                 <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
                                                     placeholder="13" placeholderTextColor={colors.sub + '80'} keyboardType="decimal-pad"
                                                     value={newGoalInterest} onChangeText={setNewGoalInterest} />
+                                            </View>
+
+                                            <View style={styles.mInputCont}>
+                                                <Text style={[styles.mLabel, { color: colors.sub }]}>SALDO INICIAL (OPCIONAL)</Text>
+                                                <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} 
+                                                    placeholder="$ 0" placeholderTextColor={colors.sub + '80'} keyboardType="decimal-pad"
+                                                    value={initialBalance} onChangeText={t => setInitialBalance(formatInput(t))} />
                                             </View>
 
                                             <View style={{ backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 14, marginBottom: 16 }}>
