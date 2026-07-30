@@ -893,82 +893,33 @@ export default function DebtsScreen() {
                                         </ScrollView>
                                     </View>
 
-                                    {/* Abonar a Capital */}
-                                    <View style={{ backgroundColor: colors.bg, borderRadius: 20, padding: 16, marginBottom: 14 }}>
-                                        <Text style={{ color: colors.text, fontWeight: '900', fontSize: 15, marginBottom: 10 }}>💰 Abonar a Capital</Text>
-                                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.accent, textAlign: 'center', fontSize: 26 }]} value={extraPaymentAmount} onChangeText={t => setExtraPaymentAmount(formatInputDisplay(t, currency))} placeholder="$ 0" placeholderTextColor={colors.sub + '40'} keyboardType="decimal-pad" />
-                                        <TouchableOpacity style={[styles.mBtnPrimary, { backgroundColor: '#10B981', marginTop: 10, opacity: !extraPaymentAmount ? 0.5 : 1 }]} onPress={() => handleExtraPayment()} disabled={!extraPaymentAmount || isProcessing}>
-                                            <Text style={styles.mBtnText}>{isProcessing ? 'Procesando...' : 'Confirmar Abono'}</Text>
-                                        </TouchableOpacity>
-                                    </View>
-
-                                    {/* Abono Inteligente */}
+                                    {/* Consejo para pagar más rápido */}
                                     {smartSuggestions.length > 0 && (
-                                        <View style={{ marginBottom: 14 }}>
-                                            <Text style={{ color: colors.text, fontWeight: '900', fontSize: 15, marginBottom: 10 }}>🧠 Abono Inteligente</Text>
-                                            {smartSuggestions.map((s, i) => (
-                                                <TouchableOpacity key={i} onPress={() => handleExtraPayment(s.amount)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.bg, borderRadius: 14, padding: 12, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#10B981' }}>
-                                                    <View style={{ flex: 1 }}>
-                                                        <Text style={{ color: colors.text, fontWeight: '800' }}>Abona {fmt(s.amount)}</Text>
-                                                        <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '700' }}>Ahorra {fmt(s.interestSaved)} · {s.monthsReduced} mes(es) menos</Text>
-                                                    </View>
-                                                    <MaterialIcons name="chevron-right" size={20} color={colors.sub} />
-                                                </TouchableOpacity>
-                                            ))}
-                                        </View>
-                                    )}
-
-                                    {/* Simulador */}
-                                    <View style={{ backgroundColor: colors.bg, borderRadius: 20, padding: 16, marginBottom: 14 }}>
-                                        <Text style={{ color: colors.text, fontWeight: '900', fontSize: 15, marginBottom: 10 }}>🔬 Simular Abono</Text>
-                                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: '#6366F1', textAlign: 'center', fontSize: 22 }]} value={simulatorAmount} onChangeText={t => { setSimulatorAmount(formatInputDisplay(t, currency)); setShowSimulatorResults(false); }} placeholder="$ 0" placeholderTextColor={colors.sub + '40'} keyboardType="decimal-pad" />
-                                        <TouchableOpacity style={[styles.mBtnPrimary, { backgroundColor: '#6366F1', marginTop: 10 }]} onPress={() => setShowSimulatorResults(true)}>
-                                            <Text style={styles.mBtnText}>Simular (Sin Aplicar)</Text>
-                                        </TouchableOpacity>
-                                        {showSimulatorResults && simulatorResult && (
-                                            <View style={{ marginTop: 12, backgroundColor: '#6366F110', borderRadius: 14, padding: 14 }}>
-                                                <Text style={{ color: '#6366F1', fontWeight: '800', fontSize: 13, marginBottom: 8 }}>Resultado de la Simulación</Text>
-                                                <Text style={{ color: colors.text, fontSize: 13, marginBottom: 4 }}>💰 Ahorro en intereses: <Text style={{ fontWeight: '900', color: '#10B981' }}>{fmt(simulatorResult.interestSaved)}</Text></Text>
-                                                <Text style={{ color: colors.text, fontSize: 13, marginBottom: 4 }}>📅 Meses reducidos: <Text style={{ fontWeight: '900', color: '#6366F1' }}>{simulatorResult.monthsReduced}</Text></Text>
-                                                <Text style={{ color: colors.text, fontSize: 13 }}>🗓️ Nueva fecha final: <Text style={{ fontWeight: '900' }}>{simulatorResult.newFinalDate}</Text></Text>
-                                            </View>
-                                        )}
-                                    </View>
-
-                                    {/* Liquidación Anticipada */}
-                                    <View style={{ backgroundColor: '#EF444410', borderRadius: 20, padding: 16, marginBottom: 14 }}>
-                                        <TouchableOpacity onPress={() => setShowEarlyPayoff(!showEarlyPayoff)} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <Text style={{ color: '#EF4444', fontWeight: '900', fontSize: 15 }}>⚡ ¿Qué pasa si pago todo hoy?</Text>
-                                            <Ionicons name={showEarlyPayoff ? 'chevron-up' : 'chevron-down'} size={20} color="#EF4444" />
-                                        </TouchableOpacity>
-                                        {showEarlyPayoff && (
-                                            <View style={{ marginTop: 12, gap: 8 }}>
-                                                <Text style={{ color: colors.text, fontSize: 13 }}>Capital restante: <Text style={{ fontWeight: '900', color: '#EF4444' }}>{fmt(loanCapitalRemaining)}</Text></Text>
-                                                <Text style={{ color: colors.text, fontSize: 13 }}>Intereses que te ahorras: <Text style={{ fontWeight: '900', color: '#10B981' }}>{fmt(loanInterestRemaining)}</Text></Text>
-                                                <View style={{ backgroundColor: '#EF444420', borderRadius: 12, padding: 14, marginTop: 8, alignItems: 'center' }}>
-                                                    <Text style={{ color: '#EF4444', fontWeight: '900', fontSize: 18 }}>Paga HOY: {fmt(loanCapitalRemaining)}</Text>
-                                                    <Text style={{ color: colors.sub, fontSize: 11, marginTop: 4, textAlign: 'center' }}>Y terminas de pagar el préstamo completamente</Text>
+                                        <View style={{ marginBottom: 20 }}>
+                                            <Text style={{ color: colors.text, fontWeight: '900', fontSize: 15, marginBottom: 10 }}>💡 Consejo para pagar más rápido</Text>
+                                            <TouchableOpacity 
+                                                onPress={() => {
+                                                    Alert.alert(
+                                                        'Abono Inteligente',
+                                                        `¿Deseas registrar un abono extra de ${fmt(smartSuggestions[0].amount)} a capital?\n\nRecuerda transferir este dinero en la vida real a la entidad de tu préstamo.`,
+                                                        [
+                                                            { text: 'Cancelar', style: 'cancel' },
+                                                            { text: 'Registrar Abono', onPress: () => handleExtraPayment(smartSuggestions[0].amount) }
+                                                        ]
+                                                    );
+                                                }} 
+                                                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#10B98115', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#10B98130' }}
+                                            >
+                                                <View style={{ flex: 1 }}>
+                                                    <Text style={{ color: colors.text, fontWeight: '800', fontSize: 14 }}>Abona {fmt(smartSuggestions[0].amount)} extra hoy</Text>
+                                                    <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '700', marginTop: 4 }}>
+                                                        Ahorrarás {fmt(smartSuggestions[0].interestSaved)} en intereses y terminarás {smartSuggestions[0].monthsReduced} mes(es) antes.
+                                                    </Text>
                                                 </View>
-                                            </View>
-                                        )}
-                                    </View>
-
-                                    {/* Historial de Abonos */}
-                                    {selectedLoanMeta.extraPayments.length > 0 && (
-                                        <View style={{ marginBottom: 14 }}>
-                                            <Text style={{ color: colors.text, fontWeight: '900', fontSize: 15, marginBottom: 10 }}>📋 Historial de Abonos</Text>
-                                            {selectedLoanMeta.extraPayments.map((ep, i) => (
-                                                <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.bg, borderRadius: 12, padding: 12, marginBottom: 6, borderLeftWidth: 3, borderLeftColor: '#10B981' }}>
-                                                    <View>
-                                                        <Text style={{ color: colors.text, fontWeight: '800', fontSize: 14 }}>{fmt(ep.amount)}</Text>
-                                                        <Text style={{ color: colors.sub, fontSize: 11, marginTop: 2 }}>{ep.date}</Text>
-                                                    </View>
-                                                    <View style={{ alignItems: 'flex-end' }}>
-                                                        <Text style={{ color: '#10B981', fontWeight: '700', fontSize: 12 }}>Ahorró {fmt(ep.interestSaved)}</Text>
-                                                        <Text style={{ color: '#6366F1', fontWeight: '700', fontSize: 12 }}>-{ep.monthsReduced} mes(es)</Text>
-                                                    </View>
+                                                <View style={{ backgroundColor: '#10B981', width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' }}>
+                                                    <Ionicons name="flash" size={16} color="#FFF" />
                                                 </View>
-                                            ))}
+                                            </TouchableOpacity>
                                         </View>
                                     )}
 
