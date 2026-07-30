@@ -666,12 +666,6 @@ export default function CardsScreen() {
                                         </View>
                                         <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '700' }}>Pagar</Text>
                                     </TouchableOpacity>
-                                    <TouchableOpacity style={{ alignItems: 'center', gap: 8 }} onPress={() => { setSelectedCard(currentCard); setSimModalVisible(true); }}>
-                                        <View style={[styles.quickActionIcon, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
-                                            <MaterialIcons name="calculate" size={24} color={colorsNav.text} />
-                                        </View>
-                                        <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '700' }}>Simular</Text>
-                                    </TouchableOpacity>
                                     <TouchableOpacity style={{ alignItems: 'center', gap: 8 }} onPress={() => openEditCard(currentCard)}>
                                         <View style={[styles.quickActionIcon, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
                                             <MaterialIcons name="edit" size={24} color={colorsNav.text} />
@@ -966,121 +960,9 @@ export default function CardsScreen() {
                         </View>
                     );
 
-                    const renderAnalyticsTab = () => {
-                        return (
-                            <View style={{ flex: 1 }}>
-                                <View style={styles.header}>
-                                    <TouchableOpacity 
-                                        style={[styles.backBtn, { backgroundColor: isDark ? colorsNav.card : '#F8F5F0', borderColor: colorsNav.border }]} 
-                                        onPress={() => setSelectedCardId(null)}
-                                    >
-                                        <Ionicons name="chevron-back" size={24} color={colorsNav.text} />
-                                    </TouchableOpacity>
-                                    <View style={{ flex: 1, marginLeft: 15 }}>
-                                        <Text style={[styles.headerTitle, { color: colorsNav.text }]}>Analíticas</Text>
-                                    </View>
-                                    <TouchableOpacity style={[styles.addBtn, { backgroundColor: colorsNav.card, borderWidth: 1, borderColor: colorsNav.border }]}>
-                                        <MaterialIcons name="more-horiz" size={24} color={colorsNav.text} />
-                                    </TouchableOpacity>
-                                </View>
-
-                                <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 100 }]} showsVerticalScrollIndicator={false}>
-                                    <Text style={{ color: colorsNav.sub, fontSize: 13, fontWeight: '600' }}>Gasto Total</Text>
-                                    <Text style={{ color: colorsNav.text, fontSize: 32, fontWeight: '900', marginBottom: 20 }}>{fmt(debt)}</Text>
-                                    
-                                {(() => {
-                                    // Monthly interest cost
-                                    const ea = currentCard.interestRate / 100;
-                                    const mv = ea > 0 ? Math.pow(1 + ea, 1/12) - 1 : 0;
-                                    const monthlyInterest = debt * mv;
-                                    // Free date projection
-                                    const pmt = nextPaymentAmt > 0 ? nextPaymentAmt : (debt > 0 ? debt / 6 : 0);
-                                    let monthsFree = 0;
-                                    let remaining = debt;
-                                    while (remaining > 0 && monthsFree < 120) { remaining -= pmt; monthsFree++; }
-                                    const freeDate = new Date(now.getFullYear(), now.getMonth() + monthsFree, 1);
-                                    const freeDateStr = debt <= 0 ? '¡Ya está libre!' : freeDate.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
-                                    // Chart data
-                                    const months = ['Hoy', 'Mes 2', 'Mes 3', 'Mes 4', 'Mes 5', 'Mes 6'];
-                                    let current = debt;
-                                    const proj: number[] = [];
-                                    for (let i = 0; i < 6; i++) { proj.push(Math.max(0, current)); current = Math.max(0, current - pmt); }
-                                    if (proj.every(v => v === 0)) proj[0] = 1;
-                                    return (
-                                        <View>
-                                            {/* Monthly interest card */}
-                                            {monthlyInterest > 0 && (
-                                                <View style={{ backgroundColor: isDark ? 'rgba(239,68,68,0.1)' : '#FEF2F2', borderRadius: 20, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: '#EF444430', flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                                                    <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#EF444420', justifyContent: 'center', alignItems: 'center' }}>
-                                                        <MaterialIcons name="trending-up" size={22} color="#EF4444" />
-                                                    </View>
-                                                    <View style={{ flex: 1 }}>
-                                                        <Text style={{ color: '#EF4444', fontWeight: '900', fontSize: 13 }}>Intereses este mes</Text>
-                                                        <Text style={{ color: isDark ? '#FCA5A5' : '#B91C1C', fontSize: 22, fontWeight: '900', marginTop: 2 }}>{fmt(monthlyInterest)}</Text>
-                                                        <Text style={{ color: isDark ? 'rgba(252,165,165,0.7)' : '#EF4444', fontSize: 11, marginTop: 2 }}>Tasa {currentCard.interestRate}% E.A. sobre {fmt(debt)} de deuda</Text>
-                                                    </View>
-                                                </View>
-                                            )}
-                                            {/* Free date projection */}
-                                            <View style={{ backgroundColor: isDark ? 'rgba(34,197,94,0.1)' : '#F0FDF4', borderRadius: 20, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: '#22C55E30', flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                                                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#22C55E20', justifyContent: 'center', alignItems: 'center' }}>
-                                                    <MaterialIcons name="event-available" size={22} color="#22C55E" />
-                                                </View>
-                                                <View style={{ flex: 1 }}>
-                                                    <Text style={{ color: '#22C55E', fontWeight: '900', fontSize: 13 }}>Tarjeta libre en</Text>
-                                                    <Text style={{ color: isDark ? '#86EFAC' : '#15803D', fontSize: 18, fontWeight: '900', marginTop: 2 }}>{freeDateStr}</Text>
-                                                    <Text style={{ color: isDark ? 'rgba(134,239,172,0.7)' : '#22C55E', fontSize: 11, marginTop: 2 }}>Pagando {fmt(pmt)}/mes sin nuevas compras</Text>
-                                                </View>
-                                            </View>
-                                            {/* Projection chart */}
-                                            <View style={{ alignItems: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', padding: 16, borderRadius: 24, borderWidth: 1, borderColor: colorsNav.border }}>
-                                                <Text style={{ alignSelf: 'flex-start', color: colorsNav.sub, fontSize: 13, fontWeight: '700', marginBottom: 10 }}>Proyección de Deuda (6 meses)</Text>
-                                                <LineChart
-                                                    data={{ labels: months, datasets: [{ data: proj }] }}
-                                                    width={width - 72}
-                                                    height={200}
-                                                    chartConfig={{
-                                                        backgroundColor: 'transparent',
-                                                        backgroundGradientFromOpacity: 0,
-                                                        backgroundGradientToOpacity: 0,
-                                                        decimalPlaces: 0,
-                                                        color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-                                                        labelColor: () => colorsNav.sub,
-                                                        style: { borderRadius: 16 },
-                                                        propsForDots: { r: '4', strokeWidth: '2', stroke: '#3B82F6' }
-                                                    }}
-                                                    bezier
-                                                    style={{ marginVertical: 8, borderRadius: 16 }}
-                                                />
-                                            </View>
-                                        </View>
-                                    );
-                                })()}
-                                    
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, marginBottom: 20 }}>
-                                        <View style={{ flex: 1, alignItems: 'center' }}>
-                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>En Curso</Text>
-                                            <Text style={{ color: colorsNav.text, fontSize: 14, fontWeight: '800', marginTop: 4 }}>{fmt(debt * 0.7)}</Text>
-                                        </View>
-                                        <View style={{ flex: 1, alignItems: 'center' }}>
-                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>Vencido</Text>
-                                            <Text style={{ color: colorsNav.text, fontSize: 14, fontWeight: '800', marginTop: 4 }}>{fmt(0)}</Text>
-                                        </View>
-                                        <View style={{ flex: 1, alignItems: 'center' }}>
-                                            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>Total</Text>
-                                            <Text style={{ color: colorsNav.text, fontSize: 14, fontWeight: '800', marginTop: 4 }}>{fmt(debt)}</Text>
-                                        </View>
-                                    </View>
-                                </ScrollView>
-                            </View>
-                        );
-                    };
-
-                    return (
                         <View style={{ flex: 1 }}>
                             {detailTab === 'home' && renderHomeTab()}
                             {detailTab === 'wallet' && renderWalletTab()}
-                            {detailTab === 'progress' && renderAnalyticsTab()}
 
                             {/* Floating Bottom Nav */}
                             <View style={[styles.floatingNav, { backgroundColor: isDark ? '#1C1C1E' : '#18181B' }]}>
@@ -1091,10 +973,6 @@ export default function CardsScreen() {
                                 <TouchableOpacity style={[styles.floatingNavItem, detailTab === 'wallet' && styles.floatingNavItemActive]} onPress={() => setDetailTab('wallet')}>
                                     <MaterialIcons name="account-balance-wallet" size={20} color={detailTab === 'wallet' ? '#FFF' : 'rgba(255,255,255,0.4)'} />
                                     {detailTab === 'wallet' && <Text style={styles.floatingNavText}>Billetera</Text>}
-                                </TouchableOpacity>
-                                <TouchableOpacity style={[styles.floatingNavItem, detailTab === 'progress' && styles.floatingNavItemActive]} onPress={() => setDetailTab('progress')}>
-                                    <MaterialIcons name="bar-chart" size={20} color={detailTab === 'progress' ? '#FFF' : 'rgba(255,255,255,0.4)'} />
-                                    {detailTab === 'progress' && <Text style={styles.floatingNavText}>Progreso</Text>}
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -1300,59 +1178,6 @@ export default function CardsScreen() {
                         <View style={styles.modalFooter}>
                             <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.bg }]} onPress={() => setPayModalVisible(false)}><Text style={{ color: colorsNav.text }}>Cerrar</Text></TouchableOpacity>
                             <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.accent }]} onPress={handlePayCard}><Text style={{ color: '#FFF', fontWeight: '800' }}>Confirmar Pago</Text></TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
-            <Modal visible={simModalVisible} transparent animationType="slide">
-                <View style={[styles.overlay, { justifyContent: 'flex-end' }]}>
-                    <View style={[styles.modal, { backgroundColor: colorsNav.card, borderTopLeftRadius: 32, borderTopRightRadius: 32, width: '100%' }]}>
-                        <Text style={[styles.modalTitle, { color: colorsNav.text }]}>Simulador de Cuotas</Text>
-                        <Text style={{ fontSize: 12, fontWeight: '800', color: colorsNav.sub, marginBottom: 10 }}>MONTO A SIMULAR</Text>
-                        <TextInput style={[styles.input, { backgroundColor: colorsNav.bg, color: colorsNav.text, borderColor: colorsNav.border, fontSize: 24, padding: 20, marginBottom: 20 }]} placeholder="$ 0" placeholderTextColor={colorsNav.sub} keyboardType="decimal-pad" value={simAmount} onChangeText={t => setSimAmount(formatInputDisplay(t, currency))} />
-                        <Text style={{ fontSize: 12, fontWeight: '800', color: colorsNav.sub, marginBottom: 10 }}>NÚMERO DE CUOTAS</Text>
-                        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
-                            {['1', '6', '12', '24'].map(cuotas => (
-                                <TouchableOpacity key={cuotas} style={[styles.accPill, { flex: 1, borderColor: colorsNav.border, alignItems: 'center' }, simInstallments === cuotas && { backgroundColor: colorsNav.accent, borderColor: colorsNav.accent }]} onPress={() => setSimInstallments(cuotas)}>
-                                    <Text style={{ color: simInstallments === cuotas ? '#FFF' : colorsNav.sub, fontWeight: '700' }}>{cuotas}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                        {(() => {
-                            const amt = convertToBase(parseInputToNumber(simAmount, currency), currency, rates);
-                            const n = parseInt(simInstallments, 10) || 1;
-                            const rateEA = selectedCard?.interestRate || 0;
-                            const rateEM = Math.pow(1 + (rateEA / 100), 1 / 12) - 1; // Effective Monthly
-                            let monthlyPay = 0;
-                            let totalPay = 0;
-                            if (amt > 0 && n > 0) {
-                                if (n === 1 || rateEM === 0) {
-                                    monthlyPay = amt / n;
-                                    totalPay = amt;
-                                } else {
-                                    monthlyPay = amt * (rateEM * Math.pow(1 + rateEM, n)) / (Math.pow(1 + rateEM, n) - 1);
-                                    totalPay = monthlyPay * n;
-                                }
-                            }
-                            return (
-                                <View style={{ backgroundColor: colorsNav.bg, padding: 20, borderRadius: 20, marginBottom: 20 }}>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
-                                        <Text style={{ color: colorsNav.sub, fontWeight: '700' }}>Cuota Mensual:</Text>
-                                        <Text style={{ color: colorsNav.text, fontWeight: '900', fontSize: 16 }}>{fmt(monthlyPay)}</Text>
-                                    </View>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
-                                        <Text style={{ color: colorsNav.sub, fontWeight: '700' }}>Total Intereses:</Text>
-                                        <Text style={{ color: '#EF4444', fontWeight: '900', fontSize: 16 }}>{fmt(totalPay - amt)}</Text>
-                                    </View>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                        <Text style={{ color: colorsNav.sub, fontWeight: '700' }}>Pago Total:</Text>
-                                        <Text style={{ color: colorsNav.text, fontWeight: '900', fontSize: 16 }}>{fmt(totalPay)}</Text>
-                                    </View>
-                                </View>
-                            );
-                        })()}
-                        <View style={styles.modalFooter}>
-                            <TouchableOpacity style={[styles.mBtn, { backgroundColor: colorsNav.accent, width: '100%' }]} onPress={() => setSimModalVisible(false)}><Text style={{ color: '#FFF', fontWeight: '800' }}>Cerrar Simulador</Text></TouchableOpacity>
                         </View>
                     </View>
                 </View>
