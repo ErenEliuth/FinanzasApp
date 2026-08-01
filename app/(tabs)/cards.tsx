@@ -231,6 +231,20 @@ export default function CardsScreen() {
         };
     };
 
+    const getDaysUntil = (targetDay: number): number => {
+        const today = new Date();
+        const currentDay = today.getDate();
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+        // If target day is still this month
+        if (targetDay >= currentDay) {
+            return targetDay - currentDay;
+        }
+        // Target day has passed this month, so count to next month's occurrence
+        const nextOccurrence = new Date(currentYear, currentMonth + 1, targetDay);
+        const diffTime = nextOccurrence.getTime() - today.getTime();
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    };
 
 
     const scrollRef = useRef<any>(null);
@@ -582,146 +596,245 @@ export default function CardsScreen() {
                     // Calculate upcoming payments
                     const nextPaymentAmt = calculateNextPayment(currentCard);
 
-                    const renderHomeTab = () => (
-                        <View style={{ flex: 1 }}>
-                            <View style={styles.header}>
-                                <TouchableOpacity 
-                                    style={[styles.backBtn, { backgroundColor: isDark ? colorsNav.card : '#F8F5F0', borderColor: colorsNav.border }]} 
-                                    onPress={() => setSelectedCardId(null)}
-                                >
-                                    <Ionicons name="chevron-back" size={24} color={colorsNav.text} />
-                                </TouchableOpacity>
-                                <View style={{ flex: 1, marginLeft: 15 }}>
-                                    <Text style={[styles.headerTitle, { color: colorsNav.text }]}>{currentCard.name}</Text>
-                                    <Text style={[styles.headerSub, { color: colorsNav.sub }]}>Detalles de Tarjeta</Text>
-                                </View>
-                            </View>
+                    const renderUnifiedDetail = () => {
+                        // ── Calcular saldo por ciclo de facturación ──
+                        const now2 = new Date();
+                        const currentMonthD = now2.getMonth();
+                        const currentYearD = now2.getFullYear();
 
-                            <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 100 }]} showsVerticalScrollIndicator={false}>
-                                {(() => {
-                                    const advice = getShoppingAdvice(currentCard);
-                                    return (
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: advice.color, padding: 12, borderRadius: 16, borderWidth: 1, borderColor: advice.borderColor, marginBottom: 10 }}>
-                                            <Text style={{ fontSize: 20, marginRight: 10 }}>{advice.title.split(' ')[0]}</Text>
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={{ color: advice.textColor, fontWeight: '900', fontSize: 13 }}>{advice.title.replace(/[^A-Za-z0-9 ]/g, '').trim()}</Text>
-                                                <Text style={{ color: advice.textColor, opacity: 0.8, fontSize: 11, marginTop: 2 }}>{advice.msg}</Text>
-                                            </View>
-                                        </View>
-                                    );
-                                })()}
-                                <TouchableOpacity activeOpacity={0.9} onPress={handleFlip} style={[styles.cardWrapperDetail, { shadowColor: '#000', shadowOpacity: isDark ? 0.5 : 0.1, shadowRadius: 15, shadowOffset: { width: 0, height: 6 } }]}>
-                                    <Animated.View style={[styles.cardFacePremiumDetail, { backgroundColor: currentCard.color }, frontStyle]}>
-                                        <View style={styles.cardTop}>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        let currentCycleAmount = 0; // Lo que se debe pagar ESTE mes
+                        let futureCycleAmount = 0;   // Comprometido en meses futuros
+
+                        activeTxs.forEach(tx => {
+                            if (tx.type !== 'expense') return;
+                            const txDate = new Date(tx.date + (tx.date.includes('T') ? '' : 'T12:00:00'));
+                            const match = tx.description?.match(/\[CUOTAS:(\d+)(?::RATE:([\d.]+))?\]/);
+
+                            const getFirstPay = () => {
+                                const day = txDate.getDate();
+                                const month = txDate.getMonth();
+                                const year = txDate.getFullYear();
+                                let cutMonth = month; let cutYear = year;
+                                if (day > currentCard.cutDay) {
+                                    cutMonth = month + 1;
+                                    if (cutMonth > 11) { cutMonth = 0; cutYear = year + 1; }
+                                }
+                                const cutDate = new Date(cutYear, cutMonth, currentCard.cutDay);
+                                let dueDate = new Date(cutDate.getFullYear(), cutDate.getMonth(), currentCard.dueDay);
+                                if (dueDate <= cutDate) {
+                                    dueDate = new Date(cutDate.getFullYear(), cutDate.getMonth() + 1, currentCard.dueDay);
+                                }
+                                return { month: dueDate.getMonth(), year: dueDate.getFullYear() };
+                            };
+
+                            const { month: firstPayMonth, year: firstPayYear } = getFirstPay();
+                            const installments = match ? parseInt(match[1], 10) : 1;
+                            const ea = match ? (parseFloat(match[2] || '0') / 100) : 0;
+                            let monthlyAmt = tx.amount;
+                            if (installments > 1) {
+                                if (ea > 0) {
+                                    const mv = Math.pow(1 + ea, 1/12) - 1;
+                                    monthlyAmt = (tx.amount * mv) / (1 - Math.pow(1 + mv, -installments));
+                                } else {
+                                    monthlyAmt = tx.amount / installments;
+                                }
+                            }
+
+                            const monthsDiff = (currentYearD - firstPayYear) * 12 + (currentMonthD - firstPayMonth);
+                            if (monthsDiff === 0) {
+                                currentCycleAmount += monthlyAmt;
+                            } else if (monthsDiff < 0 && Math.abs(monthsDiff) < installments) {
+                                // Futura cuota — todavía no vence
+                                futureCycleAmount += monthlyAmt * installments;
+                            } else if (monthsDiff > 0 && monthsDiff < installments) {
+                                currentCycleAmount += monthlyAmt;
+                            }
+                        });
+
+                        // Restar pagos realizados
+                        const paymentsThisMonth = activeTxs
+                            .filter(tx => tx.type === 'income' || tx.type === 'transfer')
+                            .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+                        currentCycleAmount = Math.max(0, currentCycleAmount - paymentsThisMonth);
+                        const hasDueThisMonth = currentCycleAmount > 0;
+
+                        // ── Cuotas Activas ──
+                        const installmentTxs = activeTxs.filter(tx =>
+                            tx.type === 'expense' && tx.description?.includes('[CUOTAS:')
+                        );
+                        const activeInstallments = installmentTxs.filter(tx => {
+                            const match = tx.description?.match(/\[CUOTAS:(\d+)/);
+                            if (!match) return false;
+                            const total = parseInt(match[1], 10);
+                            const txDate = new Date(tx.date);
+                            const { month: sm, year: sy } = calculateFirstPaymentMonth(txDate, currentCard.cutDay, currentCard.dueDay);
+                            const monthsDiff = (now.getFullYear() - sy) * 12 + (now.getMonth() - sm);
+                            return monthsDiff < total;
+                        });
+
+                        return (
+                            <View style={{ flex: 1 }}>
+                                {/* Header */}
+                                <View style={styles.header}>
+                                    <TouchableOpacity
+                                        style={[styles.backBtn, { backgroundColor: isDark ? colorsNav.card : '#F8F5F0', borderColor: colorsNav.border }]}
+                                        onPress={() => setSelectedCardId(null)}
+                                    >
+                                        <Ionicons name="chevron-back" size={24} color={colorsNav.text} />
+                                    </TouchableOpacity>
+                                    <View style={{ flex: 1, marginLeft: 15 }}>
+                                        <Text style={[styles.headerTitle, { color: colorsNav.text }]}>{currentCard.name}</Text>
+                                        <Text style={[styles.headerSub, { color: colorsNav.sub }]}>Detalles de Tarjeta</Text>
+                                    </View>
+                                    <TouchableOpacity
+                                        style={[styles.quickActionIcon, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}
+                                        onPress={() => openEditCard(currentCard)}
+                                    >
+                                        <MaterialIcons name="edit" size={20} color={colorsNav.text} />
+                                    </TouchableOpacity>
+                                </View>
+
+                                <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+
+                                    {/* ── Tarjeta Visual ── */}
+                                    <TouchableOpacity activeOpacity={0.9} onPress={handleFlip} style={[styles.cardWrapperDetail, { shadowColor: '#000', shadowOpacity: isDark ? 0.4 : 0.1, shadowRadius: 15, shadowOffset: { width: 0, height: 6 }, marginBottom: 20 }]}>
+                                        <Animated.View style={[styles.cardFacePremiumDetail, { backgroundColor: currentCard.color }, frontStyle]}>
+                                            <View style={styles.cardTop}>
                                                 <MaterialIcons name="contactless" size={28} color={textColor} style={{ opacity: 0.8 }} />
-                                            </View>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                                <Text style={[styles.cardBrandText, { color: textColor, fontSize: 18, fontWeight: '900', fontStyle: 'italic' }]}>
+                                                <Text style={{ color: textColor, fontSize: 17, fontWeight: '900', fontStyle: 'italic' }}>
                                                     {currentCard.brand.toUpperCase()}
                                                 </Text>
                                             </View>
-                                        </View>
-                                        <View style={{ marginVertical: 14 }}>
-                                            <Text style={[styles.cardBalanceLabel, { color: subTextColor, fontSize: 10, letterSpacing: 1.5 }]}>Limit Card</Text>
-                                            <Text style={[styles.cardBalanceAmount, { color: textColor, fontSize: 30, fontWeight: '900' }]}>{fmt(currentCard.limit)}</Text>
-                                        </View>
-                                        <View style={styles.footer}>
-                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                                <Text style={[styles.cardNumberText, { color: subTextColor, fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace', letterSpacing: 1 }]}>
+                                            <View style={{ marginVertical: 14 }}>
+                                                <Text style={{ color: subTextColor, fontSize: 10, letterSpacing: 1.5, fontWeight: '700' }}>CUPO DISPONIBLE</Text>
+                                                <Text style={{ color: textColor, fontSize: 30, fontWeight: '900' }}>{fmt(currentCard.limit - debt)}</Text>
+                                            </View>
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <Text style={{ color: subTextColor, fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace', letterSpacing: 1, fontSize: 13 }}>
                                                     •••• {currentCard.id.slice(-4)}
                                                 </Text>
-                                                <View style={{ backgroundColor: isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
-                                                    <Text style={{ color: textColor, fontSize: 10, fontWeight: '700' }}>{utilization.toFixed(0)}% Used</Text>
+                                                <View style={{ backgroundColor: isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
+                                                    <Text style={{ color: textColor, fontSize: 10, fontWeight: '700' }}>{utilization.toFixed(0)}% Usado</Text>
                                                 </View>
                                             </View>
-                                        </View>
-                                    </Animated.View>
-                                    
-                                    <Animated.View style={[styles.cardFacePremiumDetail, { backgroundColor: currentCard.color }, backStyle]}>
-                                        <View style={{ width: '120%', height: 40, backgroundColor: 'rgba(0,0,0,0.8)', alignSelf: 'center', marginTop: 10, marginLeft: -24 }} />
-                                        <View style={{ flexDirection: 'row', marginTop: 20, alignItems: 'center' }}>
-                                            <View style={{ flex: 1, height: 30, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'flex-end', paddingRight: 10 }}>
-                                                <Text style={{ fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace', fontWeight: '900', color: '#000', fontStyle: 'italic' }}>CVV 123</Text>
+                                        </Animated.View>
+
+                                        <Animated.View style={[styles.cardFacePremiumDetail, { backgroundColor: currentCard.color }, backStyle]}>
+                                            <View style={{ width: '120%', height: 40, backgroundColor: 'rgba(0,0,0,0.8)', alignSelf: 'center', marginTop: 10, marginLeft: -24 }} />
+                                            <View style={{ flexDirection: 'row', marginTop: 20, alignItems: 'center' }}>
+                                                <View style={{ flex: 1, height: 30, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'flex-end', paddingRight: 10 }}>
+                                                    <Text style={{ fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace', fontWeight: '900', color: '#000', fontStyle: 'italic' }}>CVV 123</Text>
+                                                </View>
                                             </View>
-                                        </View>
-                                        <View style={{ marginTop: 20, flexDirection: 'row', justifyContent: 'space-between' }}>
+                                            <View style={{ marginTop: 20, flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                <View>
+                                                    <Text style={{ color: subTextColor, fontSize: 10, fontWeight: '800' }}>TASA E.A.</Text>
+                                                    <Text style={{ color: textColor, fontSize: 16, fontWeight: '900' }}>{currentCard.interestRate}%</Text>
+                                                </View>
+                                                <View>
+                                                    <Text style={{ color: subTextColor, fontSize: 10, fontWeight: '800' }}>CORTE / PAGO</Text>
+                                                    <Text style={{ color: textColor, fontSize: 16, fontWeight: '900' }}>Día {currentCard.cutDay} / Día {currentCard.dueDay}</Text>
+                                                </View>
+                                            </View>
+                                        </Animated.View>
+                                    </TouchableOpacity>
+
+                                    {/* ── Resumen de Pago del Ciclo ── */}
+                                    <View style={{ backgroundColor: colorsNav.card, borderRadius: 20, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: colorsNav.border }}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                                             <View>
-                                                <Text style={{ color: subTextColor, fontSize: 10, fontWeight: '800' }}>TASA E.A.</Text>
-                                                <Text style={{ color: textColor, fontSize: 16, fontWeight: '900' }}>{currentCard.interestRate}%</Text>
+                                                <Text style={{ color: colorsNav.sub, fontSize: 12, fontWeight: '600' }}>Saldo Total</Text>
+                                                <Text style={{ color: colorsNav.text, fontSize: 28, fontWeight: '900', marginTop: 2 }}>{fmt(debt)}</Text>
                                             </View>
-                                            <View>
-                                                <Text style={{ color: subTextColor, fontSize: 10, fontWeight: '800' }}>CORTE / PAGO</Text>
-                                                <Text style={{ color: textColor, fontSize: 16, fontWeight: '900' }}>Día {currentCard.cutDay} / Día {currentCard.dueDay}</Text>
-                                            </View>
+                                            {hasDueThisMonth ? (
+                                                <View style={{ backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : '#FEF2F2', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: '#EF444430', alignItems: 'center' }}>
+                                                    <Text style={{ color: '#EF4444', fontSize: 10, fontWeight: '800' }}>PAGO ESTE MES</Text>
+                                                    <Text style={{ color: '#EF4444', fontSize: 17, fontWeight: '900', marginTop: 2 }}>{fmt(currentCycleAmount)}</Text>
+                                                </View>
+                                            ) : (
+                                                <View style={{ backgroundColor: isDark ? 'rgba(34,197,94,0.12)' : '#F0FDF4', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: '#22C55E30', alignItems: 'center' }}>
+                                                    <Text style={{ color: '#22C55E', fontSize: 10, fontWeight: '800' }}>ESTE MES</Text>
+                                                    <Text style={{ color: '#22C55E', fontSize: 17, fontWeight: '900', marginTop: 2 }}>$0</Text>
+                                                </View>
+                                            )}
                                         </View>
-                                    </Animated.View>
-                                </TouchableOpacity>
 
-                                {/* Quick Actions */}
-                                <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 10, marginBottom: 20 }}>
-                                    <TouchableOpacity style={{ alignItems: 'center', gap: 8 }} onPress={() => { setSelectedCard(currentCard); setPayModalVisible(true); }}>
-                                        <View style={[styles.quickActionIcon, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
-                                            <MaterialIcons name="payment" size={24} color={colorsNav.text} />
-                                        </View>
-                                        <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '700' }}>Pagar</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity style={{ alignItems: 'center', gap: 8 }} onPress={() => openEditCard(currentCard)}>
-                                        <View style={[styles.quickActionIcon, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
-                                            <MaterialIcons name="edit" size={24} color={colorsNav.text} />
-                                        </View>
-                                        <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '700' }}>Editar</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity style={{ alignItems: 'center', gap: 8 }} onPress={() => handleDeleteCard(currentCard)}>
-                                        <View style={[styles.quickActionIcon, { backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : '#FEF2F2', borderColor: '#EF444430' }]}>
-                                            <MaterialIcons name="delete-outline" size={24} color="#EF4444" />
-                                        </View>
-                                        <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '700' }}>Eliminar</Text>
-                                    </TouchableOpacity>
-                                </View>
-
-                                {/* Countdown Chips */}
-                                {(() => {
-                                    const daysUntilCut = getDaysUntil(currentCard.cutDay);
-                                    const daysUntilDue = getDaysUntil(currentCard.dueDay);
-                                    const cutColor = daysUntilCut <= 3 ? '#EF4444' : daysUntilCut <= 7 ? '#F59E0B' : '#22C55E';
-                                    const dueColor = daysUntilDue <= 3 ? '#EF4444' : daysUntilDue <= 7 ? '#F59E0B' : '#3B82F6';
-                                    return (
-                                        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
-                                            <View style={{ flex: 1, backgroundColor: isDark ? `${cutColor}18` : `${cutColor}15`, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: `${cutColor}40`, alignItems: 'center' }}>
-                                                <MaterialIcons name="content-cut" size={18} color={cutColor} />
-                                                <Text style={{ color: cutColor, fontWeight: '900', fontSize: 22, marginTop: 4 }}>{daysUntilCut}</Text>
-                                                <Text style={{ color: cutColor, fontSize: 10, fontWeight: '700', opacity: 0.8 }}>días al corte</Text>
-                                                <Text style={{ color: colorsNav.sub, fontSize: 10, marginTop: 2 }}>Día {currentCard.cutDay}</Text>
+                                        {/* Barra de uso de límite */}
+                                        <View style={{ marginBottom: 12 }}>
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                                                <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>Uso del límite</Text>
+                                                <Text style={{ color: colorsNav.text, fontSize: 11, fontWeight: '800' }}>{fmt(debt)} / {fmt(currentCard.limit)}</Text>
                                             </View>
-                                            <View style={{ flex: 1, backgroundColor: isDark ? `${dueColor}18` : `${dueColor}15`, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: `${dueColor}40`, alignItems: 'center' }}>
-                                                <MaterialIcons name="credit-card" size={18} color={dueColor} />
-                                                <Text style={{ color: dueColor, fontWeight: '900', fontSize: 22, marginTop: 4 }}>{daysUntilDue}</Text>
-                                                <Text style={{ color: dueColor, fontSize: 10, fontWeight: '700', opacity: 0.8 }}>días al pago</Text>
-                                                <Text style={{ color: colorsNav.sub, fontSize: 10, marginTop: 2 }}>Día {currentCard.dueDay}</Text>
+                                            <View style={{ height: 8, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', borderRadius: 4, overflow: 'hidden' }}>
+                                                <View style={{
+                                                    height: '100%',
+                                                    width: `${Math.min(utilization, 100)}%`,
+                                                    backgroundColor: utilization > 85 ? '#EF4444' : utilization > 60 ? '#F59E0B' : '#3B82F6',
+                                                    borderRadius: 4
+                                                }} />
                                             </View>
                                         </View>
-                                    );
-                                })()}
 
-                                {/* Cuotas Activas */}
-                                {(() => {
-                                    const installmentTxs = activeTxs.filter(tx =>
-                                        tx.type === 'expense' && tx.description?.includes('[CUOTAS:')
-                                    );
-                                    const activeInstallments = installmentTxs.filter(tx => {
-                                        const match = tx.description?.match(/\[CUOTAS:(\d+)/);
-                                        if (!match) return false;
-                                        const total = parseInt(match[1], 10);
-                                        const txDate = new Date(tx.date);
-                                        const { month: sm, year: sy } = calculateFirstPaymentMonth(txDate, currentCard.cutDay, currentCard.dueDay);
-                                        const monthsDiff = (now.getFullYear() - sy) * 12 + (now.getMonth() - sm);
-                                        return monthsDiff < total;
-                                    });
-                                    if (activeInstallments.length === 0) return null;
-                                    return (
+                                        {/* Acciones rápidas */}
+                                        <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                                            <TouchableOpacity
+                                                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colorsNav.accent, borderRadius: 12, paddingVertical: 11 }}
+                                                onPress={() => { setSelectedCard(currentCard); setPayModalVisible(true); }}
+                                            >
+                                                <MaterialIcons name="payment" size={16} color="#FFF" />
+                                                <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 13 }}>Registrar Pago</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={{ paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: isDark ? 'rgba(239,68,68,0.1)' : '#FEF2F2', borderRadius: 12, paddingVertical: 11, borderWidth: 1, borderColor: '#EF444430' }}
+                                                onPress={() => handleDeleteCard(currentCard)}
+                                            >
+                                                <MaterialIcons name="delete-outline" size={16} color="#EF4444" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+
+                                    {/* ── Días al Corte y al Pago ── */}
+                                    {(() => {
+                                        const daysUntilCut = getDaysUntil(currentCard.cutDay);
+                                        const daysUntilDue = getDaysUntil(currentCard.dueDay);
+                                        const cutColor = daysUntilCut <= 3 ? '#EF4444' : daysUntilCut <= 7 ? '#F59E0B' : '#22C55E';
+                                        const dueColor = daysUntilDue <= 3 ? '#EF4444' : daysUntilDue <= 7 ? '#F59E0B' : '#3B82F6';
+                                        return (
+                                            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+                                                <View style={{ flex: 1, backgroundColor: isDark ? `${cutColor}18` : `${cutColor}12`, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: `${cutColor}40`, alignItems: 'center' }}>
+                                                    <MaterialIcons name="content-cut" size={18} color={cutColor} />
+                                                    <Text style={{ color: cutColor, fontWeight: '900', fontSize: 26, marginTop: 4 }}>{daysUntilCut}</Text>
+                                                    <Text style={{ color: cutColor, fontSize: 10, fontWeight: '700' }}>días al corte</Text>
+                                                    <Text style={{ color: colorsNav.sub, fontSize: 10, marginTop: 2 }}>Día {currentCard.cutDay} de cada mes</Text>
+                                                </View>
+                                                <View style={{ flex: 1, backgroundColor: isDark ? `${dueColor}18` : `${dueColor}12`, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: `${dueColor}40`, alignItems: 'center' }}>
+                                                    <MaterialIcons name="credit-card" size={18} color={dueColor} />
+                                                    <Text style={{ color: dueColor, fontWeight: '900', fontSize: 26, marginTop: 4 }}>{daysUntilDue}</Text>
+                                                    <Text style={{ color: dueColor, fontSize: 10, fontWeight: '700' }}>días al pago</Text>
+                                                    <Text style={{ color: colorsNav.sub, fontSize: 10, marginTop: 2 }}>Día {currentCard.dueDay} de cada mes</Text>
+                                                </View>
+                                            </View>
+                                        );
+                                    })()}
+
+                                    {/* ── Estado del Ciclo ── */}
+                                    {(() => {
+                                        const advice = getShoppingAdvice(currentCard);
+                                        return (
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: advice.color, padding: 14, borderRadius: 16, borderWidth: 1, borderColor: advice.borderColor, marginBottom: 20 }}>
+                                                <Text style={{ fontSize: 20, marginRight: 10 }}>{advice.title.split(' ')[0]}</Text>
+                                                <View style={{ flex: 1 }}>
+                                                    <Text style={{ color: advice.textColor, fontWeight: '900', fontSize: 13 }}>{advice.title.replace(/[^\w\s]/g, '').trim()}</Text>
+                                                    <Text style={{ color: advice.textColor, opacity: 0.85, fontSize: 11, marginTop: 2 }}>{advice.msg}</Text>
+                                                </View>
+                                            </View>
+                                        );
+                                    })()}
+
+                                    {/* ── Cuotas Activas ── */}
+                                    {activeInstallments.length > 0 && (
                                         <View style={{ marginBottom: 20 }}>
-                                            <Text style={{ fontSize: 18, fontWeight: '900', color: colorsNav.text, marginBottom: 12 }}>Cuotas Activas</Text>
+                                            <Text style={{ fontSize: 16, fontWeight: '900', color: colorsNav.text, marginBottom: 12 }}>Cuotas Activas</Text>
                                             {activeInstallments.map(tx => {
                                                 const match = tx.description?.match(/\[CUOTAS:(\d+)(?::RATE:([\d.]+))?\]/);
                                                 const total = match ? parseInt(match[1], 10) : 1;
@@ -732,252 +845,103 @@ export default function CardsScreen() {
                                                     : tx.amount / total;
                                                 const txDate = new Date(tx.date);
                                                 const { month: sm, year: sy } = calculateFirstPaymentMonth(txDate, currentCard.cutDay, currentCard.dueDay);
-                                                const paidCount = Math.max(0, Math.min(total, (now.getFullYear() - sy) * 12 + (now.getMonth() - sm) + 1));
-                                                const remaining = total - paidCount;
-                                                const progress = paidCount / total;
+                                                const firstPayDate = new Date(sy, sm, currentCard.dueDay);
+                                                const monthsElapsed = Math.max(0, (now.getFullYear() - sy) * 12 + (now.getMonth() - sm));
+                                                const paidCount = Math.min(total, monthsElapsed + (monthsElapsed >= 0 ? 1 : 0));
+                                                const remaining = total - Math.min(total, Math.max(0, monthsElapsed));
+                                                const progress = Math.min(total, Math.max(0, monthsElapsed)) / total;
                                                 const cleanDesc = getCleanDescription(tx.description);
-                                                const isLast = remaining === 1;
+                                                const isFirstPayFuture = now < firstPayDate;
+
                                                 return (
-                                                    <View key={tx.id} style={{ backgroundColor: colorsNav.card, borderRadius: 20, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: isLast ? '#F59E0B40' : colorsNav.border }}>
-                                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                                                    <View key={tx.id} style={{ backgroundColor: colorsNav.card, borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: isFirstPayFuture ? '#3B82F620' : colorsNav.border }}>
+                                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                                                             <View style={{ flex: 1, marginRight: 10 }}>
                                                                 <Text style={{ color: colorsNav.text, fontWeight: '800', fontSize: 14 }} numberOfLines={1}>{cleanDesc}</Text>
                                                                 <Text style={{ color: colorsNav.sub, fontSize: 11, marginTop: 2 }}>
-                                                                    {new Date(tx.date).toLocaleDateString('es-CO', { month: 'short', year: 'numeric' })} • {fmt(monthlyAmt)}/mes
+                                                                    {fmt(monthlyAmt)}/mes
+                                                                    {isFirstPayFuture ? ` • Primer cobro: ${firstPayDate.toLocaleDateString('es-CO', { month: 'short', year: 'numeric' })}` : ''}
                                                                 </Text>
                                                             </View>
-                                                            {isLast
-                                                                ? <View style={{ backgroundColor: '#F59E0B20', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#F59E0B50' }}><Text style={{ color: '#F59E0B', fontSize: 10, fontWeight: '900' }}>✅ ÚLTIMO</Text></View>
-                                                                : <Text style={{ color: colorsNav.text, fontWeight: '900', fontSize: 14 }}>{paidCount}/{total}</Text>
-                                                            }
+                                                            {isFirstPayFuture ? (
+                                                                <View style={{ backgroundColor: '#3B82F620', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
+                                                                    <Text style={{ color: '#3B82F6', fontSize: 10, fontWeight: '800' }}>PRÓXIMO MES</Text>
+                                                                </View>
+                                                            ) : (
+                                                                <Text style={{ color: colorsNav.text, fontWeight: '900', fontSize: 13 }}>{Math.min(total, Math.max(0, monthsElapsed))}/{total}</Text>
+                                                            )}
                                                         </View>
-                                                        <View style={{ height: 6, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', borderRadius: 3, overflow: 'hidden' }}>
-                                                            <View style={{ height: '100%', width: `${progress * 100}%`, backgroundColor: isLast ? '#F59E0B' : colorsNav.accent, borderRadius: 3 }} />
+                                                        <View style={{ height: 5, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+                                                            <View style={{ height: '100%', width: `${progress * 100}%`, backgroundColor: colorsNav.accent, borderRadius: 3 }} />
                                                         </View>
                                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-                                                            <Text style={{ color: colorsNav.sub, fontSize: 10 }}>{paidCount} pagadas</Text>
-                                                            <Text style={{ color: colorsNav.sub, fontSize: 10 }}>{remaining} restantes • {fmt(monthlyAmt * remaining)} total</Text>
+                                                            <Text style={{ color: colorsNav.sub, fontSize: 10 }}>{Math.min(total, Math.max(0, monthsElapsed))} pagadas</Text>
+                                                            <Text style={{ color: colorsNav.sub, fontSize: 10 }}>{remaining} restantes · {fmt(monthlyAmt * remaining)} total</Text>
                                                         </View>
                                                     </View>
                                                 );
                                             })}
                                         </View>
-                                    );
-                                })()}
+                                    )}
 
-                                {/* Payment Next */}
-                                <Text style={{ fontSize: 18, fontWeight: '900', color: colorsNav.text, marginBottom: 15 }}>Próximos Pagos</Text>
-                                {activeTxs.slice(0, 5).map(tx => {
-                                    const cleanDesc = getCleanDescription(tx.description);
-                                    let displayAmt = tx.amount;
-                                    let subtitle = 'Vence día ' + currentCard.dueDay;
-                                    const hasInstallments = tx.description?.includes('[CUOTAS:');
-                                    if (hasInstallments) {
-                                        const totalMatch = tx.description?.match(/\[CUOTAS:(\d+)/);
-                                        const total = totalMatch ? parseInt(totalMatch[1], 10) : 1;
-                                        const currentIdx = getCurrentInstallmentNumber(tx, currentCard, now.getMonth() + 1, now.getFullYear());
-                                        displayAmt = tx.amount / total;
-                                        subtitle = `Cuota ${currentIdx} de ${total}`;
-                                    }
-                                    return (
-                                        <View key={tx.id} style={[styles.txItem, { backgroundColor: colorsNav.card, borderColor: colorsNav.border, marginBottom: 8 }]}>
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={{ color: colorsNav.text, fontWeight: '800', fontSize: 14 }} numberOfLines={1}>{cleanDesc}</Text>
-                                                <Text style={{ color: colorsNav.sub, fontSize: 11, marginTop: 4 }}>{subtitle}</Text>
-                                            </View>
-                                            <View style={{ alignItems: 'flex-end' }}>
-                                                <Text style={{ color: colorsNav.text, fontWeight: '900', fontSize: 14 }}>{fmt(displayAmt)}</Text>
-                                                <TouchableOpacity onPress={() => { setSelectedCard(currentCard); setPayAmount(displayAmt.toString()); setPayModalVisible(true); }}>
-                                                    <Text style={{ color: '#3B82F6', fontWeight: '800', fontSize: 12, marginTop: 4 }}>Pagar ahora</Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        </View>
-                                    );
-                                })}
-                            </ScrollView>
-                        </View>
-                    );
-
-                    const renderWalletTab = () => (
-                        <View style={{ flex: 1 }}>
-                            <View style={styles.header}>
-                                <TouchableOpacity 
-                                    style={[styles.backBtn, { backgroundColor: isDark ? colorsNav.card : '#F8F5F0', borderColor: colorsNav.border }]} 
-                                    onPress={() => setSelectedCardId(null)}
-                                >
-                                    <Ionicons name="chevron-back" size={24} color={colorsNav.text} />
-                                </TouchableOpacity>
-                                <View style={{ flex: 1, marginLeft: 15 }}>
-                                    <Text style={[styles.headerTitle, { color: colorsNav.text }]}>{currentCard.name}</Text>
-                                    <Text style={[styles.headerSub, { color: colorsNav.sub }]}>Billetera y Límites</Text>
-                                </View>
-                            </View>
-
-                            <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 100 }]} showsVerticalScrollIndicator={false}>
-                                {/* Debt breakdown */}
-                                {(() => {
-                                    const installmentTxs = activeTxs.filter(tx => tx.type === 'expense' && tx.description?.includes('[CUOTAS:'));
-                                    let cuotaDebt = 0;
-                                    installmentTxs.forEach(tx => {
-                                        const match = tx.description?.match(/\[CUOTAS:(\d+)(?::RATE:([\d.]+))?\]/);
-                                        const total = match ? parseInt(match[1], 10) : 1;
-                                        const ea = match ? (parseFloat(match[2] || '0') / 100) : 0;
-                                        const mv = ea > 0 ? Math.pow(1 + ea, 1/12) - 1 : 0;
-                                        const monthlyAmt = mv > 0 ? (tx.amount * mv) / (1 - Math.pow(1 + mv, -total)) : tx.amount / total;
-                                        const txDate = new Date(tx.date);
-                                        const { month: sm, year: sy } = calculateFirstPaymentMonth(txDate, currentCard.cutDay, currentCard.dueDay);
-                                        const paidCount = Math.max(0, Math.min(total, (now.getFullYear() - sy) * 12 + (now.getMonth() - sm) + 1));
-                                        const remaining = total - paidCount;
-                                        cuotaDebt += monthlyAmt * remaining;
-                                    });
-                                    const freeDebt = Math.max(0, debt - cuotaDebt);
-                                    return (
-                                        <View style={[styles.walletCard, { backgroundColor: colorsNav.card, borderColor: colorsNav.border }]}>
-                                            <Text style={{ color: colorsNav.sub, fontSize: 13, fontWeight: '700' }}>Saldo Total</Text>
-                                            <Text style={{ color: colorsNav.text, fontSize: 32, fontWeight: '900', marginVertical: 8 }}>{fmt(debt)}</Text>
-                                            <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-                                                <View style={{ flex: 1, backgroundColor: isDark ? 'rgba(99,102,241,0.12)' : '#EEF2FF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#6366F130' }}>
-                                                    <MaterialIcons name="repeat" size={16} color="#6366F1" />
-                                                    <Text style={{ color: '#6366F1', fontWeight: '900', fontSize: 16, marginTop: 6 }}>{fmt(cuotaDebt)}</Text>
-                                                    <Text style={{ color: '#6366F1', fontSize: 10, fontWeight: '700', opacity: 0.8, marginTop: 2 }}>En cuotas</Text>
-                                                    <Text style={{ color: colorsNav.sub, fontSize: 10, marginTop: 1 }}>Comprometido</Text>
-                                                </View>
-                                                <View style={{ flex: 1, backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : '#FFFBEB', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#F59E0B30' }}>
-                                                    <MaterialIcons name="shopping-bag" size={16} color="#F59E0B" />
-                                                    <Text style={{ color: '#F59E0B', fontWeight: '900', fontSize: 16, marginTop: 6 }}>{fmt(freeDebt)}</Text>
-                                                    <Text style={{ color: '#F59E0B', fontSize: 10, fontWeight: '700', opacity: 0.8, marginTop: 2 }}>Corriente</Text>
-                                                    <Text style={{ color: colorsNav.sub, fontSize: 10, marginTop: 1 }}>Este ciclo</Text>
-                                                </View>
-                                            </View>
-                                            <View style={{ flexDirection: 'row', gap: 12, marginTop: 14 }}>
-                                                <View style={[styles.walletSubCard, { borderColor: colorsNav.border, flex: 1, backgroundColor: isDark ? 'rgba(59,130,246,0.1)' : '#EFF6FF' }]}>
-                                                    <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>Pago Mínimo</Text>
-                                                    <Text style={{ color: colorsNav.text, fontSize: 16, fontWeight: '800', marginTop: 4 }}>{fmt(nextPaymentAmt)}</Text>
-                                                </View>
-                                                <View style={[styles.walletSubCard, { borderColor: colorsNav.border, flex: 1 }]}>
-                                                    <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>Pago Total</Text>
-                                                    <Text style={{ color: colorsNav.text, fontSize: 16, fontWeight: '800', marginTop: 4 }}>{fmt(debt)}</Text>
-                                                </View>
-                                            </View>
-                                        </View>
-                                    );
-                                })()}
-
-                                <View style={[styles.walletCard, { backgroundColor: colorsNav.card, borderColor: colorsNav.border, marginTop: 15 }]}>
-                                    <Text style={{ color: colorsNav.text, fontSize: 16, fontWeight: '900', marginBottom: 15 }}>Límite de Tarjeta</Text>
-                                    
-                                    <View style={[styles.utilBarBG, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', height: 12, borderRadius: 6 }]}>
-                                        <View style={[styles.utilBarFill, { width: `${Math.min(utilization, 100)}%`, backgroundColor: '#3B82F6', borderRadius: 6 }]} />
-                                    </View>
-                                    
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, alignItems: 'center' }}>
-                                        <Text style={{ color: colorsNav.sub, fontSize: 12, fontWeight: '600' }}>Uso actual</Text>
-                                        <Text style={{ color: colorsNav.text, fontSize: 12, fontWeight: '800' }}>{fmt(debt)} / {fmt(currentCard.limit)}</Text>
-                                    </View>
-                                </View>
-
-                                <Text style={{ fontSize: 18, fontWeight: '900', color: colorsNav.text, marginTop: 25, marginBottom: 10 }}>Movimientos</Text>
-                                {(() => {
-                                    const subKeywords = ['netflix', 'spotify', 'amazon', 'hbo', 'disney', 'gym', 'apple', 'google', 'youtube'];
-                                    const subs = filteredTxs.filter(tx => subKeywords.some(k => tx.description.toLowerCase().includes(k)) && tx.type === 'expense');
-                                    // Remove duplicates by description
-                                    const uniqueSubs = Array.from(new Map(subs.map(item => [getCleanDescription(item.description).toLowerCase(), item])).values());
-                                    if (uniqueSubs.length === 0) return null;
-                                    return (
-                                        <View style={{ marginBottom: 20 }}>
-                                            <Text style={{ fontSize: 14, fontWeight: '800', color: colorsNav.sub, marginBottom: 10 }}>Suscripciones Detectadas</Text>
-                                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
-                                                {uniqueSubs.map(sub => (
-                                                    <View key={sub.id} style={{ backgroundColor: colorsNav.card, padding: 12, borderRadius: 16, borderWidth: 1, borderColor: colorsNav.border, width: 140 }}>
-                                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 6 }}>
-                                                            <MaterialIcons name="autorenew" size={16} color={colorsNav.sub} />
-                                                            <Text style={{ color: colorsNav.text, fontWeight: '800', fontSize: 12, flex: 1 }} numberOfLines={1}>{getCleanDescription(sub.description)}</Text>
-                                                        </View>
-                                                        <Text style={{ color: colorsNav.text, fontWeight: '900', fontSize: 16 }}>{fmt(sub.amount)}</Text>
-                                                    </View>
-                                                ))}
-                                            </ScrollView>
-                                        </View>
-                                    );
-                                })()}
-                                
-                                {hasTransactions ? (
-                                    Object.entries(groupedTxs).map(([groupName, txsGroup]) => {
-                                        if (txsGroup.length === 0) return null;
-                                        return (
-                                            <View key={groupName} style={{ gap: 8, marginTop: 4 }}>
-                                                <Text style={{ fontSize: 12, fontWeight: '800', color: colorsNav.sub, marginLeft: 6, marginBottom: 4 }}>{groupName}</Text>
-                                                {txsGroup.map(tx => {
-                                                    const cleanDesc = getCleanDescription(tx.description);
-                                                    const catIcon = getCategoryIcon(tx.category);
-                                                    const hasInst = tx.description?.includes('[CUOTAS:');
-                                                    let instProgress = null;
-                                                    if (hasInst) {
-                                                        const match = tx.description?.match(/\[CUOTAS:(\d+)(?::RATE:([\d.]+))?\]/);
-                                                        const total = match ? parseInt(match[1], 10) : 1;
-                                                        const ea = match ? (parseFloat(match[2] || '0') / 100) : 0;
-                                                        const mv = ea > 0 ? Math.pow(1 + ea, 1/12) - 1 : 0;
-                                                        const monthly = mv > 0 ? (tx.amount * mv) / (1 - Math.pow(1 + mv, -total)) : tx.amount / total;
-                                                        const txDate = new Date(tx.date);
-                                                        const { month: sm, year: sy } = calculateFirstPaymentMonth(txDate, currentCard.cutDay, currentCard.dueDay);
-                                                        const paid = Math.max(0, Math.min(total, (now.getFullYear() - sy) * 12 + (now.getMonth() - sm) + 1));
-                                                        instProgress = { total, paid, monthly };
-                                                    }
-                                                    return (
-                                                        <View key={tx.id} style={[styles.txItem, { backgroundColor: colorsNav.card, borderColor: colorsNav.border, borderWidth: 0, paddingVertical: 12, flexDirection: 'column', alignItems: 'flex-start' }]}>
-                                                            <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
-                                                                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
-                                                                    <Ionicons name={catIcon as any} size={20} color={colorsNav.text} />
-                                                                </View>
-                                                                <View style={{ flex: 1 }}>
-                                                                    <Text style={{ color: colorsNav.text, fontWeight: '800', fontSize: 14 }} numberOfLines={1}>{cleanDesc}</Text>
-                                                                    <Text style={{ color: colorsNav.sub, fontSize: 11, marginTop: 2 }}>
-                                                                        {new Date(tx.date).toLocaleDateString('es-CO')}
-                                                                        {instProgress ? ` • Cuota ${instProgress.paid}/${instProgress.total} • ${fmt(instProgress.monthly)}/mes` : ''}
+                                    {/* ── Movimientos Recientes ── */}
+                                    {activeTxs.length > 0 && (
+                                        <View>
+                                            <Text style={{ fontSize: 16, fontWeight: '900', color: colorsNav.text, marginBottom: 12 }}>Movimientos</Text>
+                                            {Object.entries(groupTransactions(activeTxs)).map(([groupName, txsGroup]) => {
+                                                if (txsGroup.length === 0) return null;
+                                                return (
+                                                    <View key={groupName} style={{ marginBottom: 8 }}>
+                                                        <Text style={{ fontSize: 11, fontWeight: '800', color: colorsNav.sub, marginBottom: 8 }}>{groupName}</Text>
+                                                        {txsGroup.map(tx => {
+                                                            const cleanDesc = getCleanDescription(tx.description);
+                                                            const catIcon = getCategoryIcon(tx.category);
+                                                            const hasInst = tx.description?.includes('[CUOTAS:');
+                                                            let instInfo = '';
+                                                            if (hasInst) {
+                                                                const m = tx.description?.match(/\[CUOTAS:(\d+)(?::RATE:([\d.]+))?\]/);
+                                                                const tot = m ? parseInt(m[1], 10) : 1;
+                                                                const ea2 = m ? (parseFloat(m[2] || '0') / 100) : 0;
+                                                                const mv2 = ea2 > 0 ? Math.pow(1 + ea2, 1/12) - 1 : 0;
+                                                                const monthly2 = mv2 > 0 ? (tx.amount * mv2) / (1 - Math.pow(1 + mv2, -tot)) : tx.amount / tot;
+                                                                instInfo = ` · ${tot} cuotas · ${fmt(monthly2)}/mes`;
+                                                            }
+                                                            return (
+                                                                <View key={tx.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }}>
+                                                                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                                                                        <Ionicons name={catIcon as any} size={18} color={colorsNav.sub} />
+                                                                    </View>
+                                                                    <View style={{ flex: 1 }}>
+                                                                        <Text style={{ color: colorsNav.text, fontWeight: '700', fontSize: 13 }} numberOfLines={1}>{cleanDesc}</Text>
+                                                                        <Text style={{ color: colorsNav.sub, fontSize: 11, marginTop: 1 }}>
+                                                                            {new Date(tx.date).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}{instInfo}
+                                                                        </Text>
+                                                                    </View>
+                                                                    <Text style={{ color: tx.type === 'income' ? '#22C55E' : colorsNav.text, fontWeight: '800', fontSize: 13 }}>
+                                                                        {tx.type === 'income' ? '-' : '+'}{fmt(tx.amount)}
                                                                     </Text>
                                                                 </View>
-                                                                <Text style={{ color: tx.type === 'income' ? colorsNav.accent : colorsNav.text, fontWeight: '900', fontSize: 14 }}>
-                                                                    {tx.type === 'income' ? '-' : '+'}{fmt(tx.amount)}
-                                                                </Text>
-                                                            </View>
-                                                            {instProgress && (
-                                                                <View style={{ width: '100%', marginTop: 8, paddingLeft: 56 }}>
-                                                                    <View style={{ height: 4, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', borderRadius: 2, overflow: 'hidden' }}>
-                                                                        <View style={{ height: '100%', width: `${(instProgress.paid / instProgress.total) * 100}%`, backgroundColor: colorsNav.accent, borderRadius: 2 }} />
-                                                                    </View>
-                                                                </View>
-                                                            )}
-                                                        </View>
-                                                    );
-                                                })}
-                                            </View>
-                                        );
-                                    })
-                                ) : (
-                                    <Text style={{ color: colorsNav.sub }}>Sin movimientos registrados.</Text>
-                                )}
-                            </ScrollView>
-                        </View>
-                    );
+                                                            );
+                                                        })}
+                                                    </View>
+                                                );
+                                            })}
+                                        </View>
+                                    )}
 
-                        <View style={{ flex: 1 }}>
-                            {detailTab === 'home' && renderHomeTab()}
-                            {detailTab === 'wallet' && renderWalletTab()}
-
-                            {/* Floating Bottom Nav */}
-                            <View style={[styles.floatingNav, { backgroundColor: isDark ? '#1C1C1E' : '#18181B' }]}>
-                                <TouchableOpacity style={[styles.floatingNavItem, detailTab === 'home' && styles.floatingNavItemActive]} onPress={() => setDetailTab('home')}>
-                                    <MaterialIcons name="credit-card" size={20} color={detailTab === 'home' ? '#FFF' : 'rgba(255,255,255,0.4)'} />
-                                    {detailTab === 'home' && <Text style={styles.floatingNavText}>Inicio</Text>}
-                                </TouchableOpacity>
-                                <TouchableOpacity style={[styles.floatingNavItem, detailTab === 'wallet' && styles.floatingNavItemActive]} onPress={() => setDetailTab('wallet')}>
-                                    <MaterialIcons name="account-balance-wallet" size={20} color={detailTab === 'wallet' ? '#FFF' : 'rgba(255,255,255,0.4)'} />
-                                    {detailTab === 'wallet' && <Text style={styles.floatingNavText}>Billetera</Text>}
-                                </TouchableOpacity>
+                                    {activeTxs.length === 0 && (
+                                        <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                                            <MaterialIcons name="credit-card-off" size={48} color={colorsNav.sub} style={{ opacity: 0.3 }} />
+                                            <Text style={{ color: colorsNav.sub, marginTop: 12, fontWeight: '600' }}>Sin movimientos en esta tarjeta</Text>
+                                        </View>
+                                    )}
+                                </ScrollView>
                             </View>
-                        </View>
-                    );
-                })() : null
+                        );
+                    };
+
+                    return renderUnifiedDetail();
+                }) () : null
             )}
 
             {/* ─── Edit Card Modal ─── */}

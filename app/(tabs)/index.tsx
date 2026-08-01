@@ -468,45 +468,71 @@ export default function HomeScreen() {
       const calcLoans = userLoans.reduce((sum, d) => sum + (Number(d.value) - Number(d.paid || 0)), 0);
       setLoansTotal(calcLoans);
 
-      // Calcular Deuda de Tarjetas (Solo Obligación Mensual Facturada en el mes actual)
+      // Calcular Deuda de Tarjetas: Solo sumar lo que vence en el mes actual,
+      // usando la lógica correcta del ciclo de facturación (fecha de corte → fecha de pago).
       let cardObligations = 0;
       const todayDate = new Date();
-      const currentDay = todayDate.getDate();
+      const currentMonthForCard = todayDate.getMonth();
+      const currentYearForCard = todayDate.getFullYear();
 
       (cards || []).forEach(card => {
         if (!card) return;
-        // Solo sumamos la obligación si estamos en el mes donde vence el pago
-        const isDueThisMonth = currentDay <= card.dueDay || currentDay >= card.cutDay;
-        
-        if (currentDay <= card.dueDay) { 
-          // Si hoy es antes del dueDay, estamos en el mes del pago
-          const txs = allTx?.filter(tx => tx.account === card.name) || [];
-          let monthlyQuota = 0;
+        const txs = allTx?.filter(tx => tx.account === card.name) || [];
 
-          txs.forEach(tx => {
-            if (tx.type === 'expense') {
-              const match = tx.description?.match(/\[CUOTAS:(\d+)(?::RATE:([\d.]+))?\]/);
-              if (match) {
-                const cuotas = parseInt(match[1], 10);
-                const ea = parseFloat(match[2] || '0') / 100;
-                if (ea > 0 && cuotas > 1) {
-                  const mv = Math.pow(1 + ea, 1/12) - 1;
-                  const cuota = (tx.amount * mv) / (1 - Math.pow(1 + mv, -cuotas));
-                  monthlyQuota += cuota;
-                } else {
-                  monthlyQuota += tx.amount / cuotas;
-                }
-              } else {
-                monthlyQuota += tx.amount;
-              }
-            } else if (tx.type === 'income' || tx.type === 'transfer') {
-              monthlyQuota -= tx.amount;
+        txs.forEach(tx => {
+          if (tx.type !== 'expense') return;
+
+          const txDate = new Date(tx.date + (tx.date.includes('T') ? '' : 'T12:00:00'));
+          const match = tx.description?.match(/\[CUOTAS:(\d+)(?::RATE:([\d.]+))?\]/);
+
+          // Calcular el primer mes de pago real basado en el ciclo de facturación
+          const { month: firstPayMonth, year: firstPayYear } = (() => {
+            const day = txDate.getDate();
+            const month = txDate.getMonth();
+            const year = txDate.getFullYear();
+            let cutMonth = month;
+            let cutYear = year;
+            if (day > card.cutDay) {
+              cutMonth = month + 1;
+              if (cutMonth > 11) { cutMonth = 0; cutYear = year + 1; }
             }
-          });
+            const cutDate = new Date(cutYear, cutMonth, card.cutDay);
+            let dueDate = new Date(cutDate.getFullYear(), cutDate.getMonth(), card.dueDay);
+            if (dueDate <= cutDate) {
+              dueDate = new Date(cutDate.getFullYear(), cutDate.getMonth() + 1, card.dueDay);
+            }
+            return { month: dueDate.getMonth(), year: dueDate.getFullYear() };
+          })();
 
-          cardObligations += Math.max(0, monthlyQuota);
-        }
+          const installments = match ? parseInt(match[1], 10) : 1;
+          const ea = match ? (parseFloat(match[2] || '0') / 100) : 0;
+          let monthlyAmt = tx.amount;
+          if (installments > 1) {
+            if (ea > 0) {
+              const mv = Math.pow(1 + ea, 1/12) - 1;
+              monthlyAmt = (tx.amount * mv) / (1 - Math.pow(1 + mv, -installments));
+            } else {
+              monthlyAmt = tx.amount / installments;
+            }
+          }
+
+          // Cuántos meses han pasado desde el primer pago hasta hoy
+          const monthsDiff = (currentYearForCard - firstPayYear) * 12 + (currentMonthForCard - firstPayMonth);
+
+          // Solo sumar si este mes cae dentro del rango de cuotas activas
+          if (monthsDiff >= 0 && monthsDiff < installments) {
+            cardObligations += monthlyAmt;
+          }
+        });
+
+        // Restar pagos realizados (ingresos en la cuenta de la tarjeta) de este mes
+        const payments = txs
+          .filter(tx => (tx.type === 'income' || tx.type === 'transfer'))
+          .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+        cardObligations -= payments;
       });
+      cardObligations = Math.max(0, cardObligations);
+
 
       const totalDue = remainingDebts.reduce((sum, d) => sum + (Number(d.value) - Number(d.paid || 0)), 0) + cardObligations + loanOweMonthly;
 

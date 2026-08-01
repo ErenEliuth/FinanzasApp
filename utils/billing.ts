@@ -9,13 +9,22 @@ export function calculateFirstPaymentMonth(purchaseDate: Date, cutDay: number, d
     const month = purchaseDate.getMonth();
     const year = purchaseDate.getFullYear();
 
-    // Determinar la fecha de corte exacta de esta compra
-    let cutDate = new Date(year, month, cutDay);
+    // Si la compra se hizo DESPUÉS del día de corte, el ciclo de facturación
+    // ya cerró para este mes, por lo que el corte que aplica es el del mes siguiente.
+    let cutMonth = month;
+    let cutYear = year;
     if (day > cutDay) {
-        cutDate = new Date(year, month + 1, cutDay);
+        cutMonth = month + 1;
+        if (cutMonth > 11) {
+            cutMonth = 0;
+            cutYear = year + 1;
+        }
     }
+    const cutDate = new Date(cutYear, cutMonth, cutDay);
 
-    // Determinar la fecha de pago exacta (el primer dueDay después del cutDate)
+    // El primer pago vence el primer dueDay estrictamente DESPUÉS del corte.
+    // Si dueDay cae en el mismo mes que cutDate pero ANTES del cutDay,
+    // el pago real es el siguiente mes.
     let dueDate = new Date(cutDate.getFullYear(), cutDate.getMonth(), dueDay);
     if (dueDate <= cutDate) {
         dueDate = new Date(cutDate.getFullYear(), cutDate.getMonth() + 1, dueDay);
