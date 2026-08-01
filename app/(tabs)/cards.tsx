@@ -231,20 +231,7 @@ export default function CardsScreen() {
         };
     };
 
-    const getDaysUntil = (targetDay: number): number => {
-        const today = new Date();
-        const currentDay = today.getDate();
-        const currentMonth = today.getMonth();
-        const currentYear = today.getFullYear();
-        // If target day is still this month
-        if (targetDay >= currentDay) {
-            return targetDay - currentDay;
-        }
-        // Target day has passed this month, so count to next month's occurrence
-        const nextOccurrence = new Date(currentYear, currentMonth + 1, targetDay);
-        const diffTime = nextOccurrence.getTime() - today.getTime();
-        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    };
+
 
 
     const scrollRef = useRef<any>(null);
