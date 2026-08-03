@@ -591,12 +591,21 @@ export default function HomeScreen() {
           const diffTime = checkDate.getTime() - today.getTime();
           const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
+          d.diffDays = diffDays;
+          d.isToday = diffDays === 0;
+
           return diffDays <= 3 && diffDays >= -7;
         } catch (e) { return false; }
       }) || [];
       setPendingItems([...urgent, ...urgentChallenges]);
 
+      // Disparar notificaciones locales para gastos que vencen hoy ("Hoy tienes que pagar...")
+      const dispName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuario';
+      const { data: remData } = await supabase.from('reminders').select('*').eq('user_id', user.id);
+      Notifications.checkAndNotifyDueExpensesToday(allDebts || [], remData || [], dispName);
+
       // Generar Reporte Mensual si es el inicio del mes (Días 1 al 3)
+
       const day = today.getDate();
       if (day <= 3) {
         const dismissed = await AsyncStorage.getItem(`dismissed_report_${today.getMonth()}_${today.getFullYear()}`);
@@ -1372,43 +1381,53 @@ export default function HomeScreen() {
                   <Text style={{ color: colorsNav.sub, marginTop: 12, textAlign: 'center' }}>No tienes pagos próximos o vencidos.</Text>
                 </View>
               ) : (
-                pendingItems.map(item => (
-                  <TouchableOpacity 
-                    key={item.id || item.notifKey}
-                    style={[styles.notificationItem, { backgroundColor: isDark ? '#1E293B' : '#F9FAFB', borderColor: colorsNav.border + '30', borderWidth: 1 }]}
-                    onPress={() => {
-                      setNotificationsVisible(false);
-                      if (item.isChallenge) {
-                        router.push(`/challenge/${item.id}`);
-                      } else {
-                        router.push('/(tabs)/debts');
-                      }
-                    }}
-                  >
-                    <View style={[styles.txIcon, { backgroundColor: item.isChallenge ? '#FCD34D15' : item.debt_type === 'fixed' ? '#F59E0B15' : '#EF444415' }]}>
-                      <MaterialIcons
-                        name={item.isChallenge ? 'emoji-events' : item.debt_type === 'fixed' ? 'event-repeat' : 'warning'}
-                        size={22}
-                        color={item.isChallenge ? '#F59E0B' : item.debt_type === 'fixed' ? '#F59E0B' : '#EF4444'}
-                      />
-                    </View>
-                    <View style={styles.txMeta}>
-                      <Text style={[styles.txTitle, { color: colorsNav.text }]}>{item.client}</Text>
-                      <Text style={[styles.txSub, { color: colorsNav.sub }]}>
-                        {item.isChallenge ? 'Reto pendiente' : item.debt_type === 'fixed' ? 'Gasto recurrente' : 'Pago pendiente'} • {item.due_date}
-                      </Text>
-                    </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={[styles.txAmount, { color: item.isChallenge ? '#F59E0B' : item.debt_type === 'fixed' ? '#F59E0B' : '#EF4444' }]}>
-                        {fmt(item.value - item.paid)}
-                      </Text>
-                      <View style={{ backgroundColor: item.isChallenge ? '#F59E0B20' : item.debt_type === 'fixed' ? '#F59E0B20' : '#EF444420', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginTop: 4 }}>
-                        <Text style={{ fontSize: 8, color: item.isChallenge ? '#F59E0B' : item.debt_type === 'fixed' ? '#F59E0B' : '#EF4444', fontWeight: '900' }}>PENDIENTE</Text>
+                pendingItems.map(item => {
+                  const isToday = item.isToday || item.diffDays === 0;
+                  const displayTitle = isToday
+                    ? (item.debt_type === 'fixed' ? `Hoy tienes que pagar ${item.client}` : `Pago para hoy: ${item.client}`)
+                    : item.client;
+                  const statusTag = isToday ? 'HOY' : (item.diffDays < 0 ? 'VENCIDO' : 'PENDIENTE');
+                  const tagColor = isToday ? '#EF4444' : item.isChallenge ? '#F59E0B' : item.debt_type === 'fixed' ? '#F59E0B' : '#EF4444';
+
+                  return (
+                    <TouchableOpacity 
+                      key={item.id || item.notifKey}
+                      style={[styles.notificationItem, { backgroundColor: isToday ? (isDark ? 'rgba(239,68,68,0.12)' : '#FEF2F2') : (isDark ? '#1E293B' : '#F9FAFB'), borderColor: isToday ? '#EF444440' : colorsNav.border + '30', borderWidth: 1 }]}
+                      onPress={() => {
+                        setNotificationsVisible(false);
+                        if (item.isChallenge) {
+                          router.push(`/challenge/${item.id}`);
+                        } else {
+                          router.push('/(tabs)/debts');
+                        }
+                      }}
+                    >
+                      <View style={[styles.txIcon, { backgroundColor: isToday ? '#EF444420' : item.isChallenge ? '#FCD34D15' : item.debt_type === 'fixed' ? '#F59E0B15' : '#EF444415' }]}>
+                        <MaterialIcons
+                          name={isToday ? 'notification-important' : item.isChallenge ? 'emoji-events' : item.debt_type === 'fixed' ? 'event-repeat' : 'warning'}
+                          size={22}
+                          color={tagColor}
+                        />
                       </View>
-                    </View>
-                  </TouchableOpacity>
-                ))
+                      <View style={styles.txMeta}>
+                        <Text style={[styles.txTitle, { color: colorsNav.text, fontWeight: isToday ? '900' : '700' }]}>{displayTitle}</Text>
+                        <Text style={[styles.txSub, { color: colorsNav.sub }]}>
+                          {item.isChallenge ? 'Reto pendiente' : item.debt_type === 'fixed' ? 'Gasto recurrente' : 'Pago pendiente'} • {item.due_date}
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={[styles.txAmount, { color: tagColor }]}>
+                          {fmt(item.value - item.paid)}
+                        </Text>
+                        <View style={{ backgroundColor: `${tagColor}20`, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginTop: 4 }}>
+                          <Text style={{ fontSize: 8, color: tagColor, fontWeight: '900' }}>{statusTag}</Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
               )}
+
             </ScrollView>
 
             <TouchableOpacity

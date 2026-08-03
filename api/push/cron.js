@@ -62,38 +62,71 @@ async function getPersonalizedMessages(supabase, userId, type) {
     }
   }
 
-  // 1. Check upcoming debt due dates (within 3 days)
+  // 1. Check upcoming debt & fixed expense due dates
   try {
     if (userId) {
       const { data: debts } = await supabase
         .from('debts')
         .select('client, due_date, value, paid, debt_type')
-        .eq('user_id', userId)
-        .eq('debt_type', 'fixed');
+        .eq('user_id', userId);
 
       if (debts && debts.length > 0) {
         const today = new Date();
-        const in3Days = new Date(today);
-        in3Days.setDate(today.getDate() + 3);
+        today.setHours(0, 0, 0, 0);
 
-        const upcoming = debts.filter(d => {
-          if (!d.due_date) return false;
-          const due = new Date(d.due_date);
-          return due >= today && due <= in3Days && d.paid < d.value;
-        });
+        debts.forEach(d => {
+          if (Number(d.paid || 0) >= Number(d.value || 0)) return; // Ya pagado
 
-        upcoming.forEach(d => {
-          const dueDate = new Date(d.due_date);
-          const daysLeft = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
-          msgs.push({
-            title: `⚠️ ${name}, vencimiento próximo: ${d.client}`,
-            body: `${d.client} vence ${daysLeft === 0 ? 'hoy' : `en ${daysLeft} día${daysLeft > 1 ? 's' : ''}`}. Prepara tu pago.`,
-            url: '/debts'
-          });
+          let isDueToday = false;
+          let daysLeft = 999;
+
+          if (d.debt_type === 'fixed') {
+            let dayNum = 0;
+            if (d.due_date) {
+              const cleanStr = String(d.due_date).trim();
+              if (cleanStr.includes('-')) {
+                const parts = cleanStr.split('-');
+                dayNum = parseInt(parts[parts.length - 1], 10);
+              } else if (cleanStr.includes('/')) {
+                const parts = cleanStr.split('/');
+                dayNum = parseInt(parts[0], 10);
+              } else {
+                dayNum = parseInt(cleanStr, 10);
+              }
+            }
+            if (dayNum === today.getDate()) {
+              isDueToday = true;
+              daysLeft = 0;
+            }
+          } else if (d.due_date) {
+            const cleanStr = String(d.due_date).trim();
+            const dueDate = new Date(cleanStr.includes('T') ? cleanStr : `${cleanStr}T12:00:00`);
+            if (!isNaN(dueDate.getTime())) {
+              dueDate.setHours(0, 0, 0, 0);
+              const diffTime = dueDate.getTime() - today.getTime();
+              daysLeft = Math.round(diffTime / (1000 * 60 * 60 * 24));
+              if (daysLeft === 0) isDueToday = true;
+            }
+          }
+
+          if (isDueToday) {
+            msgs.push({
+              title: `📌 Recordatorio de Pago, ${name}`,
+              body: `Hoy tienes que pagar ${d.client}`,
+              url: '/debts'
+            });
+          } else if (daysLeft > 0 && daysLeft <= 3) {
+            msgs.push({
+              title: `⚠️ ${name}, vencimiento próximo: ${d.client}`,
+              body: `${d.client} vence en ${daysLeft} día${daysLeft > 1 ? 's' : ''}. Prepara tu pago.`,
+              url: '/debts'
+            });
+          }
         });
       }
     }
   } catch (e) { /* ignore */ }
+
 
   // 2. Check goals close to target (Savings progress)
   try {
