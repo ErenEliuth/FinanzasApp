@@ -194,42 +194,39 @@ export default function CardsScreen() {
         const today = new Date().getDate();
         const cut = card.cutDay;
         
-        // Si el día de corte es mayor que el actual, falta para el corte
-        // Si el día actual está cerca del corte (pocos días antes), es mal momento.
-        // Si el día actual es justo después del corte, es el Día de Oro.
-        
         let diff = cut - today;
         if (diff < 0) diff += 30; // Ajustar si ya pasó el corte este mes
 
         if (diff === 0 || diff >= 28) {
             return { 
                 type: 'gold', 
-                title: '🟡 DÍA DE ORO', 
+                title: 'DÍA DE ORO', 
                 msg: 'Acabas de cerrar ciclo. ¡Compra hoy y tendrás aproximadamente 45 días para pagar!',
-                color: colorsNav.isDark ? 'rgba(245, 158, 11, 0.12)' : '#FFFBEB',
+                color: colorsNav.isDark ? 'rgba(245, 158, 11, 0.08)' : '#FFFBEB',
                 borderColor: '#F59E0B',
-                textColor: colorsNav.isDark ? '#FBBF24' : '#B45309'
+                textColor: colorsNav.isDark ? '#FBBF24' : '#D97706'
             };
         }
         if (diff <= 3) {
             return { 
                 type: 'warn', 
-                title: '🔴 ALERTA DE CORTE', 
-                msg: 'Falta muy poco para el corte. Las compras se facturarán en pocos días. ¡Evita gastos grandes!',
-                color: colorsNav.isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2',
+                title: 'ALERTA DE CORTE', 
+                msg: 'Falta muy poco para el corte. Las compras se facturarán en pocos días. Evita gastos grandes.',
+                color: colorsNav.isDark ? 'rgba(239, 68, 68, 0.08)' : '#FEF2F2',
                 borderColor: '#EF4444',
-                textColor: colorsNav.isDark ? '#FCA5A5' : '#B91C1C'
+                textColor: colorsNav.isDark ? '#FCA5A5' : '#DC2626'
             };
         }
         return { 
             type: 'info', 
-            title: '🟢 CICLO NORMAL', 
+            title: 'CICLO NORMAL', 
             msg: `Faltan ${diff} días para tu cierre de ciclo. Compra con tranquilidad.`,
-            color: colorsNav.isDark ? 'rgba(34, 197, 94, 0.12)' : '#F0FDF4',
-            borderColor: '#22C55E',
-            textColor: colorsNav.isDark ? '#86EFAC' : '#15803D'
+            color: colorsNav.isDark ? 'rgba(59, 130, 246, 0.08)' : '#EFF6FF',
+            borderColor: '#3B82F6',
+            textColor: colorsNav.isDark ? '#93C5FD' : '#2563EB'
         };
     };
+
 
 
 
@@ -727,52 +724,52 @@ export default function CardsScreen() {
                                     </TouchableOpacity>
 
                                     {/* ── Resumen de Pago del Ciclo ── */}
-                                    <View style={{ backgroundColor: colorsNav.card, borderRadius: 20, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: colorsNav.border }}>
-                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                    <View style={{ backgroundColor: colorsNav.card, borderRadius: 20, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: colorsNav.border }}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                                             <View>
-                                                <Text style={{ color: colorsNav.sub, fontSize: 12, fontWeight: '600' }}>Saldo Total</Text>
-                                                <Text style={{ color: colorsNav.text, fontSize: 28, fontWeight: '900', marginTop: 2 }}>{fmt(debt)}</Text>
+                                                <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '700', letterSpacing: 0.5 }}>SALDO TOTAL</Text>
+                                                <Text style={{ color: colorsNav.text, fontSize: 26, fontWeight: '900', marginTop: 2 }}>{fmt(debt)}</Text>
                                             </View>
                                             {hasDueThisMonth ? (
-                                                <View style={{ backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : '#FEF2F2', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: '#EF444430', alignItems: 'center' }}>
-                                                    <Text style={{ color: '#EF4444', fontSize: 10, fontWeight: '800' }}>PAGO ESTE MES</Text>
-                                                    <Text style={{ color: '#EF4444', fontSize: 17, fontWeight: '900', marginTop: 2 }}>{fmt(currentCycleAmount)}</Text>
+                                                <View style={{ backgroundColor: isDark ? 'rgba(239,68,68,0.1)' : '#FEF2F2', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: '#EF444430', alignItems: 'flex-end' }}>
+                                                    <Text style={{ color: '#EF4444', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 }}>PAGO ESTE MES</Text>
+                                                    <Text style={{ color: '#EF4444', fontSize: 15, fontWeight: '900', marginTop: 1 }}>{fmt(currentCycleAmount)}</Text>
                                                 </View>
                                             ) : (
-                                                <View style={{ backgroundColor: isDark ? 'rgba(34,197,94,0.12)' : '#F0FDF4', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: '#22C55E30', alignItems: 'center' }}>
-                                                    <Text style={{ color: '#22C55E', fontSize: 10, fontWeight: '800' }}>ESTE MES</Text>
-                                                    <Text style={{ color: '#22C55E', fontSize: 17, fontWeight: '900', marginTop: 2 }}>$0</Text>
+                                                <View style={{ backgroundColor: isDark ? 'rgba(16,185,129,0.1)' : '#ECFDF5', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: '#10B98130', alignItems: 'flex-end' }}>
+                                                    <Text style={{ color: '#10B981', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 }}>ESTE MES</Text>
+                                                    <Text style={{ color: '#10B981', fontSize: 15, fontWeight: '900', marginTop: 1 }}>$0</Text>
                                                 </View>
                                             )}
                                         </View>
 
                                         {/* Barra de uso de límite */}
-                                        <View style={{ marginBottom: 12 }}>
+                                        <View style={{ marginBottom: 14 }}>
                                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                                                 <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '600' }}>Uso del límite</Text>
                                                 <Text style={{ color: colorsNav.text, fontSize: 11, fontWeight: '800' }}>{fmt(debt)} / {fmt(currentCard.limit)}</Text>
                                             </View>
-                                            <View style={{ height: 8, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', borderRadius: 4, overflow: 'hidden' }}>
+                                            <View style={{ height: 6, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', borderRadius: 3, overflow: 'hidden' }}>
                                                 <View style={{
                                                     height: '100%',
                                                     width: `${Math.min(utilization, 100)}%`,
                                                     backgroundColor: utilization > 85 ? '#EF4444' : utilization > 60 ? '#F59E0B' : '#3B82F6',
-                                                    borderRadius: 4
+                                                    borderRadius: 3
                                                 }} />
                                             </View>
                                         </View>
 
                                         {/* Acciones rápidas */}
-                                        <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                                        <View style={{ flexDirection: 'row', gap: 10 }}>
                                             <TouchableOpacity
-                                                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colorsNav.accent, borderRadius: 12, paddingVertical: 11 }}
+                                                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colorsNav.accent, borderRadius: 12, paddingVertical: 10 }}
                                                 onPress={() => { setSelectedCard(currentCard); setPayModalVisible(true); }}
                                             >
                                                 <MaterialIcons name="payment" size={16} color="#FFF" />
                                                 <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 13 }}>Registrar Pago</Text>
                                             </TouchableOpacity>
                                             <TouchableOpacity
-                                                style={{ paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: isDark ? 'rgba(239,68,68,0.1)' : '#FEF2F2', borderRadius: 12, paddingVertical: 11, borderWidth: 1, borderColor: '#EF444430' }}
+                                                style={{ paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: isDark ? 'rgba(239,68,68,0.08)' : '#FEF2F2', borderRadius: 12, paddingVertical: 10, borderWidth: 1, borderColor: '#EF444425' }}
                                                 onPress={() => handleDeleteCard(currentCard)}
                                             >
                                                 <MaterialIcons name="delete-outline" size={16} color="#EF4444" />
@@ -780,43 +777,40 @@ export default function CardsScreen() {
                                         </View>
                                     </View>
 
-                                    {/* ── Días al Corte y al Pago ── */}
+                                    {/* ── Días al Corte y al Pago (Strip Métrico Elegante) ── */}
                                     {(() => {
                                         const daysUntilCut = getDaysUntil(currentCard.cutDay);
                                         const daysUntilDue = getDaysUntil(currentCard.dueDay);
-                                        const cutColor = daysUntilCut <= 3 ? '#EF4444' : daysUntilCut <= 7 ? '#F59E0B' : '#22C55E';
-                                        const dueColor = daysUntilDue <= 3 ? '#EF4444' : daysUntilDue <= 7 ? '#F59E0B' : '#3B82F6';
                                         return (
-                                            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
-                                                <View style={{ flex: 1, backgroundColor: isDark ? `${cutColor}18` : `${cutColor}12`, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: `${cutColor}40`, alignItems: 'center' }}>
-                                                    <MaterialIcons name="content-cut" size={18} color={cutColor} />
-                                                    <Text style={{ color: cutColor, fontWeight: '900', fontSize: 26, marginTop: 4 }}>{daysUntilCut}</Text>
-                                                    <Text style={{ color: cutColor, fontSize: 10, fontWeight: '700' }}>días al corte</Text>
-                                                    <Text style={{ color: colorsNav.sub, fontSize: 10, marginTop: 2 }}>Día {currentCard.cutDay} de cada mes</Text>
+                                            <View style={{ flexDirection: 'row', backgroundColor: colorsNav.card, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 16, borderWidth: 1, borderColor: colorsNav.border, marginBottom: 14 }}>
+                                                <View style={{ flex: 1, alignItems: 'center', borderRightWidth: 1, borderRightColor: colorsNav.border }}>
+                                                    <Text style={{ color: colorsNav.sub, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 }}>DÍA DE CORTE</Text>
+                                                    <Text style={{ color: colorsNav.text, fontSize: 20, fontWeight: '900', marginVertical: 2 }}>{daysUntilCut} <Text style={{ fontSize: 11, fontWeight: '600', color: colorsNav.sub }}>días</Text></Text>
+                                                    <Text style={{ color: colorsNav.sub, fontSize: 10 }}>Día {currentCard.cutDay} de cada mes</Text>
                                                 </View>
-                                                <View style={{ flex: 1, backgroundColor: isDark ? `${dueColor}18` : `${dueColor}12`, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: `${dueColor}40`, alignItems: 'center' }}>
-                                                    <MaterialIcons name="credit-card" size={18} color={dueColor} />
-                                                    <Text style={{ color: dueColor, fontWeight: '900', fontSize: 26, marginTop: 4 }}>{daysUntilDue}</Text>
-                                                    <Text style={{ color: dueColor, fontSize: 10, fontWeight: '700' }}>días al pago</Text>
-                                                    <Text style={{ color: colorsNav.sub, fontSize: 10, marginTop: 2 }}>Día {currentCard.dueDay} de cada mes</Text>
+                                                <View style={{ flex: 1, alignItems: 'center' }}>
+                                                    <Text style={{ color: colorsNav.sub, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 }}>DÍA DE PAGO</Text>
+                                                    <Text style={{ color: colorsNav.text, fontSize: 20, fontWeight: '900', marginVertical: 2 }}>{daysUntilDue} <Text style={{ fontSize: 11, fontWeight: '600', color: colorsNav.sub }}>días</Text></Text>
+                                                    <Text style={{ color: colorsNav.sub, fontSize: 10 }}>Día {currentCard.dueDay} de cada mes</Text>
                                                 </View>
                                             </View>
                                         );
                                     })()}
 
-                                    {/* ── Estado del Ciclo ── */}
+                                    {/* ── Estado del Ciclo (Aviso Sobrio) ── */}
                                     {(() => {
                                         const advice = getShoppingAdvice(currentCard);
                                         return (
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: advice.color, padding: 14, borderRadius: 16, borderWidth: 1, borderColor: advice.borderColor, marginBottom: 20 }}>
-                                                <Text style={{ fontSize: 20, marginRight: 10 }}>{advice.title.split(' ')[0]}</Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colorsNav.card, padding: 12, paddingLeft: 14, borderRadius: 14, borderWidth: 1, borderColor: colorsNav.border, borderLeftWidth: 4, borderLeftColor: advice.borderColor, marginBottom: 18, gap: 10 }}>
+                                                <MaterialIcons name="info-outline" size={18} color={advice.textColor} />
                                                 <View style={{ flex: 1 }}>
-                                                    <Text style={{ color: advice.textColor, fontWeight: '900', fontSize: 13 }}>{advice.title.replace(/[^\w\s]/g, '').trim()}</Text>
-                                                    <Text style={{ color: advice.textColor, opacity: 0.85, fontSize: 11, marginTop: 2 }}>{advice.msg}</Text>
+                                                    <Text style={{ color: advice.textColor, fontWeight: '800', fontSize: 12, letterSpacing: 0.5 }}>{advice.title}</Text>
+                                                    <Text style={{ color: colorsNav.sub, fontSize: 11, marginTop: 1 }}>{advice.msg}</Text>
                                                 </View>
                                             </View>
                                         );
                                     })()}
+
 
                                     {/* ── Cuotas Activas ── */}
                                     {activeInstallments.length > 0 && (
