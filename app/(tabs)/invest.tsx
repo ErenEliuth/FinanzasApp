@@ -12,7 +12,7 @@ import {
   Dimensions, KeyboardAvoidingView, TouchableWithoutFeedback
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { formatCurrency, convertCurrency, convertToBase, fetchExchangeRates } from '@/utils/currency';
+import { formatCurrency, convertCurrency, convertToBase, fetchExchangeRates, formatInputDisplay, parseInputToNumber } from '@/utils/currency';
 import { searchAssets, fetchLivePrice, POPULAR_ASSETS, SearchResult, fetchBvcMarketOverview, simulateLiveVolatility } from '@/utils/stockPrices';
 import { syncUp, SYNC_KEYS } from '@/utils/sync';
 import { LineChart, PieChart } from 'react-native-chart-kit';
@@ -56,12 +56,24 @@ interface InvestmentInsight {
   change: number;
 }
 
+export interface DollarPurchase {
+  id: string;
+  user_id: string;
+  amount_usd: number;
+  purchase_rate: number;
+  sold: boolean;
+  sale_rate?: number | null;
+  sale_account?: string | null;
+  sold_at?: string | null;
+  purchased_at?: string;
+}
+
 const TRII_FEE = 14875;
 
 export default function InvestScreen() {
   const isFocused = useIsFocused();
   const router = useRouter();
-  const { user, currency, rates, isHidden } = useAuth();
+  const { user, currency, rates, isHidden, cards = [], customAccounts = [] } = useAuth() as any;
   const colors = useThemeColors();
 
   const [positions, setPositions] = useState<Position[]>([]);
@@ -105,6 +117,21 @@ export default function InvestScreen() {
   const [customWatchlist, setCustomWatchlist] = useState<string[]>([]);
   const [isAddingToWatchlist, setIsAddingToWatchlist] = useState(false);
   const [recommendations, setRecommendations] = useState<InvestmentInsight[]>([]);
+
+  // Compra / Venta Dólares State
+  const [dollarPurchases, setDollarPurchases] = useState<DollarPurchase[]>([]);
+  const [buyDollarModalVisible, setBuyDollarModalVisible] = useState(false);
+  const [sellDollarModalVisible, setSellDollarModalVisible] = useState(false);
+  const [buyMode, setBuyMode] = useState<'usd' | 'cop'>('cop'); // 'cop' = ingresa total COP, 'usd' = ingresa USD
+  const [dollarTotalCop, setDollarTotalCop] = useState('');
+  const [dollarAmountUsd, setDollarAmountUsd] = useState('');
+  const [dollarPurchaseRate, setDollarPurchaseRate] = useState('');
+  const [buyAccount, setBuyAccount] = useState('Efectivo');
+  const [sellingItem, setSellingItem] = useState<DollarPurchase | null>(null);
+  const [sellRate, setSellRate] = useState('');
+  const [selectedAccount, setSelectedAccount] = useState('Efectivo');
+  const [showDollarHistory, setShowDollarHistory] = useState(false);
+  const [isDollarLoading, setIsDollarLoading] = useState(false);
 
   const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates || {}), currency, isHidden);
   const usdToCop = rates?.USD || 3950;
@@ -301,10 +328,190 @@ export default function InvestScreen() {
       const storedCustom = await AsyncStorage.getItem(SYNC_KEYS.INVEST_WATCHLIST(user.id));
       if (storedCustom) setCustomWatchlist(JSON.parse(storedCustom));
 
+      // Cargar Compras de Dólares
+      loadDollarPurchases();
+
       calculateInvestHealth();
     } catch (e) { 
         console.log("No se pudo cargar price_alerts o salud - omitiendo."); 
     }
+  };
+
+  const loadDollarPurchases = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('dollar_purchases')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('purchased_at', { ascending: false });
+
+      if (!error && data) {
+        setDollarPurchases(data.map((d: any) => ({
+          id: d.id,
+          user_id: d.user_id,
+          amount_usd: Number(d.amount_usd),
+          purchase_rate: Number(d.purchase_rate),
+          sold: Boolean(d.sold),
+          sale_rate: d.sale_rate ? Number(d.sale_rate) : null,
+          sale_account: d.sale_account || null,
+          sold_at: d.sold_at || null,
+          purchased_at: d.purchased_at,
+        })));
+      }
+    } catch (e) {
+      console.log("Error cargando compras de dólares:", e);
+    }
+  };
+
+  const handleOpenBuyDollarModal = () => {
+    setBuyMode('cop');
+    setDollarTotalCop('');
+    setDollarAmountUsd('');
+    setDollarPurchaseRate(Math.round(usdToCop).toString());
+    const availableAccounts = ['Efectivo', ...customAccounts, ...cards.map((c: any) => c.name)];
+    if (availableAccounts.length > 0) {
+      setBuyAccount(availableAccounts[0]);
+    }
+    setBuyDollarModalVisible(true);
+  };
+
+  const handleSaveDollarPurchase = async () => {
+    if (!user) return;
+    const rate = parseFloat(dollarPurchaseRate.replace(',', '.'));
+
+    if (isNaN(rate) || rate <= 0) {
+      Alert.alert("Error", "Ingresa un precio/tasa de dólar válido.");
+      return;
+    }
+
+    let finalUsd = 0;
+    if (buyMode === 'cop') {
+      const copAmount = parseFloat(dollarTotalCop.replace(/\D/g, ''));
+      if (isNaN(copAmount) || copAmount <= 0) {
+        Alert.alert("Error", "Ingresa el monto total en COP gastado.");
+        return;
+      }
+      finalUsd = copAmount / rate;
+    } else {
+      const usdAmount = parseFloat(dollarAmountUsd.replace(',', '.'));
+      if (isNaN(usdAmount) || usdAmount <= 0) {
+        Alert.alert("Error", "Ingresa una cantidad de dólares válida.");
+        return;
+      }
+      finalUsd = usdAmount;
+    }
+
+    try {
+      setIsDollarLoading(true);
+      const newPurchase = {
+        user_id: user.id,
+        amount_usd: finalUsd,
+        purchase_rate: rate,
+        sold: false,
+      };
+
+      const { data, error } = await supabase.from('dollar_purchases').insert([newPurchase]).select();
+      if (!error && data) {
+        const item: DollarPurchase = {
+          id: data[0].id,
+          user_id: data[0].user_id,
+          amount_usd: Number(data[0].amount_usd),
+          purchase_rate: Number(data[0].purchase_rate),
+          sold: false,
+          purchased_at: data[0].purchased_at,
+        };
+        setDollarPurchases(prev => [item, ...prev]);
+        setBuyDollarModalVisible(false);
+        Alert.alert(
+          "💵 Compra Registrada", 
+          `Compraste $${finalUsd.toFixed(2)} USD saliendo de tu cuenta ${buyAccount}. Los dólares ahora forman parte de tu portafolio de inversiones.`
+        );
+      } else {
+        Alert.alert("Error", error?.message || "No se pudo registrar la compra de dólares.");
+      }
+    } catch (err) {
+      Alert.alert("Error", "Ocurrió un problema al guardar.");
+    } finally {
+      setIsDollarLoading(false);
+    }
+  };
+
+  const handleOpenSellDollarModal = (purchase: DollarPurchase) => {
+    setSellingItem(purchase);
+    setSellRate(Math.round(usdToCop).toString());
+    const availableAccounts = ['Efectivo', ...customAccounts, ...cards.map((c: any) => c.name)];
+    if (availableAccounts.length > 0) {
+      setSelectedAccount(availableAccounts[0]);
+    }
+    setSellDollarModalVisible(true);
+  };
+
+  const handleConfirmSellDollar = async () => {
+    if (!sellingItem || !user) return;
+    const rate = parseFloat(sellRate.replace(',', '.'));
+
+    if (isNaN(rate) || rate <= 0) {
+      Alert.alert("Error", "Ingresa un precio de venta válido.");
+      return;
+    }
+
+    try {
+      setIsDollarLoading(true);
+      const soldAt = new Date().toISOString();
+      const { error } = await supabase
+        .from('dollar_purchases')
+        .update({
+          sold: true,
+          sale_rate: rate,
+          sale_account: selectedAccount,
+          sold_at: soldAt,
+        })
+        .eq('id', sellingItem.id);
+
+      if (!error) {
+        setDollarPurchases(prev =>
+          prev.map(p =>
+            p.id === sellingItem.id
+              ? {
+                  ...p,
+                  sold: true,
+                  sale_rate: rate,
+                  sale_account: selectedAccount,
+                  sold_at: soldAt,
+                }
+              : p
+          )
+        );
+        setSellDollarModalVisible(false);
+        setSellingItem(null);
+        Alert.alert("🎉 Venta Registrada", `La venta ingresará a tu cuenta ${selectedAccount}.`);
+      } else {
+        Alert.alert("Error", "No se pudo registrar la venta en la base de datos.");
+      }
+    } catch (e) {
+      Alert.alert("Error", "Ocurrió un problema al vender.");
+    } finally {
+      setIsDollarLoading(false);
+    }
+  };
+
+  const handleDeleteDollarPurchase = async (id: string) => {
+    Alert.alert("Eliminar Registro", "¿Deseas eliminar este registro de dólares?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Eliminar",
+        style: "destructive",
+        onPress: async () => {
+          const { error } = await supabase.from('dollar_purchases').delete().eq('id', id);
+          if (!error) {
+            setDollarPurchases(prev => prev.filter(p => p.id !== id));
+          } else {
+            Alert.alert("Error", "No se pudo eliminar el registro.");
+          }
+        },
+      },
+    ]);
   };
 
   const handleDividendSync = async (pos: Position[]) => {
@@ -662,8 +869,17 @@ export default function InvestScreen() {
     }
   };
 
-  const totalCurrent = positions.reduce((s, p) => s + (p.shares * (livePrices[p.id] || p.avgPrice)), 0);
-  const totalInvested = positions.reduce((s, p) => s + (p.shares * p.avgPrice), 0);
+  // Dólares Activos
+  const activeDollars = dollarPurchases.filter(p => !p.sold);
+  const totalDollarUsd = activeDollars.reduce((sum, p) => sum + p.amount_usd, 0);
+  const totalDollarCostCop = activeDollars.reduce((sum, p) => sum + (p.amount_usd * p.purchase_rate), 0);
+  const totalDollarCurrentValueCop = totalDollarUsd * usdToCop;
+  const avgDollarPurchaseRate = totalDollarUsd > 0 ? totalDollarCostCop / totalDollarUsd : 0;
+  const dollarProfitAbs = totalDollarCurrentValueCop - totalDollarCostCop;
+  const dollarProfitPct = totalDollarCostCop > 0 ? (dollarProfitAbs / totalDollarCostCop) * 100 : 0;
+
+  const totalCurrent = positions.reduce((s, p) => s + (p.shares * (livePrices[p.id] || p.avgPrice)), 0) + totalDollarCurrentValueCop;
+  const totalInvested = positions.reduce((s, p) => s + (p.shares * p.avgPrice), 0) + totalDollarCostCop;
   const profitPct = totalInvested > 0 ? ((totalCurrent - totalInvested) / totalInvested) * 100 : 0;
   const profitAbs = totalCurrent - totalInvested;
 
@@ -939,6 +1155,160 @@ export default function InvestScreen() {
                   </ScrollView>
                 </View>
               )}
+
+              {/* 💵 COMPRA Y VENTA DE DÓLARES SECTION */}
+              <View style={[s.bvcMarketSection, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 12 }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                  <View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>Compra de Dólares 💵</Text>
+                      <View style={{ backgroundColor: '#10B98115', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}>
+                        <Text style={{ color: '#10B981', fontSize: 10, fontWeight: '900' }}>TRM: {fmt(usdToCop)}</Text>
+                      </View>
+                    </View>
+                    <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700', marginTop: 2 }}>
+                      Seguimiento de tu divisa en tiempo real
+                    </Text>
+                  </View>
+                  <TouchableOpacity 
+                    onPress={handleOpenBuyDollarModal} 
+                    style={{ backgroundColor: colors.accent, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                  >
+                    <Ionicons name="add" size={16} color="#FFF" />
+                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800' }}>Comprar</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Resumen Dólares Activos */}
+                <View style={{ backgroundColor: colors.bg, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: colors.border, marginBottom: 14 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View>
+                      <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '800' }}>PORTAFOLIO USD</Text>
+                      <Text style={{ color: colors.text, fontSize: 20, fontWeight: '900', marginTop: 2 }}>${totalDollarUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '800' }}>VALOR ACTUAL</Text>
+                      <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginTop: 2 }}>{fmt(totalDollarCurrentValueCop)}</Text>
+                    </View>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border }}>
+                    <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>
+                      Precio prom: {fmt(avgDollarPurchaseRate)}
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Text style={{ color: dollarProfitAbs >= 0 ? '#10B981' : '#EF4444', fontSize: 12, fontWeight: '900' }}>
+                        {dollarProfitAbs >= 0 ? '▲' : '▼'} {fmt(Math.abs(dollarProfitAbs))} ({dollarProfitPct.toFixed(1)}%)
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Compras Activas */}
+                <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 10 }}>Compras Activas ({activeDollars.length})</Text>
+                {activeDollars.length === 0 ? (
+                  <Text style={{ color: colors.sub, fontSize: 12, fontStyle: 'italic', marginBottom: 10 }}>
+                    No tienes dólares en posesión. Toca en "+ Comprar" para registrar una compra.
+                  </Text>
+                ) : (
+                  activeDollars.map(item => {
+                    const currentVal = item.amount_usd * usdToCop;
+                    const costVal = item.amount_usd * item.purchase_rate;
+                    const itemProfit = currentVal - costVal;
+                    const itemProfitPct = costVal > 0 ? (itemProfit / costVal) * 100 : 0;
+
+                    return (
+                      <View key={item.id} style={{ backgroundColor: colors.bg, borderRadius: 16, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900' }}>${item.amount_usd.toLocaleString()} USD</Text>
+                            <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '600' }}>@ {fmt(item.purchase_rate)}</Text>
+                          </View>
+                          <Text style={{ color: colors.sub, fontSize: 10, marginTop: 2 }}>
+                            Comprado el {new Date(item.purchased_at || Date.now()).toLocaleDateString('es-CO')}
+                          </Text>
+                        </View>
+
+                        <View style={{ alignItems: 'flex-end', marginRight: 10 }}>
+                          <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>{fmt(currentVal)}</Text>
+                          <Text style={{ color: itemProfit >= 0 ? '#10B981' : '#EF4444', fontSize: 11, fontWeight: '800' }}>
+                            {itemProfit >= 0 ? '+' : ''}{fmt(itemProfit)} ({itemProfitPct.toFixed(1)}%)
+                          </Text>
+                        </View>
+
+                        <View style={{ flexDirection: 'row', gap: 6 }}>
+                          <TouchableOpacity 
+                            onPress={() => handleOpenSellDollarModal(item)}
+                            style={{ backgroundColor: '#10B98118', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}
+                          >
+                            <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '900' }}>Vender</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            onPress={() => handleDeleteDollarPurchase(item.id)}
+                            style={{ backgroundColor: '#EF444415', padding: 6, borderRadius: 8 }}
+                          >
+                            <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
+
+                {/* Historial de Ventas */}
+                {dollarPurchases.some(p => p.sold) && (
+                  <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10 }}>
+                    <TouchableOpacity 
+                      onPress={() => setShowDollarHistory(!showDollarHistory)}
+                      style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 }}
+                    >
+                      <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '800' }}>
+                        Historial de Ventas ({dollarPurchases.filter(p => p.sold).length})
+                      </Text>
+                      <Ionicons name={showDollarHistory ? "chevron-up" : "chevron-down"} size={16} color={colors.sub} />
+                    </TouchableOpacity>
+
+                    {showDollarHistory && (
+                      <View style={{ marginTop: 8 }}>
+                        {dollarPurchases.filter(p => p.sold).map(item => {
+                          const saleRate = item.sale_rate || item.purchase_rate;
+                          const totalSaleCop = item.amount_usd * saleRate;
+                          const totalCostCop = item.amount_usd * item.purchase_rate;
+                          const netProfit = totalSaleCop - totalCostCop;
+                          const netProfitPct = totalCostCop > 0 ? (netProfit / totalCostCop) * 100 : 0;
+
+                          return (
+                            <View key={item.id} style={{ backgroundColor: colors.bg + '70', borderRadius: 14, padding: 10, marginBottom: 6, borderWidth: 1, borderColor: colors.border, opacity: 0.9 }}>
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <View>
+                                  <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>${item.amount_usd} USD vendidos</Text>
+                                  <Text style={{ color: colors.sub, fontSize: 10, marginTop: 2 }}>
+                                    Compra: {fmt(item.purchase_rate)} ➔ Venta: {fmt(saleRate)}
+                                  </Text>
+                                  {item.sale_account && (
+                                    <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '700', marginTop: 2 }}>
+                                      Destino: {item.sale_account}
+                                    </Text>
+                                  )}
+                                </View>
+
+                                <View style={{ alignItems: 'flex-end' }}>
+                                  <Text style={{ color: netProfit >= 0 ? '#10B981' : '#EF4444', fontSize: 12, fontWeight: '900' }}>
+                                    {netProfit >= 0 ? '+' : ''}{fmt(netProfit)}
+                                  </Text>
+                                  <Text style={{ color: netProfit >= 0 ? '#10B981' : '#EF4444', fontSize: 10, fontWeight: '800' }}>
+                                    ({netProfitPct.toFixed(1)}%)
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
 
               {/* Main Portfolio Navigation */}
               <View style={{ marginTop: 8 }}>
@@ -1345,6 +1715,306 @@ export default function InvestScreen() {
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
                 <TouchableOpacity style={[s.modalBtn, { backgroundColor: colors.bg }]} onPress={() => setAlertModalVisible(false)}><Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text></TouchableOpacity>
                 <TouchableOpacity style={[s.modalBtn, { backgroundColor: colors.accent }]} onPress={handleCreateAlert}><Text style={{ color: '#FFF', fontWeight: '900' }}>Configurar Alerta</Text></TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      {/* 💵 MODAL COMPRAR DÓLARES */}
+      <Modal visible={buyDollarModalVisible} transparent animationType="slide" statusBarTranslucent>
+        <View style={s.modalOverlay}>
+          <TouchableWithoutFeedback onPress={() => setBuyDollarModalVisible(false)}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={Platform.OS === 'ios'}>
+            <View style={[s.modalBox, { backgroundColor: colors.card }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+                <Text style={[s.modalTitle, { color: colors.text }]}>Registrar Compra USD 💵</Text>
+                <TouchableOpacity onPress={() => setBuyDollarModalVisible(false)}>
+                  <Ionicons name="close" size={24} color={colors.sub} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ gap: 12 }}>
+                {/* Selector de modo: Monto en COP vs Cantidad USD */}
+                <View style={{ flexDirection: 'row', backgroundColor: colors.bg, borderRadius: 12, padding: 3 }}>
+                  <TouchableOpacity
+                    onPress={() => setBuyMode('cop')}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 8,
+                      borderRadius: 10,
+                      backgroundColor: buyMode === 'cop' ? colors.card : 'transparent',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ color: buyMode === 'cop' ? colors.text : colors.sub, fontSize: 12, fontWeight: '800' }}>
+                      Monto en COP ($)
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setBuyMode('usd')}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 8,
+                      borderRadius: 10,
+                      backgroundColor: buyMode === 'usd' ? colors.card : 'transparent',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ color: buyMode === 'usd' ? colors.text : colors.sub, fontSize: 12, fontWeight: '800' }}>
+                      Cantidad Dólares ($ USD)
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {buyMode === 'cop' ? (
+                  <View>
+                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
+                      ¿Cuánto dinero en COP gastaste?
+                    </Text>
+                    <TextInput 
+                      style={[s.input, { backgroundColor: colors.bg, color: colors.text, height: 50, fontSize: 18 }]}
+                      placeholder="ej. 1.000.000"
+                      placeholderTextColor={colors.sub}
+                      keyboardType="numeric"
+                      value={dollarTotalCop}
+                      onChangeText={t => setDollarTotalCop(formatInputDisplay(t, 'COP'))}
+                    />
+                  </View>
+                ) : (
+                  <View>
+                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
+                      ¿Cuántos dólares compraste? ($ USD)
+                    </Text>
+                    <TextInput 
+                      style={[s.input, { backgroundColor: colors.bg, color: colors.text, height: 50, fontSize: 18 }]}
+                      placeholder="ej. 250"
+                      placeholderTextColor={colors.sub}
+                      keyboardType="decimal-pad"
+                      value={dollarAmountUsd}
+                      onChangeText={setDollarAmountUsd}
+                    />
+                  </View>
+                )}
+
+                <View>
+                  <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
+                    Precio/Tasa por dólar al comprar (COP)
+                  </Text>
+                  <TextInput 
+                    style={[s.input, { backgroundColor: colors.bg, color: colors.text, height: 50, fontSize: 18 }]}
+                    placeholder={Math.round(usdToCop).toString()}
+                    placeholderTextColor={colors.sub}
+                    keyboardType="decimal-pad"
+                    value={dollarPurchaseRate}
+                    onChangeText={setDollarPurchaseRate}
+                  />
+                  <Text style={{ color: colors.sub, fontSize: 11, marginTop: 4 }}>
+                    TRM actual sugerida: {fmt(usdToCop)}
+                  </Text>
+                </View>
+
+                {/* Cuenta Origen de la plata */}
+                <View>
+                  <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
+                    ¿De qué cuenta salió el dinero?
+                  </Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }}>
+                    {Array.from(new Set(['Efectivo', ...customAccounts, ...cards.map((c: any) => c.name)])).map((acc: any) => (
+                      <TouchableOpacity
+                        key={acc}
+                        onPress={() => setBuyAccount(acc)}
+                        style={{
+                          backgroundColor: buyAccount === acc ? colors.accent : colors.bg,
+                          paddingHorizontal: 14,
+                          paddingVertical: 8,
+                          borderRadius: 12,
+                          marginRight: 8,
+                          borderWidth: 1,
+                          borderColor: buyAccount === acc ? colors.accent : colors.border,
+                        }}
+                      >
+                        <Text style={{ color: buyAccount === acc ? '#FFF' : colors.text, fontWeight: '800', fontSize: 12 }}>
+                          {acc}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+
+                {/* Calculation preview */}
+                {(() => {
+                  const rate = parseFloat(dollarPurchaseRate.replace(',', '.'));
+                  if (isNaN(rate) || rate <= 0) return null;
+
+                  if (buyMode === 'cop') {
+                    const copVal = parseInputToNumber(dollarTotalCop, 'COP');
+                    if (copVal <= 0) return null;
+                    const calculatedUsd = copVal / rate;
+
+                    return (
+                      <View style={{ backgroundColor: colors.bg, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginTop: 4 }}>
+                        <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>Dólares obtenidos:</Text>
+                        <Text style={{ color: colors.accent, fontSize: 18, fontWeight: '900', marginTop: 2 }}>
+                          ${calculatedUsd.toFixed(2)} USD
+                        </Text>
+                        <Text style={{ color: colors.sub, fontSize: 10, marginTop: 2 }}>
+                          Saldrán {fmt(copVal)} de tu cuenta {buyAccount} e ingresarán a Inversiones.
+                        </Text>
+                      </View>
+                    );
+                  } else {
+                    const usdVal = parseFloat(dollarAmountUsd.replace(',', '.'));
+                    if (isNaN(usdVal) || usdVal <= 0) return null;
+                    const calculatedCop = usdVal * rate;
+
+                    return (
+                      <View style={{ backgroundColor: colors.bg, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginTop: 4 }}>
+                        <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>Costo total pagado:</Text>
+                        <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900', marginTop: 2 }}>
+                          {fmt(calculatedCop)}
+                        </Text>
+                        <Text style={{ color: colors.sub, fontSize: 10, marginTop: 2 }}>
+                          Saldrán {fmt(calculatedCop)} de tu cuenta {buyAccount} e ingresarán a Inversiones.
+                        </Text>
+                      </View>
+                    );
+                  }
+                })()}
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
+                <TouchableOpacity style={[s.modalBtn, { backgroundColor: colors.bg }]} onPress={() => setBuyDollarModalVisible(false)}>
+                  <Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[s.modalBtn, { backgroundColor: colors.accent, opacity: isDollarLoading ? 0.7 : 1 }]} 
+                  onPress={handleSaveDollarPurchase}
+                  disabled={isDollarLoading}
+                >
+                  {isDollarLoading ? (
+                    <ActivityIndicator color="#FFF" />
+                  ) : (
+                    <Text style={{ color: '#FFF', fontWeight: '900' }}>Guardar Compra</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      {/* 🟢 MODAL VENDER DÓLARES */}
+      <Modal visible={sellDollarModalVisible} transparent animationType="slide" statusBarTranslucent>
+        <View style={s.modalOverlay}>
+          <TouchableWithoutFeedback onPress={() => setSellDollarModalVisible(false)}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={Platform.OS === 'ios'}>
+            <View style={[s.modalBox, { backgroundColor: colors.card }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+                <Text style={[s.modalTitle, { color: colors.text }]}>Registrar Venta USD 💰</Text>
+                <TouchableOpacity onPress={() => setSellDollarModalVisible(false)}>
+                  <Ionicons name="close" size={24} color={colors.sub} />
+                </TouchableOpacity>
+              </View>
+
+              {sellingItem && (
+                <View style={{ gap: 12 }}>
+                  <View style={{ backgroundColor: colors.bg, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border }}>
+                    <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>Vendiendo posición de:</Text>
+                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginTop: 2 }}>
+                      ${sellingItem.amount_usd.toLocaleString()} USD
+                    </Text>
+                    <Text style={{ color: colors.sub, fontSize: 11, marginTop: 2 }}>
+                      Comprados a {fmt(sellingItem.purchase_rate)} ({fmt(sellingItem.amount_usd * sellingItem.purchase_rate)})
+                    </Text>
+                  </View>
+
+                  <View>
+                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
+                      ¿A qué precio los vendiste por dólar? (COP)
+                    </Text>
+                    <TextInput 
+                      style={[s.input, { backgroundColor: colors.bg, color: colors.text, height: 50, fontSize: 18 }]}
+                      placeholder={Math.round(usdToCop).toString()}
+                      placeholderTextColor={colors.sub}
+                      keyboardType="decimal-pad"
+                      value={sellRate}
+                      onChangeText={setSellRate}
+                    />
+                  </View>
+
+                  <View>
+                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
+                      Selecciona la cuenta donde entra el dinero:
+                    </Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }}>
+                      {Array.from(new Set(['Efectivo', ...customAccounts, ...cards.map((c: any) => c.name)])).map((acc: any) => (
+                        <TouchableOpacity
+                          key={acc}
+                          onPress={() => setSelectedAccount(acc)}
+                          style={{
+                            backgroundColor: selectedAccount === acc ? colors.accent : colors.bg,
+                            paddingHorizontal: 14,
+                            paddingVertical: 10,
+                            borderRadius: 12,
+                            marginRight: 8,
+                            borderWidth: 1,
+                            borderColor: selectedAccount === acc ? colors.accent : colors.border,
+                          }}
+                        >
+                          <Text style={{ color: selectedAccount === acc ? '#FFF' : colors.text, fontWeight: '800', fontSize: 12 }}>
+                            {acc}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+
+                  {/* Calculation preview */}
+                  {parseFloat(sellRate) > 0 && (
+                    <View style={{ backgroundColor: colors.bg, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border }}>
+                      {(() => {
+                        const rate = parseFloat(sellRate);
+                        const totalReceived = sellingItem.amount_usd * rate;
+                        const totalCost = sellingItem.amount_usd * sellingItem.purchase_rate;
+                        const profit = totalReceived - totalCost;
+                        const profitPct = totalCost > 0 ? (profit / totalCost) * 100 : 0;
+
+                        return (
+                          <>
+                            <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>
+                              Recibes en {selectedAccount}: <Text style={{ color: colors.text, fontWeight: '900' }}>{fmt(totalReceived)}</Text>
+                            </Text>
+                            <Text style={{ color: profit >= 0 ? '#10B981' : '#EF4444', fontSize: 13, fontWeight: '900', marginTop: 4 }}>
+                              {profit >= 0 ? '¡Ganancia neta: +' : 'Pérdida neta: '}{fmt(profit)} ({profitPct.toFixed(1)}%)
+                            </Text>
+                          </>
+                        );
+                      })()}
+                    </View>
+                  )}
+                </View>
+              )}
+
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
+                <TouchableOpacity style={[s.modalBtn, { backgroundColor: colors.bg }]} onPress={() => setSellDollarModalVisible(false)}>
+                  <Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[s.modalBtn, { backgroundColor: '#10B981', opacity: isDollarLoading ? 0.7 : 1 }]} 
+                  onPress={handleConfirmSellDollar}
+                  disabled={isDollarLoading}
+                >
+                  {isDollarLoading ? (
+                    <ActivityIndicator color="#FFF" />
+                  ) : (
+                    <Text style={{ color: '#FFF', fontWeight: '900' }}>Confirmar Venta</Text>
+                  )}
+                </TouchableOpacity>
               </View>
             </View>
           </KeyboardAvoidingView>
