@@ -61,9 +61,16 @@ export interface DollarPurchase {
   user_id: string;
   amount_usd: number;
   purchase_rate: number;
+  fee_cop?: number;
+  total_cost_cop?: number;
+  effective_rate?: number;
+  source_account?: string;
+  notes?: string | null;
   sold: boolean;
   sale_rate?: number | null;
+  sale_fee_cop?: number;
   sale_account?: string | null;
+  total_received_cop?: number | null;
   sold_at?: string | null;
   purchased_at?: string;
 }
@@ -122,14 +129,21 @@ export default function InvestScreen() {
   const [dollarPurchases, setDollarPurchases] = useState<DollarPurchase[]>([]);
   const [buyDollarModalVisible, setBuyDollarModalVisible] = useState(false);
   const [sellDollarModalVisible, setSellDollarModalVisible] = useState(false);
+  const [editingItem, setEditingItem] = useState<DollarPurchase | null>(null);
   const [buyMode, setBuyMode] = useState<'usd' | 'cop'>('cop'); // 'cop' = ingresa total COP, 'usd' = ingresa USD
   const [dollarTotalCop, setDollarTotalCop] = useState('');
   const [dollarAmountUsd, setDollarAmountUsd] = useState('');
   const [dollarPurchaseRate, setDollarPurchaseRate] = useState('');
+  const [dollarFeeCop, setDollarFeeCop] = useState('');
+  const [dollarNotes, setDollarNotes] = useState('');
   const [buyAccount, setBuyAccount] = useState('Efectivo');
+  
+  // Venta State
   const [sellingItem, setSellingItem] = useState<DollarPurchase | null>(null);
   const [sellRate, setSellRate] = useState('');
+  const [sellFeeCop, setSellFeeCop] = useState('');
   const [selectedAccount, setSelectedAccount] = useState('Efectivo');
+  
   const [showDollarHistory, setShowDollarHistory] = useState(false);
   const [isDollarLoading, setIsDollarLoading] = useState(false);
 
@@ -352,9 +366,16 @@ export default function InvestScreen() {
           user_id: d.user_id,
           amount_usd: Number(d.amount_usd),
           purchase_rate: Number(d.purchase_rate),
+          fee_cop: d.fee_cop ? Number(d.fee_cop) : 0,
+          total_cost_cop: d.total_cost_cop ? Number(d.total_cost_cop) : Number(d.amount_usd) * Number(d.purchase_rate),
+          effective_rate: d.effective_rate ? Number(d.effective_rate) : Number(d.purchase_rate),
+          source_account: d.source_account || 'Efectivo',
+          notes: d.notes || null,
           sold: Boolean(d.sold),
           sale_rate: d.sale_rate ? Number(d.sale_rate) : null,
+          sale_fee_cop: d.sale_fee_cop ? Number(d.sale_fee_cop) : 0,
           sale_account: d.sale_account || null,
+          total_received_cop: d.total_received_cop ? Number(d.total_received_cop) : null,
           sold_at: d.sold_at || null,
           purchased_at: d.purchased_at,
         })));
@@ -365,10 +386,13 @@ export default function InvestScreen() {
   };
 
   const handleOpenBuyDollarModal = () => {
+    setEditingItem(null);
     setBuyMode('cop');
     setDollarTotalCop('');
     setDollarAmountUsd('');
     setDollarPurchaseRate(Math.round(usdToCop).toString());
+    setDollarFeeCop('');
+    setDollarNotes('');
     const availableAccounts = ['Efectivo', ...customAccounts, ...cards.map((c: any) => c.name)];
     if (availableAccounts.length > 0) {
       setBuyAccount(availableAccounts[0]);
@@ -376,9 +400,22 @@ export default function InvestScreen() {
     setBuyDollarModalVisible(true);
   };
 
+  const handleOpenEditDollarModal = (item: DollarPurchase) => {
+    setEditingItem(item);
+    setBuyMode('usd');
+    setDollarAmountUsd(item.amount_usd.toString());
+    setDollarTotalCop('');
+    setDollarPurchaseRate(item.purchase_rate.toString());
+    setDollarFeeCop(item.fee_cop ? item.fee_cop.toString() : '');
+    setDollarNotes(item.notes || '');
+    setBuyAccount(item.source_account || 'Efectivo');
+    setBuyDollarModalVisible(true);
+  };
+
   const handleSaveDollarPurchase = async () => {
     if (!user) return;
     const rate = parseFloat(dollarPurchaseRate.replace(',', '.'));
+    const fee = parseInputToNumber(dollarFeeCop, 'COP');
 
     if (isNaN(rate) || rate <= 0) {
       Alert.alert("Error", "Ingresa un precio/tasa de dólar válido.");
@@ -386,12 +423,15 @@ export default function InvestScreen() {
     }
 
     let finalUsd = 0;
+    let baseCostCop = 0;
+
     if (buyMode === 'cop') {
-      const copAmount = parseFloat(dollarTotalCop.replace(/\D/g, ''));
+      const copAmount = parseInputToNumber(dollarTotalCop, 'COP');
       if (isNaN(copAmount) || copAmount <= 0) {
         Alert.alert("Error", "Ingresa el monto total en COP gastado.");
         return;
       }
+      baseCostCop = copAmount;
       finalUsd = copAmount / rate;
     } else {
       const usdAmount = parseFloat(dollarAmountUsd.replace(',', '.'));
@@ -400,35 +440,67 @@ export default function InvestScreen() {
         return;
       }
       finalUsd = usdAmount;
+      baseCostCop = usdAmount * rate;
     }
+
+    const totalCostCop = baseCostCop + fee;
+    const effectiveRate = finalUsd > 0 ? totalCostCop / finalUsd : rate;
 
     try {
       setIsDollarLoading(true);
-      const newPurchase = {
+      
+      const payload = {
         user_id: user.id,
         amount_usd: finalUsd,
         purchase_rate: rate,
+        fee_cop: fee,
+        total_cost_cop: totalCostCop,
+        effective_rate: effectiveRate,
+        source_account: buyAccount,
+        notes: dollarNotes.trim() || null,
         sold: false,
       };
 
-      const { data, error } = await supabase.from('dollar_purchases').insert([newPurchase]).select();
-      if (!error && data) {
-        const item: DollarPurchase = {
-          id: data[0].id,
-          user_id: data[0].user_id,
-          amount_usd: Number(data[0].amount_usd),
-          purchase_rate: Number(data[0].purchase_rate),
-          sold: false,
-          purchased_at: data[0].purchased_at,
-        };
-        setDollarPurchases(prev => [item, ...prev]);
-        setBuyDollarModalVisible(false);
-        Alert.alert(
-          "💵 Compra Registrada", 
-          `Compraste $${finalUsd.toFixed(2)} USD saliendo de tu cuenta ${buyAccount}. Los dólares ahora forman parte de tu portafolio de inversiones.`
-        );
+      if (editingItem) {
+        // Modo Edición
+        const { error } = await supabase.from('dollar_purchases').update(payload).eq('id', editingItem.id);
+        if (!error) {
+          setDollarPurchases(prev => prev.map(p => p.id === editingItem.id ? {
+            ...p,
+            ...payload
+          } : p));
+          setBuyDollarModalVisible(false);
+          setEditingItem(null);
+          Alert.alert("✏️ Compra Actualizada", "Los datos y métricas de la compra fueron actualizados.");
+        } else {
+          Alert.alert("Error", error?.message || "No se pudo actualizar la compra.");
+        }
       } else {
-        Alert.alert("Error", error?.message || "No se pudo registrar la compra de dólares.");
+        // Modo Nueva Compra
+        const { data, error } = await supabase.from('dollar_purchases').insert([payload]).select();
+        if (!error && data) {
+          const item: DollarPurchase = {
+            id: data[0].id,
+            user_id: data[0].user_id,
+            amount_usd: Number(data[0].amount_usd),
+            purchase_rate: Number(data[0].purchase_rate),
+            fee_cop: Number(data[0].fee_cop || 0),
+            total_cost_cop: Number(data[0].total_cost_cop || totalCostCop),
+            effective_rate: Number(data[0].effective_rate || effectiveRate),
+            source_account: data[0].source_account || buyAccount,
+            notes: data[0].notes || null,
+            sold: false,
+            purchased_at: data[0].purchased_at,
+          };
+          setDollarPurchases(prev => [item, ...prev]);
+          setBuyDollarModalVisible(false);
+          Alert.alert(
+            "💵 Compra Registrada", 
+            `Compraste $${finalUsd.toFixed(2)} USD (Tasa efectiva: ${fmt(effectiveRate)}). Salieron ${fmt(totalCostCop)} de tu cuenta ${buyAccount} hacia Inversiones USD.`
+          );
+        } else {
+          Alert.alert("Error", error?.message || "No se pudo registrar la compra de dólares.");
+        }
       }
     } catch (err) {
       Alert.alert("Error", "Ocurrió un problema al guardar.");
@@ -440,6 +512,7 @@ export default function InvestScreen() {
   const handleOpenSellDollarModal = (purchase: DollarPurchase) => {
     setSellingItem(purchase);
     setSellRate(Math.round(usdToCop).toString());
+    setSellFeeCop('');
     const availableAccounts = ['Efectivo', ...customAccounts, ...cards.map((c: any) => c.name)];
     if (availableAccounts.length > 0) {
       setSelectedAccount(availableAccounts[0]);
@@ -450,11 +523,17 @@ export default function InvestScreen() {
   const handleConfirmSellDollar = async () => {
     if (!sellingItem || !user) return;
     const rate = parseFloat(sellRate.replace(',', '.'));
+    const fee = parseInputToNumber(sellFeeCop, 'COP');
 
     if (isNaN(rate) || rate <= 0) {
       Alert.alert("Error", "Ingresa un precio de venta válido.");
       return;
     }
+
+    const grossReceived = sellingItem.amount_usd * rate;
+    const netReceived = grossReceived - fee;
+    const originalCost = sellingItem.total_cost_cop || (sellingItem.amount_usd * sellingItem.purchase_rate);
+    const netProfit = netReceived - originalCost;
 
     try {
       setIsDollarLoading(true);
@@ -464,7 +543,9 @@ export default function InvestScreen() {
         .update({
           sold: true,
           sale_rate: rate,
+          sale_fee_cop: fee,
           sale_account: selectedAccount,
+          total_received_cop: netReceived,
           sold_at: soldAt,
         })
         .eq('id', sellingItem.id);
@@ -477,7 +558,9 @@ export default function InvestScreen() {
                   ...p,
                   sold: true,
                   sale_rate: rate,
+                  sale_fee_cop: fee,
                   sale_account: selectedAccount,
+                  total_received_cop: netReceived,
                   sold_at: soldAt,
                 }
               : p
@@ -485,7 +568,10 @@ export default function InvestScreen() {
         );
         setSellDollarModalVisible(false);
         setSellingItem(null);
-        Alert.alert("🎉 Venta Registrada", `La venta ingresará a tu cuenta ${selectedAccount}.`);
+        Alert.alert(
+          "🎉 Venta Registrada", 
+          `Recibes ${fmt(netReceived)} netos en tu cuenta ${selectedAccount} (Ganancia neta realizada: ${netProfit >= 0 ? '+' : ''}${fmt(netProfit)}).`
+        );
       } else {
         Alert.alert("Error", "No se pudo registrar la venta en la base de datos.");
       }
@@ -497,17 +583,18 @@ export default function InvestScreen() {
   };
 
   const handleDeleteDollarPurchase = async (id: string) => {
-    Alert.alert("Eliminar Registro", "¿Deseas eliminar este registro de dólares?", [
+    Alert.alert("Anular / Eliminar Operación", "¿Deseas anular esta compra de dólares? Se revertirá la posición en USD y el dinero en la cuenta origen.", [
       { text: "Cancelar", style: "cancel" },
       {
-        text: "Eliminar",
+        text: "Anular Operación",
         style: "destructive",
         onPress: async () => {
           const { error } = await supabase.from('dollar_purchases').delete().eq('id', id);
           if (!error) {
             setDollarPurchases(prev => prev.filter(p => p.id !== id));
+            Alert.alert("Reversión Completada", "La operación ha sido anulada y revertida.");
           } else {
-            Alert.alert("Error", "No se pudo eliminar el registro.");
+            Alert.alert("Error", "No se pudo anular la operación.");
           }
         },
       },
@@ -872,9 +959,9 @@ export default function InvestScreen() {
   // Dólares Activos
   const activeDollars = dollarPurchases.filter(p => !p.sold);
   const totalDollarUsd = activeDollars.reduce((sum, p) => sum + p.amount_usd, 0);
-  const totalDollarCostCop = activeDollars.reduce((sum, p) => sum + (p.amount_usd * p.purchase_rate), 0);
+  const totalDollarCostCop = activeDollars.reduce((sum, p) => sum + (p.total_cost_cop || (p.amount_usd * p.purchase_rate) + (p.fee_cop || 0)), 0);
   const totalDollarCurrentValueCop = totalDollarUsd * usdToCop;
-  const avgDollarPurchaseRate = totalDollarUsd > 0 ? totalDollarCostCop / totalDollarUsd : 0;
+  const avgDollarEffectiveRate = totalDollarUsd > 0 ? totalDollarCostCop / totalDollarUsd : 0;
   const dollarProfitAbs = totalDollarCurrentValueCop - totalDollarCostCop;
   const dollarProfitPct = totalDollarCostCop > 0 ? (dollarProfitAbs / totalDollarCostCop) * 100 : 0;
 
@@ -1161,13 +1248,13 @@ export default function InvestScreen() {
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                   <View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>Compra de Dólares 💵</Text>
+                      <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>Billetera USD 🇺🇸</Text>
                       <View style={{ backgroundColor: '#10B98115', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}>
                         <Text style={{ color: '#10B981', fontSize: 10, fontWeight: '900' }}>TRM: {fmt(usdToCop)}</Text>
                       </View>
                     </View>
                     <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700', marginTop: 2 }}>
-                      Seguimiento de tu divisa en tiempo real
+                      Inversión en divisas (Transferencia de Activos)
                     </Text>
                   </View>
                   <TouchableOpacity 
@@ -1175,16 +1262,16 @@ export default function InvestScreen() {
                     style={{ backgroundColor: colors.accent, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 4 }}
                   >
                     <Ionicons name="add" size={16} color="#FFF" />
-                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800' }}>Comprar</Text>
+                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800' }}>Comprar USD</Text>
                   </TouchableOpacity>
                 </View>
 
-                {/* Resumen Dólares Activos */}
+                {/* Resumen Billetera USD */}
                 <View style={{ backgroundColor: colors.bg, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: colors.border, marginBottom: 14 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <View>
-                      <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '800' }}>PORTAFOLIO USD</Text>
-                      <Text style={{ color: colors.text, fontSize: 20, fontWeight: '900', marginTop: 2 }}>${totalDollarUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</Text>
+                      <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '800' }}>POSICIÓN USD (FIJA)</Text>
+                      <Text style={{ color: colors.text, fontSize: 22, fontWeight: '900', marginTop: 2 }}>${totalDollarUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
                       <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '800' }}>VALOR ACTUAL</Text>
@@ -1193,11 +1280,17 @@ export default function InvestScreen() {
                   </View>
 
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border }}>
-                    <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>
-                      Precio prom: {fmt(avgDollarPurchaseRate)}
-                    </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <Text style={{ color: dollarProfitAbs >= 0 ? '#10B981' : '#EF4444', fontSize: 12, fontWeight: '900' }}>
+                    <View>
+                      <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '700' }}>
+                        Costo Adquisición: {fmt(totalDollarCostCop)}
+                      </Text>
+                      <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '700', marginTop: 1 }}>
+                        Tasa Efectiva Prom: {fmt(avgDollarEffectiveRate)}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '800', marginBottom: 2 }}>RENTABILIDAD NO REALIZADA</Text>
+                      <Text style={{ color: dollarProfitAbs >= 0 ? '#10B981' : '#EF4444', fontSize: 13, fontWeight: '900' }}>
                         {dollarProfitAbs >= 0 ? '▲' : '▼'} {fmt(Math.abs(dollarProfitAbs))} ({dollarProfitPct.toFixed(1)}%)
                       </Text>
                     </View>
@@ -1205,49 +1298,74 @@ export default function InvestScreen() {
                 </View>
 
                 {/* Compras Activas */}
-                <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 10 }}>Compras Activas ({activeDollars.length})</Text>
+                <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 10 }}>Posiciones Activas ({activeDollars.length})</Text>
                 {activeDollars.length === 0 ? (
                   <Text style={{ color: colors.sub, fontSize: 12, fontStyle: 'italic', marginBottom: 10 }}>
-                    No tienes dólares en posesión. Toca en "+ Comprar" para registrar una compra.
+                    No tienes USD activos en posesión. Toca en "+ Comprar USD" para registrar tu primera posición.
                   </Text>
                 ) : (
                   activeDollars.map(item => {
                     const currentVal = item.amount_usd * usdToCop;
-                    const costVal = item.amount_usd * item.purchase_rate;
+                    const costVal = item.total_cost_cop || (item.amount_usd * item.purchase_rate) + (item.fee_cop || 0);
+                    const effectiveRate = item.effective_rate || (costVal / item.amount_usd);
                     const itemProfit = currentVal - costVal;
                     const itemProfitPct = costVal > 0 ? (itemProfit / costVal) * 100 : 0;
 
                     return (
-                      <View key={item.id} style={{ backgroundColor: colors.bg, borderRadius: 16, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900' }}>${item.amount_usd.toLocaleString()} USD</Text>
-                            <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '600' }}>@ {fmt(item.purchase_rate)}</Text>
+                      <View key={item.id} style={{ backgroundColor: colors.bg, borderRadius: 16, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: colors.border }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Text style={{ color: colors.text, fontSize: 15, fontWeight: '900' }}>${item.amount_usd.toLocaleString()} USD</Text>
+                              <View style={{ backgroundColor: colors.accent + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                                <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '800' }}>{item.source_account || 'Efectivo'}</Text>
+                              </View>
+                            </View>
+                            
+                            <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '600', marginTop: 3 }}>
+                              Tasa: {fmt(item.purchase_rate)} {item.fee_cop ? `+ Comisión ${fmt(item.fee_cop)}` : ''} ➔ Efectiva: {fmt(effectiveRate)}
+                            </Text>
+
+                            {item.notes ? (
+                              <Text style={{ color: colors.sub, fontSize: 10, fontStyle: 'italic', marginTop: 2 }}>
+                                📝 {item.notes}
+                              </Text>
+                            ) : null}
+
+                            <Text style={{ color: colors.sub, fontSize: 10, marginTop: 2 }}>
+                              Comprado el {new Date(item.purchased_at || Date.now()).toLocaleDateString('es-CO')}
+                            </Text>
                           </View>
-                          <Text style={{ color: colors.sub, fontSize: 10, marginTop: 2 }}>
-                            Comprado el {new Date(item.purchased_at || Date.now()).toLocaleDateString('es-CO')}
-                          </Text>
+
+                          <View style={{ alignItems: 'flex-end', marginLeft: 10 }}>
+                            <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900' }}>{fmt(currentVal)}</Text>
+                            <Text style={{ color: itemProfit >= 0 ? '#10B981' : '#EF4444', fontSize: 11, fontWeight: '900', marginTop: 2 }}>
+                              {itemProfit >= 0 ? '+' : ''}{fmt(itemProfit)} ({itemProfitPct.toFixed(1)}%)
+                            </Text>
+                          </View>
                         </View>
 
-                        <View style={{ alignItems: 'flex-end', marginRight: 10 }}>
-                          <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>{fmt(currentVal)}</Text>
-                          <Text style={{ color: itemProfit >= 0 ? '#10B981' : '#EF4444', fontSize: 11, fontWeight: '800' }}>
-                            {itemProfit >= 0 ? '+' : ''}{fmt(itemProfit)} ({itemProfitPct.toFixed(1)}%)
-                          </Text>
-                        </View>
-
-                        <View style={{ flexDirection: 'row', gap: 6 }}>
+                        {/* Botones de Acción: Editar, Vender, Anular */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border + '50' }}>
+                          <TouchableOpacity 
+                            onPress={() => handleOpenEditDollarModal(item)}
+                            style={{ backgroundColor: colors.accent + '15', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                          >
+                            <Ionicons name="create-outline" size={13} color={colors.accent} />
+                            <Text style={{ color: colors.accent, fontSize: 11, fontWeight: '800' }}>Editar</Text>
+                          </TouchableOpacity>
                           <TouchableOpacity 
                             onPress={() => handleOpenSellDollarModal(item)}
-                            style={{ backgroundColor: '#10B98118', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}
+                            style={{ backgroundColor: '#10B98118', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}
                           >
+                            <Ionicons name="cash-outline" size={13} color="#10B981" />
                             <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '900' }}>Vender</Text>
                           </TouchableOpacity>
                           <TouchableOpacity 
                             onPress={() => handleDeleteDollarPurchase(item.id)}
-                            style={{ backgroundColor: '#EF444415', padding: 6, borderRadius: 8 }}
+                            style={{ backgroundColor: '#EF444415', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8 }}
                           >
-                            <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                            <Ionicons name="trash-outline" size={13} color="#EF4444" />
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -1272,27 +1390,29 @@ export default function InvestScreen() {
                       <View style={{ marginTop: 8 }}>
                         {dollarPurchases.filter(p => p.sold).map(item => {
                           const saleRate = item.sale_rate || item.purchase_rate;
-                          const totalSaleCop = item.amount_usd * saleRate;
-                          const totalCostCop = item.amount_usd * item.purchase_rate;
-                          const netProfit = totalSaleCop - totalCostCop;
+                          const saleFee = item.sale_fee_cop || 0;
+                          const totalSaleGross = item.amount_usd * saleRate;
+                          const totalSaleNet = item.total_received_cop || (totalSaleGross - saleFee);
+                          const totalCostCop = item.total_cost_cop || (item.amount_usd * item.purchase_rate) + (item.fee_cop || 0);
+                          const netProfit = totalSaleNet - totalCostCop;
                           const netProfitPct = totalCostCop > 0 ? (netProfit / totalCostCop) * 100 : 0;
 
                           return (
                             <View key={item.id} style={{ backgroundColor: colors.bg + '70', borderRadius: 14, padding: 10, marginBottom: 6, borderWidth: 1, borderColor: colors.border, opacity: 0.9 }}>
                               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <View>
+                                <View style={{ flex: 1 }}>
                                   <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>${item.amount_usd} USD vendidos</Text>
                                   <Text style={{ color: colors.sub, fontSize: 10, marginTop: 2 }}>
-                                    Compra: {fmt(item.purchase_rate)} ➔ Venta: {fmt(saleRate)}
+                                    Compra: {fmt(item.effective_rate || item.purchase_rate)} ➔ Venta: {fmt(saleRate)} {saleFee > 0 ? `(- Com ${fmt(saleFee)})` : ''}
                                   </Text>
                                   {item.sale_account && (
                                     <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '700', marginTop: 2 }}>
-                                      Destino: {item.sale_account}
+                                      Recibido en: {item.sale_account} ({fmt(totalSaleNet)})
                                     </Text>
                                   )}
                                 </View>
 
-                                <View style={{ alignItems: 'flex-end' }}>
+                                <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
                                   <Text style={{ color: netProfit >= 0 ? '#10B981' : '#EF4444', fontSize: 12, fontWeight: '900' }}>
                                     {netProfit >= 0 ? '+' : ''}{fmt(netProfit)}
                                   </Text>
@@ -1730,7 +1850,9 @@ export default function InvestScreen() {
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={Platform.OS === 'ios'}>
             <View style={[s.modalBox, { backgroundColor: colors.card }]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
-                <Text style={[s.modalTitle, { color: colors.text }]}>Registrar Compra USD 💵</Text>
+                <Text style={[s.modalTitle, { color: colors.text }]}>
+                  {editingItem ? 'Editar Compra USD ✏️' : 'Registrar Compra USD 💵'}
+                </Text>
                 <TouchableOpacity onPress={() => setBuyDollarModalVisible(false)}>
                   <Ionicons name="close" size={24} color={colors.sub} />
                 </TouchableOpacity>
@@ -1811,9 +1933,20 @@ export default function InvestScreen() {
                     value={dollarPurchaseRate}
                     onChangeText={setDollarPurchaseRate}
                   />
-                  <Text style={{ color: colors.sub, fontSize: 11, marginTop: 4 }}>
-                    TRM actual sugerida: {fmt(usdToCop)}
+                </View>
+
+                <View>
+                  <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
+                    Comisión / Costos de operación (COP)
                   </Text>
+                  <TextInput 
+                    style={[s.input, { backgroundColor: colors.bg, color: colors.text, height: 50, fontSize: 16 }]}
+                    placeholder="ej. 10.000 (Opcional)"
+                    placeholderTextColor={colors.sub}
+                    keyboardType="numeric"
+                    value={dollarFeeCop}
+                    onChangeText={t => setDollarFeeCop(formatInputDisplay(t, 'COP'))}
+                  />
                 </View>
 
                 {/* Cuenta Origen de la plata */}
@@ -1844,15 +1977,31 @@ export default function InvestScreen() {
                   </ScrollView>
                 </View>
 
+                <View>
+                  <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
+                    Notas u observaciones (Opcional)
+                  </Text>
+                  <TextInput 
+                    style={[s.input, { backgroundColor: colors.bg, color: colors.text, height: 44, fontSize: 14 }]}
+                    placeholder="ej. Casa de cambio aeropuerto"
+                    placeholderTextColor={colors.sub}
+                    value={dollarNotes}
+                    onChangeText={setDollarNotes}
+                  />
+                </View>
+
                 {/* Calculation preview */}
                 {(() => {
                   const rate = parseFloat(dollarPurchaseRate.replace(',', '.'));
                   if (isNaN(rate) || rate <= 0) return null;
+                  const fee = parseInputToNumber(dollarFeeCop, 'COP');
 
                   if (buyMode === 'cop') {
                     const copVal = parseInputToNumber(dollarTotalCop, 'COP');
                     if (copVal <= 0) return null;
                     const calculatedUsd = copVal / rate;
+                    const totalCostCop = copVal + fee;
+                    const effectiveRate = totalCostCop / calculatedUsd;
 
                     return (
                       <View style={{ backgroundColor: colors.bg, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginTop: 4 }}>
@@ -1860,25 +2009,37 @@ export default function InvestScreen() {
                         <Text style={{ color: colors.accent, fontSize: 18, fontWeight: '900', marginTop: 2 }}>
                           ${calculatedUsd.toFixed(2)} USD
                         </Text>
-                        <Text style={{ color: colors.sub, fontSize: 10, marginTop: 2 }}>
-                          Saldrán {fmt(copVal)} de tu cuenta {buyAccount} e ingresarán a Inversiones.
+                        <Text style={{ color: colors.text, fontSize: 12, fontWeight: '800', marginTop: 4 }}>
+                          Costo Total: {fmt(totalCostCop)} (Tasa Efectiva: {fmt(effectiveRate)})
                         </Text>
+                        <View style={{ backgroundColor: colors.accent + '15', padding: 8, borderRadius: 8, marginTop: 6 }}>
+                          <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '700' }}>
+                            ℹ️ Transferencia entre activos ({buyAccount} ➔ Inversiones USD). No afecta tus gastos mensuales ni tu patrimonio neto.
+                          </Text>
+                        </View>
                       </View>
                     );
                   } else {
                     const usdVal = parseFloat(dollarAmountUsd.replace(',', '.'));
                     if (isNaN(usdVal) || usdVal <= 0) return null;
-                    const calculatedCop = usdVal * rate;
+                    const baseCop = usdVal * rate;
+                    const totalCostCop = baseCop + fee;
+                    const effectiveRate = totalCostCop / usdVal;
 
                     return (
                       <View style={{ backgroundColor: colors.bg, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginTop: 4 }}>
-                        <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>Costo total pagado:</Text>
+                        <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>Costo Total pagado:</Text>
                         <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900', marginTop: 2 }}>
-                          {fmt(calculatedCop)}
+                          {fmt(totalCostCop)}
                         </Text>
-                        <Text style={{ color: colors.sub, fontSize: 10, marginTop: 2 }}>
-                          Saldrán {fmt(calculatedCop)} de tu cuenta {buyAccount} e ingresarán a Inversiones.
+                        <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '800', marginTop: 4 }}>
+                          Tasa Efectiva con comisión: {fmt(effectiveRate)}
                         </Text>
+                        <View style={{ backgroundColor: colors.accent + '15', padding: 8, borderRadius: 8, marginTop: 6 }}>
+                          <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '700' }}>
+                            ℹ️ Transferencia entre activos ({buyAccount} ➔ Inversiones USD). No afecta tus gastos mensuales ni tu patrimonio neto.
+                          </Text>
+                        </View>
                       </View>
                     );
                   }
@@ -1897,7 +2058,9 @@ export default function InvestScreen() {
                   {isDollarLoading ? (
                     <ActivityIndicator color="#FFF" />
                   ) : (
-                    <Text style={{ color: '#FFF', fontWeight: '900' }}>Guardar Compra</Text>
+                    <Text style={{ color: '#FFF', fontWeight: '900' }}>
+                      {editingItem ? 'Guardar Cambios' : 'Guardar Compra'}
+                    </Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -1925,17 +2088,17 @@ export default function InvestScreen() {
                 <View style={{ gap: 12 }}>
                   <View style={{ backgroundColor: colors.bg, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border }}>
                     <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>Vendiendo posición de:</Text>
-                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginTop: 2 }}>
+                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900', marginTop: 2 }}>
                       ${sellingItem.amount_usd.toLocaleString()} USD
                     </Text>
                     <Text style={{ color: colors.sub, fontSize: 11, marginTop: 2 }}>
-                      Comprados a {fmt(sellingItem.purchase_rate)} ({fmt(sellingItem.amount_usd * sellingItem.purchase_rate)})
+                      Costo Adquisición Total: {fmt(sellingItem.total_cost_cop || (sellingItem.amount_usd * sellingItem.purchase_rate))} (Tasa efectiva: {fmt(sellingItem.effective_rate || sellingItem.purchase_rate)})
                     </Text>
                   </View>
 
                   <View>
                     <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
-                      ¿A qué precio los vendiste por dólar? (COP)
+                      ¿A qué precio vendiste cada dólar? (COP)
                     </Text>
                     <TextInput 
                       style={[s.input, { backgroundColor: colors.bg, color: colors.text, height: 50, fontSize: 18 }]}
@@ -1944,6 +2107,20 @@ export default function InvestScreen() {
                       keyboardType="decimal-pad"
                       value={sellRate}
                       onChangeText={setSellRate}
+                    />
+                  </View>
+
+                  <View>
+                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
+                      Comisión / Costo de venta (COP)
+                    </Text>
+                    <TextInput 
+                      style={[s.input, { backgroundColor: colors.bg, color: colors.text, height: 50, fontSize: 16 }]}
+                      placeholder="ej. 5.000 (Opcional)"
+                      placeholderTextColor={colors.sub}
+                      keyboardType="numeric"
+                      value={sellFeeCop}
+                      onChangeText={t => setSellFeeCop(formatInputDisplay(t, 'COP'))}
                     />
                   </View>
 
@@ -1979,18 +2156,23 @@ export default function InvestScreen() {
                     <View style={{ backgroundColor: colors.bg, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border }}>
                       {(() => {
                         const rate = parseFloat(sellRate);
-                        const totalReceived = sellingItem.amount_usd * rate;
-                        const totalCost = sellingItem.amount_usd * sellingItem.purchase_rate;
-                        const profit = totalReceived - totalCost;
-                        const profitPct = totalCost > 0 ? (profit / totalCost) * 100 : 0;
+                        const fee = parseInputToNumber(sellFeeCop, 'COP');
+                        const grossReceived = sellingItem.amount_usd * rate;
+                        const netReceived = grossReceived - fee;
+                        const originalCost = sellingItem.total_cost_cop || (sellingItem.amount_usd * sellingItem.purchase_rate);
+                        const netProfit = netReceived - originalCost;
+                        const netProfitPct = originalCost > 0 ? (netProfit / originalCost) * 100 : 0;
 
                         return (
                           <>
                             <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>
-                              Recibes en {selectedAccount}: <Text style={{ color: colors.text, fontWeight: '900' }}>{fmt(totalReceived)}</Text>
+                              Dinero neto ingresando a {selectedAccount}:
                             </Text>
-                            <Text style={{ color: profit >= 0 ? '#10B981' : '#EF4444', fontSize: 13, fontWeight: '900', marginTop: 4 }}>
-                              {profit >= 0 ? '¡Ganancia neta: +' : 'Pérdida neta: '}{fmt(profit)} ({profitPct.toFixed(1)}%)
+                            <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900', marginTop: 2 }}>
+                              {fmt(netReceived)}
+                            </Text>
+                            <Text style={{ color: netProfit >= 0 ? '#10B981' : '#EF4444', fontSize: 13, fontWeight: '900', marginTop: 4 }}>
+                              {netProfit >= 0 ? '¡Ganancia neta realizada: +' : 'Pérdida neta realizada: '}{fmt(netProfit)} ({netProfitPct.toFixed(1)}%)
                             </Text>
                           </>
                         );
