@@ -1,4 +1,4 @@
-const CACHE_NAME = 'finanzas-app-v1785776804806';
+const CACHE_NAME = 'finanzas-app-v1786216081021';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
