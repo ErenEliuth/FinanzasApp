@@ -275,9 +275,13 @@ export default function DebtsScreen() {
         if (isNaN(pVal) || pVal <= 0) return;
         const actualPay = isFixed ? pVal : Math.min(pVal, selectedDebt.value - selectedDebt.paid);
         try {
-            const { data: txs } = await supabase.from('transactions').select('amount, type').eq('user_id', user?.id).eq('account', selectedAccount);
+            const { data: txs, error: txErr } = await supabase.from('transactions').select('amount, type').eq('user_id', user?.id).eq('account', selectedAccount);
+            if (txErr) throw txErr;
             if (txs) {
-                const balance = txs.reduce((acc, curr) => curr.type === 'income' ? acc + curr.amount : acc - curr.amount, 0);
+                const balance = txs.reduce((acc, curr) => {
+                    const amt = Number(curr.amount || 0);
+                    return curr.type === 'income' ? acc + amt : acc - amt;
+                }, 0);
                 if (balance < actualPay) { Alert.alert('Saldo Insuficiente', `Disponible: ${fmt(balance)}\nRequerido: ${fmt(actualPay)}`); return; }
             }
             await supabase.from('debts').update({ paid: selectedDebt.paid + actualPay }).eq('id', selectedDebt.id);

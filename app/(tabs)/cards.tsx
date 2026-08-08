@@ -455,8 +455,12 @@ export default function CardsScreen() {
                 .eq('user_id', user?.id)
                 .eq('account', selectedAccount);
             
-            if (!txErr && txs) {
-                const balance = txs.reduce((acc, curr) => curr.type === 'income' ? acc + curr.amount : acc - curr.amount, 0);
+            if (txErr) throw txErr;
+            if (txs) {
+                const balance = txs.reduce((acc, curr) => {
+                    const amt = Number(curr.amount || 0);
+                    return curr.type === 'income' ? acc + amt : acc - amt;
+                }, 0);
                 if (balance < payVal) {
                     Alert.alert('Saldo Insuficiente', `No tienes fondos suficientes en "${selectedAccount}".\n\nDisponible: ${fmt(balance)}\nRequerido: ${fmt(payVal)}`);
                     return;

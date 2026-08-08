@@ -335,9 +335,12 @@ export default function AddTransactionScreen() {
           .eq('user_id', user?.id)
           .eq('account', account);
         
-        if (!txErr && txs) {
+        if (txErr) throw txErr;
+        
+        if (txs) {
           const balance = txs.reduce((acc, curr) => {
-            return curr.type === 'income' ? acc + curr.amount : acc - curr.amount;
+            const amt = Number(curr.amount || 0);
+            return curr.type === 'income' ? acc + amt : acc - amt;
           }, 0);
 
           if (balance < parsed) {
@@ -349,7 +352,12 @@ export default function AddTransactionScreen() {
             return;
           }
         }
-      } catch (e) { console.error('Error validando saldo en transferencia:', e); }
+      } catch (e: any) {
+        console.error('Error validando saldo en transferencia:', e);
+        Alert.alert('Error de Validación', 'No se pudo verificar el saldo disponible. Por favor, intenta de nuevo.');
+        setIsSaving(false);
+        return;
+      }
 
       const desc = description.trim() || `Transferencia ${account} → ${destAccount}`;
       try {
@@ -395,9 +403,12 @@ export default function AddTransactionScreen() {
           .eq('user_id', user?.id)
           .eq('account', account);
         
-        if (!txErr && txs) {
+        if (txErr) throw txErr;
+        
+        if (txs) {
           const balance = txs.reduce((acc, curr) => {
-            return curr.type === 'income' ? acc + curr.amount : acc - curr.amount;
+            const amt = Number(curr.amount || 0);
+            return curr.type === 'income' ? acc + amt : acc - amt;
           }, 0);
 
           if (balance < parsed) {
@@ -409,7 +420,12 @@ export default function AddTransactionScreen() {
             return;
           }
         }
-      } catch (e) { console.error('Error validando saldo:', e); }
+      } catch (e: any) {
+        console.error('Error validando saldo:', e);
+        Alert.alert('Error de Validación', 'No se pudo verificar el saldo disponible. Por favor, intenta de nuevo.');
+        setIsSaving(false);
+        return;
+      }
     }
 
     const dbType = type === 'income' ? 'income' : 'expense';
