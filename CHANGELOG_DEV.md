@@ -632,6 +632,19 @@
 | Subtexto | Oliva | `#A09B8C` |
 | Bordes | Gris azulado | `#3A3A52` |
 
+### 2026-08-13 — Sanctuary: Rediseño Estético de Compras USD (v34)
+
+**Archivos modificados:**
+- `app/(tabs)/invest.tsx` — Rediseño del modal de "Registrar Compra USD".
+
+**Cambios realizados:**
+- ✅ **Estética Premium y "Pill-based"**: El formulario de registro de dólares fue rediseñado inspirándose en layouts modernos. Ahora utiliza inputs en forma de bloques o tarjetas (`borderRadius: 24`), eliminando los campos de texto tradicionales.
+- ✅ **Botón Flotante y Sombras**: El botón principal de confirmación ahora es una píldora prominente (`borderRadius: 100`) con sombra y color de acento, dándole un efecto de elevación.
+- ✅ **Tipografía Refinada**: Se usaron textos en mayúscula, espaciado de letras y fuentes muy gruesas (`fontWeight: '900'`) para crear jerarquía visual en los montos a pagar o recibir.
+- ✅ **Modo Selector Suave**: El selector superior entre COP y USD ahora es un bloque contenido con efecto flotante.
+
+---
+
 ### 2026-08-13 — Sanctuary: Reorganización de Inversiones y Portafolio (v33)
 
 **Archivos modificados:**
