@@ -45,10 +45,11 @@ Ubicadas dentro de la carpeta [app/(tabs)](file:///c:/Users/Admin/OneDrive/Escri
 * **Archivo:** [app/(tabs)/invest.tsx](file:///c:/Users/Admin/OneDrive/Escritorio/AppMobile/app/(tabs)/invest.tsx)
 * **Función:** Control de portafolios y seguimiento del mercado.
 * **Características:**
-  * Watchlist (lista de seguimiento) de acciones o activos de interés.
-  * Registro de compras y ventas de acciones.
-  * Cálculo de rendimiento (ganancias/pérdidas) en tiempo real con precios actualizados.
-  * Integración con dividendos recibidos.
+  * **Pantalla Principal (Hub):** Watchlist (lista de seguimiento) con sugerencias de Santy IA y acceso directo al portafolio.
+  * **Mi Portafolio:** Gestión detallada de tus activos.
+    * **Billetera USD:** Registro de compras y ventas de dólares, con cálculo de Tasa Efectiva, rentabilidad y vinculación a cuentas de origen/destino.
+    * **Mercado de Acciones y ETFs:** Cálculo de rendimiento (ganancias/pérdidas) en tiempo real con precios actualizados. Integración con dividendos recibidos.
+  * **Menú "+":** Permite agregar Dólares (USD), Acciones o ETFs de manera estructurada.
 
 ### 🤝 Préstamos y Deudas (Debts & Loans)
 * **Archivos:** 

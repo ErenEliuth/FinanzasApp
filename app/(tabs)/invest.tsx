@@ -1024,9 +1024,7 @@ export default function InvestScreen() {
         </Text>
         {activeTab === 'portfolio' ? (
           <TouchableOpacity onPress={() => { 
-            setSelectedAssetType('stock');
-            setSearchResults(bvcMarket.length > 0 ? bvcMarket : POPULAR_ASSETS.filter(a => a.type === 'stock').slice(0, 8));
-            setAddFlowStep('search');
+            setAddFlowStep('category');
             setModalVisible(true); 
           }} style={[s.addBtn, { backgroundColor: colors.accent }]}>
             <Ionicons name="add" size={20} color="#FFF" />
@@ -1243,8 +1241,77 @@ export default function InvestScreen() {
                 </View>
               )}
 
+              {/* Billetera USD movida a Portafolio */}
+
+              {/* Main Portfolio Navigation */}
+              <View style={{ marginTop: 8 }}>
+                <TouchableOpacity 
+                  style={[s.navCard, { backgroundColor: colors.card, borderColor: colors.border, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 16, borderRadius: 20 }]} 
+                  onPress={() => setActiveTab('portfolio')}
+                >
+                  <View style={[s.navIcon, { backgroundColor: colors.accent + '12', width: 48, height: 48, borderRadius: 16 }]}>
+                    <MaterialIcons name="pie-chart" size={24} color={colors.accent} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>Mi Portafolio</Text>
+                    <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '600', marginTop: 2 }}>
+                      {positions.length} activos · {fmt(totalCurrent)} actuales
+                    </Text>
+                  </View>
+                  <View style={{ backgroundColor: colors.bg, padding: 6, borderRadius: 10 }}>
+                    <Ionicons name="chevron-forward" size={16} color={colors.sub} />
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* ═══ PORTFOLIO ═══ */}
+          {activeTab === 'portfolio' && (
+            <View>
+              {/* Portfolio Summary */}
+              <View style={[s.portfolioSummary, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={s.portfolioRow}>
+                  <View>
+                    <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800' }}>INVERTIDO</Text>
+                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>{fmt(totalInvested)}</Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800' }}>ACTUAL</Text>
+                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>{fmt(totalCurrent)}</Text>
+                  </View>
+                </View>
+                <View style={[s.profitBadge, { backgroundColor: profitAbs >= 0 ? '#10B98112' : '#EF444412' }]}>
+                  <Text style={{ color: profitAbs >= 0 ? '#10B981' : '#EF4444', fontWeight: '900', fontSize: 13 }}>
+                    {profitAbs >= 0 ? '+' : ''}{fmt(profitAbs)} ({profitPct.toFixed(1)}%)
+                  </Text>
+                </View>
+              </View>
+
+              {/* Allocation Breakdown (Sleek Bar) */}
+              {totalCurrent > 0 && (
+                <View style={[s.allocSection, { backgroundColor: colors.card, borderColor: colors.border, paddingVertical: 20 }]}>
+                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '900', textAlign: 'center', marginBottom: 15 }}>DISTRIBUCIÓN DEL PORTAFOLIO</Text>
+                    
+                    <View style={{ height: 12, backgroundColor: colors.bg, borderRadius: 6, marginHorizontal: 20, flexDirection: 'row', overflow: 'hidden' }}>
+                        {Object.entries(allocation).map(([type, pct]) => pct > 0 && (
+                            <View key={type} style={{ width: `${pct}%`, height: '100%', backgroundColor: allocColors[type] }} />
+                        ))}
+                    </View>
+
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12, marginTop: 15, paddingHorizontal: 20 }}>
+                        {Object.entries(allocation).map(([type, pct]) => pct > 0 && (
+                            <View key={type} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: allocColors[type] }} />
+                                <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>{allocLabels[type]} {pct.toFixed(0)}%</Text>
+                            </View>
+                        ))}
+                    </View>
+                </View>
+              )}
+
               {/* 💵 COMPRA Y VENTA DE DÓLARES SECTION */}
-              <View style={[s.bvcMarketSection, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 12 }]}>
+              <View style={[s.bvcMarketSection, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 16, marginBottom: 16 }]}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                   <View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -1430,73 +1497,6 @@ export default function InvestScreen() {
                 )}
               </View>
 
-              {/* Main Portfolio Navigation */}
-              <View style={{ marginTop: 8 }}>
-                <TouchableOpacity 
-                  style={[s.navCard, { backgroundColor: colors.card, borderColor: colors.border, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 16, borderRadius: 20 }]} 
-                  onPress={() => setActiveTab('portfolio')}
-                >
-                  <View style={[s.navIcon, { backgroundColor: colors.accent + '12', width: 48, height: 48, borderRadius: 16 }]}>
-                    <MaterialIcons name="pie-chart" size={24} color={colors.accent} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>Mi Portafolio</Text>
-                    <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '600', marginTop: 2 }}>
-                      {positions.length} activos · {fmt(totalCurrent)} actuales
-                    </Text>
-                  </View>
-                  <View style={{ backgroundColor: colors.bg, padding: 6, borderRadius: 10 }}>
-                    <Ionicons name="chevron-forward" size={16} color={colors.sub} />
-                  </View>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* ═══ PORTFOLIO ═══ */}
-          {activeTab === 'portfolio' && (
-            <View>
-              {/* Portfolio Summary */}
-              <View style={[s.portfolioSummary, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View style={s.portfolioRow}>
-                  <View>
-                    <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800' }}>INVERTIDO</Text>
-                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>{fmt(totalInvested)}</Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800' }}>ACTUAL</Text>
-                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>{fmt(totalCurrent)}</Text>
-                  </View>
-                </View>
-                <View style={[s.profitBadge, { backgroundColor: profitAbs >= 0 ? '#10B98112' : '#EF444412' }]}>
-                  <Text style={{ color: profitAbs >= 0 ? '#10B981' : '#EF4444', fontWeight: '900', fontSize: 13 }}>
-                    {profitAbs >= 0 ? '+' : ''}{fmt(profitAbs)} ({profitPct.toFixed(1)}%)
-                  </Text>
-                </View>
-              </View>
-
-              {/* Allocation Breakdown (Sleek Bar) */}
-              {totalCurrent > 0 && (
-                <View style={[s.allocSection, { backgroundColor: colors.card, borderColor: colors.border, paddingVertical: 20 }]}>
-                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '900', textAlign: 'center', marginBottom: 15 }}>DISTRIBUCIÓN DEL PORTAFOLIO</Text>
-                    
-                    <View style={{ height: 12, backgroundColor: colors.bg, borderRadius: 6, marginHorizontal: 20, flexDirection: 'row', overflow: 'hidden' }}>
-                        {Object.entries(allocation).map(([type, pct]) => pct > 0 && (
-                            <View key={type} style={{ width: `${pct}%`, height: '100%', backgroundColor: allocColors[type] }} />
-                        ))}
-                    </View>
-
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12, marginTop: 15, paddingHorizontal: 20 }}>
-                        {Object.entries(allocation).map(([type, pct]) => pct > 0 && (
-                            <View key={type} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: allocColors[type] }} />
-                                <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>{allocLabels[type]} {pct.toFixed(0)}%</Text>
-                            </View>
-                        ))}
-                    </View>
-                </View>
-              )}
-
               {/* Assets List */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 16 }}>
                 <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900' }}>Activos ({positions.length})</Text>
@@ -1579,9 +1579,7 @@ export default function InvestScreen() {
                   <Text style={{ color: colors.sub, fontSize: 14, fontWeight: '700', marginTop: 12 }}>Agrega tu primer activo</Text>
                   <TouchableOpacity onPress={() => { 
                     updateBvc(); // Refresh
-                    setSelectedAssetType('stock');
-                    setSearchResults(bvcMarket.length > 0 ? bvcMarket : POPULAR_ASSETS.filter(a => a.type === 'stock').slice(0, 8));
-                    setAddFlowStep('search');
+                    setAddFlowStep('category');
                     setModalVisible(true); 
                   }} style={[s.emptyBtn, { backgroundColor: colors.accent }]}>
                     <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 13 }}>+ Buscar Activo</Text>
@@ -1619,14 +1617,14 @@ export default function InvestScreen() {
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={Platform.OS === 'ios'}>
             <View style={[s.modalBox, { backgroundColor: colors.card }]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                {addFlowStep === 'amount' ? (
-                  <TouchableOpacity onPress={() => setAddFlowStep('search')} style={{ marginRight: 10 }}>
+                {addFlowStep === 'amount' || addFlowStep === 'search' ? (
+                  <TouchableOpacity onPress={() => setAddFlowStep(addFlowStep === 'amount' ? 'search' : 'category')} style={{ marginRight: 10 }}>
                     <Ionicons name="arrow-back" size={24} color={colors.text} />
                   </TouchableOpacity>
                 ) : <View style={{ width: 34 }} />}
                 
                 <Text style={[s.modalTitle, { color: colors.text, flex: 1, textAlign: 'center' }]}>
-                  {addFlowStep === 'search' ? 'Buscar Acción' : 'Detalles de Compra'}
+                  {addFlowStep === 'category' ? '¿Qué agregar?' : addFlowStep === 'search' ? 'Buscar Acción' : 'Detalles de Compra'}
                 </Text>
                 
                 <TouchableOpacity onPress={handleCloseModal}>
@@ -1634,6 +1632,62 @@ export default function InvestScreen() {
                 </TouchableOpacity>
               </View>
 
+              {addFlowStep === 'category' && (
+                <View style={{ gap: 12 }}>
+                  <TouchableOpacity 
+                    style={[s.searchItem, { backgroundColor: colors.bg, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center' }]}
+                    onPress={() => {
+                      setModalVisible(false);
+                      handleOpenBuyDollarModal();
+                    }}
+                  >
+                    <View style={[s.searchIcon, { backgroundColor: '#10B98115', width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' }]}>
+                      <Text style={{ fontSize: 24 }}>🇺🇸</Text>
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 16 }}>
+                      <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>Dólares (USD)</Text>
+                      <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '600', marginTop: 2 }}>Comprar divisa extranjera</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.sub} />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={[s.searchItem, { backgroundColor: colors.bg, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center' }]}
+                    onPress={() => {
+                      setSelectedAssetType('stock');
+                      setSearchResults(bvcMarket.length > 0 ? bvcMarket : POPULAR_ASSETS.filter(a => a.type === 'stock').slice(0, 8));
+                      setAddFlowStep('search');
+                    }}
+                  >
+                    <View style={[s.searchIcon, { backgroundColor: colors.accent + '15', width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' }]}>
+                      <MaterialIcons name="show-chart" size={24} color={colors.accent} />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 16 }}>
+                      <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>Acciones</Text>
+                      <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '600', marginTop: 2 }}>Empresas locales y globales</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.sub} />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={[s.searchItem, { backgroundColor: colors.bg, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center' }]}
+                    onPress={() => {
+                      setSelectedAssetType('etf');
+                      setSearchResults(POPULAR_ASSETS.filter(a => a.type === 'etf').slice(0, 8));
+                      setAddFlowStep('search');
+                    }}
+                  >
+                    <View style={[s.searchIcon, { backgroundColor: '#8B5CF615', width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' }]}>
+                      <MaterialIcons name="layers" size={24} color="#8B5CF6" />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 16 }}>
+                      <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>ETFs</Text>
+                      <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '600', marginTop: 2 }}>Fondos cotizados e índices</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.sub} />
+                  </TouchableOpacity>
+                </View>
+              )}
 
               {addFlowStep === 'search' && (
                 <>

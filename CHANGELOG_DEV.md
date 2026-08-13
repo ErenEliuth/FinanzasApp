@@ -632,6 +632,18 @@
 | Subtexto | Oliva | `#A09B8C` |
 | Bordes | Gris azulado | `#3A3A52` |
 
+### 2026-08-13 — Sanctuary: Reorganización de Inversiones y Portafolio (v33)
+
+**Archivos modificados:**
+- `app/(tabs)/invest.tsx` — Reorganización de la Billetera USD y opciones de agregar activo.
+
+**Cambios realizados:**
+- ✅ **Limpieza del Hub**: Se movió la sección completa de Billetera USD desde la pestaña principal (Hub) hacia la pestaña de Portafolio.
+- ✅ **Menú de Adición Inteligente**: Al presionar el botón "+" dentro del Portafolio, ahora se despliega un panel de opciones moderno que permite elegir entre agregar Dólares (USD), Acciones o ETFs.
+- ✅ **Estética Consistente**: Se mantuvieron los íconos, badges de colores y descripciones claras para el menú de opciones.
+
+---
+
 ### 2026-06-05 — Sanctuary: Estadísticas Avanzadas (v32)
 
 **Archivos modificados:**
