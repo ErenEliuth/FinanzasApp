@@ -37,7 +37,9 @@
               "type": "file-explorer",
               "state": {
                 "sortOrder": "alphabetical",
-                "autoReveal": false
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
               },
               "icon": "lucide-folder-closed",
               "title": "Explorador de archivos"
@@ -74,7 +76,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 300,
+    "collapsed": true
   },
   "right": {
     "id": "003c1de5181e70e8",
@@ -178,11 +181,11 @@
   },
   "active": "5455bfad12b0e1f5",
   "lastOpenFiles": [
-    "Sin título.base",
+    "flujos.md",
     "secciones-app.md",
     "arquitectura.md",
     "esquema-db.md",
-    "flujos.md",
+    "Sin título.base",
     "Sin título 1.base",
     "Sin título.canvas"
   ]

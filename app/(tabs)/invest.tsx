@@ -1902,72 +1902,86 @@ export default function InvestScreen() {
             <View style={StyleSheet.absoluteFill} />
           </TouchableWithoutFeedback>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={Platform.OS === 'ios'}>
-            <View style={[s.modalBox, { backgroundColor: colors.card }]}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
-                <Text style={[s.modalTitle, { color: colors.text }]}>
-                  {editingItem ? 'Editar Compra USD ✏️' : 'Registrar Compra USD 💵'}
+            <View style={[s.modalBox, { backgroundColor: colors.card, borderRadius: 36, padding: 28, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 }]}>
+              
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                <Text style={{ color: colors.text, fontSize: 22, fontWeight: '900', letterSpacing: -0.5 }}>
+                  {editingItem ? 'Editar Compra' : 'Registrar Compra'} 🇺🇸
                 </Text>
-                <TouchableOpacity onPress={() => setBuyDollarModalVisible(false)}>
-                  <Ionicons name="close" size={24} color={colors.sub} />
+                <TouchableOpacity 
+                  onPress={() => setBuyDollarModalVisible(false)}
+                  style={{ backgroundColor: colors.bg, padding: 8, borderRadius: 16 }}
+                >
+                  <Ionicons name="close" size={20} color={colors.sub} />
                 </TouchableOpacity>
               </View>
 
-              <View style={{ gap: 12 }}>
+              <View style={{ gap: 16 }}>
                 {/* Selector de modo: Monto en COP vs Cantidad USD */}
-                <View style={{ flexDirection: 'row', backgroundColor: colors.bg, borderRadius: 12, padding: 3 }}>
+                <View style={{ flexDirection: 'row', backgroundColor: colors.bg, borderRadius: 20, padding: 4 }}>
                   <TouchableOpacity
                     onPress={() => setBuyMode('cop')}
                     style={{
                       flex: 1,
-                      paddingVertical: 8,
-                      borderRadius: 10,
+                      paddingVertical: 12,
+                      borderRadius: 16,
                       backgroundColor: buyMode === 'cop' ? colors.card : 'transparent',
                       alignItems: 'center',
+                      shadowColor: buyMode === 'cop' ? '#000' : 'transparent',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: buyMode === 'cop' ? 0.05 : 0,
+                      shadowRadius: 4,
+                      elevation: buyMode === 'cop' ? 2 : 0,
                     }}
                   >
-                    <Text style={{ color: buyMode === 'cop' ? colors.text : colors.sub, fontSize: 12, fontWeight: '800' }}>
-                      Monto en COP ($)
+                    <Text style={{ color: buyMode === 'cop' ? colors.text : colors.sub, fontSize: 13, fontWeight: '800' }}>
+                      En COP ($)
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => setBuyMode('usd')}
                     style={{
                       flex: 1,
-                      paddingVertical: 8,
-                      borderRadius: 10,
+                      paddingVertical: 12,
+                      borderRadius: 16,
                       backgroundColor: buyMode === 'usd' ? colors.card : 'transparent',
                       alignItems: 'center',
+                      shadowColor: buyMode === 'usd' ? '#000' : 'transparent',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: buyMode === 'usd' ? 0.05 : 0,
+                      shadowRadius: 4,
+                      elevation: buyMode === 'usd' ? 2 : 0,
                     }}
                   >
-                    <Text style={{ color: buyMode === 'usd' ? colors.text : colors.sub, fontSize: 12, fontWeight: '800' }}>
-                      Cantidad Dólares ($ USD)
+                    <Text style={{ color: buyMode === 'usd' ? colors.text : colors.sub, fontSize: 13, fontWeight: '800' }}>
+                      En USD ($)
                     </Text>
                   </TouchableOpacity>
                 </View>
 
                 {buyMode === 'cop' ? (
-                  <View>
-                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
-                      ¿Cuánto dinero en COP gastaste?
+                  <View style={{ backgroundColor: colors.bg, borderRadius: 24, padding: 16 }}>
+                    <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '800', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Total pagado (COP)
                     </Text>
                     <TextInput 
-                      style={[s.input, { backgroundColor: colors.bg, color: colors.text, height: 50, fontSize: 18 }]}
-                      placeholder="ej. 1.000.000"
-                      placeholderTextColor={colors.sub}
+                      style={{ color: colors.text, fontSize: 24, fontWeight: '900', padding: 0 }}
+                      placeholder="0"
+                      placeholderTextColor={colors.border}
                       keyboardType="numeric"
                       value={dollarTotalCop}
                       onChangeText={t => setDollarTotalCop(formatInputDisplay(t, 'COP'))}
                     />
                   </View>
                 ) : (
-                  <View>
-                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
-                      ¿Cuántos dólares compraste? ($ USD)
+                  <View style={{ backgroundColor: colors.bg, borderRadius: 24, padding: 16 }}>
+                    <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '800', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Dólares comprados (USD)
                     </Text>
                     <TextInput 
-                      style={[s.input, { backgroundColor: colors.bg, color: colors.text, height: 50, fontSize: 18 }]}
-                      placeholder="ej. 250"
-                      placeholderTextColor={colors.sub}
+                      style={{ color: colors.text, fontSize: 24, fontWeight: '900', padding: 0 }}
+                      placeholder="0"
+                      placeholderTextColor={colors.border}
                       keyboardType="decimal-pad"
                       value={dollarAmountUsd}
                       onChangeText={setDollarAmountUsd}
@@ -1975,38 +1989,39 @@ export default function InvestScreen() {
                   </View>
                 )}
 
-                <View>
-                  <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
-                    Precio/Tasa por dólar al comprar (COP)
-                  </Text>
-                  <TextInput 
-                    style={[s.input, { backgroundColor: colors.bg, color: colors.text, height: 50, fontSize: 18 }]}
-                    placeholder={Math.round(usdToCop).toString()}
-                    placeholderTextColor={colors.sub}
-                    keyboardType="decimal-pad"
-                    value={dollarPurchaseRate}
-                    onChangeText={setDollarPurchaseRate}
-                  />
-                </View>
-
-                <View>
-                  <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
-                    Comisión / Costos de operación (COP)
-                  </Text>
-                  <TextInput 
-                    style={[s.input, { backgroundColor: colors.bg, color: colors.text, height: 50, fontSize: 16 }]}
-                    placeholder="ej. 10.000 (Opcional)"
-                    placeholderTextColor={colors.sub}
-                    keyboardType="numeric"
-                    value={dollarFeeCop}
-                    onChangeText={t => setDollarFeeCop(formatInputDisplay(t, 'COP'))}
-                  />
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <View style={{ flex: 1, backgroundColor: colors.bg, borderRadius: 24, padding: 16 }}>
+                    <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '800', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Tasa (COP)
+                    </Text>
+                    <TextInput 
+                      style={{ color: colors.text, fontSize: 18, fontWeight: '900', padding: 0 }}
+                      placeholder={Math.round(usdToCop).toString()}
+                      placeholderTextColor={colors.border}
+                      keyboardType="decimal-pad"
+                      value={dollarPurchaseRate}
+                      onChangeText={setDollarPurchaseRate}
+                    />
+                  </View>
+                  <View style={{ flex: 1, backgroundColor: colors.bg, borderRadius: 24, padding: 16 }}>
+                    <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '800', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Comisión
+                    </Text>
+                    <TextInput 
+                      style={{ color: colors.text, fontSize: 18, fontWeight: '900', padding: 0 }}
+                      placeholder="0"
+                      placeholderTextColor={colors.border}
+                      keyboardType="numeric"
+                      value={dollarFeeCop}
+                      onChangeText={t => setDollarFeeCop(formatInputDisplay(t, 'COP'))}
+                    />
+                  </View>
                 </View>
 
                 {/* Cuenta Origen de la plata */}
                 <View>
-                  <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
-                    ¿De qué cuenta salió el dinero?
+                  <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 10, marginLeft: 4 }}>
+                    Cuenta de Origen
                   </Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }}>
                     {Array.from(new Set(['Efectivo', ...customAccounts, ...cards.map((c: any) => c.name)])).map((acc: any) => (
@@ -2015,15 +2030,14 @@ export default function InvestScreen() {
                         onPress={() => setBuyAccount(acc)}
                         style={{
                           backgroundColor: buyAccount === acc ? colors.accent : colors.bg,
-                          paddingHorizontal: 14,
-                          paddingVertical: 8,
-                          borderRadius: 12,
+                          paddingHorizontal: 18,
+                          paddingVertical: 12,
+                          borderRadius: 20,
                           marginRight: 8,
-                          borderWidth: 1,
-                          borderColor: buyAccount === acc ? colors.accent : colors.border,
+                          marginLeft: 4,
                         }}
                       >
-                        <Text style={{ color: buyAccount === acc ? '#FFF' : colors.text, fontWeight: '800', fontSize: 12 }}>
+                        <Text style={{ color: buyAccount === acc ? '#FFF' : colors.text, fontWeight: '800', fontSize: 13 }}>
                           {acc}
                         </Text>
                       </TouchableOpacity>
@@ -2031,14 +2045,14 @@ export default function InvestScreen() {
                   </ScrollView>
                 </View>
 
-                <View>
-                  <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
-                    Notas u observaciones (Opcional)
+                <View style={{ backgroundColor: colors.bg, borderRadius: 24, padding: 16 }}>
+                  <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '800', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Notas (Opcional)
                   </Text>
                   <TextInput 
-                    style={[s.input, { backgroundColor: colors.bg, color: colors.text, height: 44, fontSize: 14 }]}
-                    placeholder="ej. Casa de cambio aeropuerto"
-                    placeholderTextColor={colors.sub}
+                    style={{ color: colors.text, fontSize: 14, fontWeight: '600', padding: 0 }}
+                    placeholder="ej. Casa de cambio"
+                    placeholderTextColor={colors.border}
                     value={dollarNotes}
                     onChangeText={setDollarNotes}
                   />
@@ -2058,18 +2072,20 @@ export default function InvestScreen() {
                     const effectiveRate = totalCostCop / calculatedUsd;
 
                     return (
-                      <View style={{ backgroundColor: colors.bg, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginTop: 4 }}>
-                        <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>Dólares obtenidos:</Text>
-                        <Text style={{ color: colors.accent, fontSize: 18, fontWeight: '900', marginTop: 2 }}>
-                          ${calculatedUsd.toFixed(2)} USD
-                        </Text>
-                        <Text style={{ color: colors.text, fontSize: 12, fontWeight: '800', marginTop: 4 }}>
-                          Costo Total: {fmt(totalCostCop)} (Tasa Efectiva: {fmt(effectiveRate)})
-                        </Text>
-                        <View style={{ backgroundColor: colors.accent + '15', padding: 8, borderRadius: 8, marginTop: 6 }}>
-                          <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '700' }}>
-                            ℹ️ Transferencia entre activos ({buyAccount} ➔ Inversiones USD). No afecta tus gastos mensuales ni tu patrimonio neto.
-                          </Text>
+                      <View style={{ backgroundColor: colors.accent + '15', padding: 18, borderRadius: 24, marginTop: 4 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                          <View>
+                            <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 }}>Recibes</Text>
+                            <Text style={{ color: colors.accent, fontSize: 24, fontWeight: '900', marginTop: 2 }}>
+                              ${calculatedUsd.toFixed(2)} USD
+                            </Text>
+                          </View>
+                          <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 }}>Tasa Efectiva</Text>
+                            <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900', marginTop: 2 }}>
+                              {fmt(effectiveRate)}
+                            </Text>
+                          </View>
                         </View>
                       </View>
                     );
@@ -2081,18 +2097,20 @@ export default function InvestScreen() {
                     const effectiveRate = totalCostCop / usdVal;
 
                     return (
-                      <View style={{ backgroundColor: colors.bg, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginTop: 4 }}>
-                        <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '700' }}>Costo Total pagado:</Text>
-                        <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900', marginTop: 2 }}>
-                          {fmt(totalCostCop)}
-                        </Text>
-                        <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '800', marginTop: 4 }}>
-                          Tasa Efectiva con comisión: {fmt(effectiveRate)}
-                        </Text>
-                        <View style={{ backgroundColor: colors.accent + '15', padding: 8, borderRadius: 8, marginTop: 6 }}>
-                          <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '700' }}>
-                            ℹ️ Transferencia entre activos ({buyAccount} ➔ Inversiones USD). No afecta tus gastos mensuales ni tu patrimonio neto.
-                          </Text>
+                      <View style={{ backgroundColor: colors.accent + '15', padding: 18, borderRadius: 24, marginTop: 4 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                          <View>
+                            <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 }}>Pagas Total</Text>
+                            <Text style={{ color: colors.accent, fontSize: 24, fontWeight: '900', marginTop: 2 }}>
+                              {fmt(totalCostCop)}
+                            </Text>
+                          </View>
+                          <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 }}>Tasa Efectiva</Text>
+                            <Text style={{ color: colors.text, fontSize: 14, fontWeight: '900', marginTop: 2 }}>
+                              {fmt(effectiveRate)}
+                            </Text>
+                          </View>
                         </View>
                       </View>
                     );
@@ -2100,20 +2118,17 @@ export default function InvestScreen() {
                 })()}
               </View>
 
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
-                <TouchableOpacity style={[s.modalBtn, { backgroundColor: colors.bg }]} onPress={() => setBuyDollarModalVisible(false)}>
-                  <Text style={{ color: colors.text, fontWeight: '700' }}>Cancelar</Text>
-                </TouchableOpacity>
+              <View style={{ marginTop: 28 }}>
                 <TouchableOpacity 
-                  style={[s.modalBtn, { backgroundColor: colors.accent, opacity: isDollarLoading ? 0.7 : 1 }]} 
+                  style={{ backgroundColor: colors.accent, opacity: isDollarLoading ? 0.7 : 1, paddingVertical: 18, borderRadius: 100, alignItems: 'center', shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 }} 
                   onPress={handleSaveDollarPurchase}
                   disabled={isDollarLoading}
                 >
                   {isDollarLoading ? (
                     <ActivityIndicator color="#FFF" />
                   ) : (
-                    <Text style={{ color: '#FFF', fontWeight: '900' }}>
-                      {editingItem ? 'Guardar Cambios' : 'Guardar Compra'}
+                    <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 16 }}>
+                      {editingItem ? 'Guardar Cambios' : 'Confirmar Compra'}
                     </Text>
                   )}
                 </TouchableOpacity>
