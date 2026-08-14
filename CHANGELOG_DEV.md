@@ -632,6 +632,17 @@
 | Subtexto | Oliva | `#A09B8C` |
 | Bordes | Gris azulado | `#3A3A52` |
 
+### 2026-08-14 — Sanctuary: Billetera USD Condicional y Fix Modal (v35)
+
+**Archivos modificados:**
+- `app/(tabs)/invest.tsx` — Lógica condicional de visualización para Billetera USD y corrección de padding en modal de opciones.
+
+**Cambios realizados:**
+- ✅ **Billetera USD Dinámica**: La sección de Billetera USD en el Portafolio ahora se oculta automáticamente si el usuario no tiene historial de compras ni saldo activo, mostrando solo los activos y manteniendo la vista más limpia.
+- ✅ **Fix de Layout en Modal**: Se solucionó el error visual donde las opciones de "¿Qué agregar?" salían cortadas ("mochas") en la parte inferior de la pantalla. Se ajustó el `KeyboardAvoidingView` con `width: '100%'` y un padding bottom dinámico para respetar la zona segura de dispositivos.
+
+---
+
 ### 2026-08-13 — Sanctuary: Rediseño Estético de Compras USD (v34)
 
 **Archivos modificados:**

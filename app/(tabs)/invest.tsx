@@ -1311,6 +1311,7 @@ export default function InvestScreen() {
               )}
 
               {/* 💵 COMPRA Y VENTA DE DÓLARES SECTION */}
+              {dollarPurchases.length > 0 && (
               <View style={[s.bvcMarketSection, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 16, marginBottom: 16 }]}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                   <View>
@@ -1496,6 +1497,7 @@ export default function InvestScreen() {
                   </View>
                 )}
               </View>
+              )}
 
               {/* Assets List */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 16 }}>
@@ -1614,8 +1616,8 @@ export default function InvestScreen() {
           <TouchableWithoutFeedback onPress={handleCloseModal}>
             <View style={StyleSheet.absoluteFill} />
           </TouchableWithoutFeedback>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={Platform.OS === 'ios'}>
-            <View style={[s.modalBox, { backgroundColor: colors.card }]}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={Platform.OS === 'ios'} style={{ width: '100%' }}>
+            <View style={[s.modalBox, { backgroundColor: colors.card, paddingBottom: Platform.OS === 'ios' ? 60 : 40 }]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 {addFlowStep === 'amount' || addFlowStep === 'search' ? (
                   <TouchableOpacity onPress={() => setAddFlowStep(addFlowStep === 'amount' ? 'search' : 'category')} style={{ marginRight: 10 }}>
