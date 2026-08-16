@@ -632,6 +632,19 @@
 | Subtexto | Oliva | `#A09B8C` |
 | Bordes | Gris azulado | `#3A3A52` |
 
+### 2026-08-16 — Sanctuary: Fix Registrar Pago en Préstamos (v36)
+
+**Archivos modificados:**
+- `app/(tabs)/debts.tsx` — Corrección de compatibilidad web para `Alert.alert` en pagos de cuotas y abonos a capital.
+
+**Cambios realizados:**
+- 🐛 **Bug Fix — Registrar Pago no funcionaba en web**: El botón "Registrar Pago" en el Cronograma de Cuotas no hacía nada al presionarlo en la versión web. Esto se debía a que `Alert.alert` de React Native no está soportado en la plataforma web y fallaba silenciosamente.
+- ✅ **Fix `handlePayInstallment`**: Al pagar una cuota en web, ahora se usa `window.confirm()` del navegador para confirmar la acción, luego actualiza `paidInstallments`, la deuda y crea la transacción del gasto.
+- ✅ **Fix `handleExtraPayment`**: El abono extra a capital también fue actualizado con la misma lógica multiplataforma.
+- ✅ **Fix Botón "Consejo para pagar más rápido"**: El botón de abono inteligente también usa ahora `window.confirm()` en web.
+
+---
+
 ### 2026-08-14 — Sanctuary: Billetera USD Condicional y Fix Modal (v35)
 
 **Archivos modificados:**

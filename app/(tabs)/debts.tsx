@@ -317,24 +317,38 @@ export default function DebtsScreen() {
         if (!selectedLoanItem) return;
         const meta = parseLoanMeta(selectedLoanItem.client);
         if (!meta) return;
-        Alert.alert(`Pagar Cuota #${inst.number}`, `¿Confirmar pago de ${fmt(inst.total)} desde "${selectedPayAccount}"?\n\nFecha: ${inst.dueDate}`,
-            [{ text: 'Cancelar', style: 'cancel' }, {
-                text: 'Confirmar', onPress: async () => {
-                    setIsProcessing(true);
-                    try {
-                        const newPaid = [...meta.paidInstallments, inst.number];
-                        const r = getMonthlyRate(meta.interestRate, meta.rateType);
-                        const schedule = buildSchedule(meta.disbursed, r, meta.termMonths, meta.amortizationMethod, meta.firstPaymentDate, meta.extraPayments, newPaid);
-                        const nextPending = schedule.find(s => !newPaid.includes(s.number));
-                        const newDueDate = nextPending ? nextPending.dueDate : inst.dueDate;
-                        const updatedMeta = { ...meta, paidInstallments: newPaid };
-                        await supabase.from('debts').update({ client: JSON.stringify(updatedMeta), paid: selectedLoanItem.paid + inst.total, due_date: newDueDate }).eq('id', selectedLoanItem.id);
-                        await supabase.from('transactions').insert([{ user_id: user?.id, amount: inst.total, type: 'expense', category: 'Préstamos', description: `Cuota #${inst.number}: ${meta.name}`, account: selectedPayAccount, date: getLocalISOString() }]);
-                        setLoanDetailsModalVisible(false); loadData();
-                        Alert.alert('✅ Cuota Pagada', `Cuota #${inst.number} registrada.`);
-                    } catch (e: any) { Alert.alert('Error', e.message || 'No se pudo registrar.'); } finally { setIsProcessing(false); }
-                }
-            }]
+
+        const confirmPayment = async () => {
+            setIsProcessing(true);
+            try {
+                const newPaid = [...meta.paidInstallments, inst.number];
+                const r = getMonthlyRate(meta.interestRate, meta.rateType);
+                const schedule = buildSchedule(meta.disbursed, r, meta.termMonths, meta.amortizationMethod, meta.firstPaymentDate, meta.extraPayments, newPaid);
+                const nextPending = schedule.find(s => !newPaid.includes(s.number));
+                const newDueDate = nextPending ? nextPending.dueDate : inst.dueDate;
+                const updatedMeta = { ...meta, paidInstallments: newPaid };
+                await supabase.from('debts').update({ client: JSON.stringify(updatedMeta), paid: selectedLoanItem.paid + inst.total, due_date: newDueDate }).eq('id', selectedLoanItem.id);
+                await supabase.from('transactions').insert([{ user_id: user?.id, amount: inst.total, type: 'expense', category: 'Préstamos', description: `Cuota #${inst.number}: ${meta.name}`, account: selectedPayAccount, date: getLocalISOString() }]);
+                setLoanDetailsModalVisible(false); loadData();
+                if (Platform.OS === 'web') alert(`✅ Cuota Pagada\nCuota #${inst.number} registrada.`);
+                else Alert.alert('✅ Cuota Pagada', `Cuota #${inst.number} registrada.`);
+            } catch (e: any) { 
+                if (Platform.OS === 'web') alert('Error\n' + (e.message || 'No se pudo registrar.'));
+                else Alert.alert('Error', e.message || 'No se pudo registrar.');
+            } finally { setIsProcessing(false); }
+        };
+
+        const msg = `¿Confirmar pago de ${fmt(inst.total)} desde "${selectedPayAccount}"?\n\nFecha: ${inst.dueDate}`;
+        
+        if (Platform.OS === 'web') {
+            if (window.confirm(msg)) {
+                confirmPayment();
+            }
+            return;
+        }
+
+        Alert.alert(`Pagar Cuota #${inst.number}`, msg,
+            [{ text: 'Cancelar', style: 'cancel' }, { text: 'Confirmar', onPress: confirmPayment }]
         );
     };
 
@@ -345,7 +359,11 @@ export default function DebtsScreen() {
         if (!meta) return;
         const sv = customAmount ?? parseInputToNumber(extraPaymentAmount, currency);
         const val = customAmount ?? convertToBase(sv, currency, rates);
-        if (isNaN(val) || val <= 0) { Alert.alert('Error', 'Ingresa un monto válido.'); return; }
+        if (isNaN(val) || val <= 0) { 
+            if (Platform.OS === 'web') alert('Error\nIngresa un monto válido.');
+            else Alert.alert('Error', 'Ingresa un monto válido.');
+            return; 
+        }
         const r = getMonthlyRate(meta.interestRate, meta.rateType);
         const baseSchedule = buildSchedule(meta.disbursed, r, meta.termMonths, meta.amortizationMethod, meta.firstPaymentDate, meta.extraPayments, meta.paidInstallments);
         const simExtra: ExtraPaymentRecord = { date: getLocalISOString().split('T')[0], amount: val, interestSaved: 0, monthsReduced: 0 };
@@ -353,22 +371,35 @@ export default function DebtsScreen() {
         const interestSaved = Math.max(0, baseSchedule.reduce((s, i) => s + i.interest, 0) - simSchedule.reduce((s, i) => s + i.interest, 0));
         const monthsReduced = Math.max(0, baseSchedule.length - simSchedule.length);
         const finalExtra: ExtraPaymentRecord = { ...simExtra, interestSaved, monthsReduced };
-        Alert.alert('Abonar a Capital', `Abono: ${fmt(val)}\n\n💰 Ahorras: ${fmt(interestSaved)} en intereses\n📅 Reduces: ${monthsReduced} mes(es)\n\nSe descontará de "${selectedPayAccount}".`,
-            [{ text: 'Cancelar', style: 'cancel' }, {
-                text: 'Confirmar', onPress: async () => {
-                    setIsProcessing(true);
-                    try {
-                        const updatedMeta = { ...meta, extraPayments: [...meta.extraPayments, finalExtra] };
-                        await supabase.from('debts').update({ client: JSON.stringify(updatedMeta), paid: selectedLoanItem.paid + val }).eq('id', selectedLoanItem.id);
-                        await supabase.from('transactions').insert([{ user_id: user?.id, amount: val, type: 'expense', category: 'Préstamos', description: `Abono a capital: ${meta.name}`, account: selectedPayAccount, date: getLocalISOString() }]);
-                        setExtraPaymentAmount(''); setLoanDetailsModalVisible(false); loadData();
-                        Alert.alert('🎉 Abono Registrado', `Ahorraste ${fmt(interestSaved)} y redujiste ${monthsReduced} cuota(s).`);
-                    } catch (e: any) { Alert.alert('Error', e.message || 'No se pudo registrar.'); } finally { setIsProcessing(false); }
-                }
-            }]
+        
+        const confirmPayment = async () => {
+            setIsProcessing(true);
+            try {
+                const updatedMeta = { ...meta, extraPayments: [...meta.extraPayments, finalExtra] };
+                await supabase.from('debts').update({ client: JSON.stringify(updatedMeta), paid: selectedLoanItem.paid + val }).eq('id', selectedLoanItem.id);
+                await supabase.from('transactions').insert([{ user_id: user?.id, amount: val, type: 'expense', category: 'Préstamos', description: `Abono a capital: ${meta.name}`, account: selectedPayAccount, date: getLocalISOString() }]);
+                setExtraPaymentAmount(''); setLoanDetailsModalVisible(false); loadData();
+                if (Platform.OS === 'web') alert(`🎉 Abono Registrado\nAhorraste ${fmt(interestSaved)} y redujiste ${monthsReduced} cuota(s).`);
+                else Alert.alert('🎉 Abono Registrado', `Ahorraste ${fmt(interestSaved)} y redujiste ${monthsReduced} cuota(s).`);
+            } catch (e: any) { 
+                if (Platform.OS === 'web') alert('Error\n' + (e.message || 'No se pudo registrar.'));
+                else Alert.alert('Error', e.message || 'No se pudo registrar.');
+            } finally { setIsProcessing(false); }
+        };
+
+        const msg = `Abono: ${fmt(val)}\n\n💰 Ahorras: ${fmt(interestSaved)} en intereses\n📅 Reduces: ${monthsReduced} mes(es)\n\nSe descontará de "${selectedPayAccount}".`;
+
+        if (Platform.OS === 'web') {
+            if (window.confirm(msg)) {
+                confirmPayment();
+            }
+            return;
+        }
+
+        Alert.alert('Abonar a Capital', msg,
+            [{ text: 'Cancelar', style: 'cancel' }, { text: 'Confirmar', onPress: confirmPayment }]
         );
     };
-
     // ── List & calculations ───────────────────────────────────
     const currentList = debts.filter(d => d.debt_type === viewMode);
     const totalValue = currentList.reduce((s, d) => s + d.value, 0);
@@ -903,9 +934,16 @@ export default function DebtsScreen() {
                                             <Text style={{ color: colors.text, fontWeight: '900', fontSize: 15, marginBottom: 10 }}>💡 Consejo para pagar más rápido</Text>
                                             <TouchableOpacity 
                                                 onPress={() => {
+                                                    const msg = `¿Deseas registrar un abono extra de ${fmt(smartSuggestions[0].amount)} a capital?\n\nRecuerda transferir este dinero en la vida real a la entidad de tu préstamo.`;
+                                                    if (Platform.OS === 'web') {
+                                                        if (window.confirm(msg)) {
+                                                            handleExtraPayment(smartSuggestions[0].amount);
+                                                        }
+                                                        return;
+                                                    }
                                                     Alert.alert(
                                                         'Abono Inteligente',
-                                                        `¿Deseas registrar un abono extra de ${fmt(smartSuggestions[0].amount)} a capital?\n\nRecuerda transferir este dinero en la vida real a la entidad de tu préstamo.`,
+                                                        msg,
                                                         [
                                                             { text: 'Cancelar', style: 'cancel' },
                                                             { text: 'Registrar Abono', onPress: () => handleExtraPayment(smartSuggestions[0].amount) }
