@@ -76,8 +76,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300,
-    "collapsed": true
+    "width": 300
   },
   "right": {
     "id": "003c1de5181e70e8",
@@ -170,8 +169,8 @@
   },
   "left-ribbon": {
     "hiddenItems": {
-      "switcher:Abrir selector rápido": false,
       "graph:Abrir vista gráfica": false,
+      "switcher:Abrir selector rápido": false,
       "canvas:Crear nuevo lienzo": false,
       "daily-notes:Abrir la nota de hoy": false,
       "templates:Insertar plantilla": false,
@@ -179,8 +178,9 @@
       "bases:Crear nueva base": false
     }
   },
-  "active": "5455bfad12b0e1f5",
+  "active": "ae9f60691de7500f",
   "lastOpenFiles": [
+    "Sin nombre",
     "flujos.md",
     "secciones-app.md",
     "arquitectura.md",

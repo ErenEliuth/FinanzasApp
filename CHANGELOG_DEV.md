@@ -632,6 +632,25 @@
 | Subtexto | Oliva | `#A09B8C` |
 | Bordes | Gris azulado | `#3A3A52` |
 
+### 2026-09-18 — Sanctuary: Rediseño Completo de Presupuestos (v37)
+
+**Archivos modificados:**
+- `app/budgets.tsx` — Rediseño completo del módulo de presupuestos.
+
+**Cambios realizados:**
+- 🗺️ **Burbuja Hero inteligente**: Muestra el saldo disponible real (todas las cuentas) vs lo planificado, con barra de progreso y mensaje dinámico. Si el presupuesto supera el saldo, el hero se vuelve rojo y alerta.
+- 🍩 **Donut Chart SVG**: Muestra la distribución del presupuesto entre Gastos / Ahorro / Inversión con segmentos de colores e leyenda.
+- ⚡ **Wizard de Importación**: Botón "Importar gastos fijos o cuotas" que abre un wizard con 3 tabs:
+  - **Gastos Fijos**: Lista los gastos fijos activos desde Deudas para seleccionarlos con checkbox y añadirlos al presupuesto de la categoría "Gastos Fijos".
+  - **Préstamos**: Lista los préstamos activos con la cuota mensual calculada para importarlos a la categoría "Préstamos".
+  - **Manual**: Nombre, ícono/color elegible y límite personalizado.
+- 💸 **Sección Gastos**: Igual que antes pero solo muestra categorías con datos; alertas 🔴/⚠️ por categoría al acercarse o superar el límite.
+- 🏦 **Sección Ahorro**: Nuevo ítem especial para definir meta mensual de ahorro con progreso real.
+- 📈 **Sección Inversión**: Nuevo ítem especial para definir meta mensual de inversión con progreso real.
+- 📊 **Estadísticas del hero**: Mini fila con "Presupuestado / Gastado / Diario" en la parte inferior de la burbuja.
+
+---
+
 ### 2026-08-16 — Sanctuary: Fix Registrar Pago en Préstamos (v36)
 
 **Archivos modificados:**
