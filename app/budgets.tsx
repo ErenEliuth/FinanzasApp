@@ -158,7 +158,8 @@ export default function BudgetsScreen() {
     const [totalBalance, setTotalBalance] = useState(0);
     const [fixedDebts, setFixedDebts] = useState<any[]>([]);
     const [regularDebts, setRegularDebts] = useState<any[]>([]);
-    const [loanItems, setLoanItems] = useState<{ id: string; name: string; monthlyPayment: number }[]>([]);
+    const [loanItems, setLoanItems] = useState<{ id: string; name: string; monthlyPayment: number; isPaidThisMonth?: boolean }[]>([]);
+    const [importedItems, setImportedItems] = useState<Set<string>>(new Set());
     const [savingsGoal, setSavingsGoal] = useState(0);
     const [savingsReal, setSavingsReal] = useState(0);
     const [investGoal, setInvestGoal] = useState(0);
@@ -214,6 +215,10 @@ export default function BudgetsScreen() {
             const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
             startDate.setHours(0, 0, 0, 0);
 
+            const importedKey = `@budget_imported_${user.id}_${today.getFullYear()}_${today.getMonth()}`;
+            const importedRaw = await AsyncStorage.getItem(importedKey);
+            if (importedRaw) setImportedItems(new Set(JSON.parse(importedRaw)));
+
             const [budgetRes, txRes, debtsRes] = await Promise.all([
                 supabase.from('budgets').select('*').eq('user_id', user.id),
                 supabase.from('transactions').select('category, amount, type, account').eq('user_id', user.id).gte('date', startDate.toISOString()),
@@ -263,7 +268,12 @@ export default function BudgetsScreen() {
                     const r = getMonthlyRate(meta.interestRate, meta.rateType);
                     const monthly = buildLoanMonthlyPayment(meta.disbursed, r, meta.termMonths, meta.amortizationMethod, meta.paidInstallments || []);
                     if (monthly <= 0) return null;
-                    return { id: d.id, name: meta.name, monthlyPayment: monthly };
+                    
+                    const nextDate = new Date(d.due_date + 'T12:00:00');
+                    const isPaidThisMonth = nextDate.getFullYear() > today.getFullYear() || 
+                                            (nextDate.getFullYear() === today.getFullYear() && nextDate.getMonth() > today.getMonth());
+
+                    return { id: d.id, name: meta.name, monthlyPayment: monthly, isPaidThisMonth };
                 })
                 .filter(Boolean) as any[];
             setLoanItems(loans);
@@ -287,13 +297,33 @@ export default function BudgetsScreen() {
 
     const handleDelete = async (budget: any) => {
         const msg = `¿Quitar el límite para "${budget.category}"?`;
+        
+        const removeImportedData = async () => {
+            const today = new Date();
+            const importedKey = `@budget_imported_${user?.id}_${today.getFullYear()}_${today.getMonth()}`;
+            const newSet = new Set(importedItems);
+            if (budget.category === 'Gastos Fijos') fixedDebts.forEach(d => newSet.delete(d.id));
+            if (budget.category === 'Deudas') regularDebts.forEach(d => newSet.delete(d.id));
+            if (budget.category === 'Préstamos') loanItems.forEach(d => newSet.delete(d.id));
+            await AsyncStorage.setItem(importedKey, JSON.stringify(Array.from(newSet)));
+            setImportedItems(newSet);
+        };
+
         if (Platform.OS === 'web') {
-            if (window.confirm(msg)) { await supabase.from('budgets').delete().eq('id', budget.id); loadData(); }
+            if (window.confirm(msg)) { 
+                await supabase.from('budgets').delete().eq('id', budget.id); 
+                await removeImportedData();
+                loadData(); 
+            }
             return;
         }
         Alert.alert('Eliminar', msg, [
             { text: 'Cancelar', style: 'cancel' },
-            { text: 'Eliminar', style: 'destructive', onPress: async () => { await supabase.from('budgets').delete().eq('id', budget.id); loadData(); } }
+            { text: 'Eliminar', style: 'destructive', onPress: async () => { 
+                await supabase.from('budgets').delete().eq('id', budget.id); 
+                await removeImportedData();
+                loadData(); 
+            } }
         ]);
     };
 
@@ -369,6 +399,15 @@ export default function BudgetsScreen() {
             for (const u of upserts) {
                 await supabase.from('budgets').upsert([u], { onConflict: 'user_id,category' });
             }
+            
+            const today = new Date();
+            const importedKey = `@budget_imported_${user.id}_${today.getFullYear()}_${today.getMonth()}`;
+            const newSet = new Set(importedItems);
+            selectedFixed.forEach(id => newSet.add(id));
+            selectedDebts.forEach(id => newSet.add(id));
+            selectedLoans.forEach(id => newSet.add(id));
+            await AsyncStorage.setItem(importedKey, JSON.stringify(Array.from(newSet)));
+            setImportedItems(newSet);
         }
 
         setWizardVisible(false);
@@ -440,7 +479,7 @@ export default function BudgetsScreen() {
                     <Text style={[s.headerTitle, { color: colors.text }]}>Presupuesto</Text>
                     <Text style={[s.headerSub, { color: colors.sub }]}>{periodName}</Text>
                 </View>
-                <TouchableOpacity onPress={() => { setWizardTab('custom'); setWizardVisible(true); }} style={[s.circleBtn, { backgroundColor: colors.accent }]}>
+                <TouchableOpacity onPress={() => { setWizardTab('fixed'); setWizardVisible(true); }} style={[s.circleBtn, { backgroundColor: colors.accent }]}>
                     <Ionicons name="add" size={22} color="#FFF" />
                 </TouchableOpacity>
             </View>
@@ -505,12 +544,6 @@ export default function BudgetsScreen() {
                     </View>
                 </View>
 
-                {/* ── IMPORT BUTTON ── */}
-                <TouchableOpacity style={[s.importBtn, { backgroundColor: colors.card, borderColor: colors.accent + '40', borderWidth: 1 }]} onPress={() => { setWizardTab('fixed'); setWizardVisible(true); }}>
-                    <Ionicons name="flash" size={18} color={colors.accent} />
-                    <Text style={[s.importTxt, { color: colors.accent }]}>Importar gastos fijos o cuotas de préstamos</Text>
-                    <Ionicons name="chevron-forward" size={16} color={colors.accent} />
-                </TouchableOpacity>
 
 
 
@@ -687,23 +720,26 @@ export default function BudgetsScreen() {
                                             <Text style={[s.emptyWiz, { color: colors.sub }]}>No tienes gastos fijos.{"\n"}Puedes crearlos en Deudas → Fijos.</Text>
                                         ) : fixedDebts.map(debt => {
                                             const isPaid = debt.paid >= debt.value;
+                                            const isImported = importedItems.has(debt.id);
                                             const checked = selectedFixed.has(debt.id);
                                             return (
-                                                <TouchableOpacity key={debt.id} style={[s.wizardItem, { borderColor: checked ? colors.accent : colors.border }]} onPress={() => {
+                                                <TouchableOpacity key={debt.id} disabled={isImported} style={[s.wizardItem, { borderColor: checked ? colors.accent : colors.border, opacity: isImported ? 0.6 : 1 }]} onPress={() => {
                                                     const newSet = new Set(selectedFixed);
                                                     checked ? newSet.delete(debt.id) : newSet.add(debt.id);
                                                     setSelectedFixed(newSet);
                                                 }}>
-                                                    <View style={[s.checkbox, { borderColor: checked ? colors.accent : colors.border, backgroundColor: checked ? colors.accent : 'transparent' }]}>
+                                                    <View style={[s.checkbox, { borderColor: checked ? colors.accent : colors.border, backgroundColor: checked ? colors.accent : 'transparent', opacity: isImported ? 0 : 1 }]}>
                                                         {checked && <Ionicons name="checkmark" size={12} color="#FFF" />}
                                                     </View>
                                                     <View style={{ flex: 1 }}>
                                                         <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>{debt.client}</Text>
                                                         <Text style={{ color: colors.sub, fontSize: 12 }}>Día {new Date(debt.due_date + 'T12:00:00').getUTCDate()} · {fmt(debt.value)}</Text>
                                                     </View>
-                                                    {isPaid
-                                                        ? <View style={{ backgroundColor: '#10B98120', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ color: '#10B981', fontSize: 10, fontWeight: '900' }}>✅ PAGADO</Text></View>
-                                                        : <View style={{ backgroundColor: '#F59E0B20', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ color: '#F59E0B', fontSize: 10, fontWeight: '900' }}>PENDIENTE</Text></View>
+                                                    {isImported 
+                                                        ? <View style={{ backgroundColor: colors.accent + '20', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ color: colors.accent, fontSize: 10, fontWeight: '900' }}>IMPORTADO</Text></View>
+                                                        : isPaid
+                                                            ? <View style={{ backgroundColor: '#10B98120', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ color: '#10B981', fontSize: 10, fontWeight: '900' }}>✅ PAGADO</Text></View>
+                                                            : <View style={{ backgroundColor: '#F59E0B20', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ color: '#F59E0B', fontSize: 10, fontWeight: '900' }}>PENDIENTE</Text></View>
                                                     }
                                                 </TouchableOpacity>
                                             );
@@ -717,24 +753,27 @@ export default function BudgetsScreen() {
                                             <Text style={[s.emptyWiz, { color: colors.sub }]}>No tienes deudas registradas.{"\n"}Puedes crearlas en Deudas → Deudas.</Text>
                                         ) : regularDebts.map(debt => {
                                             const isPaid = debt.paid >= debt.value;
+                                            const isImported = importedItems.has(debt.id);
                                             const pending = Math.max(0, debt.value - (debt.paid || 0));
                                             const checked = selectedDebts.has(debt.id);
                                             return (
-                                                <TouchableOpacity key={debt.id} style={[s.wizardItem, { borderColor: checked ? colors.accent : colors.border }]} onPress={() => {
+                                                <TouchableOpacity key={debt.id} disabled={isImported} style={[s.wizardItem, { borderColor: checked ? colors.accent : colors.border, opacity: isImported ? 0.6 : 1 }]} onPress={() => {
                                                     const newSet = new Set(selectedDebts);
                                                     checked ? newSet.delete(debt.id) : newSet.add(debt.id);
                                                     setSelectedDebts(newSet);
                                                 }}>
-                                                    <View style={[s.checkbox, { borderColor: checked ? colors.accent : colors.border, backgroundColor: checked ? colors.accent : 'transparent' }]}>
+                                                    <View style={[s.checkbox, { borderColor: checked ? colors.accent : colors.border, backgroundColor: checked ? colors.accent : 'transparent', opacity: isImported ? 0 : 1 }]}>
                                                         {checked && <Ionicons name="checkmark" size={12} color="#FFF" />}
                                                     </View>
                                                     <View style={{ flex: 1 }}>
                                                         <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>{debt.client}</Text>
                                                         <Text style={{ color: colors.sub, fontSize: 12 }}>Pendiente: {fmt(pending)}</Text>
                                                     </View>
-                                                    {isPaid
-                                                        ? <View style={{ backgroundColor: '#10B98120', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ color: '#10B981', fontSize: 10, fontWeight: '900' }}>✅ PAGADA</Text></View>
-                                                        : <Text style={{ color: colors.text, fontWeight: '800' }}>{fmt(debt.value)}</Text>
+                                                    {isImported 
+                                                        ? <View style={{ backgroundColor: colors.accent + '20', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ color: colors.accent, fontSize: 10, fontWeight: '900' }}>IMPORTADO</Text></View>
+                                                        : isPaid
+                                                            ? <View style={{ backgroundColor: '#10B98120', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ color: '#10B981', fontSize: 10, fontWeight: '900' }}>✅ PAGADA</Text></View>
+                                                            : <Text style={{ color: colors.text, fontWeight: '800' }}>{fmt(debt.value)}</Text>
                                                     }
                                                 </TouchableOpacity>
                                             );
@@ -747,21 +786,28 @@ export default function BudgetsScreen() {
                                         {loanItems.length === 0 ? (
                                             <Text style={[s.emptyWiz, { color: colors.sub }]}>No tienes préstamos activos con cuotas pendientes.</Text>
                                         ) : loanItems.map(loan => {
+                                            const isImported = importedItems.has(loan.id);
+                                            const disabled = isImported || loan.isPaidThisMonth;
                                             const checked = selectedLoans.has(loan.id);
                                             return (
-                                                <TouchableOpacity key={loan.id} style={[s.wizardItem, { borderColor: checked ? colors.accent : colors.border }]} onPress={() => {
+                                                <TouchableOpacity key={loan.id} disabled={disabled} style={[s.wizardItem, { borderColor: checked ? colors.accent : colors.border, opacity: disabled ? 0.6 : 1 }]} onPress={() => {
                                                     const newSet = new Set(selectedLoans);
                                                     checked ? newSet.delete(loan.id) : newSet.add(loan.id);
                                                     setSelectedLoans(newSet);
                                                 }}>
-                                                    <View style={[s.checkbox, { borderColor: checked ? colors.accent : colors.border, backgroundColor: checked ? colors.accent : 'transparent' }]}>
+                                                    <View style={[s.checkbox, { borderColor: checked ? colors.accent : colors.border, backgroundColor: checked ? colors.accent : 'transparent', opacity: disabled ? 0 : 1 }]}>
                                                         {checked && <Ionicons name="checkmark" size={12} color="#FFF" />}
                                                     </View>
                                                     <View style={{ flex: 1 }}>
                                                         <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>{loan.name}</Text>
                                                         <Text style={{ color: colors.sub, fontSize: 12 }}>Cuota mensual</Text>
                                                     </View>
-                                                    <Text style={{ color: colors.text, fontWeight: '800' }}>{fmt(loan.monthlyPayment)}</Text>
+                                                    {isImported 
+                                                        ? <View style={{ backgroundColor: colors.accent + '20', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ color: colors.accent, fontSize: 10, fontWeight: '900' }}>IMPORTADO</Text></View>
+                                                        : loan.isPaidThisMonth
+                                                            ? <View style={{ backgroundColor: '#10B98120', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ color: '#10B981', fontSize: 10, fontWeight: '900' }}>✅ PAGADO</Text></View>
+                                                            : <Text style={{ color: colors.text, fontWeight: '800' }}>{fmt(loan.monthlyPayment)}</Text>
+                                                    }
                                                 </TouchableOpacity>
                                             );
                                         })}
