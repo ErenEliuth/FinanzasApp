@@ -157,18 +157,19 @@ export default function BudgetsScreen() {
     const [spending, setSpending] = useState<Record<string, number>>({});
     const [totalBalance, setTotalBalance] = useState(0);
     const [fixedDebts, setFixedDebts] = useState<any[]>([]);
+    const [regularDebts, setRegularDebts] = useState<any[]>([]);
     const [loanItems, setLoanItems] = useState<{ id: string; name: string; monthlyPayment: number }[]>([]);
     const [savingsGoal, setSavingsGoal] = useState(0);
     const [savingsReal, setSavingsReal] = useState(0);
     const [investGoal, setInvestGoal] = useState(0);
     const [investReal, setInvestReal] = useState(0);
-    const [period, setPeriod] = useState<'monthly' | 'biweekly'>('monthly');
     const [customCategories, setCustomCategories] = useState<{ name: string; icon: string; color: string }[]>([]);
 
     // Modals
     const [wizardVisible, setWizardVisible] = useState(false);
-    const [wizardTab, setWizardTab] = useState<'fixed' | 'loans' | 'custom'>('fixed');
+    const [wizardTab, setWizardTab] = useState<'fixed' | 'debts' | 'loans' | 'custom'>('fixed');
     const [selectedFixed, setSelectedFixed] = useState<Set<string>>(new Set());
+    const [selectedDebts, setSelectedDebts] = useState<Set<string>>(new Set());
     const [selectedLoans, setSelectedLoans] = useState<Set<string>>(new Set());
     const [customCatName, setCustomCatName] = useState('');
     const [customCatIcon, setCustomCatIcon] = useState(ALL_CATEGORY_ICONS[0]);
@@ -185,14 +186,12 @@ export default function BudgetsScreen() {
     // ── Load Data ─────────────────────────────────────────────
     useEffect(() => {
         if (isFocused && user?.id) loadData();
-    }, [isFocused, period]);
+    }, [isFocused]);
 
     const loadData = async () => {
         if (!user) return;
         try {
             await syncDown(user.id);
-            const periodRaw = await AsyncStorage.getItem(SYNC_KEYS.BUDGET_PERIOD(user.id));
-            if (periodRaw) setPeriod(periodRaw as any);
             const customCatsRaw = await AsyncStorage.getItem(SYNC_KEYS.CATEGORIES(user.id));
             if (customCatsRaw) {
                 const parsed = JSON.parse(customCatsRaw);
@@ -212,10 +211,7 @@ export default function BudgetsScreen() {
             if (igRaw) setInvestGoal(parseFloat(igRaw));
 
             const today = new Date();
-            let startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-            if (period === 'biweekly') {
-                startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() > 15 ? 16 : 1);
-            }
+            const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
             startDate.setHours(0, 0, 0, 0);
 
             const [budgetRes, txRes, debtsRes] = await Promise.all([
@@ -249,10 +245,14 @@ export default function BudgetsScreen() {
             setSavingsReal(savReal);
             setInvestReal(invReal);
 
-            // Fixed debts for import
+            // Fixed debts for import (ALL — paid and unpaid)
             const allDebts = debtsRes.data || [];
-            const fixed = allDebts.filter((d: any) => d.debt_type === 'fixed' && d.paid < d.value);
+            const fixed = allDebts.filter((d: any) => d.debt_type === 'fixed');
             setFixedDebts(fixed);
+
+            // Regular debts for import
+            const regDebts = allDebts.filter((d: any) => d.debt_type === 'debt');
+            setRegularDebts(regDebts);
 
             // Loan installments for import
             const loans = allDebts
@@ -271,18 +271,12 @@ export default function BudgetsScreen() {
         } catch (e) { console.error(e); }
     };
 
-    const togglePeriod = async (p: 'monthly' | 'biweekly') => {
-        if (!user?.id) return;
-        setPeriod(p);
-        await AsyncStorage.setItem(SYNC_KEYS.BUDGET_PERIOD(user.id), p);
-        await syncUp(user.id);
-    };
+
 
     // ── Save / Delete budget ──────────────────────────────────
     const handleSaveBudget = async () => {
         const typedVal = parseInputToNumber(limitAmount, currency);
-        let val = convertToBase(typedVal, currency, rates);
-        if (period === 'biweekly') val = val * 2;
+        const val = convertToBase(typedVal, currency, rates);
         if (isNaN(val) || val <= 0) return;
         await supabase.from('budgets').upsert(
             [{ user_id: user?.id, category: editingBudget?.name || editingBudget?.category, monthly_limit: val }],
@@ -306,8 +300,7 @@ export default function BudgetsScreen() {
     const openLimitModal = (catObj: any, existing?: any) => {
         setEditingBudget(catObj);
         if (existing) {
-            let base = existing.monthly_limit;
-            if (period === 'biweekly') base /= 2;
+            const base = existing.monthly_limit;
             setLimitAmount(String(Math.round(convertCurrency(base, currency, rates))));
         } else {
             setLimitAmount('');
@@ -320,29 +313,40 @@ export default function BudgetsScreen() {
         if (!user?.id) return;
         const upserts: any[] = [];
 
-        // Import fixed debts
+        // Import fixed debts → group into 'Gastos Fijos'
         selectedFixed.forEach(id => {
             const debt = fixedDebts.find(d => d.id === id);
             if (!debt) return;
             const existing = budgets.find(b => b.category === 'Gastos Fijos');
-            const addAmt = debt.value;
             upserts.push({
                 user_id: user.id,
                 category: 'Gastos Fijos',
-                monthly_limit: (existing?.monthly_limit || 0) + addAmt,
+                monthly_limit: (existing?.monthly_limit || 0) + debt.value,
             });
         });
 
-        // Import loan installments
+        // Import regular debts → group into 'Deudas'
+        selectedDebts.forEach(id => {
+            const debt = regularDebts.find(d => d.id === id);
+            if (!debt) return;
+            const pending = Math.max(0, debt.value - (debt.paid || 0));
+            const existing = budgets.find(b => b.category === 'Deudas');
+            upserts.push({
+                user_id: user.id,
+                category: 'Deudas',
+                monthly_limit: (existing?.monthly_limit || 0) + pending,
+            });
+        });
+
+        // Import loan installments → group into 'Préstamos'
         selectedLoans.forEach(id => {
             const loan = loanItems.find(l => l.id === id);
             if (!loan) return;
             const existing = budgets.find(b => b.category === 'Préstamos');
-            const addAmt = loan.monthlyPayment;
             upserts.push({
                 user_id: user.id,
                 category: 'Préstamos',
-                monthly_limit: (existing?.monthly_limit || 0) + addAmt,
+                monthly_limit: (existing?.monthly_limit || 0) + loan.monthlyPayment,
             });
         });
 
@@ -369,6 +373,7 @@ export default function BudgetsScreen() {
 
         setWizardVisible(false);
         setSelectedFixed(new Set());
+        setSelectedDebts(new Set());
         setSelectedLoans(new Set());
         setCustomCatName('');
         setCustomLimitAmount('');
@@ -403,24 +408,11 @@ export default function BudgetsScreen() {
     ], [customCategories]);
 
     const today = new Date();
-    let remainingDays = 0, periodName = '';
-    if (period === 'monthly') {
-        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-        remainingDays = lastDay - today.getDate() + 1;
-        periodName = today.toLocaleString('es-CO', { month: 'long', year: 'numeric' });
-    } else {
-        const cur = today.getDate();
-        if (cur <= 15) {
-            remainingDays = 15 - cur + 1;
-            periodName = `1ra Quincena · ${today.toLocaleString('es-CO', { month: 'long' })}`;
-        } else {
-            const last = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-            remainingDays = last - cur + 1;
-            periodName = `2da Quincena · ${today.toLocaleString('es-CO', { month: 'long' })}`;
-        }
-    }
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const remainingDays = lastDay - today.getDate() + 1;
+    const periodName = today.toLocaleString('es-CO', { month: 'long', year: 'numeric' });
 
-    const totalSpendingBudget = budgets.reduce((s, b) => s + (period === 'biweekly' ? b.monthly_limit / 2 : b.monthly_limit), 0);
+    const totalSpendingBudget = budgets.reduce((s, b) => s + b.monthly_limit, 0);
     const totalPlanned = totalSpendingBudget + savingsGoal + investGoal;
     const totalSpent = budgets.reduce((s, b) => s + (spending[b.category] || 0), 0);
     const totalRemaining = Math.max(0, totalSpendingBudget - totalSpent);
@@ -453,14 +445,7 @@ export default function BudgetsScreen() {
                 </TouchableOpacity>
             </View>
 
-            {/* Period Switcher */}
-            <View style={[s.tabRow, { backgroundColor: colors.card }]}>
-                {(['monthly', 'biweekly'] as const).map(p => (
-                    <TouchableOpacity key={p} onPress={() => togglePeriod(p)} style={[s.tab, period === p && { backgroundColor: colors.accent }]}>
-                        <Text style={[s.tabTxt, { color: period === p ? '#FFF' : colors.sub }]}>{p === 'monthly' ? 'Mensual' : 'Quincenal'}</Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
+
 
             <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
 
@@ -527,21 +512,13 @@ export default function BudgetsScreen() {
                     <Ionicons name="chevron-forward" size={16} color={colors.accent} />
                 </TouchableOpacity>
 
-                {/* ── SECTION: GASTOS ── */}
-                <View style={s.sectionHeader}>
-                    <View style={[s.sectionIconBox, { backgroundColor: (isDark ? '#818CF8' : '#6366F1') + '20' }]}>
-                        <MaterialIcons name="receipt-long" size={18} color={isDark ? '#818CF8' : '#6366F1'} />
-                    </View>
-                    <Text style={[s.sectionTitle, { color: colors.text }]}>Gastos</Text>
-                    <Text style={[s.sectionTotal, { color: colors.sub }]}>{fmt(totalSpendingBudget)}</Text>
-                </View>
+
 
                 {allCategories.map(cat => {
                     const budget = budgets.find(b => b.category === cat.name);
                     const spent = spending[cat.name] || 0;
                     if (!budget && spent === 0) return null;
-                    let limit = budget?.monthly_limit || 0;
-                    if (period === 'biweekly') limit = limit / 2;
+                    const limit = budget?.monthly_limit || 0;
                     const pct = limit > 0 ? Math.min(100, (spent / limit) * 100) : 0;
                     const isOver = limit > 0 && spent > limit;
                     const isNear = limit > 0 && pct >= 85 && !isOver;
@@ -598,14 +575,7 @@ export default function BudgetsScreen() {
                     </View>
                 )}
 
-                {/* ── SECTION: AHORRO ── */}
-                <View style={s.sectionHeader}>
-                    <View style={[s.sectionIconBox, { backgroundColor: '#10B98120' }]}>
-                        <MaterialIcons name="savings" size={18} color="#10B981" />
-                    </View>
-                    <Text style={[s.sectionTitle, { color: colors.text }]}>Ahorro</Text>
-                    <Text style={[s.sectionTotal, { color: '#10B981' }]}>{fmt(savingsGoal)}</Text>
-                </View>
+
 
                 <TouchableOpacity style={[s.budgetCard, { backgroundColor: colors.card }]} onPress={() => { setGoalInput(savingsGoal > 0 ? String(Math.round(convertCurrency(savingsGoal, currency, rates))) : ''); setSavingsModalVisible(true); }}>
                     <View style={s.cardTop}>
@@ -639,14 +609,7 @@ export default function BudgetsScreen() {
                     )}
                 </TouchableOpacity>
 
-                {/* ── SECTION: INVERSIÓN ── */}
-                <View style={s.sectionHeader}>
-                    <View style={[s.sectionIconBox, { backgroundColor: '#F59E0B20' }]}>
-                        <MaterialIcons name="trending-up" size={18} color="#F59E0B" />
-                    </View>
-                    <Text style={[s.sectionTitle, { color: colors.text }]}>Inversión</Text>
-                    <Text style={[s.sectionTotal, { color: '#F59E0B' }]}>{fmt(investGoal)}</Text>
-                </View>
+
 
                 <TouchableOpacity style={[s.budgetCard, { backgroundColor: colors.card }]} onPress={() => { setGoalInput(investGoal > 0 ? String(Math.round(convertCurrency(investGoal, currency, rates))) : ''); setInvestModalVisible(true); }}>
                     <View style={s.cardTop}>
@@ -702,24 +665,28 @@ export default function BudgetsScreen() {
                             </View>
 
                             {/* Tab selector */}
-                            <View style={[s.wizardTabs, { backgroundColor: colors.bg }]}>
-                                {([
-                                    { key: 'fixed', label: '📋 Gastos Fijos' },
-                                    { key: 'loans', label: '🏦 Préstamos' },
-                                    { key: 'custom', label: '✏️ Manual' },
-                                ] as const).map(t => (
-                                    <TouchableOpacity key={t.key} onPress={() => setWizardTab(t.key)} style={[s.wizardTab, wizardTab === t.key && { backgroundColor: colors.accent }]}>
-                                        <Text style={[s.wizardTabTxt, { color: wizardTab === t.key ? '#FFF' : colors.sub }]}>{t.label}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingBottom: 4 }}>
+                                <View style={[s.wizardTabs, { backgroundColor: colors.bg }]}>
+                                    {([
+                                        { key: 'fixed', label: '📋 Fijos' },
+                                        { key: 'debts', label: '💳 Deudas' },
+                                        { key: 'loans', label: '🏦 Préstamos' },
+                                        { key: 'custom', label: '✏️ Manual' },
+                                    ] as const).map(t => (
+                                        <TouchableOpacity key={t.key} onPress={() => setWizardTab(t.key)} style={[s.wizardTab, wizardTab === t.key && { backgroundColor: colors.accent }]}>
+                                            <Text style={[s.wizardTabTxt, { color: wizardTab === t.key ? '#FFF' : colors.sub }]}>{t.label}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </ScrollView>
 
                             <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
                                 {wizardTab === 'fixed' && (
                                     <View style={{ paddingTop: 8 }}>
                                         {fixedDebts.length === 0 ? (
-                                            <Text style={[s.emptyWiz, { color: colors.sub }]}>No tienes gastos fijos activos.{'\n'}Puedes crearlos en la sección de Deudas.</Text>
+                                            <Text style={[s.emptyWiz, { color: colors.sub }]}>No tienes gastos fijos.{"\n"}Puedes crearlos en Deudas → Fijos.</Text>
                                         ) : fixedDebts.map(debt => {
+                                            const isPaid = debt.paid >= debt.value;
                                             const checked = selectedFixed.has(debt.id);
                                             return (
                                                 <TouchableOpacity key={debt.id} style={[s.wizardItem, { borderColor: checked ? colors.accent : colors.border }]} onPress={() => {
@@ -731,10 +698,44 @@ export default function BudgetsScreen() {
                                                         {checked && <Ionicons name="checkmark" size={12} color="#FFF" />}
                                                     </View>
                                                     <View style={{ flex: 1 }}>
-                                                        <Text style={[{ color: colors.text, fontWeight: '700', fontSize: 14 }]}>{debt.client}</Text>
-                                                        <Text style={{ color: colors.sub, fontSize: 12 }}>Vence día {new Date(debt.due_date + 'T12:00:00').getUTCDate()}</Text>
+                                                        <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>{debt.client}</Text>
+                                                        <Text style={{ color: colors.sub, fontSize: 12 }}>Día {new Date(debt.due_date + 'T12:00:00').getUTCDate()} · {fmt(debt.value)}</Text>
                                                     </View>
-                                                    <Text style={{ color: colors.text, fontWeight: '800' }}>{fmt(debt.value)}</Text>
+                                                    {isPaid
+                                                        ? <View style={{ backgroundColor: '#10B98120', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ color: '#10B981', fontSize: 10, fontWeight: '900' }}>✅ PAGADO</Text></View>
+                                                        : <View style={{ backgroundColor: '#F59E0B20', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ color: '#F59E0B', fontSize: 10, fontWeight: '900' }}>PENDIENTE</Text></View>
+                                                    }
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </View>
+                                )}
+
+                                {wizardTab === 'debts' && (
+                                    <View style={{ paddingTop: 8 }}>
+                                        {regularDebts.length === 0 ? (
+                                            <Text style={[s.emptyWiz, { color: colors.sub }]}>No tienes deudas registradas.{"\n"}Puedes crearlas en Deudas → Deudas.</Text>
+                                        ) : regularDebts.map(debt => {
+                                            const isPaid = debt.paid >= debt.value;
+                                            const pending = Math.max(0, debt.value - (debt.paid || 0));
+                                            const checked = selectedDebts.has(debt.id);
+                                            return (
+                                                <TouchableOpacity key={debt.id} style={[s.wizardItem, { borderColor: checked ? colors.accent : colors.border }]} onPress={() => {
+                                                    const newSet = new Set(selectedDebts);
+                                                    checked ? newSet.delete(debt.id) : newSet.add(debt.id);
+                                                    setSelectedDebts(newSet);
+                                                }}>
+                                                    <View style={[s.checkbox, { borderColor: checked ? colors.accent : colors.border, backgroundColor: checked ? colors.accent : 'transparent' }]}>
+                                                        {checked && <Ionicons name="checkmark" size={12} color="#FFF" />}
+                                                    </View>
+                                                    <View style={{ flex: 1 }}>
+                                                        <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>{debt.client}</Text>
+                                                        <Text style={{ color: colors.sub, fontSize: 12 }}>Pendiente: {fmt(pending)}</Text>
+                                                    </View>
+                                                    {isPaid
+                                                        ? <View style={{ backgroundColor: '#10B98120', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ color: '#10B981', fontSize: 10, fontWeight: '900' }}>✅ PAGADA</Text></View>
+                                                        : <Text style={{ color: colors.text, fontWeight: '800' }}>{fmt(debt.value)}</Text>
+                                                    }
                                                 </TouchableOpacity>
                                             );
                                         })}
@@ -801,7 +802,13 @@ export default function BudgetsScreen() {
                             {/* Action Button */}
                             <TouchableOpacity style={[s.wizardBtn, { backgroundColor: colors.accent }]} onPress={handleImportSelected}>
                                 <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 15 }}>
-                                    {wizardTab === 'custom' ? 'Agregar Categoría' : `Importar ${wizardTab === 'fixed' ? selectedFixed.size : selectedLoans.size} seleccionados`}
+                                    {wizardTab === 'custom'
+                                        ? 'Agregar Categoría'
+                                        : wizardTab === 'fixed'
+                                            ? `Importar ${selectedFixed.size} seleccionados`
+                                            : wizardTab === 'debts'
+                                                ? `Importar ${selectedDebts.size} seleccionados`
+                                                : `Importar ${selectedLoans.size} seleccionados`}
                                 </Text>
                             </TouchableOpacity>
                         </View>
