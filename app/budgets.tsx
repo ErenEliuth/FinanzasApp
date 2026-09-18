@@ -467,6 +467,14 @@ export default function BudgetsScreen() {
 
     const spendPct = totalBalance > 0 ? Math.min(100, (totalPlanned / totalBalance) * 100) : 0;
 
+    // ── Dynamic Hero Colors ──
+    const hBg = isOverBudget ? (isDark ? '#450A0A' : '#FEF2F2') : colors.accent;
+    const hTextMain = isOverBudget ? (isDark ? '#FECACA' : '#DC2626') : '#FFF';
+    const hTextSub = isOverBudget ? (isDark ? '#FCA5A5' : '#EF4444') : 'rgba(255,255,255,0.75)';
+    const hDiv = isOverBudget ? (isDark ? '#7F1D1D' : '#FECACA') : 'rgba(255,255,255,0.15)';
+    const hBarBg = isOverBudget ? (isDark ? '#7F1D1D' : '#FEE2E2') : 'rgba(255,255,255,0.2)';
+    const hBarFill = isOverBudget ? '#EF4444' : '#FFF';
+
     // ── Render ────────────────────────────────────────────────
     return (
         <SafeAreaView style={[s.container, { backgroundColor: colors.bg }]}>
@@ -489,16 +497,16 @@ export default function BudgetsScreen() {
             <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
 
                 {/* ── HERO BUBBLE ── */}
-                <View style={[s.heroBubble, { backgroundColor: isOverBudget ? '#EF444420' : colors.accent }]}>
+                <View style={[s.heroBubble, { backgroundColor: hBg }]}>
                     <View style={s.heroTop}>
                         <View style={{ flex: 1 }}>
-                            <Text style={[s.heroLabel, { color: isOverBudget ? '#EF4444' : 'rgba(255,255,255,0.75)' }]}>Dinero Disponible</Text>
-                            <Text style={[s.heroBalance, { color: isOverBudget ? '#EF4444' : '#FFF' }]}>{fmt(totalBalance)}</Text>
+                            <Text style={[s.heroLabel, { color: hTextSub }]}>Dinero Disponible</Text>
+                            <Text style={[s.heroBalance, { color: hTextMain }]}>{fmt(totalBalance)}</Text>
                             <View style={{ marginTop: 12 }}>
-                                <View style={s.heroBarBg}>
-                                    <View style={[s.heroBarFill, { width: `${Math.min(100, spendPct)}%`, backgroundColor: isOverBudget ? '#EF4444' : '#FFF' }]} />
+                                <View style={[s.heroBarBg, { backgroundColor: hBarBg }]}>
+                                    <View style={[s.heroBarFill, { width: `${Math.min(100, spendPct)}%`, backgroundColor: hBarFill }]} />
                                 </View>
-                                <Text style={[s.heroHint, { color: isOverBudget ? '#EF4444' : 'rgba(255,255,255,0.85)' }]}>
+                                <Text style={[s.heroHint, { color: hTextSub }]}>
                                     {isOverBudget
                                         ? `⚠️ Estás planeando gastar ${fmt(Math.abs(surplus))} más de lo que tienes`
                                         : totalPlanned > 0
@@ -512,34 +520,34 @@ export default function BudgetsScreen() {
                             <View style={{ marginTop: 8, gap: 4 }}>
                                 <View style={s.legendRow}>
                                     <View style={[s.legendDot, { backgroundColor: isDark ? '#818CF8' : '#6366F1' }]} />
-                                    <Text style={s.legendTxt}>Gastos</Text>
+                                    <Text style={[s.legendTxt, { color: hTextSub }]}>Gastos</Text>
                                 </View>
                                 <View style={s.legendRow}>
                                     <View style={[s.legendDot, { backgroundColor: '#10B981' }]} />
-                                    <Text style={s.legendTxt}>Ahorro</Text>
+                                    <Text style={[s.legendTxt, { color: hTextSub }]}>Ahorro</Text>
                                 </View>
                                 <View style={s.legendRow}>
                                     <View style={[s.legendDot, { backgroundColor: '#F59E0B' }]} />
-                                    <Text style={s.legendTxt}>Inversión</Text>
+                                    <Text style={[s.legendTxt, { color: hTextSub }]}>Inversión</Text>
                                 </View>
                             </View>
                         </View>
                     </View>
                     {/* Mini stats row */}
-                    <View style={s.heroStatsRow}>
+                    <View style={[s.heroStatsRow, { borderTopColor: hDiv }]}>
                         <View style={s.heroStat}>
-                            <Text style={s.heroStatLab}>PRESUPUESTADO</Text>
-                            <Text style={[s.heroStatVal, { color: isOverBudget ? '#EF4444' : '#FFF' }]}>{fmt(totalPlanned)}</Text>
+                            <Text style={[s.heroStatLab, { color: hTextSub }]}>PRESUPUESTADO</Text>
+                            <Text style={[s.heroStatVal, { color: hTextMain }]}>{fmt(totalPlanned)}</Text>
                         </View>
-                        <View style={[s.heroStatDivider]} />
+                        <View style={[s.heroStatDivider, { backgroundColor: hDiv }]} />
                         <View style={s.heroStat}>
-                            <Text style={s.heroStatLab}>GASTADO</Text>
-                            <Text style={s.heroStatVal}>{fmt(totalSpent)}</Text>
+                            <Text style={[s.heroStatLab, { color: hTextSub }]}>GASTADO</Text>
+                            <Text style={[s.heroStatVal, { color: hTextMain }]}>{fmt(totalSpent)}</Text>
                         </View>
-                        <View style={s.heroStatDivider} />
+                        <View style={[s.heroStatDivider, { backgroundColor: hDiv }]} />
                         <View style={s.heroStat}>
-                            <Text style={s.heroStatLab}>DIARIO</Text>
-                            <Text style={s.heroStatVal}>{fmt(dailySafe)}</Text>
+                            <Text style={[s.heroStatLab, { color: hTextSub }]}>DIARIO</Text>
+                            <Text style={[s.heroStatVal, { color: hTextMain }]}>{fmt(dailySafe)}</Text>
                         </View>
                     </View>
                 </View>
