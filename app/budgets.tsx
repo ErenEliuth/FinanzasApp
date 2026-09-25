@@ -71,9 +71,19 @@ const parseLoanMeta = (client: string): any | null => {
 
 // ── Categories ───────────────────────────────────────────────
 const DEFAULT_CATEGORIES = [
+    { name: 'Comida',   icon: 'restaurant',     color: '#E67E22' },
+    { name: 'Estudio',  icon: 'school',         color: '#2980B9' },
+    { name: 'Hogar',    icon: 'home',           color: '#4CAF50' },
+    { name: 'Deporte',  icon: 'fitness-center', color: '#27AE60' },
+];
+
+// Todas las categorías conocidas que pueden aparecer en spending (para la pantalla principal)
+const ALL_KNOWN_CATEGORIES = [
     { name: 'Comida',          icon: 'restaurant',      color: '#E67E22' },
-    { name: 'Transporte',      icon: 'directions-car',  color: '#34495E' },
+    { name: 'Estudio',         icon: 'school',          color: '#2980B9' },
     { name: 'Hogar',           icon: 'home',            color: '#4CAF50' },
+    { name: 'Deporte',         icon: 'fitness-center',  color: '#27AE60' },
+    { name: 'Transporte',      icon: 'directions-car',  color: '#34495E' },
     { name: 'Salud',           icon: 'medical-services', color: '#16A085' },
     { name: 'Educación',       icon: 'school',          color: '#2980B9' },
     { name: 'Entretenimiento', icon: 'sports-esports',  color: '#8E44AD' },
@@ -81,6 +91,7 @@ const DEFAULT_CATEGORIES = [
     { name: 'Recibos',         icon: 'receipt',         color: '#7F8C8D' },
     { name: 'Gimnasio',        icon: 'fitness-center',  color: '#27AE60' },
     { name: 'Otros',           icon: 'more-horiz',      color: '#95A5A6' },
+    { name: 'Otro',            icon: 'more-horiz',      color: '#95A5A6' },
 ];
 
 const ALL_CATEGORY_ICONS: { icon: string; color: string }[] = [
@@ -540,46 +551,15 @@ export default function BudgetsScreen() {
     const VARIABLE_CATEGORIES = DEFAULT_CATEGORIES.map(c => c.name);
 
     const computeSuggestedLimits = (income: number): Record<string, string> => {
-        const available = Math.max(0, income - totalPending);
-        const avgs: Record<string, number> = {};
-        let totalAvg = 0;
-        VARIABLE_CATEGORIES.forEach(cat => {
-            avgs[cat] = historicalAverages[cat] || 0;
-            totalAvg += avgs[cat];
-        });
-        customCategories.forEach(cat => {
-            avgs[cat.name] = historicalAverages[cat.name] || 0;
-            totalAvg += avgs[cat.name];
-        });
-
-        const limits: Record<string, string> = {};
-        const deficit = totalAvg - available;
-        const DISCRETIONARY = ['Otros', 'Entretenimiento', 'Ropa', 'Gimnasio'];
         const all = [...VARIABLE_CATEGORIES, ...customCategories.map(c => c.name)];
-
-        if (deficit <= 0) {
-            // There is surplus — suggest cutting 5-10% from highest discretionary
-            all.forEach(cat => {
-                const avg = avgs[cat] || 0;
-                const isDisc = DISCRETIONARY.includes(cat);
-                const cut = isDisc && avg > 0 ? 0.10 : 0;
-                limits[cat] = formatInputDisplay(String(Math.round(convertCurrency(avg * (1 - cut), currency, rates))), currency);
-            });
-        } else {
-            // Need to cut — adapt proportionally to fit available income
-            if (available <= 0 || totalAvg <= 0) {
-                all.forEach(cat => {
-                    limits[cat] = formatInputDisplay("0", currency);
-                });
-            } else {
-                const scale = available / totalAvg;
-                all.forEach(cat => {
-                    const avg = avgs[cat] || 0;
-                    // Use Math.floor to guarantee we don't accidentally exceed by rounding up
-                    limits[cat] = formatInputDisplay(String(Math.floor(convertCurrency(avg * scale, currency, rates))), currency);
-                });
+        const limits: Record<string, string> = {};
+        // Usar gasto REAL del mes como valor sugerido
+        all.forEach(cat => {
+            const monthSpent = spending[cat] || 0;
+            if (monthSpent > 0) {
+                limits[cat] = formatInputDisplay(String(Math.round(convertCurrency(monthSpent, currency, rates))), currency);
             }
-        }
+        });
         return limits;
     };
 
@@ -625,18 +605,27 @@ export default function BudgetsScreen() {
         const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
         await AsyncStorage.setItem(`@confirmed_income_${user.id}_${currentMonthStr}`, String(confirmedIncome));
 
+        // ── BORRAR todos los budgets variables anteriores antes de guardar ──
+        // Esto evita que categorías eliminadas del wizard sigan sumando en "Presupuestado"
         const all = [...VARIABLE_CATEGORIES, ...customCategories.map(c => c.name)];
+        await supabase.from('budgets')
+            .delete()
+            .eq('user_id', user.id)
+            .in('category', all);
+
+        // ── Insertar solo las categorías con valor > 0 ──
+        const rowsToInsert: any[] = [];
         for (const cat of all) {
             const raw = categoryLimits[cat];
             if (!raw) continue;
             const typedVal = parseInputToNumber(raw, currency);
             const val = convertToBase(typedVal, currency, rates);
             if (!isNaN(val) && val > 0) {
-                await supabase.from('budgets').upsert(
-                    [{ user_id: user.id, category: cat, monthly_limit: val }],
-                    { onConflict: 'user_id,category' }
-                );
+                rowsToInsert.push({ user_id: user.id, category: cat, monthly_limit: val });
             }
+        }
+        if (rowsToInsert.length > 0) {
+            await supabase.from('budgets').insert(rowsToInsert);
         }
 
         const surplusBase = confirmedIncome - totalPending - all.reduce((s, cat) => {
@@ -665,10 +654,15 @@ export default function BudgetsScreen() {
     };
 
     // ── Derived values ────────────────────────────────────────
-    const allCategories = useMemo(() => [
-        ...DEFAULT_CATEGORIES,
-        ...customCategories.filter(c => !DEFAULT_CATEGORIES.find(d => d.name === c.name)).map(c => ({ ...c })),
-    ], [customCategories]);
+    const allCategories = useMemo(() => {
+        const knownNames = ALL_KNOWN_CATEGORIES.map(c => c.name);
+        // Agregar categorías personalizadas y cualquier categoría con gasto que no esté en la lista
+        const extraFromSpending = Object.keys(spending)
+            .filter(k => !knownNames.includes(k) && !['Gastos Fijos','Préstamos','Deudas','Ahorro','Transferencia','Inversión'].includes(k))
+            .map(k => ({ name: k, icon: 'more-horiz', color: '#95A5A6' }));
+        const extraCustom = customCategories.filter(c => !knownNames.includes(c.name));
+        return [...ALL_KNOWN_CATEGORIES, ...extraCustom, ...extraFromSpending];
+    }, [customCategories, spending]);
 
     const today = new Date();
     const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
@@ -676,9 +670,11 @@ export default function BudgetsScreen() {
     const periodName = today.toLocaleString('es-CO', { month: 'long', year: 'numeric' });
 
     const effectiveIncome = Math.max(confirmedIncome, actualIncome);
+    // totalSpendingBudget: solo cuenta las categorías configuradas en el wizard
     const totalSpendingBudget = budgets.reduce((s, b) => s + Math.max(b.monthly_limit, spending[b.category] || 0), 0);
     const totalPlanned = totalSpendingBudget + savingsGoal + investGoal;
-    const totalSpent = budgets.reduce((s, b) => s + (spending[b.category] || 0), 0);
+    // totalSpent: suma REAL de todo el gasto del mes (no solo de categorías con budget)
+    const totalSpent = Object.values(spending).reduce((s, v) => s + v, 0);
     const totalRemaining = Math.max(0, totalSpendingBudget - totalSpent);
     const dailySafe = remainingDays > 0 ? totalRemaining / remainingDays : 0;
     const surplus = effectiveIncome - totalPlanned;
@@ -1510,15 +1506,15 @@ export default function BudgetsScreen() {
                                             )}
 
                                             <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800', letterSpacing: 0.5, marginBottom: 12 }}>
-                                                TU PROMEDIO vs. SUGERIDO (últimos 3 meses)
+                                                GASTO REAL DE ESTE MES → AJUSTA TU LÍMITE
                                             </Text>
 
                                             {allCats.map(cat => {
-                                                const avg = historicalAverages[cat] || 0;
-                                                const catInfo = DEFAULT_CATEGORIES.find(d => d.name === cat) || customCategories.find(c => c.name === cat);
+                                                const spentThisMonth = spending[cat] || 0;
+                                                const catInfo = DEFAULT_CATEGORIES.find(d => d.name === cat) || customCategories.find(c => c.name === cat) || ALL_KNOWN_CATEGORIES.find(d => d.name === cat);
                                                 const val = categoryLimits[cat] || '';
                                                 const numVal = convertToBase(parseInputToNumber(val, currency), currency, rates);
-                                                const isCut = !isNaN(numVal) && avg > 0 && numVal < avg;
+                                                const isOver = !isNaN(numVal) && spentThisMonth > 0 && numVal < spentThisMonth;
                                                 return (
                                                     <View key={cat} style={{ backgroundColor: colors.bg, borderRadius: 14, padding: 14, marginBottom: 10 }}>
                                                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
@@ -1528,9 +1524,8 @@ export default function BudgetsScreen() {
                                                                 </View>
                                                             )}
                                                             <Text style={{ color: colors.text, fontWeight: '700', flex: 1 }}>{cat}</Text>
-                                                            {(spending[cat] || 0) > 0 && <Text style={{ color: '#EF4444', fontSize: 11, fontWeight: '700', marginRight: 8 }}>gastado {fmt(spending[cat] || 0)}</Text>}
-                                                            {avg > 0 && <Text style={{ color: colors.sub, fontSize: 11 }}>prom. {fmt(avg)}</Text>}
-                                                            {isCut && <Text style={{ color: '#10B981', fontSize: 10, fontWeight: '800', marginLeft: 6 }}>▼ ahorro</Text>}
+                                                            {spentThisMonth > 0 && <Text style={{ color: isOver ? '#EF4444' : colors.sub, fontSize: 11, fontWeight: '700', marginRight: 4 }}>gastado {fmt(spentThisMonth)}</Text>}
+                                                            {isOver && <Text style={{ color: '#EF4444', fontSize: 10, fontWeight: '800' }}>⚠️ sobre</Text>}
                                                         </View>
                                                         <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: plannedOver && (!isNaN(numVal) && numVal > 0) ? '#EF444440' : colors.border }}>
                                                             <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginRight: 4 }}>{getCurrencyInfo(currency).symbol}</Text>
