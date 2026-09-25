@@ -528,7 +528,7 @@ export default function BudgetsScreen() {
     const VARIABLE_CATEGORIES = DEFAULT_CATEGORIES.map(c => c.name);
 
     const computeSuggestedLimits = (income: number): Record<string, string> => {
-        const available = income - totalPending;
+        const available = Math.max(0, income - totalPending);
         const avgs: Record<string, number> = {};
         let totalAvg = 0;
         VARIABLE_CATEGORIES.forEach(cat => {
@@ -543,34 +543,30 @@ export default function BudgetsScreen() {
         const limits: Record<string, string> = {};
         const deficit = totalAvg - available;
         const DISCRETIONARY = ['Otros', 'Entretenimiento', 'Ropa', 'Gimnasio'];
+        const all = [...VARIABLE_CATEGORIES, ...customCategories.map(c => c.name)];
 
         if (deficit <= 0) {
             // There is surplus — suggest cutting 5-10% from highest discretionary
-            const all = [...VARIABLE_CATEGORIES, ...customCategories.map(c => c.name)];
             all.forEach(cat => {
                 const avg = avgs[cat] || 0;
                 const isDisc = DISCRETIONARY.includes(cat);
                 const cut = isDisc && avg > 0 ? 0.10 : 0;
-                limits[cat] = String(Math.round(convertCurrency(avg * (1 - cut), currency, rates)));
+                limits[cat] = formatInputDisplay(String(Math.round(convertCurrency(avg * (1 - cut), currency, rates))), currency);
             });
         } else {
-            // Need to cut — start with most discretionary
-            let remaining = deficit;
-            const order = [...DISCRETIONARY, ...VARIABLE_CATEGORIES.filter(c => !DISCRETIONARY.includes(c))];
-            const cuts: Record<string, number> = {};
-            for (const cat of order) {
-                if (remaining <= 0) break;
-                const avg = avgs[cat] || 0;
-                const maxCut = avg * 0.4;
-                const cut = Math.min(maxCut, remaining);
-                cuts[cat] = cut;
-                remaining -= cut;
+            // Need to cut — adapt proportionally to fit available income
+            if (available <= 0 || totalAvg <= 0) {
+                all.forEach(cat => {
+                    limits[cat] = formatInputDisplay("0", currency);
+                });
+            } else {
+                const scale = available / totalAvg;
+                all.forEach(cat => {
+                    const avg = avgs[cat] || 0;
+                    // Use Math.floor to guarantee we don't accidentally exceed by rounding up
+                    limits[cat] = formatInputDisplay(String(Math.floor(convertCurrency(avg * scale, currency, rates))), currency);
+                });
             }
-            const all = [...VARIABLE_CATEGORIES, ...customCategories.map(c => c.name)];
-            all.forEach(cat => {
-                const avg = avgs[cat] || 0;
-                limits[cat] = String(Math.round(convertCurrency(Math.max(0, avg - (cuts[cat] || 0)), currency, rates)));
-            });
         }
         return limits;
     };
