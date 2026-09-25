@@ -1398,12 +1398,12 @@ export default function BudgetsScreen() {
                                     <View>
                                         {historicalIncome > 0 ? (
                                             <View style={{ backgroundColor: colors.bg, borderRadius: 18, padding: 18, marginBottom: 20 }}>
-                                                <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800', letterSpacing: 0.5, marginBottom: 6 }}>SEGÚN TUS ÚLTIMOS 3 MESES</Text>
+                                                <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800', letterSpacing: 0.5, marginBottom: 6 }}>NUEVO INGRESO ESPERADO</Text>
                                                 <Text style={{ color: colors.text, fontSize: 13, lineHeight: 20 }}>
-                                                    Tu ingreso mensual estimado es:
+                                                    Tu ingreso mensual será:
                                                 </Text>
                                                 <Text style={{ color: colors.accent, fontSize: 28, fontWeight: '900', marginVertical: 8 }}>
-                                                    {fmt(historicalIncome)}
+                                                    {incomeInput ? `${getCurrencyInfo(currency).symbol} ${incomeInput}` : fmt(historicalIncome)}
                                                 </Text>
                                                 <Text style={{ color: colors.sub, fontSize: 12 }}>¿Es correcto este monto para {periodName}?</Text>
                                             </View>
