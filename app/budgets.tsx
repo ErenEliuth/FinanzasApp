@@ -171,6 +171,7 @@ export default function BudgetsScreen() {
     const [budgetWizardVisible, setBudgetWizardVisible] = useState(false);
     const [wizardStep, setWizardStep] = useState<'income' | 'adjust' | 'surplus'>('income');
     const [confirmedIncome, setConfirmedIncome] = useState(0);
+    const [actualIncome, setActualIncome] = useState(0);
     const [incomeInput, setIncomeInput] = useState('');
     const [categoryLimits, setCategoryLimits] = useState<Record<string, string>>({});
     const [surplusAllocation, setSurplusAllocation] = useState<'savings' | 'invest' | 'split' | 'buffer' | null>(null);
@@ -310,11 +311,16 @@ export default function BudgetsScreen() {
             // Balance from transactions
             const allTxs = txRes.data || [];
             let bal = 0;
+            let actInc = 0;
             allTxs.forEach(tx => {
                 const amt = Number(tx.amount || 0);
+                if (tx.type === 'income' && tx.category !== 'Transferencia') {
+                    actInc += amt;
+                }
                 bal += tx.type === 'income' ? amt : -amt;
             });
             setTotalBalance(bal);
+            setActualIncome(actInc);
 
             // Spending by category
             const totals: Record<string, number> = {};
@@ -669,13 +675,14 @@ export default function BudgetsScreen() {
     const remainingDays = lastDay - today.getDate() + 1;
     const periodName = today.toLocaleString('es-CO', { month: 'long', year: 'numeric' });
 
-    const totalSpendingBudget = budgets.reduce((s, b) => s + b.monthly_limit, 0);
+    const effectiveIncome = Math.max(confirmedIncome, actualIncome);
+    const totalSpendingBudget = budgets.reduce((s, b) => s + Math.max(b.monthly_limit, spending[b.category] || 0), 0);
     const totalPlanned = totalSpendingBudget + savingsGoal + investGoal;
     const totalSpent = budgets.reduce((s, b) => s + (spending[b.category] || 0), 0);
     const totalRemaining = Math.max(0, totalSpendingBudget - totalSpent);
     const dailySafe = remainingDays > 0 ? totalRemaining / remainingDays : 0;
-    const surplus = totalBalance - totalPlanned;
-    const isOverBudget = totalPlanned > totalBalance;
+    const surplus = effectiveIncome - totalPlanned;
+    const isOverBudget = totalPlanned > effectiveIncome;
 
     const donutSegments = [
         { value: totalSpendingBudget, color: isDark ? '#818CF8' : '#6366F1' },
@@ -683,7 +690,7 @@ export default function BudgetsScreen() {
         { value: investGoal, color: '#F59E0B' },
     ];
 
-    const spendPct = totalBalance > 0 ? Math.min(100, (totalPlanned / totalBalance) * 100) : 0;
+    const spendPct = effectiveIncome > 0 ? Math.min(100, (totalPlanned / effectiveIncome) * 100) : 0;
 
     // ── Commitments (Próximos Pagos) ──────────────────────────
     const commitments = useMemo(() => {
@@ -850,7 +857,7 @@ export default function BudgetsScreen() {
                     <View style={s.heroTop}>
                         <View style={{ flex: 1 }}>
                             <Text style={[s.heroLabel, { color: hTextSub }]}>Dinero Disponible</Text>
-                            <Text style={[s.heroBalance, { color: hTextMain }]}>{fmt(totalBalance)}</Text>
+                            <Text style={[s.heroBalance, { color: hTextMain }]}>{fmt(effectiveIncome)}</Text>
                             <View style={{ marginTop: 12 }}>
                                 <View style={[s.heroBarBg, { backgroundColor: hBarBg }]}>
                                     <View style={[s.heroBarFill, { width: `${Math.min(100, spendPct)}%`, backgroundColor: hBarFill }]} />
@@ -1461,7 +1468,7 @@ export default function BudgetsScreen() {
 
                                 {/* ── STEP 2: Ajustar categorías variables ── */}
                                 {wizardStep === 'adjust' && (() => {
-                                    const available = confirmedIncome - totalPending;
+                                    const available = effectiveIncome - totalPending;
                                     const allCats = [...DEFAULT_CATEGORIES.map(c => c.name), ...customCategories.map(c => c.name)];
                                     const plannedTotal = allCats.reduce((s, cat) => {
                                         const raw = categoryLimits[cat];
@@ -1470,15 +1477,15 @@ export default function BudgetsScreen() {
                                         return s + (isNaN(v) ? 0 : v);
                                     }, 0);
                                     const plannedOver = plannedTotal > available;
-                                    const deficit = confirmedIncome - totalPending - plannedTotal;
+                                    const deficit = effectiveIncome - totalPending - plannedTotal;
 
                                     return (
                                         <View>
                                             {/* Header card */}
                                             <View style={{ backgroundColor: colors.bg, borderRadius: 18, padding: 16, marginBottom: 16 }}>
                                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                                                    <Text style={{ color: colors.sub, fontSize: 12 }}>Ingreso confirmado</Text>
-                                                    <Text style={{ color: colors.text, fontWeight: '700' }}>{fmt(confirmedIncome)}</Text>
+                                                    <Text style={{ color: colors.sub, fontSize: 12 }}>Ingreso {actualIncome > confirmedIncome ? 'actual (superado)' : 'confirmado'}</Text>
+                                                    <Text style={{ color: colors.text, fontWeight: '700' }}>{fmt(effectiveIncome)}</Text>
                                                 </View>
                                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                                                     <Text style={{ color: colors.sub, fontSize: 12 }}>Compromisos fijos</Text>
