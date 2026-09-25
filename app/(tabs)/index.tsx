@@ -420,7 +420,19 @@ export default function HomeScreen() {
       });
 
       // Deudas y gastos fijos normales (excluyendo loan_owe y loan)
-      const remainingDebts = allDebts?.filter(d => d.debt_type !== 'loan' && d.debt_type !== 'loan_owe' && Number(d.paid || 0) < Number(d.value)) || [];
+      // Las deudas con vencimiento en meses futuros NO se descuentan del saldo del mes actual
+      const remainingDebts = allDebts?.filter(d => {
+        if (d.debt_type === 'loan' || d.debt_type === 'loan_owe') return false;
+        if (Number(d.paid || 0) >= Number(d.value)) return false;
+        // Excluir deudas de tipo 'debt' cuya fecha de vencimiento es un mes futuro
+        if (d.debt_type === 'debt') {
+          const due = new Date(d.due_date + 'T12:00:00');
+          const todayNow = new Date();
+          if (due.getFullYear() > todayNow.getFullYear()) return false;
+          if (due.getFullYear() === todayNow.getFullYear() && due.getMonth() > todayNow.getMonth()) return false;
+        }
+        return true;
+      }) || [];
       const userLoans = allDebts?.filter(d => d.debt_type === 'loan' && Number(d.paid || 0) < Number(d.value)) || [];
 
       // Préstamos financieros (loan_owe): solo sumar la cuota si vence este mes o está vencida
