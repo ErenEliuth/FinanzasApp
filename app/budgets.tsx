@@ -405,7 +405,7 @@ export default function BudgetsScreen() {
         setEditingBudget(catObj);
         if (existing) {
             const base = existing.monthly_limit;
-            setLimitAmount(String(Math.round(convertCurrency(base, currency, rates))));
+            setLimitAmount(formatInputDisplay(String(Math.round(convertCurrency(base, currency, rates))), currency));
         } else {
             setLimitAmount('');
         }
@@ -578,9 +578,11 @@ export default function BudgetsScreen() {
     const openBudgetWizard = () => {
         setWizardStep('income');
         setSurplusAllocation(null);
-        if (historicalIncome > 0) {
+        if (confirmedIncome > 0) {
+            setIncomeInput(formatInputDisplay(String(Math.round(convertCurrency(confirmedIncome, currency, rates))), currency));
+        } else if (historicalIncome > 0) {
             setConfirmedIncome(historicalIncome);
-            setIncomeInput(String(Math.round(convertCurrency(historicalIncome, currency, rates))));
+            setIncomeInput(formatInputDisplay(String(Math.round(convertCurrency(historicalIncome, currency, rates))), currency));
         } else {
             setConfirmedIncome(0);
             setIncomeInput('');
@@ -959,7 +961,7 @@ export default function BudgetsScreen() {
                     <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', flex: 1 }}>Metas del Mes</Text>
                 </View>
 
-                <TouchableOpacity style={[s.budgetCard, { backgroundColor: colors.card }]} onPress={() => { setGoalInput(savingsGoal > 0 ? String(Math.round(convertCurrency(savingsGoal, currency, rates))) : ''); setSavingsModalVisible(true); }}>
+                <TouchableOpacity style={[s.budgetCard, { backgroundColor: colors.card }]} onPress={() => { setGoalInput(savingsGoal > 0 ? formatInputDisplay(String(Math.round(convertCurrency(savingsGoal, currency, rates))), currency) : ''); setSavingsModalVisible(true); }}>
                     <View style={s.cardTop}>
                         <View style={[s.iconBox, { backgroundColor: '#10B98118' }]}>
                             <MaterialIcons name="savings" size={20} color="#10B981" />
@@ -1000,7 +1002,7 @@ export default function BudgetsScreen() {
 
 
 
-                <TouchableOpacity style={[s.budgetCard, { backgroundColor: colors.card }]} onPress={() => { setGoalInput(investGoal > 0 ? String(Math.round(convertCurrency(investGoal, currency, rates))) : ''); setInvestModalVisible(true); }}>
+                <TouchableOpacity style={[s.budgetCard, { backgroundColor: colors.card }]} onPress={() => { setGoalInput(investGoal > 0 ? formatInputDisplay(String(Math.round(convertCurrency(investGoal, currency, rates))), currency) : ''); setInvestModalVisible(true); }}>
                     <View style={s.cardTop}>
                         <View style={[s.iconBox, { backgroundColor: '#F59E0B18' }]}>
                             <MaterialIcons name="trending-up" size={20} color="#F59E0B" />
@@ -1050,8 +1052,8 @@ export default function BudgetsScreen() {
                     <TouchableWithoutFeedback onPress={() => setWizardVisible(false)}>
                         <View style={StyleSheet.absoluteFill} />
                     </TouchableWithoutFeedback>
-                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%' }}>
-                        <View style={[s.wizardBox, { backgroundColor: colors.card }]}>
+                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%', flex: 1, justifyContent: 'flex-end' }}>
+                        <View style={[s.wizardBox, { backgroundColor: colors.card, height: '92%' }]}>
                             {/* Wizard Header */}
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                                 <Text style={[s.wizardTitle, { color: colors.text }]}>¿Qué vas a presupuestar?</Text>
@@ -1233,8 +1235,8 @@ export default function BudgetsScreen() {
                     <TouchableWithoutFeedback onPress={() => setLimitModalVisible(false)}>
                         <View style={StyleSheet.absoluteFill} />
                     </TouchableWithoutFeedback>
-                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%' }}>
-                        <View style={[s.limitBox, { backgroundColor: colors.card }]}>
+                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%', flex: 1, justifyContent: 'flex-end' }}>
+                        <View style={[s.limitBox, { backgroundColor: colors.card, height: '92%' }]}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 28 }}>
                                 <View style={[s.iconBox, { backgroundColor: (editingBudget?.color || colors.accent) + '18', width: 52, height: 52, borderRadius: 16 }]}>
                                     <MaterialIcons name={(editingBudget?.icon || 'label') as any} size={26} color={editingBudget?.color || colors.accent} />
@@ -1285,8 +1287,8 @@ export default function BudgetsScreen() {
                     <TouchableWithoutFeedback onPress={() => setSavingsModalVisible(false)}>
                         <View style={StyleSheet.absoluteFill} />
                     </TouchableWithoutFeedback>
-                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%' }}>
-                        <View style={[s.limitBox, { backgroundColor: colors.card }]}>
+                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%', flex: 1, justifyContent: 'flex-end' }}>
+                        <View style={[s.limitBox, { backgroundColor: colors.card, height: '92%' }]}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 28 }}>
                                 <View style={[s.iconBox, { backgroundColor: '#10B98118', width: 52, height: 52, borderRadius: 16 }]}>
                                     <MaterialIcons name="savings" size={26} color="#10B981" />
@@ -1318,8 +1320,8 @@ export default function BudgetsScreen() {
                     <TouchableWithoutFeedback onPress={() => setInvestModalVisible(false)}>
                         <View style={StyleSheet.absoluteFill} />
                     </TouchableWithoutFeedback>
-                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%' }}>
-                        <View style={[s.limitBox, { backgroundColor: colors.card }]}>
+                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%', flex: 1, justifyContent: 'flex-end' }}>
+                        <View style={[s.limitBox, { backgroundColor: colors.card, height: '92%' }]}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 28 }}>
                                 <View style={[s.iconBox, { backgroundColor: '#F59E0B18', width: 52, height: 52, borderRadius: 16 }]}>
                                     <MaterialIcons name="trending-up" size={26} color="#F59E0B" />
@@ -1348,8 +1350,8 @@ export default function BudgetsScreen() {
             ══════════════════════════════════════ */}
             <Modal visible={budgetWizardVisible} animationType="slide" transparent>
                 <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
-                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%' }}>
-                        <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 32, borderTopRightRadius: 32, maxHeight: '92%' }}>
+                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%', flex: 1, justifyContent: 'flex-end' }}>
+                        <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 32, borderTopRightRadius: 32, height: '92%' }}>
 
                             {/* Wizard Header */}
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 24, paddingBottom: 12 }}>
