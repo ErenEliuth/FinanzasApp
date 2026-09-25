@@ -401,8 +401,8 @@ export default function DebtsScreen() {
         );
     };
     // ── List & calculations ───────────────────────────────────
-    const currentList = debts.filter(d => {
-        if (d.debt_type !== viewMode) return false;
+    const currentList = debts.filter(d => d.debt_type === viewMode);
+    const currentMonthList = currentList.filter(d => {
         if (viewMode === 'debt' || viewMode === 'fixed') {
              const due = new Date(d.due_date + 'T12:00:00');
              const today = new Date();
@@ -411,8 +411,8 @@ export default function DebtsScreen() {
         }
         return true;
     });
-    const totalValue = currentList.reduce((s, d) => s + d.value, 0);
-    const totalPaid = currentList.reduce((s, d) => s + (d.paid || 0), 0);
+    const totalValue = currentMonthList.reduce((s, d) => s + d.value, 0);
+    const totalPaid = currentMonthList.reduce((s, d) => s + (d.paid || 0), 0);
     const progressPct = totalValue > 0 ? (totalPaid / totalValue) * 100 : 0;
 
     // ── Loan detail computed ───────────────────────────────────
