@@ -81,8 +81,6 @@ const DEFAULT_CATEGORIES = [
     { name: 'Recibos',         icon: 'receipt',         color: '#7F8C8D' },
     { name: 'Gimnasio',        icon: 'fitness-center',  color: '#27AE60' },
     { name: 'Otros',           icon: 'more-horiz',      color: '#95A5A6' },
-    { name: 'Gastos Fijos',    icon: 'repeat',          color: '#5C6BC0' },
-    { name: 'Préstamos',       icon: 'account-balance', color: '#6366F1' },
 ];
 
 const ALL_CATEGORY_ICONS: { icon: string; color: string }[] = [
@@ -166,6 +164,17 @@ export default function BudgetsScreen() {
     const [investReal, setInvestReal] = useState(0);
     const [customCategories, setCustomCategories] = useState<{ name: string; icon: string; color: string }[]>([]);
 
+    const [historicalIncome, setHistoricalIncome] = useState(0);
+    const [historicalAverages, setHistoricalAverages] = useState<Record<string, number>>({});
+
+    // Budget Wizard (Cambio 3)
+    const [budgetWizardVisible, setBudgetWizardVisible] = useState(false);
+    const [wizardStep, setWizardStep] = useState<'income' | 'adjust' | 'surplus'>('income');
+    const [confirmedIncome, setConfirmedIncome] = useState(0);
+    const [incomeInput, setIncomeInput] = useState('');
+    const [categoryLimits, setCategoryLimits] = useState<Record<string, string>>({});
+    const [surplusAllocation, setSurplusAllocation] = useState<'savings' | 'invest' | 'split' | 'buffer' | null>(null);
+
     // Modals
     const [wizardVisible, setWizardVisible] = useState(false);
     const [wizardTab, setWizardTab] = useState<'fixed' | 'debts' | 'loans' | 'custom'>('fixed');
@@ -205,27 +214,92 @@ export default function BudgetsScreen() {
                 }
             }
 
-            // Savings/Invest goals
+            // Savings/Invest goals migration & load
+            const today = new Date();
+            const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            const { data: goalsData } = await supabase.from('budget_goals').select('*').eq('user_id', user.id).eq('month', currentMonthStr);
+            
+            let sGoal = 0, iGoal = 0;
+            let needsMigration = false;
+            
+            if (goalsData && goalsData.length > 0) {
+                const sRow = goalsData.find((g: any) => g.type === 'savings');
+                const iRow = goalsData.find((g: any) => g.type === 'invest');
+                if (sRow) sGoal = sRow.amount;
+                if (iRow) iGoal = iRow.amount;
+            } else {
+                needsMigration = true;
+            }
+
             const sgRaw = await AsyncStorage.getItem(`@savings_goal_${user.id}`);
             const igRaw = await AsyncStorage.getItem(`@invest_goal_${user.id}`);
-            if (sgRaw) setSavingsGoal(parseFloat(sgRaw));
-            if (igRaw) setInvestGoal(parseFloat(igRaw));
+            
+            if (needsMigration) {
+                if (sgRaw && sGoal === 0) sGoal = parseFloat(sgRaw);
+                if (igRaw && iGoal === 0) iGoal = parseFloat(igRaw);
+                const upserts = [];
+                if (sGoal > 0) upserts.push({ user_id: user.id, type: 'savings', amount: sGoal, month: currentMonthStr });
+                if (iGoal > 0) upserts.push({ user_id: user.id, type: 'invest', amount: iGoal, month: currentMonthStr });
+                if (upserts.length > 0) await supabase.from('budget_goals').upsert(upserts);
+                await AsyncStorage.removeItem(`@savings_goal_${user.id}`);
+                await AsyncStorage.removeItem(`@invest_goal_${user.id}`);
+            }
 
-            const today = new Date();
+            setSavingsGoal(sGoal);
+            setInvestGoal(iGoal);
+
             const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
             startDate.setHours(0, 0, 0, 0);
+
+            const historyStartDate = new Date(today.getFullYear(), today.getMonth() - 3, 1);
+            historyStartDate.setHours(0, 0, 0, 0);
 
             const importedKey = `@budget_imported_${user.id}_${today.getFullYear()}_${today.getMonth()}`;
             const importedRaw = await AsyncStorage.getItem(importedKey);
             if (importedRaw) setImportedItems(new Set(JSON.parse(importedRaw)));
 
-            const [budgetRes, txRes, debtsRes] = await Promise.all([
+            const [budgetRes, txRes, histTxRes, debtsRes] = await Promise.all([
                 supabase.from('budgets').select('*').eq('user_id', user.id),
-                supabase.from('transactions').select('category, amount, type, account').eq('user_id', user.id).gte('date', startDate.toISOString()),
+                supabase.from('transactions').select('category, amount, type, account, date').eq('user_id', user.id).gte('date', startDate.toISOString()),
+                supabase.from('transactions').select('category, amount, type, account, date').eq('user_id', user.id).gte('date', historyStartDate.toISOString()).lt('date', startDate.toISOString()),
                 supabase.from('debts').select('*').eq('user_id', user.id),
             ]);
 
             setBudgets(budgetRes.data || []);
+
+            // Calcular ingresos y promedios históricos
+            const histTxs = histTxRes.data || [];
+            const incomeByMonth: Record<string, number> = {};
+            const expensesByCatByMonth: Record<string, Record<string, number>> = {};
+
+            histTxs.forEach(tx => {
+                const d = new Date(tx.date);
+                const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
+                const amt = Number(tx.amount || 0);
+                if (tx.type === 'income') {
+                    incomeByMonth[monthKey] = (incomeByMonth[monthKey] || 0) + amt;
+                } else if (tx.type === 'expense') {
+                    const cat = tx.category || 'Otros';
+                    if (!expensesByCatByMonth[cat]) expensesByCatByMonth[cat] = {};
+                    expensesByCatByMonth[cat][monthKey] = (expensesByCatByMonth[cat][monthKey] || 0) + amt;
+                }
+            });
+
+            const incomeVals = Object.values(incomeByMonth).sort((a, b) => a - b);
+            if (incomeVals.length > 0) {
+                const mid = Math.floor(incomeVals.length / 2);
+                setHistoricalIncome(incomeVals.length % 2 !== 0 ? incomeVals[mid] : (incomeVals[mid - 1] + incomeVals[mid]) / 2);
+            } else {
+                setHistoricalIncome(0);
+            }
+
+            const avgs: Record<string, number> = {};
+            Object.keys(expensesByCatByMonth).forEach(cat => {
+                const vals = Object.values(expensesByCatByMonth[cat]);
+                const sum = vals.reduce((s, v) => s + v, 0);
+                avgs[cat] = sum / 3; // Promedio de 3 meses
+            });
+            setHistoricalAverages(avgs);
 
             // Balance from transactions
             const allTxs = txRes.data || [];
@@ -273,7 +347,7 @@ export default function BudgetsScreen() {
                     const isPaidThisMonth = nextDate.getFullYear() > today.getFullYear() || 
                                             (nextDate.getFullYear() === today.getFullYear() && nextDate.getMonth() > today.getMonth());
 
-                    return { id: d.id, name: meta.name, monthlyPayment: monthly, isPaidThisMonth };
+                    return { id: d.id, name: meta.name, monthlyPayment: monthly, isPaidThisMonth, dueDate: d.due_date };
                 })
                 .filter(Boolean) as any[];
             setLoanItems(loans);
@@ -419,13 +493,23 @@ export default function BudgetsScreen() {
         loadData();
     };
 
-    // ── Savings / Invest goal ─────────────────────────────────
+    // ── Savings / Invest goal (Supabase) ─────────────────────────────────
+    const saveGoalToSupabase = async (type: 'savings' | 'invest', val: number) => {
+        if (!user?.id) return;
+        const today = new Date();
+        const month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+        await supabase.from('budget_goals').upsert(
+            [{ user_id: user.id, type, amount: val, month }],
+            { onConflict: 'user_id,type,month' }
+        );
+    };
+
     const handleSaveSavingsGoal = async () => {
         const typedVal = parseInputToNumber(goalInput, currency);
         const val = convertToBase(typedVal, currency, rates);
         if (!isNaN(val) && val >= 0) {
             setSavingsGoal(val);
-            await AsyncStorage.setItem(`@savings_goal_${user?.id}`, String(val));
+            await saveGoalToSupabase('savings', val);
         }
         setSavingsModalVisible(false); setGoalInput('');
     };
@@ -435,9 +519,123 @@ export default function BudgetsScreen() {
         const val = convertToBase(typedVal, currency, rates);
         if (!isNaN(val) && val >= 0) {
             setInvestGoal(val);
-            await AsyncStorage.setItem(`@invest_goal_${user?.id}`, String(val));
+            await saveGoalToSupabase('invest', val);
         }
         setInvestModalVisible(false); setGoalInput('');
+    };
+
+    // ── Budget Wizard Logic (Cambio 3) ────────────────────────────────────
+    const VARIABLE_CATEGORIES = DEFAULT_CATEGORIES.map(c => c.name);
+
+    const computeSuggestedLimits = (income: number): Record<string, string> => {
+        const available = income - totalPending;
+        const avgs: Record<string, number> = {};
+        let totalAvg = 0;
+        VARIABLE_CATEGORIES.forEach(cat => {
+            avgs[cat] = historicalAverages[cat] || 0;
+            totalAvg += avgs[cat];
+        });
+        customCategories.forEach(cat => {
+            avgs[cat.name] = historicalAverages[cat.name] || 0;
+            totalAvg += avgs[cat.name];
+        });
+
+        const limits: Record<string, string> = {};
+        const deficit = totalAvg - available;
+        const DISCRETIONARY = ['Otros', 'Entretenimiento', 'Ropa', 'Gimnasio'];
+
+        if (deficit <= 0) {
+            // There is surplus — suggest cutting 5-10% from highest discretionary
+            const all = [...VARIABLE_CATEGORIES, ...customCategories.map(c => c.name)];
+            all.forEach(cat => {
+                const avg = avgs[cat] || 0;
+                const isDisc = DISCRETIONARY.includes(cat);
+                const cut = isDisc && avg > 0 ? 0.10 : 0;
+                limits[cat] = String(Math.round(convertCurrency(avg * (1 - cut), currency, rates)));
+            });
+        } else {
+            // Need to cut — start with most discretionary
+            let remaining = deficit;
+            const order = [...DISCRETIONARY, ...VARIABLE_CATEGORIES.filter(c => !DISCRETIONARY.includes(c))];
+            const cuts: Record<string, number> = {};
+            for (const cat of order) {
+                if (remaining <= 0) break;
+                const avg = avgs[cat] || 0;
+                const maxCut = avg * 0.4;
+                const cut = Math.min(maxCut, remaining);
+                cuts[cat] = cut;
+                remaining -= cut;
+            }
+            const all = [...VARIABLE_CATEGORIES, ...customCategories.map(c => c.name)];
+            all.forEach(cat => {
+                const avg = avgs[cat] || 0;
+                limits[cat] = String(Math.round(convertCurrency(Math.max(0, avg - (cuts[cat] || 0)), currency, rates)));
+            });
+        }
+        return limits;
+    };
+
+    const openBudgetWizard = () => {
+        setWizardStep('income');
+        setSurplusAllocation(null);
+        if (historicalIncome > 0) {
+            setConfirmedIncome(historicalIncome);
+            setIncomeInput(String(Math.round(convertCurrency(historicalIncome, currency, rates))));
+        } else {
+            setConfirmedIncome(0);
+            setIncomeInput('');
+        }
+        setBudgetWizardVisible(true);
+    };
+
+    const confirmIncome = () => {
+        const typedVal = parseInputToNumber(incomeInput, currency);
+        const val = convertToBase(typedVal, currency, rates);
+        if (isNaN(val) || val <= 0) return;
+        setConfirmedIncome(val);
+        setCategoryLimits(computeSuggestedLimits(val));
+        setWizardStep('adjust');
+    };
+
+    const applyBudgetWizard = async () => {
+        if (!user?.id) return;
+        const all = [...VARIABLE_CATEGORIES, ...customCategories.map(c => c.name)];
+        for (const cat of all) {
+            const raw = categoryLimits[cat];
+            if (!raw) continue;
+            const typedVal = parseInputToNumber(raw, currency);
+            const val = convertToBase(typedVal, currency, rates);
+            if (!isNaN(val) && val > 0) {
+                await supabase.from('budgets').upsert(
+                    [{ user_id: user.id, category: cat, monthly_limit: val }],
+                    { onConflict: 'user_id,category' }
+                );
+            }
+        }
+
+        const surplusBase = confirmedIncome - totalPending - all.reduce((s, cat) => {
+            const raw = categoryLimits[cat];
+            if (!raw) return s;
+            const typedVal = parseInputToNumber(raw, currency);
+            return s + convertToBase(typedVal, currency, rates);
+        }, 0);
+
+        if (surplusBase > 0 && surplusAllocation && surplusAllocation !== 'buffer') {
+            const half = surplusBase / 2;
+            if (surplusAllocation === 'savings' || surplusAllocation === 'split') {
+                const newSav = savingsGoal + (surplusAllocation === 'split' ? half : surplusBase);
+                setSavingsGoal(newSav);
+                await saveGoalToSupabase('savings', newSav);
+            }
+            if (surplusAllocation === 'invest' || surplusAllocation === 'split') {
+                const newInv = investGoal + (surplusAllocation === 'split' ? half : surplusBase);
+                setInvestGoal(newInv);
+                await saveGoalToSupabase('invest', newInv);
+            }
+        }
+
+        setBudgetWizardVisible(false);
+        loadData();
     };
 
     // ── Derived values ────────────────────────────────────────
@@ -467,6 +665,83 @@ export default function BudgetsScreen() {
 
     const spendPct = totalBalance > 0 ? Math.min(100, (totalPlanned / totalBalance) * 100) : 0;
 
+    // ── Commitments (Próximos Pagos) ──────────────────────────
+    const commitments = useMemo(() => {
+        const list: any[] = [];
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+        
+        fixedDebts.forEach(d => {
+            const isPaid = d.paid >= d.value;
+            list.push({ id: d.id, type: 'Fijo', name: d.client, amount: d.value, isPaid, date: d.due_date, typeColor: '#5C6BC0' });
+        });
+        
+        regularDebts.forEach(d => {
+            const dDate = new Date(d.due_date + 'T12:00:00');
+            if (dDate.getMonth() === currentMonth && dDate.getFullYear() === currentYear) {
+                const isPaid = d.paid >= d.value;
+                const pending = Math.max(0, d.value - (d.paid || 0));
+                list.push({ id: d.id, type: 'Deuda', name: d.client, amount: pending > 0 ? pending : d.value, isPaid, date: d.due_date, typeColor: '#E67E22' });
+            }
+        });
+        
+        loanItems.forEach(l => {
+            list.push({ id: l.id, type: 'Préstamo', name: l.name, amount: l.monthlyPayment, isPaid: l.isPaidThisMonth, date: l.dueDate, typeColor: '#6366F1' });
+        });
+        
+        return list.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    }, [fixedDebts, regularDebts, loanItems, today]);
+
+    const totalPending = commitments.filter(c => !c.isPaid).reduce((s, c) => s + c.amount, 0);
+
+    const renderCommitments = () => {
+        if (commitments.length === 0) return null;
+        return (
+            <View style={{ marginTop: 24, paddingHorizontal: 16 }}>
+                <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 12 }}>Próximos Pagos</Text>
+                
+                <View style={[s.budgetCard, { backgroundColor: colors.card, padding: 0, overflow: 'hidden' }]}>
+                    <View style={{ backgroundColor: colors.bg, padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                        <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600' }}>
+                            Total pendiente este mes: <Text style={{ color: colors.accent }}>{fmt(totalPending)}</Text>
+                        </Text>
+                    </View>
+                    
+                    {commitments.map((c, i) => {
+                        const d = new Date(c.date + 'T12:00:00');
+                        const diffTime = d.getTime() - today.getTime();
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        const isSoon = !c.isPaid && diffDays >= 0 && diffDays <= 5;
+                        return (
+                            <View key={c.id + c.type} style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.border }}>
+                                <View style={{ width: 40, alignItems: 'center' }}>
+                                    <Text style={{ color: colors.text, fontWeight: '800', fontSize: 16 }}>{d.getUTCDate()}</Text>
+                                    <Text style={{ color: colors.sub, fontSize: 10, textTransform: 'uppercase' }}>{d.toLocaleString('es-CO', { month: 'short' })}</Text>
+                                </View>
+                                <View style={{ flex: 1, paddingLeft: 12 }}>
+                                    <Text style={{ color: colors.text, fontWeight: '600' }}>{c.name}</Text>
+                                    <Text style={{ color: c.typeColor, fontSize: 11, fontWeight: '700', marginTop: 2 }}>{c.type}</Text>
+                                </View>
+                                <View style={{ alignItems: 'flex-end' }}>
+                                    <Text style={{ color: colors.text, fontWeight: '700', marginBottom: 4 }}>{fmt(c.amount)}</Text>
+                                    {c.isPaid ? (
+                                        <View style={{ backgroundColor: '#10B98120', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                            <Text style={{ color: '#10B981', fontSize: 10, fontWeight: '800' }}>✓ PAGADO</Text>
+                                        </View>
+                                    ) : (
+                                        <View style={{ backgroundColor: isSoon ? '#F59E0B20' : colors.bg, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                            <Text style={{ color: isSoon ? '#F59E0B' : colors.sub, fontSize: 10, fontWeight: '800' }}>{isSoon ? 'VENCE PRONTO' : 'PENDIENTE'}</Text>
+                                        </View>
+                                    )}
+                                </View>
+                            </View>
+                        );
+                    })}
+                </View>
+            </View>
+        );
+    };
+
     // ── Dynamic Hero Colors ──
     const hBg = isOverBudget ? (isDark ? '#450A0A' : '#FEF2F2') : colors.accent;
     const hTextMain = isOverBudget ? (isDark ? '#FECACA' : '#DC2626') : '#FFF';
@@ -474,6 +749,54 @@ export default function BudgetsScreen() {
     const hDiv = isOverBudget ? (isDark ? '#7F1D1D' : '#FECACA') : 'rgba(255,255,255,0.15)';
     const hBarBg = isOverBudget ? (isDark ? '#7F1D1D' : '#FEE2E2') : 'rgba(255,255,255,0.2)';
     const hBarFill = isOverBudget ? '#EF4444' : '#FFF';
+
+    // ── Cambio 2: Tarjeta "Necesitas $X" ──
+    const urgentCommitments = useMemo(() => {
+        const now = new Date();
+        return commitments.filter(c => {
+            if (c.isPaid) return false;
+            const d = new Date(c.date + 'T12:00:00');
+            const diff = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            return diff >= 0 && diff <= 10;
+        });
+    }, [commitments]);
+
+    const urgentTotal = urgentCommitments.reduce((s, c) => s + c.amount, 0);
+    const urgentCovered = totalBalance >= urgentTotal;
+    const cushion = totalBalance - urgentTotal;
+
+    const firstUrgentDate = urgentCommitments.length > 0
+        ? new Date(urgentCommitments[0].date + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'long' })
+        : '';
+
+    const renderUrgentAlert = () => {
+        if (urgentCommitments.length === 0) return null;
+        return (
+            <View style={[s.budgetCard, { backgroundColor: urgentCovered ? (isDark ? '#064E3B' : '#ECFDF5') : (isDark ? '#450A0A' : '#FFF7ED'), marginTop: 8 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+                    <Text style={{ fontSize: 22 }}>{urgentCovered ? '✅' : '⚠️'}</Text>
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ color: urgentCovered ? '#10B981' : '#F59E0B', fontSize: 14, fontWeight: '900', marginBottom: 4 }}>
+                            {urgentCovered
+                                ? `Tienes cubierto lo esencial, con ${fmt(cushion)} de colchón extra.`
+                                : `Necesitas ${fmt(urgentTotal)} antes del ${firstUrgentDate}`
+                            }
+                        </Text>
+                        {urgentCommitments.slice(0, 3).map((c, i) => (
+                            <Text key={i} style={{ color: colors.sub, fontSize: 12, marginTop: 2 }}>
+                                • {c.name} — {fmt(c.amount)} ({new Date(c.date + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })})
+                            </Text>
+                        ))}
+                        {urgentCommitments.length > 3 && (
+                            <Text style={{ color: colors.sub, fontSize: 11, marginTop: 4, fontStyle: 'italic' }}>
+                                +{urgentCommitments.length - 3} más en los próximos 10 días
+                            </Text>
+                        )}
+                    </View>
+                </View>
+            </View>
+        );
+    };
 
     // ── Render ────────────────────────────────────────────────
     return (
@@ -491,6 +814,12 @@ export default function BudgetsScreen() {
                     <Ionicons name="add" size={22} color="#FFF" />
                 </TouchableOpacity>
             </View>
+
+            {/* Ajustar Presupuesto button */}
+            <TouchableOpacity onPress={openBudgetWizard} style={{ marginHorizontal: 20, marginBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card, borderRadius: 16, paddingVertical: 12, gap: 8, borderWidth: 1.5, borderColor: colors.accent + '40' }}>
+                <MaterialIcons name="auto-fix-high" size={18} color={colors.accent} />
+                <Text style={{ color: colors.accent, fontWeight: '800', fontSize: 13 }}>Configurar presupuesto del mes</Text>
+            </TouchableOpacity>
 
 
 
@@ -552,8 +881,15 @@ export default function BudgetsScreen() {
                     </View>
                 </View>
 
+                {renderUrgentAlert()}
+                {renderCommitments()}
 
-
+                {/* Variables Section Header */}
+                {(budgets.some(b => !['Gastos Fijos','Préstamos','Deudas'].includes(b.category)) || Object.keys(spending).some(k => !['Gastos Fijos','Préstamos','Deudas'].includes(k))) && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 24, marginBottom: 4, paddingHorizontal: 4 }}>
+                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', flex: 1 }}>Gastos Variables</Text>
+                    </View>
+                )}
 
                 {allCategories.map(cat => {
                     const budget = budgets.find(b => b.category === cat.name);
@@ -618,29 +954,41 @@ export default function BudgetsScreen() {
 
 
 
+                {/* ── METAS DE AHORRO E INVERSIÓN (Cambio 4) ── */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, marginBottom: 4, paddingHorizontal: 4 }}>
+                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', flex: 1 }}>Metas del Mes</Text>
+                </View>
+
                 <TouchableOpacity style={[s.budgetCard, { backgroundColor: colors.card }]} onPress={() => { setGoalInput(savingsGoal > 0 ? String(Math.round(convertCurrency(savingsGoal, currency, rates))) : ''); setSavingsModalVisible(true); }}>
                     <View style={s.cardTop}>
                         <View style={[s.iconBox, { backgroundColor: '#10B98118' }]}>
                             <MaterialIcons name="savings" size={20} color="#10B981" />
                         </View>
                         <View style={{ flex: 1 }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                <Text style={[s.catName, { color: colors.text }]}>Meta de Ahorro</Text>
-                                <View style={{ alignItems: 'flex-end' }}>
-                                    <Text style={[s.spentNum, { color: colors.text }]}>{fmt(savingsReal)}</Text>
-                                    {savingsGoal > 0 && <Text style={[s.limitSub, { color: colors.sub }]}>meta {fmt(savingsGoal)}</Text>}
-                                </View>
-                            </View>
+                            <Text style={[s.catName, { color: colors.text }]}>Meta de Ahorro</Text>
+                            {savingsGoal > 0 ? (
+                                <Text style={{ color: colors.sub, fontSize: 12, marginTop: 2 }}>
+                                    Vas en <Text style={{ color: '#10B981', fontWeight: '800' }}>{fmt(savingsReal)}</Text> de <Text style={{ fontWeight: '700' }}>{fmt(savingsGoal)}</Text> de tu meta
+                                </Text>
+                            ) : (
+                                <Text style={{ color: colors.sub, fontSize: 12, marginTop: 2 }}>Sin meta definida este mes</Text>
+                            )}
                         </View>
+                        <Text style={{ color: savingsGoal > 0 ? '#10B981' : colors.sub, fontWeight: '900', fontSize: 16 }}>
+                            {savingsGoal > 0 ? `${Math.round((savingsReal / savingsGoal) * 100)}%` : '-'}
+                        </Text>
                     </View>
                     {savingsGoal > 0 ? (
-                        <View style={{ marginTop: 12 }}>
+                        <View style={{ marginTop: 14 }}>
                             <View style={[s.barBg, { backgroundColor: colors.bg }]}>
                                 <View style={[s.barFill, { width: `${Math.min(100, (savingsReal / savingsGoal) * 100)}%`, backgroundColor: '#10B981' }]} />
                             </View>
-                            <Text style={{ color: '#10B981', fontSize: 10, fontWeight: '800', marginTop: 6 }}>
-                                {Math.round((savingsReal / savingsGoal) * 100)}% de la meta · {fmt(Math.max(0, savingsGoal - savingsReal))} faltante
-                            </Text>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+                                <Text style={{ color: '#10B981', fontSize: 10, fontWeight: '800' }}>
+                                    {savingsReal >= savingsGoal ? '🎉 META ALCANZADA' : `${fmt(Math.max(0, savingsGoal - savingsReal))} faltante`}
+                                </Text>
+                                <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '700' }}>{remainingDays} días rest.</Text>
+                            </View>
                         </View>
                     ) : (
                         <View style={s.addPlaceholder}>
@@ -658,23 +1006,30 @@ export default function BudgetsScreen() {
                             <MaterialIcons name="trending-up" size={20} color="#F59E0B" />
                         </View>
                         <View style={{ flex: 1 }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                <Text style={[s.catName, { color: colors.text }]}>Meta de Inversión</Text>
-                                <View style={{ alignItems: 'flex-end' }}>
-                                    <Text style={[s.spentNum, { color: colors.text }]}>{fmt(investReal)}</Text>
-                                    {investGoal > 0 && <Text style={[s.limitSub, { color: colors.sub }]}>meta {fmt(investGoal)}</Text>}
-                                </View>
-                            </View>
+                            <Text style={[s.catName, { color: colors.text }]}>Meta de Inversión</Text>
+                            {investGoal > 0 ? (
+                                <Text style={{ color: colors.sub, fontSize: 12, marginTop: 2 }}>
+                                    Vas en <Text style={{ color: '#F59E0B', fontWeight: '800' }}>{fmt(investReal)}</Text> de <Text style={{ fontWeight: '700' }}>{fmt(investGoal)}</Text> de tu meta
+                                </Text>
+                            ) : (
+                                <Text style={{ color: colors.sub, fontSize: 12, marginTop: 2 }}>Sin meta definida este mes</Text>
+                            )}
                         </View>
+                        <Text style={{ color: investGoal > 0 ? '#F59E0B' : colors.sub, fontWeight: '900', fontSize: 16 }}>
+                            {investGoal > 0 ? `${Math.round((investReal / investGoal) * 100)}%` : '-'}
+                        </Text>
                     </View>
                     {investGoal > 0 ? (
-                        <View style={{ marginTop: 12 }}>
+                        <View style={{ marginTop: 14 }}>
                             <View style={[s.barBg, { backgroundColor: colors.bg }]}>
                                 <View style={[s.barFill, { width: `${Math.min(100, (investReal / investGoal) * 100)}%`, backgroundColor: '#F59E0B' }]} />
                             </View>
-                            <Text style={{ color: '#F59E0B', fontSize: 10, fontWeight: '800', marginTop: 6 }}>
-                                {Math.round((investReal / investGoal) * 100)}% de la meta · {fmt(Math.max(0, investGoal - investReal))} faltante
-                            </Text>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+                                <Text style={{ color: '#F59E0B', fontSize: 10, fontWeight: '800' }}>
+                                    {investReal >= investGoal ? '🎉 META ALCANZADA' : `${fmt(Math.max(0, investGoal - investReal))} faltante`}
+                                </Text>
+                                <Text style={{ color: colors.sub, fontSize: 10, fontWeight: '700' }}>{remainingDays} días rest.</Text>
+                            </View>
                         </View>
                     ) : (
                         <View style={s.addPlaceholder}>
@@ -987,7 +1342,276 @@ export default function BudgetsScreen() {
                     </KeyboardAvoidingView>
                 </View>
             </Modal>
+
+            {/* ══════════════════════════════════════
+                MODAL: Budget Wizard (Cambio 3)
+            ══════════════════════════════════════ */}
+            <Modal visible={budgetWizardVisible} animationType="slide" transparent>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
+                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%' }}>
+                        <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 32, borderTopRightRadius: 32, maxHeight: '92%' }}>
+
+                            {/* Wizard Header */}
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 24, paddingBottom: 12 }}>
+                                <View>
+                                    <Text style={{ color: colors.text, fontSize: 20, fontWeight: '900' }}>Configurar Presupuesto</Text>
+                                    <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '600', marginTop: 2 }}>
+                                        {wizardStep === 'income' ? 'Paso 1 de 3 · Ingreso del mes' : wizardStep === 'adjust' ? 'Paso 2 de 3 · Ajustar límites' : 'Paso 3 de 3 · Destinar excedente'}
+                                    </Text>
+                                </View>
+                                <TouchableOpacity onPress={() => setBudgetWizardVisible(false)} style={[s.circleBtn, { backgroundColor: colors.bg }]}>
+                                    <Ionicons name="close" size={20} color={colors.sub} />
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Step indicator */}
+                            <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 24, marginBottom: 20 }}>
+                                {(['income', 'adjust', 'surplus'] as const).map((step, i) => (
+                                    <View key={step} style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: (wizardStep === 'income' ? i <= 0 : wizardStep === 'adjust' ? i <= 1 : i <= 2) ? colors.accent : colors.border }} />
+                                ))}
+                            </View>
+
+                            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}>
+
+                                {/* ── STEP 1: Ingreso ── */}
+                                {wizardStep === 'income' && (
+                                    <View>
+                                        {historicalIncome > 0 ? (
+                                            <View style={{ backgroundColor: colors.bg, borderRadius: 18, padding: 18, marginBottom: 20 }}>
+                                                <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800', letterSpacing: 0.5, marginBottom: 6 }}>SEGÚN TUS ÚLTIMOS 3 MESES</Text>
+                                                <Text style={{ color: colors.text, fontSize: 13, lineHeight: 20 }}>
+                                                    Tu ingreso mensual estimado es:
+                                                </Text>
+                                                <Text style={{ color: colors.accent, fontSize: 28, fontWeight: '900', marginVertical: 8 }}>
+                                                    {fmt(historicalIncome)}
+                                                </Text>
+                                                <Text style={{ color: colors.sub, fontSize: 12 }}>¿Es correcto este monto para {periodName}?</Text>
+                                            </View>
+                                        ) : (
+                                            <View style={{ backgroundColor: colors.bg, borderRadius: 18, padding: 18, marginBottom: 20 }}>
+                                                <Text style={{ color: '#F59E0B', fontSize: 13, fontWeight: '700', marginBottom: 6 }}>
+                                                    ⚠️ No tenemos suficiente historial de ingresos.
+                                                </Text>
+                                                <Text style={{ color: colors.sub, fontSize: 13 }}>Ingresa tu ingreso esperado para este mes:</Text>
+                                            </View>
+                                        )}
+
+                                        <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800', letterSpacing: 0.5, marginBottom: 8 }}>
+                                            {historicalIncome > 0 ? 'AJUSTAR INGRESO (OPCIONAL)' : 'INGRESO ESPERADO ESTE MES'}
+                                        </Text>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bg, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 4, marginBottom: 24, borderWidth: 1.5, borderColor: colors.accent + '50' }}>
+                                            <Text style={{ color: colors.text, fontSize: 22, fontWeight: '900', marginRight: 8 }}>{getCurrencyInfo(currency).symbol}</Text>
+                                            <TextInput
+                                                style={{ flex: 1, color: colors.text, fontSize: 26, fontWeight: '900', paddingVertical: 12 }}
+                                                value={incomeInput}
+                                                onChangeText={t => setIncomeInput(formatInputDisplay(t, currency))}
+                                                placeholder="0"
+                                                placeholderTextColor={colors.sub + '40'}
+                                                keyboardType="decimal-pad"
+                                            />
+                                        </View>
+
+                                        {/* Compromisos de referencia */}
+                                        {totalPending > 0 && (
+                                            <View style={{ backgroundColor: colors.bg, borderRadius: 14, padding: 14, marginBottom: 20 }}>
+                                                <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800', letterSpacing: 0.5, marginBottom: 8 }}>COMPROMISOS FIJOS ESTE MES (SOLO LECTURA)</Text>
+                                                {commitments.filter(c => !c.isPaid).map((c, i) => (
+                                                    <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                                                        <Text style={{ color: colors.sub, fontSize: 12 }}>{c.name} <Text style={{ color: c.typeColor, fontWeight: '700' }}>· {c.type}</Text></Text>
+                                                        <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>{fmt(c.amount)}</Text>
+                                                    </View>
+                                                ))}
+                                                <View style={{ borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8, paddingTop: 8, flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                    <Text style={{ color: colors.text, fontWeight: '800', fontSize: 13 }}>Total compromisos</Text>
+                                                    <Text style={{ color: colors.accent, fontWeight: '900', fontSize: 13 }}>{fmt(totalPending)}</Text>
+                                                </View>
+                                            </View>
+                                        )}
+
+                                        <View style={{ flexDirection: 'row', gap: 12 }}>
+                                            <TouchableOpacity style={[s.mBtn, { backgroundColor: colors.bg }]} onPress={() => setBudgetWizardVisible(false)}>
+                                                <Text style={{ color: colors.text, fontWeight: '800' }}>Cancelar</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity style={[s.mBtn, { backgroundColor: colors.accent, opacity: incomeInput ? 1 : 0.4 }]} onPress={confirmIncome}>
+                                                <Text style={{ color: '#FFF', fontWeight: '900' }}>Siguiente →</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                )}
+
+                                {/* ── STEP 2: Ajustar categorías variables ── */}
+                                {wizardStep === 'adjust' && (() => {
+                                    const available = confirmedIncome - totalPending;
+                                    const allCats = [...DEFAULT_CATEGORIES.map(c => c.name), ...customCategories.map(c => c.name)];
+                                    const plannedTotal = allCats.reduce((s, cat) => {
+                                        const raw = categoryLimits[cat];
+                                        if (!raw) return s;
+                                        const v = convertToBase(parseInputToNumber(raw, currency), currency, rates);
+                                        return s + (isNaN(v) ? 0 : v);
+                                    }, 0);
+                                    const plannedOver = plannedTotal > available;
+                                    const deficit = confirmedIncome - totalPending - plannedTotal;
+
+                                    return (
+                                        <View>
+                                            {/* Header card */}
+                                            <View style={{ backgroundColor: colors.bg, borderRadius: 18, padding: 16, marginBottom: 16 }}>
+                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                                                    <Text style={{ color: colors.sub, fontSize: 12 }}>Ingreso confirmado</Text>
+                                                    <Text style={{ color: colors.text, fontWeight: '700' }}>{fmt(confirmedIncome)}</Text>
+                                                </View>
+                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                                                    <Text style={{ color: colors.sub, fontSize: 12 }}>Compromisos fijos</Text>
+                                                    <Text style={{ color: '#EF4444', fontWeight: '700' }}>− {fmt(totalPending)}</Text>
+                                                </View>
+                                                <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8, flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                    <Text style={{ color: colors.text, fontWeight: '800' }}>Disponible para variables</Text>
+                                                    <Text style={{ color: available >= 0 ? colors.accent : '#EF4444', fontWeight: '900' }}>{fmt(available)}</Text>
+                                                </View>
+                                            </View>
+
+                                            {/* Deficit warning */}
+                                            {plannedOver && (
+                                                <View style={{ backgroundColor: isDark ? '#450A0A' : '#FFF7ED', borderRadius: 14, padding: 14, marginBottom: 14 }}>
+                                                    <Text style={{ color: '#EF4444', fontWeight: '800', fontSize: 13, marginBottom: 4 }}>
+                                                        ⚠️ Total planeado supera el disponible
+                                                    </Text>
+                                                    <Text style={{ color: colors.sub, fontSize: 12 }}>
+                                                        Necesitas recortar {fmt(Math.abs(deficit))} en alguna categoría.
+                                                    </Text>
+                                                </View>
+                                            )}
+
+                                            <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800', letterSpacing: 0.5, marginBottom: 12 }}>
+                                                TU PROMEDIO vs. SUGERIDO (últimos 3 meses)
+                                            </Text>
+
+                                            {allCats.map(cat => {
+                                                const avg = historicalAverages[cat] || 0;
+                                                const catInfo = DEFAULT_CATEGORIES.find(d => d.name === cat) || customCategories.find(c => c.name === cat);
+                                                const val = categoryLimits[cat] || '';
+                                                const numVal = convertToBase(parseInputToNumber(val, currency), currency, rates);
+                                                const isCut = !isNaN(numVal) && avg > 0 && numVal < avg;
+                                                return (
+                                                    <View key={cat} style={{ backgroundColor: colors.bg, borderRadius: 14, padding: 14, marginBottom: 10 }}>
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                                            {catInfo && 'icon' in catInfo && (
+                                                                <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: (catInfo as any).color + '20', justifyContent: 'center', alignItems: 'center', marginRight: 8 }}>
+                                                                    <MaterialIcons name={(catInfo as any).icon as any} size={14} color={(catInfo as any).color} />
+                                                                </View>
+                                                            )}
+                                                            <Text style={{ color: colors.text, fontWeight: '700', flex: 1 }}>{cat}</Text>
+                                                            {avg > 0 && <Text style={{ color: colors.sub, fontSize: 11 }}>prom. {fmt(avg)}</Text>}
+                                                            {isCut && <Text style={{ color: '#10B981', fontSize: 10, fontWeight: '800', marginLeft: 6 }}>▼ ahorro</Text>}
+                                                        </View>
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: plannedOver && (!isNaN(numVal) && numVal > 0) ? '#EF444440' : colors.border }}>
+                                                            <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', marginRight: 4 }}>{getCurrencyInfo(currency).symbol}</Text>
+                                                            <TextInput
+                                                                style={{ flex: 1, color: colors.text, fontSize: 18, fontWeight: '800', paddingVertical: 10 }}
+                                                                value={val}
+                                                                onChangeText={t => setCategoryLimits(prev => ({ ...prev, [cat]: formatInputDisplay(t, currency) }))}
+                                                                placeholder="0"
+                                                                placeholderTextColor={colors.sub + '40'}
+                                                                keyboardType="decimal-pad"
+                                                            />
+                                                        </View>
+                                                    </View>
+                                                );
+                                            })}
+
+                                            {/* Total vs Available */}
+                                            <View style={{ backgroundColor: plannedOver ? (isDark ? '#450A0A' : '#FEF2F2') : (isDark ? '#064E3B' : '#ECFDF5'), borderRadius: 14, padding: 14, marginVertical: 12 }}>
+                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                    <Text style={{ color: colors.text, fontWeight: '800' }}>Total planeado</Text>
+                                                    <Text style={{ color: plannedOver ? '#EF4444' : '#10B981', fontWeight: '900' }}>{fmt(plannedTotal)}</Text>
+                                                </View>
+                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                                                    <Text style={{ color: colors.sub, fontSize: 12 }}>{plannedOver ? 'Excedido en' : 'Margen libre'}</Text>
+                                                    <Text style={{ color: plannedOver ? '#EF4444' : '#10B981', fontSize: 12, fontWeight: '700' }}>{fmt(Math.abs(deficit))}</Text>
+                                                </View>
+                                            </View>
+
+                                            <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+                                                <TouchableOpacity style={[s.mBtn, { backgroundColor: colors.bg }]} onPress={() => setWizardStep('income')}>
+                                                    <Text style={{ color: colors.text, fontWeight: '800' }}>← Atrás</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={[s.mBtn, { backgroundColor: plannedOver ? '#F59E0B' : colors.accent }]}
+                                                    onPress={() => { if (deficit > 0) { setWizardStep('surplus'); } else { applyBudgetWizard(); } }}
+                                                >
+                                                    <Text style={{ color: '#FFF', fontWeight: '900' }}>{deficit > 0 ? 'Confirmar →' : 'Aplicar ✓'}</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                            {plannedOver && (
+                                                <Text style={{ color: '#F59E0B', fontSize: 11, textAlign: 'center', marginTop: 8, fontWeight: '600' }}>
+                                                    Se aplicará con advertencia — revisá las categorías antes de confirmar.
+                                                </Text>
+                                            )}
+                                        </View>
+                                    );
+                                })()}
+
+                                {/* ── STEP 3: Asignar excedente ── */}
+                                {wizardStep === 'surplus' && (() => {
+                                    const allCats = [...DEFAULT_CATEGORIES.map(c => c.name), ...customCategories.map(c => c.name)];
+                                    const surplusBase = confirmedIncome - totalPending - allCats.reduce((s, cat) => {
+                                        const raw = categoryLimits[cat];
+                                        if (!raw) return s;
+                                        const v = convertToBase(parseInputToNumber(raw, currency), currency, rates);
+                                        return s + (isNaN(v) ? 0 : v);
+                                    }, 0);
+                                    return (
+                                        <View>
+                                            <View style={{ backgroundColor: colors.bg, borderRadius: 18, padding: 18, marginBottom: 20 }}>
+                                                <Text style={{ color: colors.sub, fontSize: 11, fontWeight: '800', letterSpacing: 0.5, marginBottom: 6 }}>EXCEDENTE LIBERADO ESTE MES</Text>
+                                                <Text style={{ color: '#10B981', fontSize: 32, fontWeight: '900', marginBottom: 4 }}>{fmt(Math.max(0, surplusBase))}</Text>
+                                                <Text style={{ color: colors.sub, fontSize: 13 }}>¿A dónde lo mandamos?</Text>
+                                            </View>
+
+                                            {([
+                                                { key: 'savings', label: 'Ahorro', icon: 'savings', color: '#10B981', desc: 'Sumar a tu meta de ahorro mensual' },
+                                                { key: 'invest', label: 'Inversión', icon: 'trending-up', color: '#F59E0B', desc: 'Sumar a tu meta de inversión mensual' },
+                                                { key: 'split', label: 'Dividir entre ambos', icon: 'call-split', color: '#6366F1', desc: `${fmt(surplusBase / 2)} a Ahorro + ${fmt(surplusBase / 2)} a Inversión` },
+                                                { key: 'buffer', label: 'Dejarlo como colchón', icon: 'shield', color: '#64748B', desc: 'Sin meta asignada, queda disponible' },
+                                            ] as const).map(opt => (
+                                                <TouchableOpacity
+                                                    key={opt.key}
+                                                    onPress={() => setSurplusAllocation(opt.key)}
+                                                    style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: surplusAllocation === opt.key ? opt.color + '20' : colors.bg, borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 2, borderColor: surplusAllocation === opt.key ? opt.color : 'transparent' }}
+                                                >
+                                                    <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: opt.color + '20', justifyContent: 'center', alignItems: 'center' }}>
+                                                        <MaterialIcons name={opt.icon as any} size={22} color={opt.color} />
+                                                    </View>
+                                                    <View style={{ flex: 1 }}>
+                                                        <Text style={{ color: colors.text, fontWeight: '800', fontSize: 15 }}>{opt.label}</Text>
+                                                        <Text style={{ color: colors.sub, fontSize: 12, marginTop: 2 }}>{opt.desc}</Text>
+                                                    </View>
+                                                    {surplusAllocation === opt.key && <Ionicons name="checkmark-circle" size={22} color={opt.color} />}
+                                                </TouchableOpacity>
+                                            ))}
+
+                                            <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
+                                                <TouchableOpacity style={[s.mBtn, { backgroundColor: colors.bg }]} onPress={() => setWizardStep('adjust')}>
+                                                    <Text style={{ color: colors.text, fontWeight: '800' }}>← Atrás</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={[s.mBtn, { backgroundColor: colors.accent, opacity: surplusAllocation ? 1 : 0.4 }]}
+                                                    onPress={applyBudgetWizard}
+                                                >
+                                                    <Text style={{ color: '#FFF', fontWeight: '900' }}>Confirmar y Aplicar ✓</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
+                                    );
+                                })()}
+
+                            </ScrollView>
+                        </View>
+                    </KeyboardAvoidingView>
+                </View>
+            </Modal>
         </SafeAreaView>
+
     );
 }
 

@@ -1,7 +1,7 @@
 import { type SQLiteDatabase } from 'expo-sqlite';
 
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
-  const DATABASE_VERSION = 7;
+  const DATABASE_VERSION = 8;
 
   let result = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   let currentDbVersion = result?.user_version ?? 0;
@@ -127,6 +127,20 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
     currentDbVersion = 7;
   }
 
+  if (currentDbVersion === 7) {
+    // Migración v7→v8: crear tabla de metas de presupuesto
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS budget_goals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+        user_id INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        amount REAL NOT NULL,
+        month TEXT NOT NULL
+      );
+    `);
+    currentDbVersion = 8;
+  }
+
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
 }
 
@@ -184,4 +198,12 @@ export interface SavingChallenge {
   current_streak: number;
   last_payment_date: string | null;
   created_at: string;
+}
+
+export interface BudgetGoal {
+  id: number;
+  user_id: number;
+  type: 'savings' | 'invest';
+  amount: number;
+  month: string; // Formato YYYY-MM
 }
