@@ -276,9 +276,9 @@ export default function BudgetsScreen() {
                 const d = new Date(tx.date);
                 const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
                 const amt = Number(tx.amount || 0);
-                if (tx.type === 'income') {
+                if (tx.type === 'income' && tx.category !== 'Transferencia') {
                     incomeByMonth[monthKey] = (incomeByMonth[monthKey] || 0) + amt;
-                } else if (tx.type === 'expense') {
+                } else if (tx.type === 'expense' && tx.category !== 'Ahorro' && tx.category !== 'Transferencia') {
                     const cat = tx.category || 'Otros';
                     if (!expensesByCatByMonth[cat]) expensesByCatByMonth[cat] = {};
                     expensesByCatByMonth[cat][monthKey] = (expensesByCatByMonth[cat][monthKey] || 0) + amt;
@@ -597,7 +597,18 @@ export default function BudgetsScreen() {
         const val = convertToBase(typedVal, currency, rates);
         if (isNaN(val) || val <= 0) return;
         setConfirmedIncome(val);
-        setCategoryLimits(computeSuggestedLimits(val));
+        
+        if (budgets.length > 0) {
+            const limits: Record<string, string> = {};
+            budgets.forEach(b => {
+                limits[b.category] = formatInputDisplay(String(Math.round(convertCurrency(b.monthly_limit, currency, rates))), currency);
+            });
+            const suggested = computeSuggestedLimits(val);
+            setCategoryLimits({ ...suggested, ...limits });
+        } else {
+            setCategoryLimits(computeSuggestedLimits(val));
+        }
+        
         setWizardStep('adjust');
     };
 
@@ -827,7 +838,7 @@ export default function BudgetsScreen() {
             {/* Ajustar Presupuesto button */}
             <TouchableOpacity onPress={openBudgetWizard} style={{ marginHorizontal: 20, marginBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card, borderRadius: 16, paddingVertical: 12, gap: 8, borderWidth: 1.5, borderColor: colors.accent + '40' }}>
                 <MaterialIcons name="auto-fix-high" size={18} color={colors.accent} />
-                <Text style={{ color: colors.accent, fontWeight: '800', fontSize: 13 }}>Configurar presupuesto del mes</Text>
+                <Text style={{ color: colors.accent, fontWeight: '800', fontSize: 13 }}>{budgets.length > 0 ? 'Ajustar Presupuesto' : 'Configurar presupuesto del mes'}</Text>
             </TouchableOpacity>
 
 
@@ -1510,6 +1521,7 @@ export default function BudgetsScreen() {
                                                                 </View>
                                                             )}
                                                             <Text style={{ color: colors.text, fontWeight: '700', flex: 1 }}>{cat}</Text>
+                                                            {(spending[cat] || 0) > 0 && <Text style={{ color: '#EF4444', fontSize: 11, fontWeight: '700', marginRight: 8 }}>gastado {fmt(spending[cat] || 0)}</Text>}
                                                             {avg > 0 && <Text style={{ color: colors.sub, fontSize: 11 }}>prom. {fmt(avg)}</Text>}
                                                             {isCut && <Text style={{ color: '#10B981', fontSize: 10, fontWeight: '800', marginLeft: 6 }}>▼ ahorro</Text>}
                                                         </View>
@@ -1546,9 +1558,15 @@ export default function BudgetsScreen() {
                                                 </TouchableOpacity>
                                                 <TouchableOpacity
                                                     style={[s.mBtn, { backgroundColor: plannedOver ? '#F59E0B' : colors.accent }]}
-                                                    onPress={() => { if (deficit > 0) { setWizardStep('surplus'); } else { applyBudgetWizard(); } }}
+                                                    onPress={() => { 
+                                                        if (plannedOver) {
+                                                            Alert.alert('Presupuesto Excedido', `Tu total planeado supera tu ingreso disponible por ${fmt(Math.abs(deficit))}. Por favor reduce los límites antes de continuar.`);
+                                                            return;
+                                                        }
+                                                        if (deficit > 0) { setWizardStep('surplus'); } else { applyBudgetWizard(); } 
+                                                    }}
                                                 >
-                                                    <Text style={{ color: '#FFF', fontWeight: '900' }}>{deficit > 0 ? 'Confirmar →' : 'Aplicar ✓'}</Text>
+                                                    <Text style={{ color: '#FFF', fontWeight: '900' }}>{plannedOver ? 'Corregir límites' : deficit > 0 ? 'Confirmar →' : 'Aplicar ✓'}</Text>
                                                 </TouchableOpacity>
                                             </View>
                                             {plannedOver && (
