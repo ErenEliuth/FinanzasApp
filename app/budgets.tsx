@@ -293,6 +293,12 @@ export default function BudgetsScreen() {
                 setHistoricalIncome(0);
             }
 
+            const incomeKey = `@confirmed_income_${user.id}_${currentMonthStr}`;
+            const savedIncomeRaw = await AsyncStorage.getItem(incomeKey);
+            if (savedIncomeRaw && parseFloat(savedIncomeRaw) > 0) {
+                setConfirmedIncome(parseFloat(savedIncomeRaw));
+            }
+
             const avgs: Record<string, number> = {};
             Object.keys(expensesByCatByMonth).forEach(cat => {
                 const vals = Object.values(expensesByCatByMonth[cat]);
@@ -597,6 +603,11 @@ export default function BudgetsScreen() {
 
     const applyBudgetWizard = async () => {
         if (!user?.id) return;
+        
+        const today = new Date();
+        const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+        await AsyncStorage.setItem(`@confirmed_income_${user.id}_${currentMonthStr}`, String(confirmedIncome));
+
         const all = [...VARIABLE_CATEGORIES, ...customCategories.map(c => c.name)];
         for (const cat of all) {
             const raw = categoryLimits[cat];
