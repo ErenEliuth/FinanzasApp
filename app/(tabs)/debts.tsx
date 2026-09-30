@@ -112,6 +112,16 @@ const parseLoanMeta = (client: string): LoanMeta | null => {
     return null;
 };
 
+const parseFixedMeta = (client: string) => {
+    try {
+        if (client && client.startsWith('{')) {
+            const p = JSON.parse(client);
+            if (p.name) return p;
+        }
+    } catch (e) {}
+    return { name: client, category: 'Gastos Fijos' };
+};
+
 // ── Types ────────────────────────────────────────────────────
 type DebtItem = {
     id: string; client: string; value: number; paid: number;
@@ -148,6 +158,8 @@ export default function DebtsScreen() {
     const [payAmount, setPayAmount] = useState('');
     const [accounts, setAccounts] = useState<string[]>(['Efectivo']);
     const [selectedAccount, setSelectedAccount] = useState('Efectivo');
+    const [selectedCategory, setSelectedCategory] = useState('Gastos Fijos');
+    const [budgetCategories, setBudgetCategories] = useState<string[]>(['Gastos Fijos']);
 
     // Loan creation form (3-step)
     const [loanModalVisible, setLoanModalVisible] = useState(false);
@@ -179,8 +191,26 @@ export default function DebtsScreen() {
     const scrollRef = useRef<any>(null);
 
     useEffect(() => {
-        if (isFocused) { loadData(); loadAccounts(); scrollRef.current?.scrollTo({ y: 0, animated: false }); }
+        if (isFocused) { loadData(); loadAccounts(); loadCategories(); scrollRef.current?.scrollTo({ y: 0, animated: false }); }
     }, [isFocused]);
+
+    const loadCategories = async () => {
+        if (!user?.id) return;
+        try {
+            let customCats: string[] = [];
+            const rawCats = await AsyncStorage.getItem(SYNC_KEYS.CATEGORIES(user.id));
+            if (rawCats) customCats = JSON.parse(rawCats);
+            
+            const { data: budgets } = await supabase.from('budgets').select('category').eq('user_id', user.id);
+            let bCats: string[] = [];
+            if (budgets) {
+                bCats = budgets.map((b: any) => b.category).filter((c: string) => !['Gastos Fijos','Préstamos','Deudas','Ahorro','Transferencia','Inversión'].includes(c));
+            }
+            const DEFAULT_EXPENSE_CATS = ['Comida', 'Transporte', 'Salud', 'Hogar'];
+            const allCats = Array.from(new Set(['Gastos Fijos', ...bCats, ...customCats, ...(bCats.length === 0 && customCats.length === 0 ? DEFAULT_EXPENSE_CATS : [])]));
+            setBudgetCategories(allCats);
+        } catch (e) {}
+    };
 
     const loadData = async () => {
         if (!user) return;
@@ -218,7 +248,7 @@ export default function DebtsScreen() {
         } catch (e) { }
     };
 
-    const resetForm = () => { setName(''); setAmount(''); setDueDate(new Date()); setSelectedDay(new Date().getDate().toString()); setIsEditing(false); setEditId(null); };
+    const resetForm = () => { setName(''); setAmount(''); setDueDate(new Date()); setSelectedDay(new Date().getDate().toString()); setIsEditing(false); setEditId(null); setSelectedCategory('Gastos Fijos'); };
     const resetLoanForm = () => { setLoanName(''); setLoanEntity('Bancolombia'); setLoanType('Libre inversión'); setLoanAmount(''); setLoanRate('1.5'); setLoanRateType('EM'); setLoanTerm('12'); setLoanDisbursementDate(new Date()); setLoanFirstPaymentDate(new Date()); setLoanAmortization('Cuota fija (Sistema francés)'); setLoanReceiveAccount('Efectivo'); setLoanStep(1); };
 
     const handleSave = async () => {
@@ -238,17 +268,24 @@ export default function DebtsScreen() {
 
     const executeSave = async (val: number, dateStr: string, initialPaid: number) => {
         try {
+            const finalClient = viewMode === 'fixed' ? JSON.stringify({ name: name.trim(), category: selectedCategory }) : name.trim();
             if (isEditing && editId) {
-                await supabase.from('debts').update({ client: name.trim(), value: val, due_date: dateStr }).eq('id', editId);
+                await supabase.from('debts').update({ client: finalClient, value: val, due_date: dateStr }).eq('id', editId);
             } else {
-                await supabase.from('debts').insert([{ user_id: user?.id, client: name.trim(), value: val, paid: initialPaid, due_date: dateStr, debt_type: viewMode, created_date: getLocalISOString() }]);
+                await supabase.from('debts').insert([{ user_id: user?.id, client: finalClient, value: val, paid: initialPaid, due_date: dateStr, debt_type: viewMode, created_date: getLocalISOString() }]);
             }
             setModalVisible(false); setConfirmMonthModal(false); setPendingItem(null); resetForm(); loadData();
         } catch (e) { console.error(e); }
     };
 
     const handleEditStart = (item: DebtItem) => {
-        setName(item.client);
+        let clientName = item.client;
+        if (item.debt_type === 'fixed') {
+            const parsed = parseFixedMeta(item.client);
+            clientName = parsed.name;
+            setSelectedCategory(parsed.category || 'Gastos Fijos');
+        }
+        setName(clientName);
         setAmount(formatInputDisplay(String(convertCurrency(item.value, currency, rates)), currency));
         const d = new Date(item.due_date + 'T12:00:00');
         setDueDate(d); setSelectedDay(d.getDate().toString());
@@ -262,7 +299,8 @@ export default function DebtsScreen() {
     };
 
     const handleSkipFixed = async (item: DebtItem) => {
-        const msg = `¿Omitir pago de "${item.client}" este mes?`;
+        const parsed = parseFixedMeta(item.client);
+        const msg = `¿Omitir pago de "${parsed.name}" este mes?`;
         if (Platform.OS === 'web') { if (window.confirm(msg)) { await supabase.from('debts').update({ paid: item.value }).eq('id', item.id); loadData(); } return; }
         Alert.alert('Omitir Pago', msg, [{ text: 'Cancelar', style: 'cancel' }, { text: 'Omitir', onPress: async () => { await supabase.from('debts').update({ paid: item.value }).eq('id', item.id); loadData(); } }]);
     };
@@ -284,8 +322,13 @@ export default function DebtsScreen() {
                 }, 0);
                 if (balance < actualPay) { Alert.alert('Saldo Insuficiente', `Disponible: ${fmt(balance)}\nRequerido: ${fmt(actualPay)}`); return; }
             }
+            
+            const parsed = isFixed ? parseFixedMeta(selectedDebt.client) : null;
+            const categoryToUse = isFixed ? (parsed?.category || 'Gastos Fijos') : 'Deudas';
+            const desc = isFixed ? `Pago: ${parsed?.name}` : `Abono: ${selectedDebt.client}`;
+            
             await supabase.from('debts').update({ paid: selectedDebt.paid + actualPay }).eq('id', selectedDebt.id);
-            await supabase.from('transactions').insert([{ user_id: user?.id, amount: actualPay, type: 'expense', category: isFixed ? 'Gasto Fijo' : 'Deudas', description: isFixed ? `Pago: ${selectedDebt.client}` : `Abono: ${selectedDebt.client}`, account: selectedAccount, date: getLocalISOString() }]);
+            await supabase.from('transactions').insert([{ user_id: user?.id, amount: actualPay, type: 'expense', category: categoryToUse, description: desc, account: selectedAccount, date: getLocalISOString() }]);
             setPayModalVisible(false); setPayAmount(''); setSelectedDebt(null); loadData();
         } catch (e) { console.error(e); }
     };
@@ -627,6 +670,10 @@ export default function DebtsScreen() {
                         const date = new Date(item.due_date);
                         const dayStr = date.getUTCDate().toString().padStart(2, '0');
                         const monthStr = date.toLocaleString('es-CO', { month: 'short', timeZone: 'UTC' }).toUpperCase();
+                        const parsedFixed = item.debt_type === 'fixed' ? parseFixedMeta(item.client) : null;
+                        const displayName = parsedFixed ? parsedFixed.name : item.client;
+                        const subCat = parsedFixed && parsedFixed.category !== 'Gastos Fijos' ? ` · ${parsedFixed.category}` : '';
+
                         return (
                             <TouchableOpacity key={item.id} style={[styles.itemCard, { backgroundColor: colors.card }]}
                                 onPress={() => { setSelectedDebt(item); setPayModalVisible(true); }}
@@ -637,8 +684,8 @@ export default function DebtsScreen() {
                                         <Text style={[styles.dateM, { color: colors.sub }]}>{monthStr}</Text>
                                     </View>
                                     <View style={{ flex: 1 }}>
-                                        <Text style={[styles.itemName, { color: colors.text }]}>{item.client}</Text>
-                                        <Text style={[styles.itemSub, { color: colors.sub }]}>{isPaid ? 'Completado' : `Saldo: ${fmt(item.value - item.paid)}`}</Text>
+                                        <Text style={[styles.itemName, { color: colors.text }]}>{displayName}</Text>
+                                        <Text style={[styles.itemSub, { color: colors.sub }]}>{isPaid ? 'Completado' : `Saldo: ${fmt(item.value - item.paid)}`}{subCat}</Text>
                                     </View>
                                     <View style={{ alignItems: 'flex-end' }}>
                                         <Text style={[styles.totalVal, { color: colors.text }]}>{fmt(item.value)}</Text>
@@ -704,10 +751,22 @@ export default function DebtsScreen() {
                                     </TouchableOpacity>
                                 )
                             ) : (
-                                <View style={styles.mField}>
-                                    <Text style={[styles.mLabel, { color: colors.sub }]}>DÍA DE PAGO (1 - 31)</Text>
-                                    <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} value={selectedDay} onChangeText={setSelectedDay} placeholder="Ej. 15" placeholderTextColor={colors.sub + '60'} keyboardType="number-pad" maxLength={2} />
-                                </View>
+                                <>
+                                    <View style={styles.mField}>
+                                        <Text style={[styles.mLabel, { color: colors.sub }]}>DÍA DE PAGO (1 - 31)</Text>
+                                        <TextInput style={[styles.mInput, { color: colors.text, borderBottomColor: colors.border }]} value={selectedDay} onChangeText={setSelectedDay} placeholder="Ej. 15" placeholderTextColor={colors.sub + '60'} keyboardType="number-pad" maxLength={2} />
+                                    </View>
+                                    <View style={styles.mField}>
+                                        <Text style={[styles.mLabel, { color: colors.sub }]}>CATEGORÍA</Text>
+                                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 4 }}>
+                                            {budgetCategories.map(cat => (
+                                                <TouchableOpacity key={cat} onPress={() => setSelectedCategory(cat)} style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: selectedCategory === cat ? colors.accent : colors.bg, borderWidth: 1, borderColor: selectedCategory === cat ? colors.accent : colors.border }}>
+                                                    <Text style={{ color: selectedCategory === cat ? '#FFF' : colors.sub, fontWeight: '800', fontSize: 13 }}>{cat}</Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </ScrollView>
+                                    </View>
+                                </>
                             )}
                             {Platform.OS === 'ios' && showDatePicker && (
                                 <View style={{ backgroundColor: colors.bg, borderRadius: 20, padding: 10, marginVertical: 10 }}>
