@@ -187,6 +187,7 @@ export default function BudgetsScreen() {
     const [categoryLimits, setCategoryLimits] = useState<Record<string, string>>({});
     const [surplusAllocation, setSurplusAllocation] = useState<'savings' | 'invest' | 'split' | 'buffer' | null>(null);
     const [newWizardCat, setNewWizardCat] = useState('');
+    const [commitmentsOpen, setCommitmentsOpen] = useState(false);
 
     // Modals
     const [wizardVisible, setWizardVisible] = useState(false);
@@ -720,48 +721,66 @@ export default function BudgetsScreen() {
 
     const renderCommitments = () => {
         if (commitments.length === 0) return null;
+        const pendingCount = commitments.filter(c => !c.isPaid).length;
         return (
             <View style={{ marginTop: 24, paddingHorizontal: 16 }}>
-                <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 12 }}>Próximos Pagos</Text>
-                
-                <View style={[s.budgetCard, { backgroundColor: colors.card, padding: 0, overflow: 'hidden' }]}>
-                    <View style={{ backgroundColor: colors.bg, padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                        <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600' }}>
-                            Total pendiente este mes: <Text style={{ color: colors.accent }}>{fmt(totalPending)}</Text>
+                <TouchableOpacity
+                    onPress={() => setCommitmentsOpen(o => !o)}
+                    style={[s.budgetCard, { backgroundColor: colors.card, flexDirection: 'row', alignItems: 'center', padding: 16 }]}
+                    activeOpacity={0.75}
+                >
+                    <View style={[s.iconBox, { backgroundColor: colors.accent + '18', marginRight: 12 }]}>
+                        <Ionicons name="calendar-outline" size={20} color={colors.accent} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ color: colors.text, fontSize: 15, fontWeight: '800' }}>Próximos Pagos</Text>
+                        <Text style={{ color: colors.sub, fontSize: 12, marginTop: 2 }}>
+                            {pendingCount > 0
+                                ? `${pendingCount} pendiente${pendingCount > 1 ? 's' : ''} · Total: ${fmt(totalPending)}`
+                                : `${commitments.length} pago${commitments.length > 1 ? 's' : ''} · Todo al día ✓`}
                         </Text>
                     </View>
-                    
-                    {commitments.map((c, i) => {
-                        const d = new Date(c.date + 'T12:00:00');
-                        const diffTime = d.getTime() - today.getTime();
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                        const isSoon = !c.isPaid && diffDays >= 0 && diffDays <= 5;
-                        return (
-                            <View key={c.id + c.type} style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.border }}>
-                                <View style={{ width: 40, alignItems: 'center' }}>
-                                    <Text style={{ color: colors.text, fontWeight: '800', fontSize: 16 }}>{d.getUTCDate()}</Text>
-                                    <Text style={{ color: colors.sub, fontSize: 10, textTransform: 'uppercase' }}>{d.toLocaleString('es-CO', { month: 'short' })}</Text>
+                    <Ionicons
+                        name={commitmentsOpen ? 'chevron-up' : 'chevron-down'}
+                        size={20}
+                        color={colors.sub}
+                    />
+                </TouchableOpacity>
+
+                {commitmentsOpen && (
+                    <View style={[s.budgetCard, { backgroundColor: colors.card, padding: 0, overflow: 'hidden', marginTop: 8 }]}>
+                        {commitments.map((c, i) => {
+                            const d = new Date(c.date + 'T12:00:00');
+                            const diffTime = d.getTime() - today.getTime();
+                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            const isSoon = !c.isPaid && diffDays >= 0 && diffDays <= 5;
+                            return (
+                                <View key={c.id + c.type} style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.border }}>
+                                    <View style={{ width: 40, alignItems: 'center' }}>
+                                        <Text style={{ color: colors.text, fontWeight: '800', fontSize: 16 }}>{d.getUTCDate()}</Text>
+                                        <Text style={{ color: colors.sub, fontSize: 10, textTransform: 'uppercase' }}>{d.toLocaleString('es-CO', { month: 'short' })}</Text>
+                                    </View>
+                                    <View style={{ flex: 1, paddingLeft: 12 }}>
+                                        <Text style={{ color: colors.text, fontWeight: '600' }}>{c.name}</Text>
+                                        <Text style={{ color: c.typeColor, fontSize: 11, fontWeight: '700', marginTop: 2 }}>{c.type}</Text>
+                                    </View>
+                                    <View style={{ alignItems: 'flex-end' }}>
+                                        <Text style={{ color: colors.text, fontWeight: '700', marginBottom: 4 }}>{fmt(c.amount)}</Text>
+                                        {c.isPaid ? (
+                                            <View style={{ backgroundColor: '#10B98120', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                                <Text style={{ color: '#10B981', fontSize: 10, fontWeight: '800' }}>✓ PAGADO</Text>
+                                            </View>
+                                        ) : (
+                                            <View style={{ backgroundColor: isSoon ? '#F59E0B20' : colors.bg, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                                <Text style={{ color: isSoon ? '#F59E0B' : colors.sub, fontSize: 10, fontWeight: '800' }}>{isSoon ? 'VENCE PRONTO' : 'PENDIENTE'}</Text>
+                                            </View>
+                                        )}
+                                    </View>
                                 </View>
-                                <View style={{ flex: 1, paddingLeft: 12 }}>
-                                    <Text style={{ color: colors.text, fontWeight: '600' }}>{c.name}</Text>
-                                    <Text style={{ color: c.typeColor, fontSize: 11, fontWeight: '700', marginTop: 2 }}>{c.type}</Text>
-                                </View>
-                                <View style={{ alignItems: 'flex-end' }}>
-                                    <Text style={{ color: colors.text, fontWeight: '700', marginBottom: 4 }}>{fmt(c.amount)}</Text>
-                                    {c.isPaid ? (
-                                        <View style={{ backgroundColor: '#10B98120', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                                            <Text style={{ color: '#10B981', fontSize: 10, fontWeight: '800' }}>✓ PAGADO</Text>
-                                        </View>
-                                    ) : (
-                                        <View style={{ backgroundColor: isSoon ? '#F59E0B20' : colors.bg, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                                            <Text style={{ color: isSoon ? '#F59E0B' : colors.sub, fontSize: 10, fontWeight: '800' }}>{isSoon ? 'VENCE PRONTO' : 'PENDIENTE'}</Text>
-                                        </View>
-                                    )}
-                                </View>
-                            </View>
-                        );
-                    })}
-                </View>
+                            );
+                        })}
+                    </View>
+                )}
             </View>
         );
     };
@@ -906,7 +925,6 @@ export default function BudgetsScreen() {
                 </View>
 
                 {renderUrgentAlert()}
-                {renderCommitments()}
 
                 {/* Variables Section Header */}
                 {(budgets.some(b => !['Gastos Fijos','Préstamos','Deudas'].includes(b.category)) || Object.keys(spending).some(k => !['Gastos Fijos','Préstamos','Deudas'].includes(k))) && (
@@ -1062,6 +1080,8 @@ export default function BudgetsScreen() {
                         </View>
                     )}
                 </TouchableOpacity>
+
+                {renderCommitments()}
 
                 <View style={{ height: 120 }} />
             </ScrollView>
