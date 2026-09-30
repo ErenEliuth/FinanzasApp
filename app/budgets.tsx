@@ -69,6 +69,24 @@ const parseLoanMeta = (client: string): any | null => {
     return null;
 };
 
+const parseFixedMeta = (client: string) => {
+    try {
+        if (client && client.startsWith('{')) {
+            const p = JSON.parse(client);
+            if (p.name) return p;
+        }
+    } catch (e) {}
+    return { name: client, category: 'Gastos Fijos' };
+};
+    try {
+        if (client && client.startsWith('{')) {
+            const p = JSON.parse(client);
+            if (p && p.isFinancialLoan) return p;
+        }
+    } catch (e) {}
+    return null;
+};
+
 // ── Categories ───────────────────────────────────────────────
 const DEFAULT_CATEGORIES = [
     { name: 'Comida',   icon: 'restaurant',     color: '#E67E22' },
@@ -440,44 +458,41 @@ export default function BudgetsScreen() {
     // ── Import Wizard ─────────────────────────────────────────
     const handleImportSelected = async () => {
         if (!user?.id) return;
-        const upserts: any[] = [];
+        const categoryMap = new Map<string, number>();
 
-        // Import fixed debts → group into 'Gastos Fijos'
+        // Agrupar Fijos por categoría específica
         selectedFixed.forEach(id => {
             const debt = fixedDebts.find(d => d.id === id);
             if (!debt) return;
-            const existing = budgets.find(b => b.category === 'Gastos Fijos');
-            upserts.push({
-                user_id: user.id,
-                category: 'Gastos Fijos',
-                monthly_limit: (existing?.monthly_limit || 0) + debt.value,
-            });
+            const meta = parseFixedMeta(debt.client);
+            const cat = meta.category || 'Gastos Fijos';
+            categoryMap.set(cat, (categoryMap.get(cat) || 0) + debt.value);
         });
 
-        // Import regular debts → group into 'Deudas'
+        // Agrupar Deudas en categoría 'Deudas'
         selectedDebts.forEach(id => {
             const debt = regularDebts.find(d => d.id === id);
             if (!debt) return;
             const pending = Math.max(0, debt.value - (debt.paid || 0));
-            const existing = budgets.find(b => b.category === 'Deudas');
-            upserts.push({
-                user_id: user.id,
-                category: 'Deudas',
-                monthly_limit: (existing?.monthly_limit || 0) + pending,
-            });
+            categoryMap.set('Deudas', (categoryMap.get('Deudas') || 0) + pending);
         });
 
-        // Import loan installments → group into 'Préstamos'
+        // Agrupar Préstamos en categoría 'Préstamos'
         selectedLoans.forEach(id => {
             const loan = loanItems.find(l => l.id === id);
             if (!loan) return;
-            const existing = budgets.find(b => b.category === 'Préstamos');
+            categoryMap.set('Préstamos', (categoryMap.get('Préstamos') || 0) + loan.monthlyPayment);
+        });
+
+        const upserts: any[] = [];
+        for (const [cat, sumValue] of categoryMap.entries()) {
+            const existing = budgets.find(b => b.category === cat);
             upserts.push({
                 user_id: user.id,
-                category: 'Préstamos',
-                monthly_limit: (existing?.monthly_limit || 0) + loan.monthlyPayment,
+                category: cat,
+                monthly_limit: (existing?.monthly_limit || 0) + sumValue,
             });
-        });
+        }
 
         // Custom category
         if (wizardTab === 'custom' && customCatName.trim()) {
@@ -1105,20 +1120,18 @@ export default function BudgetsScreen() {
                             </View>
 
                             {/* Tab selector */}
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingBottom: 4 }}>
-                                <View style={[s.wizardTabs, { backgroundColor: colors.bg }]}>
-                                    {([
-                                        { key: 'fixed', label: '📋 Fijos' },
-                                        { key: 'debts', label: '💳 Deudas' },
-                                        { key: 'loans', label: '🏦 Préstamos' },
-                                        { key: 'custom', label: '✏️ Manual' },
-                                    ] as const).map(t => (
-                                        <TouchableOpacity key={t.key} onPress={() => setWizardTab(t.key)} style={[s.wizardTab, wizardTab === t.key && { backgroundColor: colors.accent }]}>
-                                            <Text style={[s.wizardTabTxt, { color: wizardTab === t.key ? '#FFF' : colors.sub }]}>{t.label}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                            </ScrollView>
+                            <View style={[s.wizardTabs, { backgroundColor: colors.bg }]}>
+                                {([
+                                    { key: 'fixed', label: '📋 Fijos' },
+                                    { key: 'debts', label: '💳 Deudas' },
+                                    { key: 'loans', label: '🏦 Préstamos' },
+                                    { key: 'custom', label: '✏️ Manual' },
+                                ] as const).map(t => (
+                                    <TouchableOpacity key={t.key} onPress={() => setWizardTab(t.key)} style={[s.wizardTab, wizardTab === t.key && { backgroundColor: colors.accent }]}>
+                                        <Text style={[s.wizardTabTxt, { color: wizardTab === t.key ? '#FFF' : colors.sub }]} numberOfLines={1} adjustsFontSizeToFit>{t.label}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
 
                             <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
                                 {wizardTab === 'fixed' && (
@@ -1139,7 +1152,7 @@ export default function BudgetsScreen() {
                                                         {checked && <Ionicons name="checkmark" size={12} color="#FFF" />}
                                                     </View>
                                                     <View style={{ flex: 1 }}>
-                                                        <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>{debt.client}</Text>
+                                                        <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>{parseFixedMeta(debt.client).name}</Text>
                                                         <Text style={{ color: colors.sub, fontSize: 12 }}>Día {new Date(debt.due_date + 'T12:00:00').getUTCDate()} · {fmt(debt.value)}</Text>
                                                     </View>
                                                     {isImported 
