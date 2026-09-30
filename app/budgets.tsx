@@ -849,6 +849,15 @@ export default function BudgetsScreen() {
         );
     };
 
+    };
+
+    // ── Coverage Calculations ─────────────────────────────────
+    const totalBudgetLimits = budgets.reduce((sum, b) => sum + (Number(b.monthly_limit) || 0), 0);
+    const coveragePct = totalBudgetLimits > 0 ? (actualIncome / totalBudgetLimits) * 100 : 0;
+    const isFullyCovered = actualIncome >= totalBudgetLimits;
+    const coverageMissing = Math.max(0, totalBudgetLimits - actualIncome);
+    const coverageSurplus = Math.max(0, actualIncome - totalBudgetLimits);
+
     // ── Render ────────────────────────────────────────────────
     return (
         <SafeAreaView style={[s.container, { backgroundColor: colors.bg }]}>
@@ -875,6 +884,40 @@ export default function BudgetsScreen() {
 
 
             <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+
+                {/* ── COVERAGE THERMOMETER ── */}
+                {budgets.length > 0 && (
+                    <View style={[s.heroBubble, { backgroundColor: colors.card, marginBottom: 16, paddingVertical: 20 }]}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <MaterialIcons name="security" size={20} color={isFullyCovered ? '#10B981' : colors.accent} />
+                                <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>Cobertura del Mes</Text>
+                            </View>
+                            <View style={{ backgroundColor: isFullyCovered ? '#10B98120' : colors.accent + '20', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
+                                <Text style={{ color: isFullyCovered ? '#10B981' : colors.accent, fontWeight: '800', fontSize: 12 }}>
+                                    {Math.min(100, Math.floor(coveragePct))}% CUBIERTO
+                                </Text>
+                            </View>
+                        </View>
+
+                        {/* Progress Bar */}
+                        <View style={{ height: 12, backgroundColor: isDark ? '#3A3A52' : '#E5E7EB', borderRadius: 6, overflow: 'hidden', marginBottom: 12 }}>
+                            <View style={{ 
+                                height: '100%', 
+                                width: `${Math.min(100, coveragePct)}%`, 
+                                backgroundColor: isFullyCovered ? '#10B981' : coveragePct >= 50 ? '#F59E0B' : '#EF4444',
+                                borderRadius: 6 
+                            }} />
+                        </View>
+
+                        <Text style={{ color: colors.sub, fontSize: 13, fontWeight: '600', textAlign: 'center' }}>
+                            {isFullyCovered 
+                                ? `¡Mes asegurado! Ingresaron ${fmt(coverageSurplus)} adicionales a tu costo de vida.`
+                                : `Faltan ${fmt(coverageMissing)} para asegurar tu presupuesto mensual.`
+                            }
+                        </Text>
+                    </View>
+                )}
 
                 {/* ── HERO BUBBLE ── */}
                 <View style={[s.heroBubble, { backgroundColor: hBg }]}>
