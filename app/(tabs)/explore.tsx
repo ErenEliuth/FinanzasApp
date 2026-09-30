@@ -56,6 +56,7 @@ export default function AddTransactionScreen() {
   const [account, setAccount] = useState('Efectivo');
   const [destAccount, setDestAccount] = useState('');
   const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [budgetCategories, setBudgetCategories] = useState<string[]>([]);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [accountModalVisible, setAccountModalVisible] = useState(false);
@@ -120,6 +121,12 @@ export default function AddTransactionScreen() {
         ]);
         if (rawCats) setCustomCategories(JSON.parse(rawCats));
         if (rawPref) setSmartSavingsPref(rawPref as any);
+
+        const { data: budgets } = await supabase.from('budgets').select('category').eq('user_id', user.id);
+        if (budgets) {
+            const bCats = budgets.map((b: any) => b.category).filter((c: string) => !['Gastos Fijos','Préstamos','Deudas','Ahorro','Transferencia','Inversión'].includes(c));
+            setBudgetCategories(bCats);
+        }
       } catch (e) {
         console.error('Error al cargar datos persistidos:', e);
       }
@@ -561,9 +568,9 @@ export default function AddTransactionScreen() {
   };
 
   const allCategories = type === 'income'
-    ? [...DEFAULT_INCOME_CATS, ...customCategories]
+    ? Array.from(new Set([...DEFAULT_INCOME_CATS, ...customCategories]))
     : type === 'expense'
-      ? [...DEFAULT_EXPENSE_CATS, ...customCategories]
+      ? Array.from(new Set([...budgetCategories, ...customCategories, ...(budgetCategories.length === 0 && customCategories.length === 0 ? DEFAULT_EXPENSE_CATS : [])]))
       : [];
 
   return (

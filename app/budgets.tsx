@@ -186,6 +186,7 @@ export default function BudgetsScreen() {
     const [incomeInput, setIncomeInput] = useState('');
     const [categoryLimits, setCategoryLimits] = useState<Record<string, string>>({});
     const [surplusAllocation, setSurplusAllocation] = useState<'savings' | 'invest' | 'split' | 'buffer' | null>(null);
+    const [newWizardCat, setNewWizardCat] = useState('');
 
     // Modals
     const [wizardVisible, setWizardVisible] = useState(false);
@@ -551,14 +552,11 @@ export default function BudgetsScreen() {
     const VARIABLE_CATEGORIES = DEFAULT_CATEGORIES.map(c => c.name);
 
     const computeSuggestedLimits = (income: number): Record<string, string> => {
-        const all = [...VARIABLE_CATEGORIES, ...customCategories.map(c => c.name)];
         const limits: Record<string, string> = {};
-        // Usar gasto REAL del mes como valor sugerido
-        all.forEach(cat => {
-            const monthSpent = spending[cat] || 0;
-            if (monthSpent > 0) {
-                limits[cat] = formatInputDisplay(String(Math.round(convertCurrency(monthSpent, currency, rates))), currency);
-            }
+        budgets.forEach(b => {
+             if (!['Gastos Fijos','Préstamos','Deudas','Ahorro','Transferencia','Inversión'].includes(b.category)) {
+                 limits[b.category] = formatInputDisplay(String(Math.round(convertCurrency(b.monthly_limit, currency, rates))), currency);
+             }
         });
         return limits;
     };
@@ -607,14 +605,17 @@ export default function BudgetsScreen() {
 
         // ── BORRAR todos los budgets variables anteriores antes de guardar ──
         // Esto evita que categorías eliminadas del wizard sigan sumando en "Presupuestado"
-        const all = [...VARIABLE_CATEGORIES, ...customCategories.map(c => c.name)];
-        await supabase.from('budgets')
-            .delete()
-            .eq('user_id', user.id)
-            .in('category', all);
+        const allPrev = budgets.map(b => b.category).filter(c => !['Gastos Fijos','Préstamos','Deudas','Ahorro','Transferencia','Inversión'].includes(c));
+        if (allPrev.length > 0) {
+            await supabase.from('budgets')
+                .delete()
+                .eq('user_id', user.id)
+                .in('category', allPrev);
+        }
 
         // ── Insertar solo las categorías con valor > 0 ──
         const rowsToInsert: any[] = [];
+        const all = Object.keys(categoryLimits);
         for (const cat of all) {
             const raw = categoryLimits[cat];
             if (!raw) continue;
@@ -916,8 +917,8 @@ export default function BudgetsScreen() {
 
                 {allCategories.map(cat => {
                     const budget = budgets.find(b => b.category === cat.name);
+                    if (!budget) return null;
                     const spent = spending[cat.name] || 0;
-                    if (!budget && spent === 0) return null;
                     const limit = budget?.monthly_limit || 0;
                     const pct = limit > 0 ? Math.min(100, (spent / limit) * 100) : 0;
                     const isOver = limit > 0 && spent > limit;
@@ -1465,7 +1466,7 @@ export default function BudgetsScreen() {
                                 {/* ── STEP 2: Ajustar categorías variables ── */}
                                 {wizardStep === 'adjust' && (() => {
                                     const available = effectiveIncome - totalPending;
-                                    const allCats = [...DEFAULT_CATEGORIES.map(c => c.name), ...customCategories.map(c => c.name)];
+                                    const allCats = Object.keys(categoryLimits);
                                     const plannedTotal = allCats.reduce((s, cat) => {
                                         const raw = categoryLimits[cat];
                                         if (!raw) return s;
@@ -1537,10 +1538,38 @@ export default function BudgetsScreen() {
                                                                 placeholderTextColor={colors.sub + '40'}
                                                                 keyboardType="decimal-pad"
                                                             />
+                                                            <TouchableOpacity onPress={() => {
+                                                                const newLimits = { ...categoryLimits };
+                                                                delete newLimits[cat];
+                                                                setCategoryLimits(newLimits);
+                                                            }} style={{ padding: 4 }}>
+                                                                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                                                            </TouchableOpacity>
                                                         </View>
                                                     </View>
                                                 );
                                             })}
+
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4, marginBottom: 16 }}>
+                                                <TextInput
+                                                    style={{ flex: 1, backgroundColor: colors.card, color: colors.text, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border }}
+                                                    placeholder="Nueva categoría..."
+                                                    placeholderTextColor={colors.sub}
+                                                    value={newWizardCat}
+                                                    onChangeText={setNewWizardCat}
+                                                />
+                                                <TouchableOpacity
+                                                    style={{ backgroundColor: colors.accent, padding: 12, borderRadius: 14 }}
+                                                    onPress={() => {
+                                                        if (newWizardCat.trim() && !categoryLimits[newWizardCat.trim()]) {
+                                                            setCategoryLimits(prev => ({ ...prev, [newWizardCat.trim()]: '' }));
+                                                            setNewWizardCat('');
+                                                        }
+                                                    }}
+                                                >
+                                                    <Ionicons name="add" size={20} color="#FFF" />
+                                                </TouchableOpacity>
+                                            </View>
 
                                             {/* Total vs Available */}
                                             <View style={{ backgroundColor: plannedOver ? (isDark ? '#450A0A' : '#FEF2F2') : (isDark ? '#064E3B' : '#ECFDF5'), borderRadius: 14, padding: 14, marginVertical: 12 }}>
@@ -1580,9 +1609,8 @@ export default function BudgetsScreen() {
                                     );
                                 })()}
 
-                                {/* ── STEP 3: Asignar excedente ── */}
                                 {wizardStep === 'surplus' && (() => {
-                                    const allCats = [...DEFAULT_CATEGORIES.map(c => c.name), ...customCategories.map(c => c.name)];
+                                    const allCats = Object.keys(categoryLimits);
                                     const surplusBase = confirmedIncome - totalPending - allCats.reduce((s, cat) => {
                                         const raw = categoryLimits[cat];
                                         if (!raw) return s;
