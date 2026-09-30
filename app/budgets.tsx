@@ -849,8 +849,6 @@ export default function BudgetsScreen() {
         );
     };
 
-    };
-
     // ── Coverage Calculations ─────────────────────────────────
     const totalBudgetLimits = budgets.reduce((sum, b) => sum + (Number(b.monthly_limit) || 0), 0);
     const coveragePct = totalBudgetLimits > 0 ? (actualIncome / totalBudgetLimits) * 100 : 0;
