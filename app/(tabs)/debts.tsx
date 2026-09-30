@@ -801,7 +801,13 @@ export default function DebtsScreen() {
             <Modal visible={payModalVisible} animationType="fade" transparent>
                 <View style={styles.overlayCenter}>
                     <View style={[styles.miniModal, { backgroundColor: colors.card }]}>
-                        <Text style={[styles.miniTitle, { color: colors.text }]}>{selectedDebt?.client}</Text>
+                        <Text style={[styles.miniTitle, { color: colors.text }]}>
+                            {selectedDebt?.debt_type === 'fixed' 
+                                ? parseFixedMeta(selectedDebt.client).name 
+                                : selectedDebt?.debt_type === 'loan_owe' 
+                                    ? (parseLoanMeta(selectedDebt.client)?.name || selectedDebt.client) 
+                                    : selectedDebt?.client}
+                        </Text>
                         <Text style={[styles.miniSub, { color: colors.sub }]}>Pendiente: {fmt(selectedDebt ? selectedDebt.value - selectedDebt.paid : 0)}</Text>
                         {selectedDebt?.debt_type === 'debt' && (<TextInput style={[styles.miniInput, { color: colors.text, borderBottomColor: colors.border }]} value={payAmount} onChangeText={t => setPayAmount(formatInputDisplay(t, currency))} placeholder="Monto a pagar" placeholderTextColor={colors.sub + '40'} keyboardType="decimal-pad" autoFocus />)}
                         <View style={styles.accountRow}>
