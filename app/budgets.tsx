@@ -78,14 +78,7 @@ const parseFixedMeta = (client: string) => {
     } catch (e) {}
     return { name: client, category: 'Gastos Fijos' };
 };
-    try {
-        if (client && client.startsWith('{')) {
-            const p = JSON.parse(client);
-            if (p && p.isFinancialLoan) return p;
-        }
-    } catch (e) {}
-    return null;
-};
+
 
 // ── Categories ───────────────────────────────────────────────
 const DEFAULT_CATEGORIES = [
