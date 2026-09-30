@@ -61,6 +61,7 @@ export default function AddTransactionScreen() {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [accountModalVisible, setAccountModalVisible] = useState(false);
+  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [showFinancingModal, setShowFinancingModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newAccountName, setNewAccountName] = useState('');
@@ -697,12 +698,12 @@ export default function AddTransactionScreen() {
               {type !== 'ahorro' && type !== 'transfer' && (
                 <View style={styles.section}>
                   <TouchableOpacity
-                    onPress={() => setCategoryDropdownOpen(o => !o)}
+                    onPress={() => setCategoryModalVisible(true)}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      paddingVertical: 12,
+                      paddingVertical: 14,
                       borderBottomWidth: 1,
                       borderBottomColor: colorsNav.border,
                     }}
@@ -710,97 +711,20 @@ export default function AddTransactionScreen() {
                   >
                     <Text style={[styles.sectionTitle, { color: colorsNav.sub, marginBottom: 0 }]}>CATEGORÍA</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text style={{
-                        color: category ? colorsNav.text : colorsNav.sub,
-                        fontWeight: category ? '700' : '400',
-                        fontSize: 14,
-                      }}>
-                        {category || 'No info'}
-                      </Text>
-                      <Ionicons
-                        name={categoryDropdownOpen ? 'chevron-up' : 'chevron-down'}
-                        size={16}
-                        color={colorsNav.sub}
-                      />
+                      {category ? (
+                        <View style={{
+                          paddingHorizontal: 14, paddingVertical: 6,
+                          borderRadius: 20, backgroundColor: typeColor + '18',
+                          borderWidth: 1, borderColor: typeColor + '40',
+                        }}>
+                          <Text style={{ color: typeColor, fontWeight: '800', fontSize: 13 }}>{category}</Text>
+                        </View>
+                      ) : (
+                        <Text style={{ color: colorsNav.sub, fontSize: 14 }}>No info</Text>
+                      )}
+                      <Ionicons name="chevron-forward" size={16} color={colorsNav.sub} />
                     </View>
                   </TouchableOpacity>
-
-                  {categoryDropdownOpen && (
-                    <View style={{
-                      marginTop: 4,
-                      borderRadius: 16,
-                      overflow: 'hidden',
-                      borderWidth: 1,
-                      borderColor: colorsNav.border,
-                      backgroundColor: colorsNav.card,
-                    }}>
-                      {allCategories.map((cat, i) => {
-                        const isFixed = FIXED_EXPENSE_CATS.includes(cat) && type === 'expense';
-                        const isSelected = category === cat;
-                        return (
-                          <TouchableOpacity
-                            key={cat}
-                            onPress={() => { setCategory(cat); setCategoryDropdownOpen(false); }}
-                            onLongPress={() => !isFixed && customCategories.includes(cat) && handleDeleteCustomCategory(cat)}
-                            style={[{
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              paddingHorizontal: 16,
-                              paddingVertical: 14,
-                              borderTopWidth: i === 0 ? 0 : 1,
-                              borderTopColor: colorsNav.border,
-                              backgroundColor: isSelected ? typeColor + '18' : 'transparent',
-                            }]}
-                          >
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                              {isFixed && (
-                                <View style={{
-                                  width: 6, height: 6, borderRadius: 3,
-                                  backgroundColor: typeColor,
-                                }} />
-                              )}
-                              <Text style={{
-                                color: isSelected ? typeColor : colorsNav.text,
-                                fontWeight: isSelected ? '800' : '500',
-                                fontSize: 15,
-                              }}>{cat}</Text>
-                              {isFixed && (
-                                <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: typeColor + '20' }}>
-                                  <Text style={{ color: typeColor, fontSize: 9, fontWeight: '800' }}>FIJA</Text>
-                                </View>
-                              )}
-                            </View>
-                            {isSelected && (
-                              <Ionicons name="checkmark" size={18} color={typeColor} />
-                            )}
-                          </TouchableOpacity>
-                        );
-                      })}
-                      {/* Agregar nueva */}
-                      <TouchableOpacity
-                        onPress={() => setModalVisible(true)}
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 10,
-                          paddingHorizontal: 16,
-                          paddingVertical: 14,
-                          borderTopWidth: 1,
-                          borderTopColor: colorsNav.border,
-                        }}
-                      >
-                        <View style={{
-                          width: 24, height: 24, borderRadius: 12,
-                          backgroundColor: colorsNav.border,
-                          justifyContent: 'center', alignItems: 'center',
-                        }}>
-                          <Ionicons name="add" size={16} color={colorsNav.sub} />
-                        </View>
-                        <Text style={{ color: colorsNav.sub, fontWeight: '600', fontSize: 14 }}>Agregar categoría...</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
                 </View>
               )}
 
@@ -844,6 +768,129 @@ export default function AddTransactionScreen() {
             <View style={{ height: 100 }} />
           </ScrollView>
         </KeyboardAvoidingView>
+
+        <Modal visible={categoryModalVisible} transparent animationType="slide">
+          <TouchableWithoutFeedback onPress={() => setCategoryModalVisible(false)}>
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }} />
+          </TouchableWithoutFeedback>
+          <View style={[
+            {
+              position: 'absolute', bottom: 0, left: 0, right: 0,
+              borderTopLeftRadius: 32, borderTopRightRadius: 32,
+              backgroundColor: colorsNav.card,
+              paddingTop: 12, paddingBottom: 40, paddingHorizontal: 24,
+              shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20,
+            }
+          ]}>
+            {/* Handle */}
+            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colorsNav.border, alignSelf: 'center', marginBottom: 20 }} />
+
+            {/* Header */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <Text style={{ color: colorsNav.text, fontSize: 20, fontWeight: '900' }}>Categoría</Text>
+              <TouchableOpacity onPress={() => setCategoryModalVisible(false)}>
+                <Ionicons name="close-circle" size={28} color={colorsNav.sub} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Fixed label */}
+            {type === 'expense' && (
+              <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '800', letterSpacing: 0.8, marginBottom: 10 }}>CATEGORÍAS BÁSICAS</Text>
+            )}
+
+            {/* Fixed categories grid */}
+            {type === 'expense' && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+                {FIXED_EXPENSE_CATS.map((cat) => {
+                  const isSelected = category === cat;
+                  const catColors: Record<string, { bg: string; icon: string }> = {
+                    'Comida': { bg: '#F97316', icon: 'restaurant' },
+                    'Transporte': { bg: '#3B82F6', icon: 'directions-car' },
+                    'Hogar': { bg: '#10B981', icon: 'home' },
+                  };
+                  const cc = catColors[cat] || { bg: typeColor, icon: 'label' };
+                  return (
+                    <TouchableOpacity
+                      key={cat}
+                      onPress={() => { setCategory(cat); setCategoryModalVisible(false); }}
+                      style={{
+                        flex: 1, minWidth: '28%',
+                        alignItems: 'center',
+                        paddingVertical: 16,
+                        borderRadius: 20,
+                        backgroundColor: isSelected ? cc.bg : cc.bg + '15',
+                        borderWidth: 2,
+                        borderColor: isSelected ? cc.bg : 'transparent',
+                        gap: 8,
+                      }}
+                    >
+                      <View style={{
+                        width: 44, height: 44, borderRadius: 22,
+                        backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : cc.bg + '25',
+                        justifyContent: 'center', alignItems: 'center',
+                      }}>
+                        <MaterialIcons name={cc.icon as any} size={22} color={isSelected ? '#FFF' : cc.bg} />
+                      </View>
+                      <Text style={{ color: isSelected ? '#FFF' : colorsNav.text, fontWeight: '800', fontSize: 13 }}>{cat}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* Extra categories */}
+            {allCategories.filter(c => !FIXED_EXPENSE_CATS.includes(c) || type !== 'expense').length > 0 && (
+              <>
+                <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '800', letterSpacing: 0.8, marginBottom: 10, marginTop: 4 }}>
+                  {type === 'expense' ? 'OTRAS CATEGORÍAS' : 'CATEGORÍAS'}
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                  {allCategories.filter(c => !FIXED_EXPENSE_CATS.includes(c) || type !== 'expense').map(cat => {
+                    const isSelected = category === cat;
+                    return (
+                      <TouchableOpacity
+                        key={cat}
+                        onPress={() => { setCategory(cat); setCategoryModalVisible(false); }}
+                        onLongPress={() => customCategories.includes(cat) && handleDeleteCustomCategory(cat)}
+                        style={{
+                          paddingHorizontal: 18, paddingVertical: 10,
+                          borderRadius: 20,
+                          backgroundColor: isSelected ? typeColor : colorsNav.bg,
+                          borderWidth: 1.5,
+                          borderColor: isSelected ? typeColor : colorsNav.border,
+                        }}
+                      >
+                        <Text style={{ color: isSelected ? '#FFF' : colorsNav.text, fontWeight: '700', fontSize: 14 }}>{cat}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+
+            {/* Add custom */}
+            <TouchableOpacity
+              onPress={() => { setCategoryModalVisible(false); setTimeout(() => setModalVisible(true), 200); }}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 12,
+                paddingVertical: 14, paddingHorizontal: 16,
+                borderRadius: 18, borderWidth: 1.5,
+                borderColor: typeColor + '50',
+                backgroundColor: typeColor + '08',
+                marginTop: 4,
+              }}
+            >
+              <View style={{
+                width: 32, height: 32, borderRadius: 16,
+                backgroundColor: typeColor + '20',
+                justifyContent: 'center', alignItems: 'center',
+              }}>
+                <Ionicons name="add" size={20} color={typeColor} />
+              </View>
+              <Text style={{ color: typeColor, fontWeight: '700', fontSize: 15 }}>Agregar nueva categoría</Text>
+            </TouchableOpacity>
+          </View>
+        </Modal>
 
         <Modal visible={modalVisible} transparent animationType="fade">
           <View style={styles.overlay}>
