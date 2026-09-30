@@ -28,7 +28,8 @@ import {
 } from 'react-native';
 
 // ─── Categorías fijas por defecto ───────────────────────────────────────────
-const DEFAULT_INCOME_CATS = ['Sueldo', 'Pago', 'Nómina'];
+const FIXED_INCOME_CATS = ['Sueldo', 'Quincena', 'Otro'];
+const DEFAULT_INCOME_CATS = ['Sueldo', 'Quincena', 'Otro'];
 const FIXED_EXPENSE_CATS = ['Comida', 'Transporte', 'Hogar'];
 const DEFAULT_EXPENSE_CATS = ['Comida', 'Transporte', 'Hogar'];
 
@@ -57,6 +58,7 @@ export default function AddTransactionScreen() {
   const [account, setAccount] = useState('Efectivo');
   const [destAccount, setDestAccount] = useState('');
   const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [customIncomeCategories, setCustomIncomeCategories] = useState<string[]>([]);
   const [budgetCategories, setBudgetCategories] = useState<string[]>([]);
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -118,11 +120,13 @@ export default function AddTransactionScreen() {
     if (!user?.id) return;
     const loadData = async () => {
       try {
-        const [rawCats, rawPref] = await Promise.all([
+        const [rawCats, rawIncomeCats, rawPref] = await Promise.all([
           AsyncStorage.getItem(SYNC_KEYS.CATEGORIES(user.id)),
+          AsyncStorage.getItem(SYNC_KEYS.INCOME_CATEGORIES(user.id)),
           AsyncStorage.getItem(SYNC_KEYS.SMART_SAVINGS(user.id)),
         ]);
         if (rawCats) setCustomCategories(JSON.parse(rawCats));
+        if (rawIncomeCats) setCustomIncomeCategories(JSON.parse(rawIncomeCats));
         if (rawPref) setSmartSavingsPref(rawPref as any);
 
         const { data: budgets } = await supabase.from('budgets').select('category').eq('user_id', user.id);
@@ -181,6 +185,13 @@ export default function AddTransactionScreen() {
     syncUp(user.id);
   };
 
+  const persistCustomIncomeCategories = async (cats: string[]) => {
+    if (!user?.id) return;
+    setCustomIncomeCategories(cats);
+    await AsyncStorage.setItem(SYNC_KEYS.INCOME_CATEGORIES(user.id), JSON.stringify(cats));
+    syncUp(user.id);
+  };
+
   const persistCustomAccounts = async (accs: string[]) => {
     if (!user?.id) return;
     setAccount(accs[accs.length - 1] || 'Efectivo');
@@ -192,24 +203,40 @@ export default function AddTransactionScreen() {
   const handleAddCustomCategory = async () => {
     const trimmed = newCategoryName.trim();
     if (!trimmed) return;
-    const all = [...DEFAULT_INCOME_CATS, ...DEFAULT_EXPENSE_CATS, ...customCategories];
-    if (all.includes(trimmed)) {
-      Alert.alert('Ya existe', 'Esa categoría ya está en tu lista.');
-      return;
+    
+    if (type === 'income') {
+      const all = [...FIXED_INCOME_CATS, ...customIncomeCategories];
+      if (all.includes(trimmed)) {
+        Alert.alert('Ya existe', 'Esa categoría ya está en tu lista de ingresos.');
+        return;
+      }
+      const updated = [...customIncomeCategories, trimmed];
+      await persistCustomIncomeCategories(updated);
+    } else {
+      const all = [...FIXED_EXPENSE_CATS, ...customCategories];
+      if (all.includes(trimmed)) {
+        Alert.alert('Ya existe', 'Esa categoría ya está en tu lista de gastos.');
+        return;
+      }
+      const updated = [...customCategories, trimmed];
+      await persistCustomCategories(updated);
     }
-    const updated = [...customCategories, trimmed];
-    await persistCustomCategories(updated);
+    
     setCategory(trimmed);
     setNewCategoryName('');
     setModalVisible(false);
   };
 
   const handleDeleteCustomCategory = (cat: string) => {
+    const isIncome = type === 'income';
+    const targetList = isIncome ? customIncomeCategories : customCategories;
+    const persistFunc = isIncome ? persistCustomIncomeCategories : persistCustomCategories;
+
     if (Platform.OS === 'web') {
       if (window.confirm(`¿Quitar la categoría "${cat}"?`)) {
         (async () => {
-          const updated = customCategories.filter(c => c !== cat);
-          await persistCustomCategories(updated);
+          const updated = targetList.filter(c => c !== cat);
+          await persistFunc(updated);
           if (category === cat) setCategory('');
         })();
       }
@@ -219,8 +246,8 @@ export default function AddTransactionScreen() {
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Eliminar', style: 'destructive', onPress: async () => {
-          const updated = customCategories.filter(c => c !== cat);
-          await persistCustomCategories(updated);
+          const updated = targetList.filter(c => c !== cat);
+          await persistFunc(updated);
           if (category === cat) setCategory('');
         }
       }
@@ -571,7 +598,7 @@ export default function AddTransactionScreen() {
   };
 
   const allCategories = type === 'income'
-    ? Array.from(new Set([...DEFAULT_INCOME_CATS, ...customCategories]))
+    ? Array.from(new Set([...FIXED_INCOME_CATS, ...customIncomeCategories.filter(c => !FIXED_INCOME_CATS.includes(c))]))
     : type === 'expense'
       ? Array.from(new Set([...FIXED_EXPENSE_CATS, ...budgetCategories.filter(c => !FIXED_EXPENSE_CATS.includes(c)), ...customCategories.filter(c => !FIXED_EXPENSE_CATS.includes(c))]))
       : [];
@@ -794,64 +821,65 @@ export default function AddTransactionScreen() {
             </View>
 
             {/* Fixed label */}
-            {type === 'expense' && (
-              <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '800', letterSpacing: 0.8, marginBottom: 10 }}>CATEGORÍAS BÁSICAS</Text>
-            )}
+            <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '800', letterSpacing: 0.8, marginBottom: 10 }}>CATEGORÍAS BÁSICAS</Text>
 
             {/* Fixed categories grid */}
-            {type === 'expense' && (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
-                {FIXED_EXPENSE_CATS.map((cat) => {
-                  const isSelected = category === cat;
-                  const catColors: Record<string, { bg: string; icon: string }> = {
-                    'Comida': { bg: '#F97316', icon: 'restaurant' },
-                    'Transporte': { bg: '#3B82F6', icon: 'directions-car' },
-                    'Hogar': { bg: '#10B981', icon: 'home' },
-                  };
-                  const cc = catColors[cat] || { bg: typeColor, icon: 'label' };
-                  return (
-                    <TouchableOpacity
-                      key={cat}
-                      onPress={() => { setCategory(cat); setCategoryModalVisible(false); }}
-                      style={{
-                        flex: 1, minWidth: '28%',
-                        alignItems: 'center',
-                        paddingVertical: 16,
-                        borderRadius: 20,
-                        backgroundColor: isSelected ? cc.bg : cc.bg + '15',
-                        borderWidth: 2,
-                        borderColor: isSelected ? cc.bg : 'transparent',
-                        gap: 8,
-                      }}
-                    >
-                      <View style={{
-                        width: 44, height: 44, borderRadius: 22,
-                        backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : cc.bg + '25',
-                        justifyContent: 'center', alignItems: 'center',
-                      }}>
-                        <MaterialIcons name={cc.icon as any} size={22} color={isSelected ? '#FFF' : cc.bg} />
-                      </View>
-                      <Text style={{ color: isSelected ? '#FFF' : colorsNav.text, fontWeight: '800', fontSize: 13 }}>{cat}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+              {(type === 'expense' ? FIXED_EXPENSE_CATS : FIXED_INCOME_CATS).map((cat) => {
+                const isSelected = category === cat;
+                const catColors: Record<string, { bg: string; icon: string }> = type === 'expense' ? {
+                  'Comida': { bg: '#F97316', icon: 'restaurant' },
+                  'Transporte': { bg: '#3B82F6', icon: 'directions-car' },
+                  'Hogar': { bg: '#10B981', icon: 'home' },
+                } : {
+                  'Sueldo': { bg: '#10B981', icon: 'payments' },
+                  'Quincena': { bg: '#3B82F6', icon: 'event-available' },
+                  'Otro': { bg: '#8B5CF6', icon: 'more-horiz' },
+                };
+                
+                const cc = catColors[cat] || { bg: typeColor, icon: 'label' };
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    onPress={() => { setCategory(cat); setCategoryModalVisible(false); }}
+                    style={{
+                      flex: 1, minWidth: '28%',
+                      alignItems: 'center',
+                      paddingVertical: 16,
+                      borderRadius: 20,
+                      backgroundColor: isSelected ? cc.bg : cc.bg + '15',
+                      borderWidth: 2,
+                      borderColor: isSelected ? cc.bg : 'transparent',
+                      gap: 8,
+                    }}
+                  >
+                    <View style={{
+                      width: 44, height: 44, borderRadius: 22,
+                      backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : cc.bg + '25',
+                      justifyContent: 'center', alignItems: 'center',
+                    }}>
+                      <MaterialIcons name={cc.icon as any} size={22} color={isSelected ? '#FFF' : cc.bg} />
+                    </View>
+                    <Text style={{ color: isSelected ? '#FFF' : colorsNav.text, fontWeight: '800', fontSize: 13 }}>{cat}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
             {/* Extra categories */}
-            {allCategories.filter(c => !FIXED_EXPENSE_CATS.includes(c) || type !== 'expense').length > 0 && (
+            {allCategories.filter(c => !(type === 'expense' ? FIXED_EXPENSE_CATS : FIXED_INCOME_CATS).includes(c)).length > 0 && (
               <>
                 <Text style={{ color: colorsNav.sub, fontSize: 11, fontWeight: '800', letterSpacing: 0.8, marginBottom: 10, marginTop: 4 }}>
-                  {type === 'expense' ? 'OTRAS CATEGORÍAS' : 'CATEGORÍAS'}
+                  OTRAS CATEGORÍAS
                 </Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-                  {allCategories.filter(c => !FIXED_EXPENSE_CATS.includes(c) || type !== 'expense').map(cat => {
+                  {allCategories.filter(c => !(type === 'expense' ? FIXED_EXPENSE_CATS : FIXED_INCOME_CATS).includes(c)).map(cat => {
                     const isSelected = category === cat;
                     return (
                       <TouchableOpacity
                         key={cat}
                         onPress={() => { setCategory(cat); setCategoryModalVisible(false); }}
-                        onLongPress={() => customCategories.includes(cat) && handleDeleteCustomCategory(cat)}
+                        onLongPress={() => (type === 'income' ? customIncomeCategories : customCategories).includes(cat) && handleDeleteCustomCategory(cat)}
                         style={{
                           paddingHorizontal: 18, paddingVertical: 10,
                           borderRadius: 20,

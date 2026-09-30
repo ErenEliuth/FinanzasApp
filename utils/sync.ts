@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export const SYNC_KEYS = {
     ACCOUNTS: (uid: string) => `@custom_accounts_${uid}`,
     CATEGORIES: (uid: string) => `@user_custom_categories_v2_${uid}`,
+    INCOME_CATEGORIES: (uid: string) => `@user_income_categories_${uid}`,
     CARDS: (uid: string) => `@cards_${uid}`,
     BUDGET_PERIOD: (uid: string) => `@budget_period_${uid}`,
     SMART_SAVINGS: (uid: string) => `@smart_savings_enabled_${uid}`,
@@ -80,7 +81,7 @@ export async function syncUp(userId: string) {
     if (!userId) return;
     try {
         const [
-            name, accounts, categories, cards, budgetPeriod, 
+            name, accounts, categories, incomeCategories, cards, budgetPeriod, 
             smartSavings, theme, currency, hiddenMode, 
             reminders, tutorialSeen, lock,
             invDivs, invSync, invPerf, invAlloc, notifs,
@@ -90,6 +91,7 @@ export async function syncUp(userId: string) {
             AsyncStorage.getItem(SYNC_KEYS.NAME(userId)),
             AsyncStorage.getItem(SYNC_KEYS.ACCOUNTS(userId)),
             AsyncStorage.getItem(SYNC_KEYS.CATEGORIES(userId)),
+            AsyncStorage.getItem(SYNC_KEYS.INCOME_CATEGORIES(userId)),
             AsyncStorage.getItem(SYNC_KEYS.CARDS(userId)),
             AsyncStorage.getItem(SYNC_KEYS.BUDGET_PERIOD(userId)),
             AsyncStorage.getItem(SYNC_KEYS.SMART_SAVINGS(userId)),
@@ -117,6 +119,7 @@ export async function syncUp(userId: string) {
             name,
             accounts: accounts ? JSON.parse(accounts) : [],
             categories: categories ? JSON.parse(categories) : [],
+            income_categories: incomeCategories ? JSON.parse(incomeCategories) : [],
             cards: cards ? JSON.parse(cards) : [],
             budget_period: budgetPeriod,
             smart_savings: smartSavings,
@@ -176,6 +179,7 @@ export async function syncDown(userId: string) {
         if (config.name) tasks.push(AsyncStorage.setItem(SYNC_KEYS.NAME(userId), config.name));
         if (config.accounts) tasks.push(AsyncStorage.setItem(SYNC_KEYS.ACCOUNTS(userId), JSON.stringify(config.accounts)));
         if (config.categories) tasks.push(AsyncStorage.setItem(SYNC_KEYS.CATEGORIES(userId), JSON.stringify(config.categories)));
+        if (config.income_categories) tasks.push(AsyncStorage.setItem(SYNC_KEYS.INCOME_CATEGORIES(userId), JSON.stringify(config.income_categories)));
         if (config.cards) tasks.push(AsyncStorage.setItem(SYNC_KEYS.CARDS(userId), JSON.stringify(config.cards)));
         if (config.budget_period) tasks.push(AsyncStorage.setItem(SYNC_KEYS.BUDGET_PERIOD(userId), config.budget_period));
         if (config.smart_savings) tasks.push(AsyncStorage.setItem(SYNC_KEYS.SMART_SAVINGS(userId), config.smart_savings));
