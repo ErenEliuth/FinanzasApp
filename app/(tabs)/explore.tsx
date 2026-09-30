@@ -29,7 +29,8 @@ import {
 
 // ─── Categorías fijas por defecto ───────────────────────────────────────────
 const DEFAULT_INCOME_CATS = ['Sueldo', 'Pago', 'Nómina'];
-const DEFAULT_EXPENSE_CATS = ['Comida', 'Transporte', 'Salud', 'Hogar'];
+const FIXED_EXPENSE_CATS = ['Comida', 'Transporte', 'Hogar'];
+const DEFAULT_EXPENSE_CATS = ['Comida', 'Transporte', 'Hogar'];
 
 // Sugeridas para cuando el usuario quiere crear nuevas
 const SUGGESTED_EXTRAS = [
@@ -64,6 +65,7 @@ export default function AddTransactionScreen() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newAccountName, setNewAccountName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [installments, setInstallments] = useState('1');
   const [interestRate, setInterestRate] = useState('0');
   const [selectedCardAvailable, setSelectedCardAvailable] = useState<number | null>(null);
@@ -570,7 +572,7 @@ export default function AddTransactionScreen() {
   const allCategories = type === 'income'
     ? Array.from(new Set([...DEFAULT_INCOME_CATS, ...customCategories]))
     : type === 'expense'
-      ? Array.from(new Set([...budgetCategories, ...customCategories, ...(budgetCategories.length === 0 && customCategories.length === 0 ? DEFAULT_EXPENSE_CATS : [])]))
+      ? Array.from(new Set([...FIXED_EXPENSE_CATS, ...budgetCategories.filter(c => !FIXED_EXPENSE_CATS.includes(c)), ...customCategories.filter(c => !FIXED_EXPENSE_CATS.includes(c))]))
       : [];
 
   return (
@@ -694,22 +696,111 @@ export default function AddTransactionScreen() {
 
               {type !== 'ahorro' && type !== 'transfer' && (
                 <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, { color: colorsNav.sub }]}>Categoría</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                    {allCategories.map(cat => (
+                  <TouchableOpacity
+                    onPress={() => setCategoryDropdownOpen(o => !o)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingVertical: 12,
+                      borderBottomWidth: 1,
+                      borderBottomColor: colorsNav.border,
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.sectionTitle, { color: colorsNav.sub, marginBottom: 0 }]}>CATEGORÍA</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={{
+                        color: category ? colorsNav.text : colorsNav.sub,
+                        fontWeight: category ? '700' : '400',
+                        fontSize: 14,
+                      }}>
+                        {category || 'No info'}
+                      </Text>
+                      <Ionicons
+                        name={categoryDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                        size={16}
+                        color={colorsNav.sub}
+                      />
+                    </View>
+                  </TouchableOpacity>
+
+                  {categoryDropdownOpen && (
+                    <View style={{
+                      marginTop: 4,
+                      borderRadius: 16,
+                      overflow: 'hidden',
+                      borderWidth: 1,
+                      borderColor: colorsNav.border,
+                      backgroundColor: colorsNav.card,
+                    }}>
+                      {allCategories.map((cat, i) => {
+                        const isFixed = FIXED_EXPENSE_CATS.includes(cat) && type === 'expense';
+                        const isSelected = category === cat;
+                        return (
+                          <TouchableOpacity
+                            key={cat}
+                            onPress={() => { setCategory(cat); setCategoryDropdownOpen(false); }}
+                            onLongPress={() => !isFixed && customCategories.includes(cat) && handleDeleteCustomCategory(cat)}
+                            style={[{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              paddingHorizontal: 16,
+                              paddingVertical: 14,
+                              borderTopWidth: i === 0 ? 0 : 1,
+                              borderTopColor: colorsNav.border,
+                              backgroundColor: isSelected ? typeColor + '18' : 'transparent',
+                            }]}
+                          >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                              {isFixed && (
+                                <View style={{
+                                  width: 6, height: 6, borderRadius: 3,
+                                  backgroundColor: typeColor,
+                                }} />
+                              )}
+                              <Text style={{
+                                color: isSelected ? typeColor : colorsNav.text,
+                                fontWeight: isSelected ? '800' : '500',
+                                fontSize: 15,
+                              }}>{cat}</Text>
+                              {isFixed && (
+                                <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: typeColor + '20' }}>
+                                  <Text style={{ color: typeColor, fontSize: 9, fontWeight: '800' }}>FIJA</Text>
+                                </View>
+                              )}
+                            </View>
+                            {isSelected && (
+                              <Ionicons name="checkmark" size={18} color={typeColor} />
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
+                      {/* Agregar nueva */}
                       <TouchableOpacity
-                        key={cat}
-                        style={[styles.chip, { backgroundColor: category === cat ? typeColor : colorsNav.card }]}
-                        onPress={() => setCategory(cat)}
-                        onLongPress={() => customCategories.includes(cat) && handleDeleteCustomCategory(cat)}
+                        onPress={() => setModalVisible(true)}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 10,
+                          paddingHorizontal: 16,
+                          paddingVertical: 14,
+                          borderTopWidth: 1,
+                          borderTopColor: colorsNav.border,
+                        }}
                       >
-                        <Text style={[styles.chipText, { color: category === cat ? '#FFF' : colorsNav.text }]}>{cat}</Text>
+                        <View style={{
+                          width: 24, height: 24, borderRadius: 12,
+                          backgroundColor: colorsNav.border,
+                          justifyContent: 'center', alignItems: 'center',
+                        }}>
+                          <Ionicons name="add" size={16} color={colorsNav.sub} />
+                        </View>
+                        <Text style={{ color: colorsNav.sub, fontWeight: '600', fontSize: 14 }}>Agregar categoría...</Text>
                       </TouchableOpacity>
-                    ))}
-                    <TouchableOpacity style={[styles.addChip, { borderColor: colorsNav.border }]} onPress={() => setModalVisible(true)}>
-                      <MaterialIcons name="add" size={20} color={colorsNav.sub} />
-                    </TouchableOpacity>
-                  </ScrollView>
+                    </View>
+                  )}
                 </View>
               )}
 
