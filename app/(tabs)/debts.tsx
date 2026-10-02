@@ -132,7 +132,7 @@ type DebtItem = {
 export default function DebtsScreen() {
     const isFocused = useIsFocused();
     const router = useRouter();
-    const { user, currency, rates, isHidden } = useAuth();
+    const { user, currency, rates, isHidden, cards } = useAuth();
     const colors = useThemeColors();
     const isDark = colors.isDark;
     const fmt = (n: number) => formatCurrency(convertCurrency(n, currency, rates), currency, isHidden);
@@ -811,7 +811,7 @@ export default function DebtsScreen() {
                         <Text style={[styles.miniSub, { color: colors.sub }]}>Pendiente: {fmt(selectedDebt ? selectedDebt.value - selectedDebt.paid : 0)}</Text>
                         {selectedDebt?.debt_type === 'debt' && (<TextInput style={[styles.miniInput, { color: colors.text, borderBottomColor: colors.border }]} value={payAmount} onChangeText={t => setPayAmount(formatInputDisplay(t, currency))} placeholder="Monto a pagar" placeholderTextColor={colors.sub + '40'} keyboardType="decimal-pad" autoFocus />)}
                         <View style={styles.accountRow}>
-                            {accounts.map(acc => (<TouchableOpacity key={acc} onPress={() => setSelectedAccount(acc)} style={[styles.accBtn, { borderColor: colors.border }, selectedAccount === acc && { backgroundColor: colors.accent, borderColor: colors.accent }]}><Text style={[styles.accTxt, { color: selectedAccount === acc ? '#FFF' : colors.sub }]}>{acc}</Text></TouchableOpacity>))}
+                            {accounts.filter(acc => !cards?.some(c => c.name === acc)).map(acc => (<TouchableOpacity key={acc} onPress={() => setSelectedAccount(acc)} style={[styles.accBtn, { borderColor: colors.border }, selectedAccount === acc && { backgroundColor: colors.accent, borderColor: colors.accent }]}><Text style={[styles.accTxt, { color: selectedAccount === acc ? '#FFF' : colors.sub }]}>{acc}</Text></TouchableOpacity>))}
                         </View>
                         <View style={styles.miniActions}>
                             <TouchableOpacity style={[styles.mBtnB, { backgroundColor: colors.bg }]} onPress={() => setPayModalVisible(false)}><Text style={{ color: colors.text, fontWeight: '800' }}>Cerrar</Text></TouchableOpacity>
@@ -917,7 +917,7 @@ export default function DebtsScreen() {
                                         <View style={styles.mField}>
                                             <Text style={[styles.mLabel, { color: colors.sub }]}>¿EN QUÉ CUENTA RECIBISTE EL DINERO?</Text>
                                             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-                                                {accounts.map(acc => (<TouchableOpacity key={acc} onPress={() => setLoanReceiveAccount(acc)} style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: loanReceiveAccount === acc ? colors.accent : colors.bg, borderWidth: 1, borderColor: loanReceiveAccount === acc ? colors.accent : colors.border }}><Text style={{ color: loanReceiveAccount === acc ? '#FFF' : colors.sub, fontWeight: '700', fontSize: 12 }}>{acc}</Text></TouchableOpacity>))}
+                                                {accounts.filter(acc => !cards?.some(c => c.name === acc)).map(acc => (<TouchableOpacity key={acc} onPress={() => setLoanReceiveAccount(acc)} style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: loanReceiveAccount === acc ? colors.accent : colors.bg, borderWidth: 1, borderColor: loanReceiveAccount === acc ? colors.accent : colors.border }}><Text style={{ color: loanReceiveAccount === acc ? '#FFF' : colors.sub, fontWeight: '700', fontSize: 12 }}>{acc}</Text></TouchableOpacity>))}
                                             </View>
                                             <View style={{ backgroundColor: colors.accent + '12', padding: 12, borderRadius: 12, marginTop: 12 }}>
                                                 <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '600' }}>
@@ -998,7 +998,7 @@ export default function DebtsScreen() {
                                     <View style={{ marginBottom: 14 }}>
                                         <Text style={[styles.mLabel, { color: colors.sub, marginBottom: 8 }]}>CUENTA DE PAGO</Text>
                                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                                            {accounts.map(acc => (<TouchableOpacity key={acc} onPress={() => setSelectedPayAccount(acc)} style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: selectedPayAccount === acc ? colors.accent : colors.bg, borderWidth: 1, borderColor: selectedPayAccount === acc ? colors.accent : colors.border }}><Text style={{ color: selectedPayAccount === acc ? '#FFF' : colors.sub, fontWeight: '700', fontSize: 12 }}>{acc}</Text></TouchableOpacity>))}
+                                            {accounts.filter(acc => !cards?.some(c => c.name === acc)).map(acc => (<TouchableOpacity key={acc} onPress={() => setSelectedPayAccount(acc)} style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: selectedPayAccount === acc ? colors.accent : colors.bg, borderWidth: 1, borderColor: selectedPayAccount === acc ? colors.accent : colors.border }}><Text style={{ color: selectedPayAccount === acc ? '#FFF' : colors.sub, fontWeight: '700', fontSize: 12 }}>{acc}</Text></TouchableOpacity>))}
                                         </ScrollView>
                                     </View>
 

@@ -52,7 +52,7 @@ type ExpenseSplit = {
     total: number;
 };
 
-const isIgnoredCategory = (category?: string) => category === 'Ahorro' || category === 'Transferencia';
+const isIgnoredCategory = (category?: string) => category === 'Ahorro' || category === 'Transferencia' || category === 'Tarjetas';
 
 const isExpenseTx = (tx: any) => tx.type === 'expense' && !isIgnoredCategory(tx.category);
 
@@ -372,13 +372,13 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
     // Gastos del mes
     const thisMonthExpenses = transactions.filter(t => {
         const d = parseLocalDate(t.date);
-        return t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && d.getMonth() === currMonth && d.getFullYear() === currYear;
+        return t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && t.category !== 'Tarjetas' && d.getMonth() === currMonth && d.getFullYear() === currYear;
     });
     
     // Ingresos del mes
     const thisMonthIncome = transactions.filter(t => {
         const d = parseLocalDate(t.date);
-        return t.type === 'income' && t.category !== 'Transferencia' && d.getMonth() === currMonth && d.getFullYear() === currYear;
+        return t.type === 'income' && t.category !== 'Transferencia' && t.category !== 'Tarjetas' && d.getMonth() === currMonth && d.getFullYear() === currYear;
     });
 
     const thisMonthExpTotal = thisMonthExpenses.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
@@ -420,12 +420,12 @@ function CategoryStatistics({ transactions, colorsNav, isHidden, currency, rates
         
         const mExp = transactions.filter(t => {
             const td = parseLocalDate(t.date);
-            return t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && td.getMonth() === d.getMonth() && td.getFullYear() === d.getFullYear();
+            return t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && t.category !== 'Tarjetas' && td.getMonth() === d.getMonth() && td.getFullYear() === d.getFullYear();
         }).reduce((s, t) => s + Math.abs(t.amount || 0), 0);
         
         const mInc = transactions.filter(t => {
             const td = parseLocalDate(t.date);
-            return t.type === 'income' && t.category !== 'Transferencia' && td.getMonth() === d.getMonth() && td.getFullYear() === d.getFullYear();
+            return t.type === 'income' && t.category !== 'Transferencia' && t.category !== 'Tarjetas' && td.getMonth() === d.getMonth() && td.getFullYear() === d.getFullYear();
         }).reduce((s, t) => s + Math.abs(t.amount || 0), 0);
 
         chartExpData.push(mExp);
@@ -731,8 +731,8 @@ export default function ProfileScreen() {
         const weekWindow = getWeekWindow(0);
         const weekTxs = getRangeTxs(txs, weekWindow.start, weekWindow.end);
 
-        const wExpenses = weekTxs.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia');
-        const wIncome = weekTxs.filter(t => t.type === 'income' && t.category !== 'Transferencia');
+        const wExpenses = weekTxs.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && t.category !== 'Tarjetas');
+        const wIncome = weekTxs.filter(t => t.type === 'income' && t.category !== 'Transferencia' && t.category !== 'Tarjetas');
 
         setWeeklySpending(wExpenses.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0));
         setWeeklyIncome(wIncome.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0));
@@ -811,7 +811,7 @@ export default function ProfileScreen() {
         if (!date) return [];
         const key = toKey(date);
         return transactions.filter(t => {
-            return toKey(parseLocalDate(t.date)) === key && t.category !== 'Transferencia';
+            return toKey(parseLocalDate(t.date)) === key && t.category !== 'Transferencia' && t.category !== 'Tarjetas';
         });
     };
 

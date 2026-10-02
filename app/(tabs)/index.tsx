@@ -242,7 +242,7 @@ export default function HomeScreen() {
               savTotal -= amount;
               if (isThisMonth) savMes -= amount;
             }
-          } else if (tx.category !== 'Transferencia') {
+          } else if (tx.category !== 'Transferencia' && tx.category !== 'Tarjetas') {
             if (isThisMonth) inc += amount;
           }
           
@@ -251,7 +251,7 @@ export default function HomeScreen() {
           if (tx.category === 'Ahorro') {
             savTotal += amount;
             if (isThisMonth) savMes += amount;
-          } else if (tx.category !== 'Transferencia') {
+          } else if (tx.category !== 'Transferencia' && tx.category !== 'Tarjetas') {
             if (isThisMonth) expGastos += amount;
           }
 
@@ -719,7 +719,7 @@ export default function HomeScreen() {
             savTotal -= amount;
             if (isThisMonth) savMes -= amount;
           }
-        } else if (tx.category !== 'Transferencia') {
+        } else if (tx.category !== 'Transferencia' && tx.category !== 'Tarjetas') {
           if (isThisMonth) inc += amount;
         }
         
@@ -728,7 +728,7 @@ export default function HomeScreen() {
         if (tx.category === 'Ahorro') {
           savTotal += amount;
           if (isThisMonth) savMes += amount;
-        } else if (tx.category !== 'Transferencia') {
+        } else if (tx.category !== 'Transferencia' && tx.category !== 'Tarjetas') {
           if (isThisMonth) expGastos += amount;
         }
 
@@ -773,7 +773,7 @@ export default function HomeScreen() {
     allTransactions.forEach(tx => {
        const txD = parseLocalDate(tx.date);
        if (txD >= ninetyDaysAgo) {
-           if (tx.type === 'expense' && tx.category !== 'Transferencia' && tx.category !== 'Ahorro') {
+           if (tx.type === 'expense' && tx.category !== 'Transferencia' && tx.category !== 'Ahorro' && tx.category !== 'Tarjetas') {
                totalExpenses90d += Number(tx.amount) || 0;
            }
            if (tx.category === 'Ahorro') {

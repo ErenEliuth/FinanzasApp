@@ -175,9 +175,9 @@ export default function GoalsScreen() {
 
             recentTxs.forEach(tx => {
                 const amt = Number(tx.amount) || 0;
-                if (tx.type === 'income' && tx.category !== 'Transferencia' && tx.category !== 'Ahorro') {
+                if (tx.type === 'income' && tx.category !== 'Transferencia' && tx.category !== 'Ahorro' && tx.category !== 'Tarjetas') {
                     incomeSum += amt;
-                } else if (tx.type === 'expense' && tx.category !== 'Transferencia' && tx.category !== 'Ahorro') {
+                } else if (tx.type === 'expense' && tx.category !== 'Transferencia' && tx.category !== 'Ahorro' && tx.category !== 'Tarjetas') {
                     expenseSum += amt;
                 }
             });
@@ -191,9 +191,9 @@ export default function GoalsScreen() {
                 let overallExpense = 0;
                 txs?.forEach(tx => {
                     const amt = Number(tx.amount) || 0;
-                    if (tx.type === 'income' && tx.category !== 'Transferencia' && tx.category !== 'Ahorro') {
+                    if (tx.type === 'income' && tx.category !== 'Transferencia' && tx.category !== 'Ahorro' && tx.category !== 'Tarjetas') {
                         overallIncome += amt;
-                    } else if (tx.type === 'expense' && tx.category !== 'Transferencia' && tx.category !== 'Ahorro') {
+                    } else if (tx.type === 'expense' && tx.category !== 'Transferencia' && tx.category !== 'Ahorro' && tx.category !== 'Tarjetas') {
                         overallExpense += amt;
                     }
                 });

@@ -301,9 +301,9 @@ export default function BudgetsScreen() {
                 const d = new Date(tx.date);
                 const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
                 const amt = Number(tx.amount || 0);
-                if (tx.type === 'income' && tx.category !== 'Transferencia') {
+                if (tx.type === 'income' && tx.category !== 'Transferencia' && tx.category !== 'Tarjetas') {
                     incomeByMonth[monthKey] = (incomeByMonth[monthKey] || 0) + amt;
-                } else if (tx.type === 'expense' && tx.category !== 'Ahorro' && tx.category !== 'Transferencia') {
+                } else if (tx.type === 'expense' && tx.category !== 'Ahorro' && tx.category !== 'Transferencia' && tx.category !== 'Tarjetas') {
                     const cat = tx.category || 'Otros';
                     if (!expensesByCatByMonth[cat]) expensesByCatByMonth[cat] = {};
                     expensesByCatByMonth[cat][monthKey] = (expensesByCatByMonth[cat][monthKey] || 0) + amt;
@@ -338,7 +338,7 @@ export default function BudgetsScreen() {
             let actInc = 0;
             allTxs.forEach(tx => {
                 const amt = Number(tx.amount || 0);
-                if (tx.type === 'income' && tx.category !== 'Transferencia') {
+                if (tx.type === 'income' && tx.category !== 'Transferencia' && tx.category !== 'Tarjetas') {
                     actInc += amt;
                 }
                 bal += tx.type === 'income' ? amt : -amt;

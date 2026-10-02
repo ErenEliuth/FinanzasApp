@@ -117,12 +117,12 @@ export default function HistoryScreen() {
         return d.getMonth() === selectedDate.getMonth() && d.getFullYear() === selectedDate.getFullYear();
     });
 
-    const totalIngresos = filteredTransactions.filter(t => t.type === 'income' && t.category !== 'Transferencia' && t.category !== 'Ahorro').reduce((s, t) => s + t.amount, 0);
-    const totalGastos = filteredTransactions.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia').reduce((s, t) => s + t.amount, 0);
+    const totalIngresos = filteredTransactions.filter(t => t.type === 'income' && t.category !== 'Transferencia' && t.category !== 'Ahorro' && t.category !== 'Tarjetas').reduce((s, t) => s + t.amount, 0);
+    const totalGastos = filteredTransactions.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && t.category !== 'Tarjetas').reduce((s, t) => s + t.amount, 0);
     const totalAhorro = filteredTransactions.filter(t => t.category === 'Ahorro').reduce((s, t) => s + t.amount, 0);
 
     const catTotals: Record<string, number> = {};
-    filteredTransactions.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia').forEach(t => {
+    filteredTransactions.filter(t => t.type === 'expense' && t.category !== 'Ahorro' && t.category !== 'Transferencia' && t.category !== 'Tarjetas').forEach(t => {
         const c = t.category || 'Otros';
         catTotals[c] = (catTotals[c] || 0) + t.amount;
     });
