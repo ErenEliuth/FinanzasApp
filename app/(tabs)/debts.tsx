@@ -160,6 +160,7 @@ export default function DebtsScreen() {
     const [selectedAccount, setSelectedAccount] = useState('Efectivo');
     const [selectedCategory, setSelectedCategory] = useState('Gastos Fijos');
     const [budgetCategories, setBudgetCategories] = useState<string[]>(['Gastos Fijos']);
+    const [fixedPayInstallments, setFixedPayInstallments] = useState(1);
 
     // Loan creation form (3-step)
     const [loanModalVisible, setLoanModalVisible] = useState(false);
@@ -312,24 +313,32 @@ export default function DebtsScreen() {
         const pVal = isFixed ? selectedDebt.value : convertToBase(typedPay, currency, rates);
         if (isNaN(pVal) || pVal <= 0) return;
         const actualPay = isFixed ? pVal : Math.min(pVal, selectedDebt.value - selectedDebt.paid);
+
+        const isCardPayment = cards?.some(c => c.name === selectedAccount);
+
         try {
-            const { data: txs, error: txErr } = await supabase.from('transactions').select('amount, type').eq('user_id', user?.id).eq('account', selectedAccount);
-            if (txErr) throw txErr;
-            if (txs) {
-                const balance = txs.reduce((acc, curr) => {
-                    const amt = Number(curr.amount || 0);
-                    return curr.type === 'income' ? acc + amt : acc - amt;
-                }, 0);
-                if (balance < actualPay) { Alert.alert('Saldo Insuficiente', `Disponible: ${fmt(balance)}\nRequerido: ${fmt(actualPay)}`); return; }
+            if (!isCardPayment) {
+                // Cuenta normal: verificar saldo
+                const { data: txs, error: txErr } = await supabase.from('transactions').select('amount, type').eq('user_id', user?.id).eq('account', selectedAccount);
+                if (txErr) throw txErr;
+                if (txs) {
+                    const balance = txs.reduce((acc, curr) => {
+                        const amt = Number(curr.amount || 0);
+                        return curr.type === 'income' ? acc + amt : acc - amt;
+                    }, 0);
+                    if (balance < actualPay) { Alert.alert('Saldo Insuficiente', `Disponible: ${fmt(balance)}\nRequerido: ${fmt(actualPay)}`); return; }
+                }
             }
-            
+
             const parsed = isFixed ? parseFixedMeta(selectedDebt.client) : null;
             const categoryToUse = isFixed ? (parsed?.category || 'Gastos Fijos') : 'Deudas';
-            const desc = isFixed ? `Pago: ${parsed?.name}` : `Abono: ${selectedDebt.client}`;
-            
+            const parsedName = isFixed ? (parsed?.name || '') : selectedDebt.client;
+            const cuotasInfo = isCardPayment && fixedPayInstallments > 1 ? ` (${fixedPayInstallments} cuotas)` : '';
+            const desc = isFixed ? `Pago: ${parsedName}${cuotasInfo}` : `Abono: ${selectedDebt.client}`;
+
             await supabase.from('debts').update({ paid: selectedDebt.paid + actualPay }).eq('id', selectedDebt.id);
             await supabase.from('transactions').insert([{ user_id: user?.id, amount: actualPay, type: 'expense', category: categoryToUse, description: desc, account: selectedAccount, date: getLocalISOString() }]);
-            setPayModalVisible(false); setPayAmount(''); setSelectedDebt(null); loadData();
+            setPayModalVisible(false); setPayAmount(''); setSelectedDebt(null); setFixedPayInstallments(1); loadData();
         } catch (e) { console.error(e); }
     };
 
@@ -811,10 +820,23 @@ export default function DebtsScreen() {
                         <Text style={[styles.miniSub, { color: colors.sub }]}>Pendiente: {fmt(selectedDebt ? selectedDebt.value - selectedDebt.paid : 0)}</Text>
                         {selectedDebt?.debt_type === 'debt' && (<TextInput style={[styles.miniInput, { color: colors.text, borderBottomColor: colors.border }]} value={payAmount} onChangeText={t => setPayAmount(formatInputDisplay(t, currency))} placeholder="Monto a pagar" placeholderTextColor={colors.sub + '40'} keyboardType="decimal-pad" autoFocus />)}
                         <View style={styles.accountRow}>
-                            {accounts.filter(acc => !cards?.some(c => c.name === acc)).map(acc => (<TouchableOpacity key={acc} onPress={() => setSelectedAccount(acc)} style={[styles.accBtn, { borderColor: colors.border }, selectedAccount === acc && { backgroundColor: colors.accent, borderColor: colors.accent }]}><Text style={[styles.accTxt, { color: selectedAccount === acc ? '#FFF' : colors.sub }]}>{acc}</Text></TouchableOpacity>))}
+                            {accounts.filter(acc => !cards?.some(c => c.name === acc)).map(acc => (<TouchableOpacity key={acc} onPress={() => { setSelectedAccount(acc); setFixedPayInstallments(1); }} style={[styles.accBtn, { borderColor: colors.border }, selectedAccount === acc && { backgroundColor: colors.accent, borderColor: colors.accent }]}><Text style={[styles.accTxt, { color: selectedAccount === acc ? '#FFF' : colors.sub }]}>{acc}</Text></TouchableOpacity>))}
+                            {cards?.map(c => (<TouchableOpacity key={c.name} onPress={() => { setSelectedAccount(c.name); setFixedPayInstallments(1); }} style={[styles.accBtn, { borderColor: colors.border }, selectedAccount === c.name && { backgroundColor: '#7C4DFF', borderColor: '#7C4DFF' }]}><Text style={{ fontSize: 11, fontWeight: '700', color: selectedAccount === c.name ? '#FFF' : colors.sub }}>💳 {c.name}</Text></TouchableOpacity>))}
                         </View>
+                        {cards?.some(c => c.name === selectedAccount) && (
+                            <View style={{ marginTop: 12, width: '100%' }}>
+                                <Text style={{ color: colors.sub, fontSize: 12, fontWeight: '600', marginBottom: 8 }}>Número de cuotas</Text>
+                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                                    {[1, 2, 3, 6, 12, 18, 24, 36].map(n => (
+                                        <TouchableOpacity key={n} onPress={() => setFixedPayInstallments(n)} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, backgroundColor: fixedPayInstallments === n ? '#7C4DFF' : colors.bg, borderWidth: 1, borderColor: fixedPayInstallments === n ? '#7C4DFF' : colors.border }}>
+                                            <Text style={{ color: fixedPayInstallments === n ? '#FFF' : colors.sub, fontWeight: '700', fontSize: 12 }}>{n === 1 ? '1 vez' : `${n}x`}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+                        )}
                         <View style={styles.miniActions}>
-                            <TouchableOpacity style={[styles.mBtnB, { backgroundColor: colors.bg }]} onPress={() => setPayModalVisible(false)}><Text style={{ color: colors.text, fontWeight: '800' }}>Cerrar</Text></TouchableOpacity>
+                            <TouchableOpacity style={[styles.mBtnB, { backgroundColor: colors.bg }]} onPress={() => { setPayModalVisible(false); setFixedPayInstallments(1); }}><Text style={{ color: colors.text, fontWeight: '800' }}>Cerrar</Text></TouchableOpacity>
                             <TouchableOpacity style={[styles.mBtnB, { backgroundColor: colors.accent }]} onPress={handlePayment}><Text style={{ color: '#FFF', fontWeight: '800' }}>Confirmar</Text></TouchableOpacity>
                         </View>
                     </View>

@@ -638,16 +638,17 @@ export default function HomeScreen() {
             const dailyExp: any = {};
             const cats: any = {};
 
+            const cardNamesForFilter = (cards || []).map(c => c?.name || '');
             monthTxs.forEach(tx => {
               const d = parseLocalDate(tx.date).getDate();
               const amt = Number(tx.amount) || 0;
               if (tx.type === 'income') {
-                if (tx.category !== 'Transferencia') {
+                if (tx.category !== 'Transferencia' && !(tx.category === 'Tarjetas' && tx.description?.toLowerCase().includes('saldo inicial')) && !cardNamesForFilter.includes(tx.account)) {
                   income += amt;
                   dailyInc[d] = (dailyInc[d] || 0) + amt;
                 }
               } else if (tx.type === 'expense' || (tx.type === 'transfer' && tx.category === 'Gasto')) {
-                if (tx.category !== 'Transferencia' && tx.category !== 'Ahorro') {
+                if (tx.category !== 'Transferencia' && tx.category !== 'Ahorro' && !(tx.category === 'Tarjetas' && tx.description?.toLowerCase().includes('saldo inicial')) && !cardNamesForFilter.includes(tx.account)) {
                   expenses += amt;
                   dailyExp[d] = (dailyExp[d] || 0) + amt;
                   cats[tx.category] = (cats[tx.category] || 0) + amt;
@@ -665,7 +666,7 @@ export default function HomeScreen() {
             (allTx || []).forEach(tx => {
               const d = parseLocalDate(tx.date);
               if (d.getMonth() === prevPrevMonth && d.getFullYear() === prevPrevYear) {
-                if ((tx.type === 'expense' || tx.category === 'Gasto') && tx.category !== 'Transferencia' && tx.category !== 'Ahorro') {
+                if ((tx.type === 'expense' || tx.category === 'Gasto') && tx.category !== 'Transferencia' && tx.category !== 'Ahorro' && !(tx.category === 'Tarjetas' && tx.description?.toLowerCase().includes('saldo inicial')) && !cardNamesForFilter.includes(tx.account)) {
                   prevExp += Number(tx.amount || 0);
                 }
               }
@@ -701,6 +702,7 @@ export default function HomeScreen() {
 
     let inc = 0, expGastos = 0, savTotal = 0, savMes = 0;
     let accs: any = {};
+    const cardNamesForFilter = (cards || []).map(c => c?.name || '');
 
     allTransactions.forEach(tx => {
       const txDate = parseLocalDate(tx.date);
@@ -719,7 +721,7 @@ export default function HomeScreen() {
             savTotal -= amount;
             if (isThisMonth) savMes -= amount;
           }
-        } else if (tx.category !== 'Transferencia' && tx.category !== 'Tarjetas') {
+        } else if (tx.category !== 'Transferencia' && !(tx.category === 'Tarjetas' && tx.description?.toLowerCase().includes('saldo inicial')) && !cardNamesForFilter.includes(acc)) {
           if (isThisMonth) inc += amount;
         }
         
@@ -728,7 +730,7 @@ export default function HomeScreen() {
         if (tx.category === 'Ahorro') {
           savTotal += amount;
           if (isThisMonth) savMes += amount;
-        } else if (tx.category !== 'Transferencia' && tx.category !== 'Tarjetas') {
+        } else if (tx.category !== 'Transferencia' && !(tx.category === 'Tarjetas' && tx.description?.toLowerCase().includes('saldo inicial')) && !cardNamesForFilter.includes(!tx.account ? 'Efectivo' : tx.account)) {
           if (isThisMonth) expGastos += amount;
         }
 
@@ -738,7 +740,6 @@ export default function HomeScreen() {
       }
     });
 
-    const cardNamesForFilter = (cards || []).map(c => c?.name || '');
     const validAccNames = ['Efectivo', ...(customAccounts || [])];
 
     const activeMoney = Object.entries(accs)
@@ -773,7 +774,7 @@ export default function HomeScreen() {
     allTransactions.forEach(tx => {
        const txD = parseLocalDate(tx.date);
        if (txD >= ninetyDaysAgo) {
-           if (tx.type === 'expense' && tx.category !== 'Transferencia' && tx.category !== 'Ahorro' && tx.category !== 'Tarjetas') {
+           if (tx.type === 'expense' && tx.category !== 'Transferencia' && tx.category !== 'Ahorro' && !(tx.category === 'Tarjetas' && tx.description?.toLowerCase().includes('saldo inicial')) && !cardNamesForFilter.includes(tx.account)) {
                totalExpenses90d += Number(tx.amount) || 0;
            }
            if (tx.category === 'Ahorro') {
